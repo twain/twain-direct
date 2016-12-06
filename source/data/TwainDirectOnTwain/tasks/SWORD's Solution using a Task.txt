@@ -1,0 +1,38 @@
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "exception": "fail",
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "gray8",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 300
+                                                },
+                                                {
+                                                    "value": 600
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "action": "scan"
+        }
+    ]
+}

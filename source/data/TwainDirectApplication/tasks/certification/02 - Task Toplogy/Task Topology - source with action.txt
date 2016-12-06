@@ -1,0 +1,30 @@
+{
+    "category": "Task Topology",
+    "summary": "source with action",
+    "description": "Detect the presence of an action property in a source object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams[0].sources[0].action"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "action": "configure"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Number, no leading zeros",
+    "description": "A JSON integer value cannot have a leading zero.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 33
+        }
+    ]
+}
+***DATADATADATA***
+{"no padding please, or octal": 01}

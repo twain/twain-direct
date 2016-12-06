@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Property, not a colon",
+    "description": "A JSON key must separated from its value by a single colon.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 20
+        }
+    ]
+}
+***DATADATADATA***
+{"we expect a colon", null}

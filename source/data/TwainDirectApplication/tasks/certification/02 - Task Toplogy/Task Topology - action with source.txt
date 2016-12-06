@@ -1,0 +1,22 @@
+{
+    "category": "Task Topology",
+    "summary": "action with source",
+    "description": "Detect the presence of a source property in an action object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].source"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "source": "any"
+        }
+    ]
+}

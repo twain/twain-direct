@@ -1,0 +1,41 @@
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "bw1",
+                                    "attributes": [
+                                        {
+                                            "attribute": "compression",
+                                            "values": [
+                                                {
+                                                    "value": "none"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "vendor": "12345678-1234-1234-1234-123456789ABC",
+                                            "exception": "fail",
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 350
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

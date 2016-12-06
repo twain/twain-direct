@@ -1,0 +1,22 @@
+{
+    "category": "Task Topology",
+    "summary": "streams is object",
+    "description": "Detect if streams is not an array.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": { }
+        }
+    ]
+}

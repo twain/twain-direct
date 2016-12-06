@@ -1,0 +1,34 @@
+{
+    "category": "Task Topology",
+    "summary": "attributes is object",
+    "description": "Detect if attributes is not an array.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams[0].sources[0].pixelFormats[0].attributes"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "pixelFormats": [
+                                {
+                                    "attributes": { }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

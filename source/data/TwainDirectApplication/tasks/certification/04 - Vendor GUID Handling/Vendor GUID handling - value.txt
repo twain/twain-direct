@@ -1,0 +1,48 @@
+{
+    "category": "Vendor GUID Handling",
+    "summary": "value",
+    "description": "Set up a failure condition in a non-existent vendor value.  The scanner must skip this value and select the next one, and since the default exception is to ignore, the task succeeds.  The task reply reports back the action, source, pixelFormat and resolution.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": true
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "vendor": "22423e20-3648-11e5-a2cb-0800200c9a66",
+                                                    "exception": "fail",
+                                                    "value": -200
+                                                },
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

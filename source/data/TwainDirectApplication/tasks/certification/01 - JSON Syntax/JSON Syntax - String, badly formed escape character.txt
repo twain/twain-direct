@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "String, badly formed escape character",
+    "description": "A JSON string uses backslash-#### or a small set of recognized escape characters.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 44
+        }
+    ]
+}
+***DATADATADATA***
+["illegal escape, return to the game grid: \x15"]

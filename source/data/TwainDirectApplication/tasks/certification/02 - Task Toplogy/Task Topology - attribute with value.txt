@@ -1,0 +1,38 @@
+{
+    "category": "Task Topology",
+    "summary": "attribute with value",
+    "description": "Detect the presence of a value property in an attribute object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].value"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "pixelFormats": [
+                                {
+                                    "attributes": [
+                                        {
+                                            "value": "200"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

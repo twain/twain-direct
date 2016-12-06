@@ -1,0 +1,22 @@
+{
+    "category": "Task Topology",
+    "summary": "action with actions",
+    "description": "Detect the presence of an actions array in an action object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].actions"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "actions": [ ]
+        }
+    ]
+}

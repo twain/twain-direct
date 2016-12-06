@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Object, trailing comma",
+    "description": "A JSON object must have valid data between the last comma and the closing curly bracket.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 24
+        }
+    ]
+}
+***DATADATADATA***
+{"we have a tail": true,}

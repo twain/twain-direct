@@ -1,0 +1,26 @@
+{
+    "category": "Task Topology",
+    "summary": "stream with pixelFormat",
+    "description": "Detect the presence of a pixelFormat property in a stream object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams[0].pixelFormat"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "pixelFormat": "rgb24"
+                }
+            ]
+        }
+    ]
+}

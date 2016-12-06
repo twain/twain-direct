@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Array, square bracket after closing square bracket",
+    "description": "A JSON array cannot have a square bracket (or any other textual data) after the closing square bracket.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 28
+        }
+    ]
+}
+***DATADATADATA***
+["too much of a good thing"]]

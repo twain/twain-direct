@@ -1,0 +1,80 @@
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "feeder",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24"
+                                },
+                                {
+                                    "pixelFormat": "gray8"
+                                }
+                            ]
+                        },
+                        {
+                            "source": "feeder",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "bw1"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "sources": [
+                        {
+                            "source": "flatbed",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24"
+                                },
+                                {
+                                    "pixelFormat": "gray8"
+                                }
+                            ]
+                        },
+                        {
+                            "source": "flatbed",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "bw1"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "sources": [
+                        {
+                            "source": "feeder",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "exception": "fail",
+                    "sources": [
+                        {
+                            "source": "flatbed",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

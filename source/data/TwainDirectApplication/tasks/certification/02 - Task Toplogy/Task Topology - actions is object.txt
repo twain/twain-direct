@@ -1,0 +1,17 @@
+{
+    "category": "Task Topology",
+    "summary": "actions is object",
+    "description": "Detect if actions is not an array.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": { }
+}

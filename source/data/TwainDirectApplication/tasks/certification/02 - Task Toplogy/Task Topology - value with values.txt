@@ -1,0 +1,42 @@
+{
+    "category": "Task Topology",
+    "summary": "value with values",
+    "description": "Detect the presence of a values array in a value object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].values"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "pixelFormats": [
+                                {
+                                    "attributes": [
+                                        {
+                                            "values": [
+                                                {
+                                                    "values": [ ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

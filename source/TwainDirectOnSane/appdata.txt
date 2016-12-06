@@ -1,0 +1,5 @@
+{
+    "logLevel": 3,
+    "delayTwainDirectOnSane": 0,
+    "useHttps": "yes"
+}

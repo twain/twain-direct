@@ -1,0 +1,22 @@
+{
+    "category": "Task Topology",
+    "summary": "action with pixelformats",
+    "description": "Detect the presence of a pixelFormats array in an action object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].pixelFormats"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "pixelFormats": [ ]
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+{
+    "actions": #[
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

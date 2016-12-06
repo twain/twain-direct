@@ -1,0 +1,68 @@
+{
+    "category": "Exception Handling",
+    "summary": "NextStream, value",
+    "description": "Demonstrate nextStream in a value (this is implicit an any stream save the last, so we don't have to have an exception property for it to work).  Note that rgb24 in the first stream could trigger the jump to the nextStream, while the second rgb24 must be ignored if it's not supported.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": true,
+            "code": "invalidValue",
+            "jsonKey": "actions[0].streams[0].stream",
+            "value": "stream1"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": -200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

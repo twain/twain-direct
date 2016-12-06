@@ -1,0 +1,19 @@
+{
+    "scanners": [
+        {
+            "twidentity": "TWAIN2 FreeImage Software Scanner",
+            "hostName": "PC0581RF",
+            "serialNumber": "(no serial number)",
+            "source": ["any","flatbed","feeder"],
+            "numberOfSheets": [1,32767],
+            "resolution": [50,100,150,200,300,400,500,600],
+            "height": [50800,355600],
+            "width": [50800,215900],
+            "offsetX": [0,165100],
+            "offsetY": [0,304800],
+            "cropping": ["fixed"],
+            "pixelFormat": ["bw1","gray8","rgb24"],
+            "compression": ["none"]
+        }
+    ]
+}

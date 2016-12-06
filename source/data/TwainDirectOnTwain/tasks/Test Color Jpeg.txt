@@ -1,0 +1,59 @@
+{
+    "locales": [
+        {
+            "locale": "en_usa",
+            "text": "Test Color Jpeg"
+        }
+    ],
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "compression",
+                                            "values": [
+                                                {
+                                                    "value": "jpeg"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 150
+                                                },
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "attribute": "imagecount",
+                                            "values": [
+                                                {
+                                                    "value": 2
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "action": "scan"
+        }
+    ]
+}

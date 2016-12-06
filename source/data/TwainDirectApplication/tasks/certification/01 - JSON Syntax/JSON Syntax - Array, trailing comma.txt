@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Array, trailing comma",
+    "description": "A JSON array must have valid data between the last comma and the closing square bracket.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 18
+        }
+    ]
+}
+***DATADATADATA***
+["we have a tail",]

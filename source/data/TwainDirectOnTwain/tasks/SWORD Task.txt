@@ -1,0 +1,60 @@
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "feeder",
+                            "pixelFormats": [
+                                {
+                                    "exception": "ignore",
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "sources": [
+                        {
+                            "source": "flatBed",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 600
+                                                },
+                                                {
+                                                    "value": 300
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "action": "scan"
+        }
+    ]
+}

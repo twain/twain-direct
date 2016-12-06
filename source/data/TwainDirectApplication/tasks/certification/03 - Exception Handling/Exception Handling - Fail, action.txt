@@ -1,0 +1,54 @@
+{
+    "category": "Exception Handling",
+    "summary": "Fail, action",
+    "description": "Demonstrate a failure in an action.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidValue",
+            "jsonKey": "actions[0].action"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "someWeirdAction",
+            "exception": "fail",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "compression",
+                                            "values": [
+                                                {
+                                                    "value": "none"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

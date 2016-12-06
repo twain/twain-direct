@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Number, e notation sign error on exponent",
+    "description": "A JSON e notation numbers may include a single + or a single - after the e and before the exponent.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 4
+        }
+    ]
+}
+***DATADATADATA***
+[0e+-1]

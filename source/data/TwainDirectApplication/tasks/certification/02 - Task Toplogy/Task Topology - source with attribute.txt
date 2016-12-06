@@ -1,0 +1,30 @@
+{
+    "category": "Task Topology",
+    "summary": "source with attribute",
+    "description": "Detect the presence of a attribute property in a source object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams[0].sources[0].attribute"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "attribute": "resolution"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

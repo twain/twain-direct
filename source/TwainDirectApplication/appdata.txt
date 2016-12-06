@@ -1,0 +1,5 @@
+{
+    "logLevel": 3,
+    "httpTimeoutCommand": 5000,
+    "useHttps": "auto"
+}

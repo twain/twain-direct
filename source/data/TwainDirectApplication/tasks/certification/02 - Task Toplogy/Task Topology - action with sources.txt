@@ -1,0 +1,22 @@
+{
+    "category": "Task Topology",
+    "summary": "action with sources",
+    "description": "Detect the presence of a sources array in an action object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].sources"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "sources": [ ]
+        }
+    ]
+}

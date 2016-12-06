@@ -1,0 +1,188 @@
+Key				Meaning
+~~~~~~~~~~~~~~~~~~~~~~~ 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+blank				no decision yet
+--				not applicable
+*skip*				no plan to support
+propertyName			mapping to TWAIN Direct
+
+
+TWAIN Direct			TWAIN
+~~~~~~~~~~~~~~~~~~~~~~~ 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            			// Base of custom capabilities.
+DONE --         		CAP_CUSTOMBASE = 0x8000,
+
+            			/* all data sources are REQUIRED to support these caps */
+DONE *skip*         		CAP_XFERCOUNT = 0x0001,				// we're using CAP_SHEETCOUNT in 2.4
+
+            			/* image data sources are REQUIRED to support these caps */
+DONE compression        	ICAP_COMPRESSION = 0x0100,
+DONE pixelFormat    		ICAP_PIXELTYPE = 0x0101,
+DONE --            		ICAP_UNITS = 0x0102,				// units are microns or pixels
+DONE --          		ICAP_XFERMECH = 0x0103,				// Communication Manager
+
+	            		// all data sources MAY support these caps.
+??            		CAP_AUTHOR = 0x1000,				// use for PDF/raster?
+DONE	??            		CAP_CAPTION = 0x1001,				// use for PDF/raster?
+DONE	source         		CAP_FEEDERENABLED = 0x1002,			// part of the topology
+DONE            		CAP_FEEDERLOADED = 0x1003,
+DONE            		CAP_TIMEDATE = 0x1004,
+DONE *skip*         		CAP_SUPPORTEDCAPS = 0x1005,			// no matching concept in TWAIN Direct
+DONE *skip*         		CAP_EXTENDEDCAPS = 0x1006,			// no matching concept in TWAIN Direct
+DONE *not now*     		CAP_AUTOFEED = 0x1007,
+DONE *not now*           	CAP_CLEARPAGE = 0x1008,
+DONE *not now*			CAP_FEEDPAGE = 0x1009,
+DONE *not now*            	CAP_REWINDPAGE = 0x100a,
+DONE --          		CAP_INDICATORS = 0x100b,			// no UI to worry about
+DONE *skip*        		CAP_PAPERDETECTABLE = 0x100d,
+DONE --          		CAP_UICONTROLLABLE = 0x100e,			// no UI to worry about
+DONE --          		CAP_DEVICEONLINE = 0x100f,			// Communication Manager
+DONE continuousScan		CAP_AUTOSCAN = 0x1010,
+DONE --            		CAP_THUMBNAILSENABLED = 0x1011,			// Communication Manager (metadata transfer)
+DONE --         		CAP_DUPLEX = 0x1012,				// no matching concept in TWAIN Direct
+DONE source         		CAP_DUPLEXENABLED = 0x1013,			// feeder, feederFront, feederRear
+DONE --          		CAP_ENABLEDSUIONLY = 0x1014,			// no UI to worry about
+DONE --          		CAP_CUSTOMDSDATA = 0x1015,			// this is essentially a TWAIN Direct task
+DONE *skip*         		CAP_ENDORSER = 0x1016,				// deprecated in favor of printer capabilities
+DONE *not now*      		CAP_JOBCONTROL = 0x1017,
+DONE alarms         		CAP_ALARMS = 0x1018,
+DONE alarmVolume    		CAP_ALARMVOLUME = 0x1019,
+DONE *skip*         		CAP_AUTOMATICCAPTURE = 0x101a,			// old camera capability
+DONE *skip*         		CAP_TIMEBEFOREFIRSTCAPTURE = 0x101b,		// old camera capability
+DONE *skip*         		CAP_TIMEBETWEENCAPTURES = 0x101c,		// old camera capability
+DONE *skip*         		CAP_CLEARBUFFERS = 0x101d,			// deprecated
+DONE *skip*         		CAP_MAXBATCHBUFFERS = 0x101e,			// no matching concept in TWAIN Direct
+DONE *skip          		CAP_DEVICETIMEDATE = 0x101f,
+DONE *skip*         		CAP_POWERSUPPLY = 0x1020,
+DONE --            		CAP_CAMERAPREVIEWUI = 0x1021,			// old camera capability
+???GCD???      		CAP_DEVICEEVENT = 0x1022,
+DONE --	   			CAP_SERIALNUMBER = 0x1024,			// communication manager
+DONE *not now*      		CAP_PRINTER = 0x1026,
+DONE *not now*   		CAP_PRINTERENABLED = 0x1027,
+DONE *not now*    		CAP_PRINTERINDEX = 0x1028,
+DONE *not now*   		CAP_PRINTERMODE = 0x1029,
+DONE *not now*   		CAP_PRINTERSTRING = 0x102a,
+DONE *not now*   		CAP_PRINTERSUFFIX = 0x102b,
+???GCD???      		CAP_LANGUAGE = 0x102c,
+DONE *skip*         		CAP_FEEDERALIGNMENT = 0x102d,
+DONE *skip*         		CAP_FEEDERORDER = 0x102e,
+DONE *not now*      		CAP_REACQUIREALLOWED = 0x1030,
+???GCD???      		CAP_BATTERYMINUTES = 0x1032,
+???GCD???      		CAP_BATTERYPERCENTAGE = 0x1033,
+DONE source         		CAP_CAMERASIDE = 0x1034,
+DONE *skip*         		CAP_SEGMENTED = 0x1035,
+DONE source         		CAP_CAMERAENABLED = 0x1036,
+DONE stream         		CAP_CAMERAORDER = 0x1037,
+DONE micr           		CAP_MICRENABLED = 0x1038,			// make sure to add MICR
+DONE *not now*      		CAP_FEEDERPREP = 0x1039,
+DONE *not now*      		CAP_FEEDERPOCKET = 0x103a,
+DONE stream or any  		CAP_AUTOMATICSENSEMEDIUM = 0x103b,
+DONE vendor         		CAP_CUSTOMINTERFACEGUID = 0x103c,
+DONE --            		CAP_SUPPORTEDCAPSSEGMENTUNIQUE = 0x103d,
+DONE --            		CAP_SUPPORTEDDATS = 0x103e,			// no matching concept in TWAIN Direct
+DONE doubleFeedDetection            	CAP_DOUBLEFEEDDETECTION = 0x103f,
+DONE doubleFeedDetectionLength		CAP_DOUBLEFEEDDETECTIONLENGTH = 0x1040,
+DONE doubleFeedDetectionSensitivity	CAP_DOUBLEFEEDDETECTIONSENSITIVITY = 0x1041,
+DONE doubleFeedDetectionResponse	CAP_DOUBLEFEEDDETECTIONRESPONSE = 0x1042,
+DONE sheetHandling  		CAP_PAPERHANDLING = 0x1043,
+DONE --          		CAP_INDICATORSMODE = 0x1044,			// no UI to worry about
+DONE *not now*      		CAP_PRINTERVERTICALOFFSET = 0x1045,
+DONE --            		CAP_POWERSAVETIME = 0x1046,
+DONE *not now*            	CAP_PRINTERCHARROTATION = 0x1047,
+DONE *not now*            	CAP_PRINTERFONTSTYLE = 0x1048,
+DONE *not now*            	CAP_PRINTERINDEXLEADCHAR = 0x1049,
+DONE *not now*            	CAP_PRINTERINDEXMAXVALUE = 0x104A,
+DONE *not now*            	CAP_PRINTERINDEXNUMDIGITS = 0x104B,
+DONE *not now*            	CAP_PRINTERINDEXSTEP = 0x104C,
+DONE *not now*           	CAP_PRINTERINDEXTRIGGER = 0x104D,
+DONE *not now*            	CAP_PRINTERSTRINGPREVIEW = 0x104E,
+
+		       		// image data sources MAY support these caps.
+DONE -            		ICAP_AUTOBRIGHT = 0x1100,
+DONE brightness            	ICAP_BRIGHTNESS = 0x1101,			// 0 - 100, automatic
+DONE contrast            	ICAP_CONTRAST = 0x1103,				// 0 - 100
+DONE *skip* 			ICAP_CUSTHALFTONE = 0x1104,
+DONE --            		ICAP_EXPOSURETIME = 0x1105,
+DONE *not now*      		ICAP_FILTER = 0x1106,
+DONE *skip*         		ICAP_FLASHUSED = 0x1107,			// old camera capability
+DONE --            		ICAP_GAMMA = 0x1108,				// handled in PDF/raster
+DONE bitDepthReduction		ICAP_HALFTONES = 0x1109,			// thresholding, errorDiffusion, dynamic
+DONE *not now*      		ICAP_HIGHLIGHT = 0x110a,
+DONE --            		ICAP_IMAGEFILEFORMAT = 0x110c,			// PDF/raster only
+???GCD???      		ICAP_LAMPSTATE = 0x110d,
+DONE *not now*            	ICAP_LIGHTSOURCE = 0x110e,
+DONE --            		ICAP_ORIENTATION = 0x1110,			// merged with supportedsizes
+DONE --            		ICAP_PHYSICALWIDTH = 0x1111,			// not negotiable
+DONE --            		ICAP_PHYSICALHEIGHT = 0x1112,			// not negotiable
+DONE *not now*            	ICAP_SHADOW = 0x1113,
+DONE --            		ICAP_FRAMES = 0x1114,				// handled with offsetx, offsety, width, height
+DONE --				ICAP_XNATIVERESOLUTION = 0x1116,		
+DONE --           		ICAP_YNATIVERESOLUTION = 0x1117,
+DONE resolution     		ICAP_XRESOLUTION = 0x1118,			// only supporting square aspect ratios at this time
+DONE --            		ICAP_YRESOLUTION = 0x1119,
+DONE --            		ICAP_MAXFRAMES = 0x111a,			// covered by the topology
+DONE --            		ICAP_TILES = 0x111b,				// PDF/raster should allow this, but "ick"
+DONE *skip*         		ICAP_BITORDER = 0x111c,				// Assume little endian
+DONE *skip*         		ICAP_CCITTKFACTOR = 0x111d,			// no support for CCITT Group3
+DONE --            		ICAP_LIGHTPATH = 0x111e,			// Yes / No, (good for all pixelTypes)
+DONE invert        		ICAP_PIXELFLAVOR = 0x111f,
+DONE --            		ICAP_PLANARCHUNKY = 0x1120,			// not needed with PDF/raster
+DONE rotation      		ICAP_ROTATION = 0x1121,				// 0, 90, 180, 270, automatic
+DONE sheetSize     		ICAP_SUPPORTEDSIZES = 0x1122,			// full ISO list
+DONE threshold     		ICAP_THRESHOLD = 0x1123,			// 0 - 255
+DONE --            		ICAP_XSCALING = 0x1124,
+DONE --            		ICAP_YSCALING = 0x1125,
+DONE --            		ICAP_BITORDERCODES = 0x1126,			// not needed with PDF/raster
+DONE --            		ICAP_PIXELFLAVORCODES = 0x1127,			// not needed with PDF/raster
+DONE --            		ICAP_JPEGPIXELTYPE = 0x1128,			// not needed with PDF/raster
+DONE *skip*         		ICAP_TIMEFILL = 0x112a,				// no support for CCITT Group3
+DONE pixelFormat    		ICAP_BITDEPTH = 0x112b,
+DONE --            		ICAP_BITDEPTHREDUCTION = 0x112c,		// look at halftones
+DONE --            		ICAP_UNDEFINEDIMAGESIZE = 0x112d,		// scanner must know all metadata values
+DONE --            		ICAP_IMAGEDATASET = 0x112e,			// old camera capability
+DONE --            		ICAP_EXTIMAGEINFO = 0x112f,			// covered by TWAIN Direct metadata
+DONE --            		ICAP_MINIMUMHEIGHT = 0x1130,
+DONE --            		ICAP_MINIMUMWIDTH = 0x1131,
+DONE discardBlankImage		ICAP_AUTODISCARDBLANKPAGES = 0x1134,		// yes / no
+DONE flipRotation   		ICAP_FLIPROTATION = 0x1136,			// book / fanFold
+DONE barcodes     		ICAP_BARCODEDETECTIONENABLED = 0x1137,		// array of barcodes, all, [] for none (add metadata)
+DONE --            		ICAP_SUPPORTEDBARCODETYPES = 0x1138,
+DONE --            		ICAP_BARCODEMAXSEARCHPRIORITIES = 0x1139,
+DONE --            		ICAP_BARCODESEARCHPRIORITIES = 0x113a,
+DONE --            		ICAP_BARCODESEARCHMODE = 0x113b,
+DONE --            		ICAP_BARCODEMAXRETRIES = 0x113c,
+DONE --            		ICAP_BARCODETIMEOUT = 0x113d,
+DONE --            		ICAP_ZOOMFACTOR = 0x113e,
+DONE patchCodes            	ICAP_PATCHCODEDETECTIONENABLED = 0x113f,	// array of patchCodes, all, [] for none (add metadata)
+DONE --            		ICAP_SUPPORTEDPATCHCODETYPES = 0x1140,
+DONE --            		ICAP_PATCHCODEMAXSEARCHPRIORITIES = 0x1141,
+DONE --            		ICAP_PATCHCODESEARCHPRIORITIES = 0x1142,
+DONE --            		ICAP_PATCHCODESEARCHMODE = 0x1143,
+DONE --            		ICAP_PATCHCODEMAXRETRIES = 0x1144,
+DONE --            		ICAP_PATCHCODETIMEOUT = 0x1145,
+DONE *skip*         		ICAP_FLASHUSED2 = 0x1146,			// old camera capability
+DONE *not now*            	ICAP_IMAGEFILTER = 0x1147,
+DONE noiseFilter    		ICAP_NOISEFILTER = 0x1148,
+DONE overScan            	ICAP_OVERSCAN = 0x1149,				// yes / no
+DONE cropping       		ICAP_AUTOMATICBORDERDETECTION = 0x1150,		// automatic, fixed, relative, lengthOnly??
+DONE automaticDeskew		ICAP_AUTOMATICDESKEW = 0x1151,			// yes / no
+DONE --            		ICAP_AUTOMATICROTATE = 0x1152,			// see rotation
+DONE jpegQuality            	ICAP_JPEGQUALITY = 0x1153,			// 0 - 100
+DONE --            		ICAP_FEEDERTYPE = 0x1154,
+DONE --            		ICAP_ICCPROFILE = 0x1155,
+DONE automaticSize		ICAP_AUTOSIZE = 0x1156,
+DONE --            		ICAP_AUTOMATICCROPUSESFRAME = 0x1157,		// if crop is set for automatic, scanner can use it
+DONE --            		ICAP_AUTOMATICLENGTHDETECTION = 0x1158,
+DONE --            		ICAP_AUTOMATICCOLORENABLED = 0x1159,		// handled by topology
+DONE --            		ICAP_AUTOMATICCOLORNONCOLORPIXELTYPE = 0x115a,	// handled by topology
+DONE uncalibratedImages		ICAP_COLORMANAGEMENTENABLED = 0x115b,		// yes / no (maximize dynamic range)
+DONE imageMerge            	ICAP_IMAGEMERGE = 0x115c,			// none, frontOnTop...
+DONE imageMergeHeightThreshold 	ICAP_IMAGEMERGEHEIGHTTHRESHOLD = 0x115d,	// 1 - n
+DONE --            		ICAP_SUPPORTEDEXTIMAGEINFO = 0x115e,		// no matching concept in TWAIN Direct
+DONE --            		ICAP_FILMTYPE = 0x115f,
+DONE mirror			ICAP_MIRROR = 0x1160,				// none / vertical / horizontal
+DONE --            		ICAP_JPEGSUBSAMPLING = 0x1161,
+
+            			// image data sources MAY support these audio caps.
+DONE --          		ACAP_XFERMECH = 0x1202				// Communication Manager (but no plan to do audio)
+

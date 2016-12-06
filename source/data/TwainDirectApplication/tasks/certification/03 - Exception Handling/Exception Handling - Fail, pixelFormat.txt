@@ -1,0 +1,54 @@
+{
+    "category": "Exception Handling",
+    "summary": "Fail, pixelFormat",
+    "description": "Demonstrate a failure in a pixelFormat.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidValue",
+            "jsonKey": "actions[0].streams[0].sources[0].pixelFormats[0].pixelFormat"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "exception": "fail",
+                                    "pixelFormat": "someWeirdPixelFormat",
+                                    "attributes": [
+                                        {
+                                            "attribute": "compression",
+                                            "values": [
+                                                {
+                                                    "value": "none"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "category": "Task Topology",
+    "summary": "stream with values",
+    "description": "Detect the presence of a values array in a stream object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].streams[0].values"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "values": [ ]
+                }
+            ]
+        }
+    ]
+}

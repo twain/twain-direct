@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Misc, must terminate with matching bracket",
+    "description": "A JSON array or object must terminate with the right kind of matching bracket.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 11
+        }
+    ]
+}
+***DATADATADATA***
+["mismatch"}

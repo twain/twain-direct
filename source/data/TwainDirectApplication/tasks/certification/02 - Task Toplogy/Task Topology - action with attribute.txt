@@ -1,0 +1,22 @@
+{
+    "category": "Task Topology",
+    "summary": "action with attribute",
+    "description": "Detect the presence of an attribute property in an action object.",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": false,
+            "code": "invalidTwainDirectTask",
+            "jsonKey": "actions[0].attribute"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "attribute": "resolution"
+        }
+    ]
+}

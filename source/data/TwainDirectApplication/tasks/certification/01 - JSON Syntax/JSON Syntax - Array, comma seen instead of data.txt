@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Array, comma seen instead of data",
+    "description": "A JSON array cannot include a comma as data, one solution is to put the second comma inside of quotes.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 30
+        }
+    ]
+}
+***DATADATADATA***
+["we have consecutive commas",,]

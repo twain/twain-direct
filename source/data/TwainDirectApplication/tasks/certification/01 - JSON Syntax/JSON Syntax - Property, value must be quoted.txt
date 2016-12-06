@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Property, value must be quoted",
+    "description": "A JSON value must appear in quotes.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 30
+        }
+    ]
+}
+***DATADATADATA***
+{"we are not a calculator": 1 + 2}

@@ -1,0 +1,7 @@
+{
+    "scanner": {
+        "twainLocalTy": "TWAIN2 FreeImage Software Scanner",
+        "twainLocalSerialNumber": "(no serial number)",
+        "twainLocalNote": "TWAIN2 FreeImage Software Scanner"
+    }
+}

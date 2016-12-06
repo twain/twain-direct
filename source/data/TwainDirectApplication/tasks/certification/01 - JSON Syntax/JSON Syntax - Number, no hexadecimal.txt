@@ -1,0 +1,15 @@
+{
+    "category": "JSON Syntax",
+    "summary": "Number, no hexadecimal",
+    "description": "A JSON integer cannot be in a radix other than base 10.",
+    "expects": [
+        {
+            "path": "",
+            "success": false,
+            "code": "invalidJson",
+            "characterOffset": 19
+        }
+    ]
+}
+***DATADATADATA***
+{"no hex please": 0x1}

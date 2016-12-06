@@ -1,0 +1,31 @@
+{
+    "category": "Exercises",
+    "summary": "override stream name",
+    "description": "Demonstrate that the stream value can be overridden (that it's not forced to be 'stream#').",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": true,
+            "jsonKey": "actions[0].streams[0].stream",
+            "value": "override"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "stream": "override",
+                    "sources": [
+                        {
+                            "source": "any"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

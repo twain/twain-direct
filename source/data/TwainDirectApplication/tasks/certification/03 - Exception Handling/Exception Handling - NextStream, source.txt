@@ -1,0 +1,68 @@
+{
+    "category": "Exception Handling",
+    "summary": "NextStream, source",
+    "description": "Demonstrate nextStream in a source (this is implicit an any stream save the last, so we don't have to have an exception property for it to work).",
+    "expects": [
+        {
+            "path": "actions[0]",
+            "success": true,
+            "code": "invalidValue",
+            "jsonKey": "actions[0].streams[0].stream",
+            "value": "stream1"
+        }
+    ]
+}
+***DATADATADATA***
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "someWeirdSource",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "resolution",
+                                            "values": [
+                                                {
+                                                    "value": 200
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
