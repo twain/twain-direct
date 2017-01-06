@@ -67,7 +67,7 @@ namespace TwainDirectOnTwain
         {
             // Remember this stuff...
             m_szWriteFolder = a_szWriteFolder;
-            m_szImageFolder = Path.Combine(m_szWriteFolder, "images");
+            m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
             m_szIpc = a_szIpc;
             m_iPid = a_iPid;
             m_runinuithreaddelegate = a_runinuithreaddelegate;
@@ -586,7 +586,6 @@ namespace TwainDirectOnTwain
             if (a_bitmap == null)
             {
                 TWAINWorkingGroup.Log.Info("ReportImage: no more images: " + a_szDg + " " + a_szDat + " " + a_szMsg + " " + a_sts);
-                m_blProcessing = false;
                 m_blCancel = false;
                 SetEndOfJob(a_sts);
                 return (TWAINCSToolkit.MSG.RESET);
@@ -607,7 +606,6 @@ namespace TwainDirectOnTwain
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: DatImageinfo failed...");
-                    m_blProcessing = false;
                     m_blCancel = false;
                     SetEndOfJob(sts);
                     return (TWAINCSToolkit.MSG.RESET);
@@ -629,16 +627,15 @@ namespace TwainDirectOnTwain
             }
 
             // Make sure we have a folder...
-            if (!Directory.Exists(m_szImageFolder))
+            if (!Directory.Exists(m_szImagesFolder))
             {
                 try
                 {
-                    Directory.CreateDirectory(m_szImageFolder);
+                    Directory.CreateDirectory(m_szImagesFolder);
                 }
                 catch
                 {
-                    TWAINWorkingGroup.Log.Error("ReportImage: unable to create the image destination directory: " + m_szImageFolder);
-                    m_blProcessing = false;
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to create the image destination directory: " + m_szImagesFolder);
                     m_blCancel = false;
                     SetEndOfJob(TWAIN.STS.FILENOTFOUND);
                     return (TWAINCSToolkit.MSG.RESET);
@@ -647,7 +644,7 @@ namespace TwainDirectOnTwain
 
             // Create a filename...
             m_iImageCount += 1;
-            szFile = m_szImageFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
+            szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
 
             // Cleanup...
             if (File.Exists(szFile + ".pdf"))
@@ -677,7 +674,6 @@ namespace TwainDirectOnTwain
             if (!blSuccess)
             {
                 TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile);
-                m_blProcessing = false;
                 m_blCancel = false;
                 SetEndOfJob(TWAIN.STS.FILEWRITEERROR);
                 return (TWAINCSToolkit.MSG.RESET);
@@ -688,7 +684,6 @@ namespace TwainDirectOnTwain
             switch (twimageinfo.Compression)
             {
                 default:
-                    m_blProcessing = false;
                     m_blCancel = false;
                     SetEndOfJob(TWAIN.STS.BADVALUE);
                     return (TWAINCSToolkit.MSG.RESET);
@@ -708,7 +703,6 @@ namespace TwainDirectOnTwain
             switch (twimageinfo.PixelType)
             {
                 default:
-                    m_blProcessing = false;
                     m_blCancel = false;
                     SetEndOfJob(TWAIN.STS.BADVALUE);
                     return (TWAINCSToolkit.MSG.RESET);
@@ -788,16 +782,16 @@ namespace TwainDirectOnTwain
             string szMeta = "";
 
             // TWAIN Direct metadata.address begin...
-            szMeta += "        \"metadataTwainDirect\": {\n";
+            szMeta += "\"metadata\":{";
 
             // TWAIN Direct metadata.address begin...
-            szMeta += "            \"address\": {\n";
+            szMeta += "\"address\":{";
 
             // Imagecount (counts images)...
-            szMeta += "                \"imageNumber\": " + m_iImageCount + ",\n";
+            szMeta += "\"imageNumber\":" + m_iImageCount + ",";
 
             // Sheetcount (counts sheets, including ones lost to blank image dropout)...
-            szMeta += "                \"sheetNumber\": " + "1" + ",\n";
+            szMeta += "\"sheetNumber\":" + "1" + ",";
 
             // The image came from a flatbed or a feederFront or whatever...
             szMeta += "                \"source\": \"" + szSource + "\"\n";
@@ -872,7 +866,6 @@ namespace TwainDirectOnTwain
             catch
             {
                 TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
-                m_blProcessing = false;
                 m_blCancel = false;
                 SetEndOfJob(TWAIN.STS.FILEWRITEERROR);
                 return (TWAINCSToolkit.MSG.RESET);
@@ -886,7 +879,6 @@ namespace TwainDirectOnTwain
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: DatPendingxfers failed...");
-                    m_blProcessing = false;
                     m_blCancel = false;
                     SetEndOfJob(sts);
                     return (TWAINCSToolkit.MSG.STOPFEEDER);
@@ -902,7 +894,7 @@ namespace TwainDirectOnTwain
         /// </summary>
         private void ClearEndOfJob()
         {
-            string szEndOfJob = Path.Combine(m_szImageFolder, "endOfJob");
+            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
             if (File.Exists(szEndOfJob))
             {
                 File.Delete(szEndOfJob);
@@ -915,7 +907,7 @@ namespace TwainDirectOnTwain
         /// <param name="a_sts">status of end of job</param>
         private void SetEndOfJob(TWAINCSToolkit.STS a_sts)
         {
-            string szEndOfJob = Path.Combine(m_szImageFolder, "endOfJob");
+            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
             if (!File.Exists(szEndOfJob))
             {
                 File.WriteAllText
@@ -934,7 +926,7 @@ namespace TwainDirectOnTwain
         /// <param name="a_sts">status of end of job</param>
         private void SetEndOfJob(TWAIN.STS a_sts)
         {
-            string szEndOfJob = Path.Combine(m_szImageFolder, "endOfJob");
+            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
             if (!File.Exists(szEndOfJob))
             {
                 File.WriteAllText
@@ -1066,11 +1058,11 @@ namespace TwainDirectOnTwain
             }
 
             // Make sure the images folder is empty...
-            if (Directory.Exists(m_szImageFolder))
+            if (Directory.Exists(m_szImagesFolder))
             {
-                Directory.Delete(m_szImageFolder,true);
+                Directory.Delete(m_szImagesFolder,true);
             }
-            Directory.CreateDirectory(m_szImageFolder);
+            Directory.CreateDirectory(m_szImagesFolder);
 
             // Build the reply...
             DeviceScannerGetSession(out a_szSession);
@@ -1102,7 +1094,7 @@ namespace TwainDirectOnTwain
             // and we have images, then we'll report them...
             try
             {
-                aszFiles = Directory.GetFiles(m_szImageFolder, "img*.meta");
+                aszFiles = Directory.GetFiles(m_szImagesFolder, "img*.meta");
             }
             catch
             {
@@ -1128,7 +1120,7 @@ namespace TwainDirectOnTwain
             m_blEndOfJob = false;
             try
             {
-                aszFiles = Directory.GetFiles(m_szImageFolder, "endOfJob");
+                aszFiles = Directory.GetFiles(m_szImagesFolder, "endOfJob");
             }
             catch
             {
@@ -1185,7 +1177,7 @@ namespace TwainDirectOnTwain
         {
             // Build the filename...
             int iImageBlock = int.Parse(a_jsonlookup.Get("imageBlockNum"));
-            a_szImageFile = Path.Combine(m_szImageFolder, "img" + iImageBlock.ToString("D6"));
+            a_szImageFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6"));
             a_szImageFile = a_szImageFile.Replace("\\", "/");
             if (File.Exists(a_szImageFile + ".pdf"))
             {
@@ -1199,7 +1191,7 @@ namespace TwainDirectOnTwain
             }
 
             // Build the metadata filename, if we don't have one, we have a problem...
-            a_szMetadataFile = Path.Combine(m_szImageFolder, "img" + iImageBlock.ToString("D6") + ".meta");
+            a_szMetadataFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".meta");
             a_szMetadataFile = a_szMetadataFile.Replace("\\", "/");
             if (!File.Exists(a_szMetadataFile))
             {
@@ -1256,11 +1248,11 @@ namespace TwainDirectOnTwain
                 BitmapData bitmapdata;
 
                 // This is the file we'll use...
-                a_szThumbnailFile = Path.Combine(m_szImageFolder, "img" + iImageBlock.ToString("D6") + "_thumbnail.pdf");
+                a_szThumbnailFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + "_thumbnail.pdf");
                 a_szThumbnailFile = a_szThumbnailFile.Replace("\\", "/");
 
                 // The name of our image file...
-                szPdf = Path.Combine(m_szImageFolder, "img" + iImageBlock.ToString("D6") + ".pdf");
+                szPdf = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".pdf");
                 szPdf = szPdf.Replace("\\", "/");
 
                 // Convert the image to a thumbnail...
@@ -1300,7 +1292,7 @@ namespace TwainDirectOnTwain
             }
 
             // Build the metadata filename, if we don't have one, we have a problem...
-            a_szMetadataFile = Path.Combine(m_szImageFolder, "img" + iImageBlock.ToString("D6") + ".meta");
+            a_szMetadataFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".meta");
             a_szMetadataFile = a_szMetadataFile.Replace("\\", "/");
             if (!File.Exists(a_szMetadataFile))
             {
@@ -1338,7 +1330,7 @@ namespace TwainDirectOnTwain
             for (ii = iImageBlockNum; ii <= iLastImageBlockNum; ii++)
             {
                 // Build the filename...
-                szFile = Path.Combine(m_szImageFolder, "img" + ii.ToString("D6"));
+                szFile = Path.Combine(m_szImagesFolder, "img" + ii.ToString("D6"));
                 if (File.Exists(szFile + ".meta"))
                 {
                     File.Delete(szFile + ".meta");
@@ -1467,9 +1459,6 @@ namespace TwainDirectOnTwain
                 return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
             }
 
-            // Make a note of our success...
-            m_blProcessing = true;
-
             // Build the reply...
             DeviceScannerGetSession(out a_szSession);
 
@@ -1563,14 +1552,9 @@ namespace TwainDirectOnTwain
         private string m_szWriteFolder;
 
         /// <summary>
-        /// Make a note that the application capabilities have been set...
-        /// </summary>
-        private bool m_blSetAppCapabilities;
-
-        /// <summary>
         /// The folder under the writer folder where we keep images...
         /// </summary>
-        private string m_szImageFolder;
+        private string m_szImagesFolder;
 
         /// <summary>
         /// The path to our interprocess communication files...
@@ -1592,11 +1576,6 @@ namespace TwainDirectOnTwain
         /// True if we have support for DAT_EXTIMAGEINFO...
         /// </summary>
         private bool m_blExtImageInfo;
-
-        /// <summary>
-        /// We're processing images...
-        /// </summary>
-        private bool m_blProcessing;
 
         /// <summary>
         /// Count of images for each TwainStartCapturing call, the

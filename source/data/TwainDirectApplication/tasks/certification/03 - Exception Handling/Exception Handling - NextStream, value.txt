@@ -6,7 +6,6 @@
         {
             "path": "actions[0]",
             "success": true,
-            "code": "invalidValue",
             "jsonKey": "actions[0].streams[0].stream",
             "value": "stream1"
         }

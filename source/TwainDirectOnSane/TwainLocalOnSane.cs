@@ -59,7 +59,7 @@ namespace TwainDirectOnSane
         {
             // Remember this stuff...
             m_szWriteFolder = a_szWriteFolder;
-            m_szImageFolder = Path.Combine(m_szWriteFolder, "images");
+            m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
             m_szIpc = a_szIpc;
             m_iPid = a_iPid;
 
@@ -68,18 +68,11 @@ namespace TwainDirectOnSane
             m_iHeight = 0;
             m_iOffsetX = 0;
             m_iOffsetY = 0;
-            m_szCompression = "";
-            m_szCropping = "";
             m_szNumberOfSheets = "";
             m_szPixelFormat = "";
             m_szResolution = "";
-            m_szSource = "";
             //m_blFlatbed = false;
             //m_blDuplex = false;
-
-            // Default to true, so that we report a source of "any"
-            // until the caller overrides it...
-            m_blUseSourceAny = true;
 
             // Make the compiler happy until we sort this out...
             m_szScanner = "";
@@ -134,12 +127,9 @@ namespace TwainDirectOnSane
             JsonLookup jsonlookupCapabilities = new JsonLookup();
             jsonlookupCapabilities.Load(szCapabilities, out lResponseCharacterOffset);
             m_szTwainDriverIdentity = jsonlookupCapabilities.Get("scanners[0].sane");
-            m_szCompression = "none";
-            m_szCropping = "fixed";
             m_szNumberOfSheets = jsonlookupCapabilities.Get("scanners[0].numberOfSheets[1]");
             m_szPixelFormat = jsonlookupCapabilities.Get("scanners[0].pixelFormat[0]");
             m_szResolution = jsonlookupCapabilities.Get("scanners[0].resolution[0]");
-            m_szSource = "any";
 
             m_iOffsetX = 0;
             m_iOffsetY = 0;
@@ -589,7 +579,7 @@ namespace TwainDirectOnSane
         /// </summary>
         private void ClearEndOfJob()
         {
-            string szEndOfJob = Path.Combine(m_szImageFolder, "endOfJob");
+            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
             if (File.Exists(szEndOfJob))
             {
                 File.Delete(szEndOfJob);
@@ -602,7 +592,7 @@ namespace TwainDirectOnSane
         /// <param name="a_sts">status of end of job</param>
         private void SetEndOfJob(string a_szStatus)
         {
-            string szEndOfJob = Path.Combine(m_szImageFolder, "endOfJob");
+            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
             if (!File.Exists(szEndOfJob))
             {
                 File.WriteAllText
@@ -680,11 +670,11 @@ namespace TwainDirectOnSane
         private TwainLocalScanner.ApiStatus DeviceScannerCreateSession(JsonLookup a_jsonlookup, out string a_szSession)
         {
             // Make sure the images folder is empty...
-            if (Directory.Exists(m_szImageFolder))
+            if (Directory.Exists(m_szImagesFolder))
             {
-                Directory.Delete(m_szImageFolder,true);
+                Directory.Delete(m_szImagesFolder,true);
             }
-            Directory.CreateDirectory(m_szImageFolder);
+            Directory.CreateDirectory(m_szImagesFolder);
 
             // Build the reply...
             DeviceScannerGetSession(out a_szSession);
@@ -716,7 +706,7 @@ namespace TwainDirectOnSane
             // and we have images, then we'll report them...
             try
             {
-                aszFiles = Directory.GetFiles(m_szImageFolder, "img*.meta");
+                aszFiles = Directory.GetFiles(m_szImagesFolder, "img*.meta");
             }
             catch
             {
@@ -742,7 +732,7 @@ namespace TwainDirectOnSane
             m_blEndOfJob = false;
             try
             {
-                aszFiles = Directory.GetFiles(m_szImageFolder, "endOfJob");
+                aszFiles = Directory.GetFiles(m_szImagesFolder, "endOfJob");
             }
             catch
             {
@@ -792,7 +782,7 @@ namespace TwainDirectOnSane
         {
             // Build the filename...
             int iImageBlock = int.Parse(a_jsonlookup.Get("imageBlockNum"));
-            a_szImageBlock = Path.Combine(m_szImageFolder, "img" + iImageBlock.ToString("D6"));
+            a_szImageBlock = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6"));
             a_szImageBlock = a_szImageBlock.Replace("\\", "/");
             if (File.Exists(a_szImageBlock + ".pdf"))
             {
@@ -818,7 +808,7 @@ namespace TwainDirectOnSane
         {
             // Build the filename...
             int iImageBlock = int.Parse(a_jsonlookup.Get("imageBlockNum"));
-            a_szMetadata = Path.Combine(m_szImageFolder, "img" + iImageBlock.ToString("D6") + ".meta");
+            a_szMetadata = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".meta");
             a_szMetadata = a_szMetadata.Replace("\\", "/");
             if (!File.Exists(a_szMetadata))
             {
@@ -854,7 +844,7 @@ namespace TwainDirectOnSane
             for (ii = iImageBlockNum; ii <= iLastImageBlockNum; ii++)
             {
                 // Build the filename...
-                szFile = Path.Combine(m_szImageFolder, "img" + ii.ToString("D6"));
+                szFile = Path.Combine(m_szImagesFolder, "img" + ii.ToString("D6"));
                 if (File.Exists(szFile + ".meta"))
                 {
                     File.Delete(szFile + ".meta");
@@ -986,7 +976,7 @@ namespace TwainDirectOnSane
                 }
 
                 // Get the list of files...
-                string[] aszPnm = Directory.GetFiles(m_szImageFolder);
+                string[] aszPnm = Directory.GetFiles(m_szImagesFolder);
                 if (aszPnm == null)
                 {
                     if (blEndOfJob)
@@ -1113,7 +1103,7 @@ namespace TwainDirectOnSane
                     szMeta = "";
 
                     // TWAIN Direct metadata.address begin...
-                    szMeta += "        \"metadataTwainDirect\": {\n";
+                    szMeta += "        \"metadata\": {\n";
 
                     // TWAIN Direct metadata.address begin...
                     szMeta += "            \"address\": {\n";
@@ -1352,7 +1342,7 @@ namespace TwainDirectOnSane
         /// <summary>
         /// The folder under the writer folder where we keep images...
         /// </summary>
-        private string m_szImageFolder;
+        private string m_szImagesFolder;
 
         /// <summary>
         /// The path to our interprocess communication files...
@@ -1405,13 +1395,9 @@ namespace TwainDirectOnSane
         private int m_iHeight;
         private int m_iOffsetX;
         private int m_iOffsetY;
-        private string m_szCompression;
-        private string m_szCropping;
         private string m_szNumberOfSheets;
         private string m_szPixelFormat;
         private string m_szResolution;
-        private string m_szSource;
-        private bool m_blUseSourceAny;
 
         #endregion
     }

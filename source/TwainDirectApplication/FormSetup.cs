@@ -200,12 +200,12 @@ namespace TwainDirectApplication
                 Log.Error("No task found, so returning simple task...");
                 return
                 (
-                    "{\n" +
-                    "    \"actions\": [\n" +
-                    "        {\n" +
-                    "            \"action\": \"scan\"\n" +
-                    "        }\n" +
-                    "    ]\n" +
+                    "{" +
+                    "\"actions\":[" +
+                    "{" +
+                    "\"action\":\"configure\"" +
+                    "}" +
+                    "]" +
                     "}"
                 );
             }

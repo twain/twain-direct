@@ -29,13 +29,33 @@ if "%1" == "" (
 :: Handle the command
 ::
 if "%command%" == "add" (
-	netsh http add urlacl "url=http://+:55555/privet/info/" "sddl=D:(A;;GX;;;BU)"  
-	netsh http add urlacl "url=http://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;BU)"
+	:: clear old stuff first
+	echo Setting up for HTTP access
+        netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+        netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete sslcert ipport=0.0.0.0:55555 > NUL
+	:: now add the new stuff
+	netsh http add urlacl "url=http://+:55555/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
+	netsh http add urlacl "url=http://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;S-1-2-0)"
 ) else (
 	if "%command%" == "adds" (
-		netsh http add urlacl "url=https://+:55555/privet/info/" "sddl=D:(A;;GX;;;BU)"
-		netsh http add urlacl "url=https://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;BU)"
-		netsh http add sslcert ipport=0.0.0.0:55555 certhash=873803d4c42c2359fd985c1c1f833d60bd5db154 appid={aadc29dd-1d81-42f5-873d-5d89cf6e58ee} certstore=my
+		echo Setting up for HTTPS access
+		:: clear old stuff first
+        	netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+        	netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
+		netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
+		netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
+		netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
+		netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
+		netsh http delete sslcert ipport=0.0.0.0:55555 > NUL
+		:: now add the new stuff
+		netsh http add urlacl "url=https://+:55555/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
+		netsh http add urlacl "url=https://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;S-1-2-0)"
+		netsh http add sslcert ipport=0.0.0.0:55555 certhash=4bcc20ab03c592d4db80ad2b4cce893f9c54ab30 appid={aadc29dd-1d81-42f5-873d-5d89cf6e58ee} certstore=my
 	) else (
 		if "%command%" == "show" (
 			netsh http show urlacl "url=http://+:55555/privet/info/"
@@ -45,6 +65,8 @@ if "%command%" == "add" (
 			netsh http show sslcert ipport=0.0.0.0:55555
 		) else (
 			if "%command%" == "remove" (
+        			netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+        			netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
 				netsh http delete urlacl "url=http://+:55555/privet/info/"
 				netsh http delete urlacl "url=https://+:55555/privet/info/"
 				netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/"

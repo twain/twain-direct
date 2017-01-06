@@ -117,7 +117,7 @@ namespace TwainDirectSupport
             // Add our prefixes, we'll accept input from any address on this port
             // which is how the advertisement should work.  We won't register
             // until the service is up...
-            if (Config.Get("useHttps", "false") == "false")
+            if (Config.Get("useHttps", "no") == "no")
             {
                 szUri = @"http://+:" + m_iPort + "/privet/info/";
                 m_httplistener.Prefixes.Add(szUri);

@@ -55,9 +55,9 @@ namespace TwainDirectSupport
         #region Public Methods...
 
         /// <summary>
-        /// Use this constructor when we're initiating a command, which
-        /// doesn't happen with TWAIN Local, but will happen with TWAIN
-        /// Cloud.
+        /// Use this constructor when initiating a command on the client
+        /// side, which means we don't have any JSON data or an HTTP
+        /// context...
         /// </summary>
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
         /// <param name="a_jsonlookup">the command data or null</param>
@@ -68,11 +68,10 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
-        /// Initialize the object in response a received command which is
-        /// what we mostly doing.  The JsonLookup object contains the
-        /// command.  The HttpListenerContext is the object that delivered
-        /// the command, and what we use to get our HttpListenerResponse
-        /// object for making our reply.
+        /// Initialize the object in response a received command. The
+        /// JsonLookup object contains the command.  The HttpListenerContext
+        /// is the object that delivered the command, and what we use to get
+        /// our HttpListenerResponse object for making our reply.
         /// </summary>
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
         /// <param name="a_jsonlookup">the command data or null</param>
@@ -103,6 +102,20 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
+        /// Check if an event should be discarded...
+        /// </summary>
+        /// <param name="a_lSessionRevision">current session revisio</param>
+        /// <returns></returns>
+        public bool DiscardEvent(long a_lSessionRevision)
+        {
+            if (a_lSessionRevision >= m_lSessionRevision)
+            {
+                return (true);
+            }
+            return (false);
+        }
+
+        /// <summary>
         /// Return the task reply...
         /// </summary>
         /// <returns>task reply in base64</returns>
@@ -118,15 +131,6 @@ namespace TwainDirectSupport
         public string GetUri()
         {
             return (m_szUri);
-        }
-
-        /// <summary>
-        /// Set the URI for this command...
-        /// </summary>
-        /// <param name="a_szUri">uri to remember</param>
-        public void SetUri(string a_szUri)
-        {
-            m_szUri = a_szUri;
         }
 
         /// <summary>
@@ -165,6 +169,15 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
+        /// Return the end of job flag for this command...
+        /// </summary>
+        /// <returns>true if we're out of images</returns>
+        public HttpReplyStyle GetHttpReplyStyle()
+        {
+            return (m_httpreplystyle);
+        }
+
+        /// <summary>
         /// Return the HTTP headers...
         /// </summary>
         /// <returns>string with all the data or null</returns>
@@ -187,6 +200,21 @@ namespace TwainDirectSupport
             {
                 return (m_szImageBlocks.Replace(" ",""));
             }
+        }
+
+        public long GetSessionRevision()
+        {
+            return (m_lSessionRevision);
+        }
+
+        public string GetEventName()
+        {
+            return (m_szEventName);
+        }
+
+        public string GetSessionState()
+        {
+            return (m_szSessionState);
         }
 
         /// <summary>
@@ -252,15 +280,40 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
-        /// The command we've sent...
+        /// Store session information at the time of this event...
         /// </summary>
-        /// <returns>the command string</returns>
+        /// <param name="a_szEventName"></param>
+        /// <param name="a_szSessionState"></param>
+        /// <param name="a_lSessionRevision"></param>
+        public void SetEvent(string a_szEventName, string a_szSessionState, long a_lSessionRevision)
+        {
+            m_szEventName = a_szEventName;
+            m_szSessionState = a_szSessionState;
+            m_lSessionRevision = a_lSessionRevision;
+        }
+
+        /// <summary>
+        /// Get our caller's hostname...
+        /// </summary>
+        /// <returns>the hostname</returns>
+        public string HttpGetCallersHostName()
+        {
+            return (m_httplistenercontext.Request.UserHostName);
+        }
+
+        /// <summary>
+        /// Get the send command...
+        /// </summary>
+        /// <returns>send command</returns>
         public string GetSendCommand()
         {
             return (m_szSendCommand);
         }
 
-        // Get the parameters task...
+        /// <summary>
+        /// Get the parameters task...
+        /// </summary>
+        /// <returns>get the task</returns>
         public string GetParametersTask()
         {
             return (m_jsonlookupReceived.Get("params.task"));
@@ -295,6 +348,26 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
+        /// Return the status from an HttpRequest...
+        /// </summary>
+        /// <returns>status</returns>
+        public WebExceptionStatus HttpStatus()
+        {
+            return (m_webexceptionstatus);
+        }
+
+        /// <summary>
+        /// Abort a pending HTTP request...
+        /// </summary>
+        public void HttpAbort()
+        {
+            if (m_httplistenerresponse != null)
+            {
+                m_httplistenerresponse.Abort();
+            }
+        }
+
+        /// <summary>
         /// We make decisions about how the HttpRequestAttempt went.  It keeps
         /// the code cleaner this way, especially for the retry loop.
         /// </summary>
@@ -306,6 +379,7 @@ namespace TwainDirectSupport
         /// <param name="a_szUploadFile">upload data from a file</param>
         /// <param name="a_szOutputFile">redirect the data to a file</param>
         /// <param name="a_iTimeout">timeout in milliseconds</param>
+        /// <param name="a_httpreplystyle">how the reply will be handled</param>
         /// <returns>true on success</returns>
         public bool HttpRequest
         (
@@ -317,55 +391,440 @@ namespace TwainDirectSupport
             string a_szData,
             string a_szUploadFile,
             string a_szOutputFile,
-            int a_iTimeout
+            int a_iTimeout,
+            HttpReplyStyle a_httpreplystyle
         )
         {
-            int iStatus;
-            int iRetry;
-            bool blSuccess;
+            //
+            // The WebRequest method of doing stuff...
+            //
+            int iXfer = 0;
+            bool blMultipart = false;
+            long lContentLength;
+            long lImageBlockSeperator;
+            string szUri;
+            string szReply = "";
+            string szOutputHeaders = "";
+            string szMultipartBoundary = "";
+            byte[] abBuffer;
+            Stream stream = null;
+            HttpWebRequest httpwebrequest;
+            HttpWebResponse httpwebresponse;
 
-            // Loopy...
-            // TDB: the retry count is 1 for TWAIN Local, a larger
-            // number might be better for TWAIN Cloud...
-            for (iRetry = 0; iRetry < 1; iRetry++)
+            // Log a reason for being here...
+            Log.Info("");
+            Log.Info("http>>> " + a_szReason);
+
+            // Squirrel these away...
+            m_szUri = a_szUri;
+            m_szSendCommand = a_szData;
+            m_httpreplystyle = a_httpreplystyle;
+
+            // Pick our URI, prefix the default server, unless the user gives us an override...
+            //
+            // A silent exception occurs on Webrequest.Create(), it's trapped and doesn't seem
+            // to cause any problems, but on Windows if you want to make it go away, then add
+            // the next two items to the registry (you only need Wow6432Node on 64-bit OSes)...
+            //   HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework\LegacyWPADSupport dword:00000000
+            //   HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\LegacyWPADSupport dword:00000000
+            if (a_szUri == null)
             {
-                // Make an attempt...
-                blSuccess = HttpRequestAttempt(a_szReason, a_dnssddeviceinfo, a_szUri, a_szMethod, a_aszHeader, a_szData, a_szUploadFile, a_szOutputFile, a_iTimeout);
+                Log.Error(a_szReason + ": a_szUri is null");
+                return (false);
+            }
+            if ((a_szUri != "/privet/info") && (a_szUri != "/privet/twaindirect/session"))
+            {
+                Log.Error(a_szReason + ": bad a_szUri '" + a_szUri + "'");
+                return (false);
+            }
 
-                // The attempt was good, so bail...
-                if (blSuccess)
+            // For HTTPS we need a certificate for the DNS domain, I have no idea if
+            // this can be done with a numeric IP, but I know it can be done with a
+            // DNS name, and since we're doing mDNS in this case, we want the link local
+            // name of the device...
+            if (m_blUseHttps)
+            {
+                szUri = "https://" + a_dnssddeviceinfo.szLinkLocal + ":" + a_dnssddeviceinfo.lPort + a_szUri;
+            }
+
+            // Build the URI, for HTTP we can use the IP address to get to our device...
+            else
+            {
+                szUri = "http://" + a_dnssddeviceinfo.szIpv4 + ":" + a_dnssddeviceinfo.lPort + a_szUri;
+            }
+            Log.Info("http>>> " + a_szMethod + " uri " + szUri);
+            httpwebrequest = (HttpWebRequest)WebRequest.Create(szUri);
+            httpwebrequest.AllowWriteStreamBuffering = true;
+            httpwebrequest.KeepAlive = true;
+
+            // Pick our method...
+            httpwebrequest.Method = a_szMethod;
+
+            // Add any headers we have laying about...
+            if (a_aszHeader != null)
+            {
+                httpwebrequest.Headers = new WebHeaderCollection();
+                foreach (string szHeader in a_aszHeader)
                 {
-                    return (true);
-                }
-
-                // Try to get the code, bail if no joy...
-                if (!int.TryParse(m_szResponseHttpStatus, out iStatus))
-                {
-                    return (false);
-                }
-
-                // See if we can retry this...
-                switch (iStatus)
-                {
-                    // No idea...so scoot...
-                    default:
-                        return (false);
-
-                    // Things we can try to recover from...
-                    case 500: // Internal server error
-                    case 502: // Bad gateway
-                    case 503: // Service unavailable
-                    case 504: // Gateway timeout
-                    case 598: // Network read timeout error (Microsoft)
-                    case 599: // Network connect timeout error (Microsoft)
-                        Log.Error("http>>> retrying command, attempt #" + (iRetry + 1));
-                        Thread.Sleep(1000);
-                        continue;
+                    Log.Verbose("http>>> sendheader " + szHeader);
+                    if (szHeader.ToLower().StartsWith("content-type: "))
+                    {
+                        httpwebrequest.ContentType = szHeader.Remove(0, 14);
+                    }
+                    else if (szHeader.ToLower().StartsWith("content-length: "))
+                    {
+                        httpwebrequest.ContentLength = long.Parse(szHeader.Remove(0, 16));
+                    }
+                    else
+                    {
+                        httpwebrequest.Headers.Add(szHeader);
+                    }
                 }
             }
 
-            // Oh well...
-            return (false);
+            // Timeout...
+            httpwebrequest.Timeout = a_iTimeout;
+
+            // Data we're sending...
+            if (a_szData != null)
+            {
+                Log.Info("http>>> senddata " + a_szData);
+                byte[] abData = null;
+                abData = Encoding.UTF8.GetBytes(a_szData);
+                httpwebrequest.ContentLength = abData.Length;
+                if (httpwebrequest.ContentType == null)
+                {
+                    httpwebrequest.ContentType = "application/x-www-form-urlencoded";
+                }
+                try
+                {
+                    stream = httpwebrequest.GetRequestStream();
+                    stream.Write(abData, 0, abData.Length);
+                    stream.Close();
+                }
+                catch (WebException webexception)
+                {
+                    return (CollectWebException("SendData", webexception));
+                }
+                catch (Exception exception)
+                {
+                    return (CollectException("SendData", exception));
+                }
+            }
+
+            // We're sending a file...
+            if (a_szUploadFile != null)
+            {
+                Log.Info("http>>> sendfile " + a_szUploadFile);
+                byte[] abFile = File.ReadAllBytes(a_szUploadFile);
+                httpwebrequest.ContentLength = abFile.Length;
+                try
+                {
+                    stream = httpwebrequest.GetRequestStream();
+                    stream.Write(abFile, 0, abFile.Length);
+                    stream.Close();
+                }
+                catch (WebException webexception)
+                {
+                    return (CollectWebException("SendFile", webexception));
+                }
+                catch (Exception exception)
+                {
+                    return (CollectException("SendFile", exception));
+                }
+            }
+
+            // Get the response...
+            try
+            {
+                httpwebresponse = (HttpWebResponse)httpwebrequest.GetResponse();
+            }
+            catch (WebException webexception)
+            {
+                return (CollectWebException("GetResponse", webexception));
+            }
+            catch (Exception exception)
+            {
+                return (CollectException("GetResponse", exception));
+            }
+
+            // Extra header for waitForEvents...
+            if (a_httpreplystyle == HttpReplyStyle.Event)
+            {
+                Log.Info(" ");
+                Log.Info("http>>> " + a_szReason + " (response)");
+            }
+
+            // Dump the status...
+            Log.Info("http>>> recvsts " + (int)(HttpStatusCode)httpwebresponse.StatusCode + " (" + httpwebresponse.StatusCode + ")");
+
+            // Dump the header info...
+            if ((Log.GetLevel() & 0x0002) != 0)
+            {
+                // Get each header and display each value.
+                NameValueCollection namevaluecollectionHeaders = httpwebresponse.Headers;
+                foreach (string szKey in namevaluecollectionHeaders.AllKeys)
+                {
+                    string[] aszValues = namevaluecollectionHeaders.GetValues(szKey);
+                    if (aszValues.Length == 0)
+                    {
+                        Log.Verbose("http>>> recvheader " + szKey + ": n/a");
+                    }
+                    else
+                    {
+                        foreach (string szValue in aszValues)
+                        {
+                            Log.Verbose("http>>> recvheader " + szKey + ": " + szValue);
+                        }
+                    }
+                }
+            }
+
+            // Get the content length...
+            lContentLength = httpwebresponse.ContentLength;
+
+            // Get the content type...
+            string sz = httpwebresponse.ContentType;
+            ContentType contenttype = new ContentType(httpwebresponse.ContentType);
+
+            // application/json with UTF-8 is okay...
+            if (contenttype.MediaType.ToLowerInvariant() == "application/json")
+            {
+                if (contenttype.CharSet.ToLowerInvariant() != "utf-8")
+                {
+                    Log.Error(a_szReason + ": application/json charset is not utf-8..." + contenttype.CharSet);
+                    return (false);
+                }
+                blMultipart = false;
+            }
+
+            // multipart/mixed is okay, with a boundary...
+            else if (contenttype.MediaType.ToLowerInvariant() == "multipart/mixed")
+            {
+                blMultipart = true;
+                szMultipartBoundary = contenttype.Boundary;
+                if (string.IsNullOrEmpty(szMultipartBoundary))
+                {
+                    Log.Error(a_szReason + ": bad multipart/mixed boundary...");
+                    return (false);
+                }
+                szMultipartBoundary = "--" + szMultipartBoundary;
+            }
+
+            // Anything else is bad...
+            else
+            {
+                Log.Error(a_szReason + ": unknown http content-type..." + contenttype.MediaType);
+                return (false);
+            }
+
+            // Get the data coming back...
+            try
+            {
+                // Grab the stream...
+                stream = httpwebresponse.GetResponseStream();
+
+                // All we have is just a JSON reply...
+                if (!blMultipart)
+                {
+                    abBuffer = new byte[0x65536];
+                    while (true)
+                    {
+                        int iRead = stream.Read(abBuffer, iXfer, abBuffer.Length - iXfer);
+                        if (iRead == 0)
+                        {
+                            break;
+                        }
+                        iXfer += iRead;
+                        if ((iRead > 0) && (iXfer >= abBuffer.Length))
+                        {
+                            byte[] ab = new byte[abBuffer.Length + 65536];
+                            abBuffer.CopyTo(ab, 0);
+                            abBuffer = ab;
+                        }
+                    }
+                    if (iXfer > 0)
+                    {
+                        byte[] abReply = new byte[iXfer];
+                        Buffer.BlockCopy(abBuffer, 0, abReply, 0, iXfer);
+                        if (a_szOutputFile == null)
+                        {
+                            szReply = Encoding.UTF8.GetString(abReply, 0, iXfer);
+                        }
+                        else
+                        {
+                            File.WriteAllBytes(a_szOutputFile, abReply);
+                        }
+                    }
+                }
+
+                // Else we have a multipart response, and we need to collect
+                // and separate all of the data.  The data will arrive in the
+                // following format, repeating as necessary to send all of
+                // the data...
+                //
+                // boundary + \n
+                // Content-Type: ... + \n
+                // Content-Length: # + \n
+                // \n
+                // data \n
+                // \n
+                // boundary + \n
+                // Content-Type: ... + \n
+                // Content-Length: # + \n
+                // \n
+                // data \n
+                // \n
+                //
+                // Getting the newlines right is part of the challenge...
+                //
+                // In theory we could have several parts, but in practice
+                // we're only expecting two:  JSON and an image.  If we are
+                // getting metadata, it will be the JSON and the thumbnail.
+                // If we are reading an imageblock, it will be the JSON and
+                // the image.  We'll try to set things up so that we can
+                // get more bits if needed.  But I suspect that two segments
+                // be easiest to support both for standard and vendor
+                // specific behavior...
+                else
+                {
+                    // Give us a large buffer to work with, convert the multipart
+                    // boundary to a byte array, and init other stuff...
+                    abBuffer = new byte[0x200000];
+                    byte[] abImageBlockSeperator = Encoding.UTF8.GetBytes(szMultipartBoundary);
+                    bool blFirstPass = true;
+                    FileStream filestreamOutputFile = null;
+
+                    // If we received a file, this is where we'll dump the second part...
+                    if (!string.IsNullOrEmpty(a_szOutputFile))
+                    {
+                        try
+                        {
+                            // Create the empty file...
+                            if (!File.Exists(a_szOutputFile))
+                            {
+                                File.Delete(a_szOutputFile);
+                            }
+                            filestreamOutputFile = new FileStream(a_szOutputFile, FileMode.Create);
+                        }
+                        catch (Exception exception)
+                        {
+                            Log.Error(a_szReason + ": http delete or streamwriter failed..." + a_szOutputFile + ", " + exception.Message);
+                            return (false);
+                        }
+                    }
+
+                    // Loopy on reading the data...
+                    while (true)
+                    {
+                        // Read some data...
+                        int iRead = stream.Read(abBuffer, iXfer, abBuffer.Length - iXfer);
+
+                        // No more data, we can bail...
+                        if (iRead == 0)
+                        {
+                            if (filestreamOutputFile != null)
+                            {
+                                filestreamOutputFile.Close();
+                                filestreamOutputFile = null;
+                            }
+                            break;
+                        }
+
+                        // Handle the JSON / data split...
+                        if (blFirstPass)
+                        {
+                            // Don't come back into here...
+                            blFirstPass = false;
+
+                            // Keep a tally of the number of bytes we've read...
+                            iXfer += iRead;
+
+                            // We must find our first separator at the 0th index...
+                            lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, 0, iXfer);
+                            if (lImageBlockSeperator != 0)
+                            {
+                                Log.Error("HttprRequestAttempt: failed to find first multipart boundary string...");
+                                if (filestreamOutputFile != null)
+                                {
+                                    filestreamOutputFile.Close();
+                                    filestreamOutputFile = null;
+                                }
+                                return (false);
+                            }
+
+                            // Find the second seperator...
+                            lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, abImageBlockSeperator.Length, iXfer);
+
+                            // If we didn't find it, convert all of the data, otherwise
+                            // just convert what we found...
+                            if (lImageBlockSeperator < 0)
+                            {
+                                szReply = Encoding.UTF8.GetString(abBuffer, 0, (int)abBuffer.Length);
+                            }
+                            else
+                            {
+                                szReply = Encoding.UTF8.GetString(abBuffer, 0, (int)lImageBlockSeperator);
+                            }
+
+                            // Remove everything up to the first {, and after the last }...
+                            long lCurly = szReply.IndexOf('{');
+                            if (lCurly > 0)
+                            {
+                                szReply = szReply.Remove(0, (int)lCurly);
+                            }
+                            lCurly = szReply.LastIndexOf('}');
+                            if ((lCurly > 0) && (lCurly < (szReply.Length - 1)))
+                            {
+                                szReply = szReply.Remove((int)(lCurly + 1));
+                            }
+
+                            iXfer = 0;
+                        }
+                        else
+                        {
+                            filestreamOutputFile.Write(abBuffer, 0, iRead);
+                        }
+
+                        // Grow the buffer, if needed...
+                        if ((iRead > 0) && (iXfer >= abBuffer.Length))
+                        {
+                            byte[] ab = new byte[abBuffer.Length + 0x200000];
+                            abBuffer.CopyTo(ab, 0);
+                            abBuffer = ab;
+                        }
+                    }
+                }
+            }
+            catch (WebException webexception)
+            {
+                return (CollectWebException("GetData", webexception));
+            }
+            catch (Exception exception)
+            {
+                return (CollectException("GetData", exception));
+            }
+
+            // Cleanup...
+            httpwebresponse.Close();
+
+            // Log what we got back......
+            Log.Info("http>>> recvdata " + szReply);
+
+            // All done, final check...
+            m_szResponseHttpStatus = ((int)httpwebresponse.StatusCode).ToString();
+            m_szResponseHeaders = szOutputHeaders;
+            m_szResponseData = szReply;
+            if (int.Parse(m_szResponseHttpStatus) >= 300)
+            {
+                Log.Error(a_szReason + " failed...");
+                Log.Error("http>>> sts " + m_szResponseHttpStatus);
+                Log.Error("http>>> stsreason " + a_szReason + " (" + m_szResponseData + ")");
+                m_blResponseSuccess = false;
+                return (false);
+            }
+            m_blResponseSuccess = true;
+            return (true);
         }
 
         /// <summary>
@@ -428,8 +887,8 @@ namespace TwainDirectSupport
 
             // Protect ourselves from weirdness, we'll only get here if HttpRespond
             // was previously called for this command.  The most likely goof-up is a
-            // call to ReturnError() after already responding (please don't ask how
-            // I know this)...
+            // call to DeviceReturnError() after already responding (please don't
+            // ask how I know this)...
             if (m_httplistenerresponse == null)
             {
                 Log.Error("HttpRespond: second attempt to respond to a command, spank the programmer...");
@@ -537,7 +996,6 @@ namespace TwainDirectSupport
 
                 // Cleanup...
                 filestreamThumbnail.Close();
-                filestreamThumbnail.Dispose();
                 filestreamThumbnail = null;
             }
 
@@ -637,7 +1095,6 @@ namespace TwainDirectSupport
 
                 // Cleanup...
                 filestreamImage.Close();
-                filestreamImage.Dispose();
                 filestreamImage = null;
             }
 
@@ -661,15 +1118,6 @@ namespace TwainDirectSupport
         public bool IsLocal()
         {
             return (m_httplistenerresponse != null);
-        }
-
-        /// <summary>
-        /// The command we've sent
-        /// </summary>
-        /// <param name="a_szSendCommand">the command string</param>
-        public void SetSendCommand(string a_szSendCommand)
-        {
-            m_szSendCommand = a_szSendCommand;
         }
 
         /// <summary>
@@ -740,6 +1188,26 @@ namespace TwainDirectSupport
         /// </summary>
         public const string c_szNonHttpError = "999999999";
 
+        /// <summary>
+        /// To make it a bit more obvious how the RESTful API commands complete
+        /// we have this enumeration.  There are two basic flavors: a simple reply
+        /// comes back immediately with the requested data.  A life cycle command
+        /// goes through one or more states from queued, to inProgress, to done
+        /// (any maybe others along the way).
+        /// 
+        /// We also have life cycle commands that return with a session object
+        /// payload.  We could auto-detect that, but it seems to make more sense
+        /// to know that we expect to find it, because it's not supposed to be
+        /// optional...
+        /// </summary>
+        public enum HttpReplyStyle
+        {
+            Undefined,
+            SimpleReply,
+            SimpleReplyWithSessionInfo,
+            Event
+        }
+
         #endregion
 
 
@@ -756,9 +1224,17 @@ namespace TwainDirectSupport
         /// <returns>true on success</returns>
         private bool CollectException(string a_szReason, Exception a_exception)
         {
-            Log.Error(a_szReason + " failed...");
-            Log.Error("http>>> sts " + -1);
-            Log.Error("http>>> stsreason " + a_szReason + " (" + a_exception.Message + ")");
+            // If it's an event, it's probably our thread being aborted...
+            // COR_E_THREADABORTED / 0x80131530 / -2146233040
+            if (    (m_httpreplystyle != HttpReplyStyle.Event)
+                ||  (System.Runtime.InteropServices.Marshal.GetHRForException(a_exception) != -2146233040))
+            {
+                Log.Error(a_szReason + " failed...");
+                Log.Error("http>>> sts -1");
+                Log.Error("http>>> stsreason " + a_szReason + " (" + a_exception.Message + ")");
+            }
+
+            // Handle it...
             m_blResponseSuccess = false;
             m_szResponseHttpStatus = ApiCmd.c_szNonHttpError;
             m_szResponseCode = "communicationError";
@@ -782,12 +1258,42 @@ namespace TwainDirectSupport
             // Validate...
             if ((a_webexception == null) || ((HttpWebResponse)a_webexception.Response == null))
             {
-                Log.Error("http>>> sts web exception (null exception data)");
-                Log.Error("http>>> stsreason " + a_szReason);
+                // If it's an event, it's probably our connect being forcibly closed...
+                // COR_E_INVALIDOPERATION / 0x80131509 / -2146233079
+                if (    (m_httpreplystyle != HttpReplyStyle.Event)
+                    || (System.Runtime.InteropServices.Marshal.GetHRForException(a_webexception) != -2146233079))
+                {
+                    Log.Error("http>>> sts web exception (null exception data)");
+                    Log.Error("http>>> stsreason " + a_szReason);
+                }
+
+                // Handle it...
                 m_blResponseSuccess = false;
-                m_szResponseHttpStatus = "503";
-                m_szResponseCode = "communicationError";
-                m_szResponseText = "(no data)";
+                if (a_webexception != null)
+                {
+                    switch (a_webexception.Status)
+                    {
+                        default:
+                            m_webexceptionstatus = a_webexception.Status;
+                            m_szResponseHttpStatus = "0";
+                            m_szResponseCode = "critical";
+                            m_szResponseText = "(no data)";
+                            break;
+                        case WebExceptionStatus.Timeout:
+                            m_webexceptionstatus = a_webexception.Status;
+                            m_szResponseHttpStatus = "0";
+                            m_szResponseCode = "timeout";
+                            m_szResponseText = "(no data)";
+                            break;
+                    }
+                }
+                else
+                {
+                    m_webexceptionstatus = WebExceptionStatus.SendFailure;
+                    m_szResponseHttpStatus = "503";
+                    m_szResponseCode = "critical";
+                    m_szResponseText = "(no data)";
+                }
                 return (false);
             }
 
@@ -809,70 +1315,12 @@ namespace TwainDirectSupport
 
             // Return it...
             m_blResponseSuccess = false;
+            m_webexceptionstatus = a_webexception.Status;
             m_szResponseHttpStatus = iStatuscode.ToString();
-            m_szResponseCode = "communicationError";
+            m_szResponseCode = "critical";
             m_szResponseText = szStatusData;
             return (false);
         }
-
-        /// <summary>
-        /// Use this for any access to CURL...
-        /// </summary>
-        /// <param name="a_szArguments">reason to log</param>
-        /// <param name="a_szArguments">data to send</param>
-        /// <returns></returns>
-#if USECURL
-        private string Curl(string a_szReason, string a_szArguments)
-        {
-            bool blRedirectStandardOutput = !a_szArguments.Contains(" -o ");
-
-            // Log what we're sending...
-            Log.Info("");
-            Log.Info("http>>> " + a_szReason);
-            Log.Info("http>>> send" + " " + a_szArguments);
-
-            // Start the child process.
-            Process p = new Process();
-
-            // Redirect the output stream of the child process.
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.CreateNoWindow = true;
-            p.StartInfo.RedirectStandardOutput = blRedirectStandardOutput;
-            p.StartInfo.RedirectStandardError = true;
-            p.StartInfo.FileName = "curl";
-            p.StartInfo.Arguments = a_szArguments;
-            p.Start();
-
-            // Grab the standard output, then wait for the
-            // process to fully exit...
-            string szReply = "";
-            string szError = "";
-            if (blRedirectStandardOutput)
-            {
-                szReply = p.StandardOutput.ReadToEnd();
-            }
-            szError = p.StandardError.ReadToEnd();
-            p.WaitForExit();
-
-            // Sort out the result...
-            // TBD: we need a lot more smarts in this area to capture
-            // errors, catagorize them, get a human readable bit of
-            // text and work out a response.  In most cases we'll just
-            // have to flat out fail, but the more data we can give to
-            // the user, the better off they'll be...
-            if ((szReply == "") && (szError != ""))
-            {
-                szReply = "ERROR: " + szError;
-                //m_szLastHttpError = szError;
-            }
-
-            // Log what we got back......
-            Log.Info("http>>> recv " + szReply);
-
-            // Return the data as a string (it's usually json)...
-            return (szReply);
-        }
-#endif
 
         /// <summary>
         /// Initialize the command with the JSON we received, we use this
@@ -896,7 +1344,10 @@ namespace TwainDirectSupport
                 // https= field in the mDNS TXT record...
                 default:
                 case "auto":
-                    m_blUseHttps = a_dnssddeviceinfo.blTxtHttps;
+                    if (a_dnssddeviceinfo != null)
+                    {
+                        m_blUseHttps = a_dnssddeviceinfo.blTxtHttps;
+                    }
                     break;
 
                 // Force us to use HTTPS, use this to guarantee
@@ -1013,473 +1464,6 @@ namespace TwainDirectSupport
             return (-1);
         }
 
-        /// <summary>
-        /// Funnel all of our http requests through a single function, so that we have
-        /// a centralized way of accessing our target.
-        /// 
-        /// This function is thread safe so that we can use it to overlap calls to
-        /// boost performance, please avoid any modifications that might change that...
-        /// </summary>
-        /// <param name="a_szReason">reason for the call, for logging</param>
-        /// <param name="a_szUri">our target</param>
-        /// <param name="a_szMethod">http method (ex: POST, DELETE...)</param>
-        /// <param name="a_aszHeader">array of headers to send or null</param>
-        /// <param name="a_szData">data to send or null</param>
-        /// <param name="a_szUploadFile">upload data from a file</param>
-        /// <param name="a_szOutputFile">redirect the data to a file</param>
-        /// <param name="a_iTimeout">timeout in milliseconds</param>
-        /// <returns>true on success</returns>
-        private bool HttpRequestAttempt
-        (
-            string a_szReason,
-            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
-            string a_szUri,
-            string a_szMethod,
-            string[] a_aszHeader,
-            string a_szData,
-            string a_szUploadFile,
-            string a_szOutputFile,
-            int a_iTimeout
-        )
-        {
-            //
-            // The WebRequest method of doing stuff...
-            //
-            int ii;
-            int iXfer = 0;
-            bool blMultipart = false;
-            long lContentLength;
-            long lImageBlockSeperator;
-            string szUri;
-            string szReply = "";
-            string szOutputHeaders = "";
-            string szMultipartBoundary = "";
-            byte[] abBuffer;
-            Stream stream = null;
-            HttpWebRequest httpwebrequest;
-            HttpWebResponse httpwebresponse;
-            string szFunction = "HttpRequestAttempt";
-
-            // Log a reason for being here...
-            Log.Info("");
-            Log.Info("http>>> " + a_szReason);
-
-            // Pick our URI, prefix the default server, unless the user gives us an override...
-            //
-            // A silent exception occurs on Webrequest.Create(), it's trapped and doesn't seem
-            // to cause any problems, but on Windows if you want to make it go away, then add
-            // the next two items to the registry (you only need Wow6432Node on 64-bit OSes)...
-            //   HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework\LegacyWPADSupport dword:00000000
-            //   HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\LegacyWPADSupport dword:00000000
-            if (a_szUri == null)
-            {
-                Log.Error(szFunction + ": a_szUri is null");
-                return (false);
-            }
-            if ((a_szUri != "/privet/info") && (a_szUri != "/privet/twaindirect/session"))
-            {
-                Log.Error(szFunction + ": bad a_szUri '" + a_szUri + "'");
-                return (false);
-            }
-
-            // For HTTPS we need a certificate for the DNS domain, I have no idea if
-            // this can be done with a numeric IP, but I know it can be done with a
-            // DNS name, and since we're doing mDNS in this case, we want the link local
-            // name of the device...
-            if (m_blUseHttps)
-            {
-                szUri = "https://" + a_dnssddeviceinfo.szLinkLocal + ":" + a_dnssddeviceinfo.lPort + a_szUri;
-            }
-
-            // Build the URI, for HTTP we can use the IP address to get to our device...
-            else
-            {
-                szUri = "http://" + a_dnssddeviceinfo.szIpv4 + ":" + a_dnssddeviceinfo.lPort + a_szUri;
-            }
-            Log.Info("http>>> " + a_szMethod + " uri " + szUri);
-            httpwebrequest = (HttpWebRequest)WebRequest.Create(szUri);
-            httpwebrequest.AllowWriteStreamBuffering = true;
-            httpwebrequest.KeepAlive = true;
-
-            // Pick our method...
-            httpwebrequest.Method = a_szMethod;
-
-            // Add any headers we have laying about...
-            if (a_aszHeader != null)
-            {
-                httpwebrequest.Headers = new WebHeaderCollection();
-                foreach (string szHeader in a_aszHeader)
-                {
-                    Log.Verbose("http>>> sendheader " + szHeader);
-                    if (szHeader.ToLower().StartsWith("content-type: "))
-                    {
-                        httpwebrequest.ContentType = szHeader.Remove(0, 14);
-                    }
-                    else if (szHeader.ToLower().StartsWith("content-length: "))
-                    {
-                        httpwebrequest.ContentLength = long.Parse(szHeader.Remove(0, 16));
-                    }
-                    else
-                    {
-                        httpwebrequest.Headers.Add(szHeader);
-                    }
-                }
-            }
-
-            // Timeout...
-            httpwebrequest.Timeout = a_iTimeout;
-
-            // Data we're sending...
-            if (a_szData != null)
-            {
-                Log.Info("http>>> senddata " + a_szData);
-                byte[] abData = null;
-                abData = Encoding.UTF8.GetBytes(a_szData);
-                httpwebrequest.ContentLength = abData.Length;
-                if (httpwebrequest.ContentType == null)
-                {
-                    httpwebrequest.ContentType = "application/x-www-form-urlencoded";
-                }
-                try
-                {
-                    stream = httpwebrequest.GetRequestStream();
-                    stream.Write(abData, 0, abData.Length);
-                    stream.Close();
-                }
-                catch (WebException webexception)
-                {
-                    return (CollectWebException("SendData", webexception));
-                }
-                catch (Exception exception)
-                {
-                    return (CollectException("SendData", exception));
-                }
-            }
-
-            // We're sending a file...
-            if (a_szUploadFile != null)
-            {
-                Log.Info("http>>> sendfile " + a_szUploadFile);
-                byte[] abFile = File.ReadAllBytes(a_szUploadFile);
-                httpwebrequest.ContentLength = abFile.Length;
-                try
-                {
-                    stream = httpwebrequest.GetRequestStream();
-                    stream.Write(abFile, 0, abFile.Length);
-                    stream.Close();
-                }
-                catch (WebException webexception)
-                {
-                    return (CollectWebException("SendFile", webexception));
-                }
-                catch (Exception exception)
-                {
-                    return (CollectException("SendFile", exception));
-                }
-            }
-
-            // Get the response...
-            try
-            {
-                httpwebresponse = (HttpWebResponse)httpwebrequest.GetResponse();
-            }
-            catch (WebException webexception)
-            {
-                return (CollectWebException("GetResponse", webexception));
-            }
-            catch (Exception exception)
-            {
-                return (CollectException("GetResponse", exception));
-            }
-
-            // Dump the status...
-            Log.Info("http>>> recvsts " + (int)(HttpStatusCode)httpwebresponse.StatusCode + " (" + httpwebresponse.StatusCode + ")");
-
-            // Dump the header info...
-            if ((Log.GetLevel() & 0x0002) != 0)
-            {
-                // Get each header and display each value.
-                NameValueCollection namevaluecollectionHeaders = httpwebresponse.Headers;
-                foreach (string szKey in namevaluecollectionHeaders.AllKeys)
-                {
-                    string[] aszValues = namevaluecollectionHeaders.GetValues(szKey);
-                    if (aszValues.Length == 0)
-                    {
-                        Log.Verbose("http>>> recvheader " + szKey + ": n/a");
-                    }
-                    else
-                    {
-                        foreach (string szValue in aszValues)
-                        {
-                            Log.Verbose("http>>> recvheader " + szKey + ": " + szValue);
-                        }
-                    }
-                }
-            }
-
-            // Get the content length...
-            lContentLength = httpwebresponse.ContentLength;
-
-            // Get the content type...
-            string sz = httpwebresponse.ContentType;
-            ContentType contenttype = new ContentType(httpwebresponse.ContentType);
-
-            // application/json with UTF-8 is okay...
-            if (contenttype.MediaType.ToLowerInvariant() == "application/json")
-            {
-                if (contenttype.CharSet.ToLowerInvariant() != "utf-8")
-                {
-                    Log.Error("HttpRequestAttempt: json encoding not utf-8..." + contenttype.CharSet);
-                    return (false);
-                }
-                blMultipart = false;
-            }
-
-            // multipart/mixed is okay, with a boundary...
-            else if (contenttype.MediaType.ToLowerInvariant() == "multipart/mixed")
-            {
-                blMultipart = true;
-                szMultipartBoundary = contenttype.Boundary;
-                if (string.IsNullOrEmpty(szMultipartBoundary))
-                {
-                    Log.Error("HttpRequestAttempt: bad boundary...");
-                    return (false);
-                }
-                szMultipartBoundary = "--" + szMultipartBoundary;
-            }
-
-            // Anything else is bad...
-            else
-            {
-                Log.Error("HttpRequestAttempt: unknown media type..." + contenttype.MediaType);
-                return (false);
-            }
-
-            // Get the data coming back...
-            try
-            {
-                // Grab the stream...
-                stream = httpwebresponse.GetResponseStream();
-
-                // All we have is just a JSON reply...
-                if (!blMultipart)
-                {
-                    abBuffer = new byte[0x65536];
-                    while (true)
-                    {
-                        int iRead = stream.Read(abBuffer, iXfer, abBuffer.Length - iXfer);
-                        if (iRead == 0)
-                        {
-                            break;
-                        }
-                        iXfer += iRead;
-                        if ((iRead > 0) && (iXfer >= abBuffer.Length))
-                        {
-                            byte[] ab = new byte[abBuffer.Length + 65536];
-                            abBuffer.CopyTo(ab, 0);
-                            abBuffer = ab;
-                        }
-                    }
-                    if (iXfer > 0)
-                    {
-                        byte[] abReply = new byte[iXfer];
-                        Buffer.BlockCopy(abBuffer, 0, abReply, 0, iXfer);
-                        if (a_szOutputFile == null)
-                        {
-                            szReply = Encoding.UTF8.GetString(abReply, 0, iXfer);
-                        }
-                        else
-                        {
-                            File.WriteAllBytes(a_szOutputFile, abReply);
-                        }
-                    }
-                }
-
-                // Else we have a multipart response, and we need to collect
-                // and separate all of the data.  The data will arrive in the
-                // following format, repeating as necessary to send all of
-                // the data...
-                //
-                // boundary + \n
-                // Content-Type: ... + \n
-                // Content-Length: # + \n
-                // \n
-                // data \n
-                // \n
-                // boundary + \n
-                // Content-Type: ... + \n
-                // Content-Length: # + \n
-                // \n
-                // data \n
-                // \n
-                //
-                // Getting the newlines right is part of the challenge...
-                //
-                // In theory we could have several parts, but in practice
-                // we're only expecting two:  JSON and an image.  If we are
-                // getting metadata, it will be the JSON and the thumbnail.
-                // If we are reading an imageblock, it will be the JSON and
-                // the image.  We'll try to set things up so that we can
-                // get more bits if needed.  But I suspect that two segments
-                // be easiest to support both for standard and vendor
-                // specific behavior...
-                else
-                {
-                    // Give us a large buffer to work with, convert the multipart
-                    // boundary to a byte array, and init other stuff...
-                    abBuffer = new byte[0x200000];
-                    byte[] abImageBlockSeperator = Encoding.UTF8.GetBytes(szMultipartBoundary);
-                    bool blFirstPass = true;
-                    FileStream filestreamOutputFile = null;
-
-                    // If we received a file, this is where we'll dump the second part...
-                    if (!string.IsNullOrEmpty(a_szOutputFile))
-                    {
-                        try
-                        {
-                            // Create the empty file...
-                            if (!File.Exists(a_szOutputFile))
-                            {
-                                File.Delete(a_szOutputFile);
-                            }
-                            filestreamOutputFile = new FileStream(a_szOutputFile, FileMode.Create);
-                        }
-                        catch (Exception exception)
-                        {
-                            Log.Error("HttpRequestAttempt: Delete or StreamWriter failed..." + a_szOutputFile + ", " + exception.Message);
-                            return (false);
-                        }
-                    }
-
-                    // Loopy on reading the data...
-                    while (true)
-                    {
-                        // Read some data...
-                        int iRead = stream.Read(abBuffer, iXfer, abBuffer.Length - iXfer);
-
-                        // No more data, we can bail...
-                        if (iRead == 0)
-                        {
-                            if (filestreamOutputFile != null)
-                            {
-                                filestreamOutputFile.Close();
-                                filestreamOutputFile.Dispose();
-                                filestreamOutputFile = null;
-                            }
-                            break;
-                        }
-
-                        // Handle the JSON / data split...
-                        if (blFirstPass)
-                        {
-                            // Don't come back into here...
-                            blFirstPass = false;
-
-                            // Keep a tally of the number of bytes we've read...
-                            iXfer += iRead;
-
-                            // We must find our first separator at the 0th index...
-                            lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, 0, iXfer);
-                            if (lImageBlockSeperator != 0)
-                            {
-                                Log.Error("HttprRequestAttempt: failed to find first multipart boundary string...");
-                                if (filestreamOutputFile != null)
-                                {
-                                    filestreamOutputFile.Close();
-                                    filestreamOutputFile.Dispose();
-                                    filestreamOutputFile = null;
-                                }
-                                return (false);
-                            }
-
-                            // Find the second seperator...
-                            lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, abImageBlockSeperator.Length, iXfer);
-
-                            // If we didn't find it, convert all of the data, otherwise
-                            // just convert what we found...
-                            if (lImageBlockSeperator < 0)
-                            {
-                                szReply = Encoding.UTF8.GetString(abBuffer, 0, (int)abBuffer.Length);
-                            }
-                            else
-                            {
-                                szReply = Encoding.UTF8.GetString(abBuffer, 0, (int)lImageBlockSeperator);
-                            }
-
-                            // Remove everything up to the first {, and after the last }...
-                            long lCurly = szReply.IndexOf('{');
-                            if (lCurly > 0)
-                            {
-                                szReply = szReply.Remove(0, (int)lCurly);
-                            }
-                            lCurly = szReply.LastIndexOf('}');
-                            if ((lCurly > 0) && (lCurly < (szReply.Length - 1)))
-                            {
-                                szReply = szReply.Remove((int)(lCurly + 1));
-                            }
-
-                            iXfer = 0;
-
-                            // Look for the image data...
-                            /*
-                            if (lImageBlockSeperator >= 0)
-                            {
-                                blFirstPass = false;
-                                szReply = Encoding.UTF8.GetString(abBuffer, 0, (int)lImageBlockSeperator);
-                                if ((lImageBlockSeperator + abImageBlockSeperator.Length) < iXfer)
-                                {
-                                    filestreamOutputFile.Write(abBuffer, (int)(lImageBlockSeperator + abImageBlockSeperator.Length), (int)(iXfer - (lImageBlockSeperator + abImageBlockSeperator.Length)));
-                                }
-                                iXfer = 0;
-                            }
-                            */ 
-                        }
-                        else
-                        {
-                            filestreamOutputFile.Write(abBuffer, 0, iRead);
-                        }
-
-                        // Grow the buffer, if needed...
-                        if ((iRead > 0) && (iXfer >= abBuffer.Length))
-                        {
-                            byte[] ab = new byte[abBuffer.Length + 0x200000];
-                            abBuffer.CopyTo(ab, 0);
-                            abBuffer = ab;
-                        }
-                    }
-                }
-            }
-            catch (WebException webexception)
-            {
-                return (CollectWebException("GetData", webexception));
-            }
-            catch (Exception exception)
-            {
-                return (CollectException("GetData", exception));
-            }
-
-            // Cleanup...
-            httpwebresponse.Close();
-
-            // Log what we got back......
-            Log.Info("http>>> recvdata " + szReply);
-
-            // All done, final check...
-            m_szResponseHttpStatus = ((int)httpwebresponse.StatusCode).ToString();
-            m_szResponseHeaders = szOutputHeaders;
-            m_szResponseData = szReply;
-            if (int.Parse(m_szResponseHttpStatus) >= 300)
-            {
-                Log.Error(a_szReason + " failed...");
-                Log.Error("http>>> sts " + m_szResponseHttpStatus);
-                Log.Error("http>>> stsreason " + a_szReason + " (" + m_szResponseData + ")");
-                m_blResponseSuccess = false;
-                return (false);
-            }
-            m_blResponseSuccess = true;
-            return (true);
-        }
-
         #endregion
 
 
@@ -1522,6 +1506,10 @@ namespace TwainDirectSupport
         /// </summary>
         private JsonLookup m_jsonlookupReceived;
 
+        private string m_szEventName;
+        private string m_szSessionState;
+        private long m_lSessionRevision;
+
         /// <summary>
         /// The URI used to call us...
         /// </summary>
@@ -1545,6 +1533,11 @@ namespace TwainDirectSupport
         private bool m_blEndOfJob;
 
         /// <summary>
+        /// The way we want to respond to an HTTP command...
+        /// </summary>
+        private HttpReplyStyle m_httpreplystyle;
+
+        /// <summary>
         /// The reply task or an empty string...
         /// </summary>
         private string m_szTaskReply;
@@ -1558,6 +1551,11 @@ namespace TwainDirectSupport
         /// The command we've sent (or what we tried to send)...
         /// </summary>
         private string m_szSendCommand;
+
+        /// <summary>
+        /// Error returns, such as timeout...
+        /// </summary>
+        private WebExceptionStatus m_webexceptionstatus;
 
         /// <summary>
         /// true if the reply indicates success...

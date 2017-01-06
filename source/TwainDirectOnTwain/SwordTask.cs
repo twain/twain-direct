@@ -144,7 +144,7 @@ namespace TwainDirectOnTwain
             if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
             {
                 TWAINWorkingGroup.Log.Error("topology violation: actions isn't an array");
-                a_swordtask.SetTaskError("invalidCapturingOptions", "actions", "invalidTwainDirectTask", 0);
+                a_swordtask.SetTaskError("invalidCapturingOptions", "actions", "invalidTask", 0);
                 return (false);
             }
 
@@ -224,7 +224,7 @@ namespace TwainDirectOnTwain
                 if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: streams isn't an array");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szSwordAction + ".streams", "invalidTwainDirectTask", 0);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szSwordAction + ".streams", "invalidTask", 0);
                     return (false);
                 }
 
@@ -297,7 +297,7 @@ namespace TwainDirectOnTwain
                     if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                     {
                         TWAINWorkingGroup.Log.Error("topology violation: sources isn't an array");
-                        a_swordtask.SetTaskError("invalidCapturingOptions", szSwordStream + ".sources", "invalidTwainDirectTask", 0);
+                        a_swordtask.SetTaskError("invalidCapturingOptions", szSwordStream + ".sources", "invalidTask", 0);
                         return (false);
                     }
 
@@ -365,7 +365,7 @@ namespace TwainDirectOnTwain
                         if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                         {
                             TWAINWorkingGroup.Log.Error("topology violation: pixelFormats isn't an array");
-                            a_swordtask.SetTaskError("invalidCapturingOptions", szSwordSource + ".pixelFormats", "invalidTwainDirectTask", 0);
+                            a_swordtask.SetTaskError("invalidCapturingOptions", szSwordSource + ".pixelFormats", "invalidTask", 0);
                             return (false);
                         }
 
@@ -433,7 +433,7 @@ namespace TwainDirectOnTwain
                             if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                             {
                                 TWAINWorkingGroup.Log.Error("topology violation: attributes isn't an array");
-                                a_swordtask.SetTaskError("invalidCapturingOptions", szSwordPixelFormat + ".attributes", "invalidTwainDirectTask", 0);
+                                a_swordtask.SetTaskError("invalidCapturingOptions", szSwordPixelFormat + ".attributes", "invalidTask", 0);
                                 return (false);
                             }
 
@@ -501,7 +501,7 @@ namespace TwainDirectOnTwain
                                 if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                                 {
                                     TWAINWorkingGroup.Log.Error("topology violation: values isn't an array");
-                                    a_swordtask.SetTaskError("invalidCapturingOptions", szSwordAttribute + ".values", "invalidTwainDirectTask", 0);
+                                    a_swordtask.SetTaskError("invalidCapturingOptions", szSwordAttribute + ".values", "invalidTask", 0);
                                     return (false);
                                 }
 
@@ -868,7 +868,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: actions");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -880,7 +880,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: action");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -892,7 +892,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: streams");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -904,7 +904,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: stream");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -916,7 +916,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: sources");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -928,7 +928,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: source");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -940,7 +940,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: pixelFormats");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -952,7 +952,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: pixelFormat");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -964,7 +964,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: attributes");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -976,7 +976,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: attribute");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -988,7 +988,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: values");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }
@@ -1000,7 +1000,7 @@ namespace TwainDirectOnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: value");
-                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTwainDirectTask", -1);
+                    a_swordtask.SetTaskError("invalidCapturingOptions", szFullKey, "invalidTask", -1);
                     return (false);
                 }
             }

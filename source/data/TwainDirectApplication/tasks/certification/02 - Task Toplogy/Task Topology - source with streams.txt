@@ -6,7 +6,7 @@
         {
             "path": "actions[0]",
             "success": false,
-            "code": "invalidTwainDirectTask",
+            "code": "invalidTask",
             "jsonKey": "actions[0].streams[0].sources[0].streams"
         }
     ]

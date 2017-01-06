@@ -585,14 +585,14 @@ namespace TwainDirectSupport
                 if (m_processDnssdRegisterPrivetTcpLocal != null)
                 {
                     m_processDnssdRegisterPrivetTcpLocal.Kill();
-                    //m_processDnssdRegisterPrivetTcpLocal.Dispose();
-                    //m_processDnssdRegisterPrivetTcpLocal = null;
+                    m_processDnssdRegisterPrivetTcpLocal.Dispose();
+                    m_processDnssdRegisterPrivetTcpLocal = null;
                 }
                 if (m_processDnssdRegisterTwainDirectSubPrivetTcpLocal != null)
                 {
                     m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.Kill();
-                    //m_processDnssdRegister.Dispose();
-                    //m_processDnssdRegister = null;
+                    m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.Dispose();
+                    m_processDnssdRegisterTwainDirectSubPrivetTcpLocal = null;
                 }
                 if (m_eventwaithandleRead != null)
                 {

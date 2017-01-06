@@ -1,7 +1,7 @@
 {
     "scanner": {
-        "twainLocalTy": "TWAIN2 FreeImage Software Scanner",
-        "twainLocalSerialNumber": "(no serial number)",
-        "twainLocalNote": "TWAIN2 FreeImage Software Scanner"
+        "twainLocalTy": "KODAK Scanner: i5000",
+        "twainLocalSerialNumber": "12345678",
+        "twainLocalNote": "Mark's Scanner"
     }
 }

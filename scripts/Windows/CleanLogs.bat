@@ -1,7 +1,7 @@
 :: 
 :: TwainDirectApplication
 ::
-del /f /s /q %~dp0\..\source\data\TwainDirectApplication\*.Log
+del /f /s /q %~dp0\..\..\source\data\TwainDirectApplication\*.Log
 del /f /s /q %~dp0\..\..\source\data\TwainDirectApplication\cmd
 del /f /s /q %~dp0\..\..\source\data\TwainDirectApplication\data.txt
 del /f /s /q %~dp0\..\..\source\data\TwainDirectApplication\images\*.*

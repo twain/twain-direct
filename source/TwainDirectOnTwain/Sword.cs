@@ -318,9 +318,7 @@ namespace TwainDirectOnTwain
                     szTask = a_szTask;
                 }
 
-                // TBD
-                // Else read the data from a file...this is old stuff for when
-                // we were doing cURL, it can probably go away...
+                // Else read the data from a file...
                 else
                 {
                     szTask = System.IO.File.ReadAllText(a_szTask);
@@ -375,57 +373,6 @@ namespace TwainDirectOnTwain
             // Cleanup and scoot...
             Close();
             TWAINWorkingGroup.Log.Info("Batch mode completed...");
-            return (true);
-        }
-
-        /// <summary>
-        /// Run the task passed into us...
-        /// </summary>
-        /// <param name="a_szTask">task to process</param>
-        /// <returns>true on success</returns>
-        public bool RunTask(string a_szTask)
-        {
-            bool blStatus;
-            bool blError;
-            bool blSetAppCapabilities = false;
-            SwordTask swordtask = new SwordTask();
-
-            // Parse the task into a SWORD object...
-            TWAINWorkingGroup.Log.Info("JSON to SWORD...");
-            blStatus = SwordDeserialize(a_szTask, m_guidScanner, ref swordtask);
-            if (!blStatus)
-            {
-                TWAINWorkingGroup.Log.Error("SwordDeserialize failed...");
-                return (false);
-            }
-
-            // Parse the SWORD object into a TWAIN object...
-            TWAINWorkingGroup.Log.Info("SWORD to TWAIN...");
-            m_twaintask = new TwainTask(swordtask);
-            if (m_twaintask == null)
-            {
-                TWAINWorkingGroup.Log.Error("TwainTask failed...");
-                return (false);
-            }
-
-            // Process each action in turn.
-            // TBD: some kind of event trigger would be nicer than polling.
-            // and we'll need a way to process commands so that information
-            // can be requested or cancels can be issued.
-            TWAINWorkingGroup.Log.Info("Task begins...");
-            for (blStatus = Process("", true, true, out blError, ref swordtask, ref blSetAppCapabilities);
-                 blStatus;
-                 blStatus = NextAction(out blError, ref swordtask, ref blSetAppCapabilities))
-            {
-                // Wait for the action to finish.
-                while (IsProcessing())
-                {
-                    Thread.Sleep(100);
-                }
-            }
-            TWAINWorkingGroup.Log.Info("Task completed...");
-
-            // All done...
             return (true);
         }
 
@@ -1558,6 +1505,9 @@ namespace TwainDirectOnTwain
                 {
                     m_blTwainInquiryCompleted = false;
                 }
+
+                // Log the result...
+                TWAINWorkingGroup.Log.Info("NativeTwainDirectSupport: " + m_blTwainInquiryCompleted);
 
                 // All done...
                 return (true);

@@ -138,8 +138,9 @@ namespace TwainDirectApplication
             LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null);
             LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null);
 
-            // Create the mdns monitor...
+            // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
+            m_dnssd.MonitorStart();
 
             // Get our TWAIN Local interface.
             //
@@ -148,13 +149,7 @@ namespace TwainDirectApplication
             // Authorization Code using a WebBrowser object (yay C#).
             //
             // No such joy for the Linux and Mac worlds...
-            m_twainlocalscanner = new TwainLocalScanner
-            (
-                null,
-                null,
-                0,
-                null
-            );
+            m_twainlocalscanner = new TwainLocalScanner(null, 0);
         }
 
         /// <summary>
@@ -275,9 +270,9 @@ namespace TwainDirectApplication
         /// <param name="e"></param>
         void FormScan_FormClosing(object sender, FormClosingEventArgs e)
         {
-            ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
+            ApiCmd apicmd;
 
-            // This will prevent ReportImage from doing anything as we close...
+            // This will prevent ReportImage from doing anything stupid as we close...
             m_graphics1 = null;
 
             // Cleanup...
@@ -288,18 +283,26 @@ namespace TwainDirectApplication
                 m_formsetup = null;
             }
 
-            // TBD: if we shut down in the middle of scanning, we need
-            // to stop capturing and release all of the image blocks...
-
-            // Close session...
+            // Gracefully end our session with the scanner...
             if (m_twainlocalscanner != null)
             {
+                // Close the session...
+                apicmd = new ApiCmd(m_dnssddeviceinfo);
                 m_twainlocalscanner.ClientScannerCloseSession(ref apicmd);
+
+                // If we didn't go to nosession, blast the image blocks...
+                if (    !string.IsNullOrEmpty(apicmd.GetSessionState())
+                    &&  (apicmd.GetSessionState() == "draining"))
+                {
+                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    m_twainlocalscanner.ClientScannerReleaseImageBlocks(0, 999999999, ref apicmd);
+                }
             }
 
             // Kill the monitor, if we have one...
             if (m_dnssd != null)
             {
+                m_dnssd.MonitorStop();
                 m_dnssd.Dispose();
                 m_dnssd = null;
             }
@@ -927,7 +930,7 @@ namespace TwainDirectApplication
                                         break;
 
                                     // TWAIN Direct violations...
-                                    case "invalidTwainDirectTask":
+                                    case "invalidTask":
                                         if (string.IsNullOrEmpty(jsonlookupReply.Get(szPath + "results.code")))
                                         {
                                             Log.Info("certification>>> status.......................fail (missing " + szPath + "results.code)");
@@ -935,7 +938,7 @@ namespace TwainDirectApplication
                                             listviewitem.SubItems[(int)CerificationColumns.Status].ForeColor = Color.Red;
                                             iFail += 1;
                                         }
-                                        else if (jsonlookupReply.Get(szPath + "results.code") == "invalidTwainDirectTask")
+                                        else if (jsonlookupReply.Get(szPath + "results.code") == "invalidTask")
                                         {
                                             if (string.IsNullOrEmpty(jsonlookupTest.Get(szExpects + ".jsonKey")))
                                             {
@@ -1331,6 +1334,18 @@ namespace TwainDirectApplication
                 MessageBox.Show("ClientScannerCreateSession failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
+            }
+
+            // Create a new command context...
+            apicmd = new ApiCmd(m_dnssddeviceinfo);
+
+            // Wait for events...
+            blSuccess = m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
+            if (!blSuccess)
+            {
+                // Log it, but stay open...
+                Log.Error("ClientScannerWaitForEvents failed: " + apicmd.HttpResponseData());
+                MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
             }
 
             // New state...

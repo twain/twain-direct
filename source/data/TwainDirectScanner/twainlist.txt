@@ -1,19 +1,34 @@
 {
     "scanners": [
         {
-            "twidentity": "TWAIN2 FreeImage Software Scanner",
-            "hostName": "PC0581RF",
-            "serialNumber": "(no serial number)",
-            "source": ["any","flatbed","feeder"],
+            "twidentity": "KODAK Scanner: i1150/i1180",
+            "hostName": "km-di-l252353w7",
+            "serialNumber": "12345678",
+            "source": ["any","feeder"],
             "numberOfSheets": [1,32767],
-            "resolution": [50,100,150,200,300,400,500,600],
-            "height": [50800,355600],
-            "width": [50800,215900],
-            "offsetX": [0,165100],
-            "offsetY": [0,304800],
-            "cropping": ["fixed"],
+            "resolution": [100,150,200,240,250,300,400,500,600,1200],
+            "height": [25400,355600],
+            "width": [25400,215900],
+            "offsetX": [0,190500],
+            "offsetY": [0,330200],
+            "cropping": ["fixed","auto"],
             "pixelFormat": ["bw1","gray8","rgb24"],
-            "compression": ["none"]
+            "compression": ["none","autoVersion1"]
+        },
+        {
+            "twidentity": "KODAK Scanner: i5000",
+            "hostName": "km-di-l252353w7",
+            "serialNumber": "12345678",
+            "source": ["any","feeder"],
+            "numberOfSheets": [1,32767],
+            "resolution": [100,150,200,240,250,300,400,500,600],
+            "height": [25400,431800],
+            "width": [25400,304800],
+            "offsetX": [0,279400],
+            "offsetY": [0,406400],
+            "cropping": ["fixed","auto"],
+            "pixelFormat": ["bw1","gray8","rgb24"],
+            "compression": ["none","autoVersion1"]
         }
     ]
 }

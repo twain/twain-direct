@@ -84,11 +84,8 @@ namespace TwainDirectApplication
             m_labelSelect.Text = m_resourcemanager.GetString("strLabelSelectScanner");
             this.Text = m_resourcemanager.GetString("strFormSelectTitle");
 
-            // Init more stuff...
+            // Hang onto this...
             m_dnssd = a_dnssd;
-
-            // Start the monitor...
-            m_dnssd.MonitorStart();
 
             // Load the list box...
             Thread.Sleep(1000);
@@ -110,13 +107,9 @@ namespace TwainDirectApplication
         /// </summary>
         public void Cleanup()
         {
-            if (m_dnssd != null)
-            {
-                m_dnssd.MonitorStop();
-                m_dnssd.Dispose();
-                m_dnssd = null;
-            }
-            GC.SuppressFinalize(this);
+            // We don't own this, so don't free it, but it's
+            // not a bad practice to clear it...
+            m_dnssd = null;
         }
 
     #endregion

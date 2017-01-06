@@ -1,6 +1,6 @@
 {
     "logLevel": 3,
     "delayTwainDirectScanner": 0,
-    "useHttps": "true",
+    "useHttps": "yes",
     "usePort": 55555
 }

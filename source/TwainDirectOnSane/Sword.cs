@@ -191,58 +191,6 @@ namespace TwainDirectOnSane
         }
 
         /// <summary>
-        /// Run the task passed into us...
-        /// </summary>
-        /// <param name="a_szTask">task to process</param>
-        /// <returns>true on success</returns>
-        public bool RunTask(string a_szTask)
-        {
-            bool blStatus;
-            bool blError;
-            bool blSetAppCapabilities = false;
-            string szScanImageArguments = "";
-            SwordTask swordtask = new SwordTask();
-
-            // Parse the task into a SWORD object...
-            TwainDirectSupport.Log.Info("JSON to SWORD...");
-            blStatus = SwordDeserialize(a_szTask, m_guidScanner, ref swordtask);
-            if (!blStatus)
-            {
-                TwainDirectSupport.Log.Error("SwordDeserialize failed...");
-                return (false);
-            }
-
-            // Parse the SWORD object into a TWAIN object...
-            TwainDirectSupport.Log.Info("SWORD to TWAIN...");
-            m_sanetask = new SaneTask(swordtask, m_szWriteFolder, ref szScanImageArguments);
-            if (m_sanetask == null)
-            {
-                TwainDirectSupport.Log.Error("SaneTask failed...");
-                return (false);
-            }
-
-            // Process each action in turn.
-            // TBD: some kind of event trigger would be nicer than polling.
-            // and we'll need a way to process commands so that information
-            // can be requested or cancels can be issued.
-            TwainDirectSupport.Log.Info("Task begins...");
-            for (blStatus = Process("", true, true, out blError, ref swordtask, ref blSetAppCapabilities);
-                 blStatus;
-                 blStatus = NextAction(out blError, ref swordtask, ref blSetAppCapabilities))
-            {
-                // Wait for the action to finish.
-                while (IsProcessing())
-                {
-                    Thread.Sleep(100);
-                }
-            }
-            TwainDirectSupport.Log.Info("Task completed...");
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
         /// Get the driver that we'll be using (this also allows us to
         /// check that we have a driver that we can use).
         /// </summary>

@@ -151,12 +151,9 @@ namespace TwainDirectOnTwain
         public static bool SelectMode()
         {
             int iPid = 0;
-            long lResponseCharacterOffset;
             string szIpc;
             string szTaskFile;
             bool blTestPdfRaster;
-            bool blTestTwainLocalOnTwain;
-            bool blTestJson;
             bool blTestDnssd;
 
             // Check the arguments...
@@ -164,8 +161,6 @@ namespace TwainDirectOnTwain
             string szExecutableName = Config.Get("executableName", null);
             szTaskFile = Config.Get("task", null);
             blTestPdfRaster = (Config.Get("testpdfraster", null) != null);
-            blTestTwainLocalOnTwain = (Config.Get("testtwainlocalontwain", null) != null);
-            blTestJson = (Config.Get("testjson", null) != null);
             blTestDnssd = (Config.Get("testdnssd", null) != null);
             szIpc = Config.Get("ipc", null);
             iPid = int.Parse(Config.Get("parentpid", "0"));
@@ -226,128 +221,6 @@ namespace TwainDirectOnTwain
 
                 // All done...
                 TWAINWorkingGroup.Log.Close();
-                return (true);
-            }
-
-            // Test TWAIN Local on TWAIN...
-            if (blTestTwainLocalOnTwain)
-            {
-                TestTwainLocalOnTwain testtwainlocalontwain;
-
-                // Create our object...
-                testtwainlocalontwain = new TestTwainLocalOnTwain(Config.Get("scanner", null), szWriteFolder, iPid, szTaskFile);
-
-                // Do the test...
-                testtwainlocalontwain.Test();
-
-                // All done...
-                return (true);
-            }
-
-            // Test JSON...
-            if (blTestJson)
-            {
-                TwainDirectSupport.JsonLookup jsonlookup = new TwainDirectSupport.JsonLookup();
-
-                string szTest =
-		            "{\n" +
-		            "    \"array\": [\n" +
-	                "        {\n" +
-		            "            \\\"aaa\\\": 0,\n" +
-                    "            'bbb': 1\n" +
-                    "        },\n" +
-                    "        {\n" +
-                    "            ccc : 2,\n" +
-                    "            'ddd' : 3,\n" +
-                    "            \"xxx\": [\n" +
-                    "                {\n" +
-                    "                    \"mmm\": 111\n" +
-                    "                },\n" +
-                    "                {\n" +
-                    "                    \"nnn\": 222\n" +
-                    "                },\n" +
-                    "                {\n" +
-                    "                    \"ooo\": 333\n" +
-                    "                }\n" +
-                    "            ]\n" +
-                    "        },\n" +
-                    "        {\n" +
-                    "            \"eee\": 4,\n" +
-                    "            \"fff\": 5\n" +
-                    "        }\n" +
-                    "    ],\n" +
-                    "    \"string\": \"value\"\n" +
-                    "}";
-
-                // Load something interesting...
-                bool blSuccess = jsonlookup.Load(szTest, out lResponseCharacterOffset);
-                if (!blSuccess)
-                {
-                    string sz = szTest.Substring(0, (int)lResponseCharacterOffset);
-                }
-
-                NativeMethods.AllocConsole();
-                jsonlookup.Dump();
-
-                // Find something interesting...
-                string szValue;
-                TwainDirectSupport.JsonLookup.EPROPERTYTYPE epropertytype;
-                blSuccess = jsonlookup.GetCheck("array[0].aaa", out szValue, out epropertytype, true);
-
-                // Test...
-                string[] aszFile = Directory.GetFiles("C:/Users/l252353/Desktop/TwainDirect/source/TwainDirectOnTwain/bin/x86/Debug/data");
-                if (aszFile != null)
-                {
-                    foreach (string szFile in aszFile)
-                    {
-                        // Skip non-.json files...
-                        if (!szFile.Contains("pass0.json"))
-                        {
-                            continue;
-                        }
-
-                        // Read it...
-                        string szJson = File.ReadAllText(szFile);
-
-                        // Load it...
-                        blSuccess = jsonlookup.Load(szJson, out lResponseCharacterOffset);
-
-                        // File we're working on...
-                        Console.WriteLine("\r\n*******************************************************************************");
-                        Console.WriteLine(szFile);
-
-                        // Fail file results...
-                        if (szFile.Contains("fail"))
-                        {
-                            if (blSuccess)
-                            {
-                                Console.WriteLine("FAILED ON THE FAIL...");
-                            }
-                            else
-                            {
-                                Console.WriteLine("Error at offset: " + lResponseCharacterOffset);
-                                Console.WriteLine(szJson.Substring(0, (int)lResponseCharacterOffset) + "^ERROR^" + szJson.Substring((int)lResponseCharacterOffset));
-                            }
-                        }
-
-                        // Pass file results...
-                        else
-                        {
-                            if (blSuccess)
-                            {
-                                jsonlookup.Dump();
-                                jsonlookup.GetCheck("devices[0].id", out szValue, out epropertytype, true);
-                            }
-                            else
-                            {
-                                Console.WriteLine("Error at offset: " + lResponseCharacterOffset);
-                                Console.WriteLine(szJson.Substring(0, (int)lResponseCharacterOffset) + "^ERROR^" + szJson.Substring((int)lResponseCharacterOffset));
-                            }
-                        }
-                    }
-                }
-
-                // All done...
                 return (true);
             }
 

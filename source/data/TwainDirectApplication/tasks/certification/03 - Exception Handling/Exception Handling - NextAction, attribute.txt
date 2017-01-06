@@ -1,13 +1,16 @@
 {
     "category": "Exception Handling",
-    "summary": "NextStream, pixelFormat",
-    "description": "Demonstrate nextStream in a pixelFormat (this is implicit an any stream save the last, so we don't have to have an exception property for it to work).",
+    "summary": "NextAction, attribute",
+    "description": "Demonstrate nextAction in an attribute.",
     "expects": [
         {
             "path": "actions[0]",
-            "success": true,
-            "jsonKey": "actions[0].streams[0].stream",
-            "value": "stream1"
+            "success": false,
+            "code": "invalidValue"
+        },
+        {
+            "path": "actions[1]",
+            "success": true
         }
     ]
 }
@@ -23,10 +26,11 @@
                             "source": "any",
                             "pixelFormats": [
                                 {
-                                    "pixelFormat": "someWeirdPixelFormat",
+                                    "pixelFormat": "rgb24",
                                     "attributes": [
                                         {
-                                            "attribute": "resolution",
+                                            "attribute": "someWeirdAttribute",
+                                            "exception": "nextAction",
                                             "values": [
                                                 {
                                                     "value": 200
@@ -38,7 +42,12 @@
                             ]
                         }
                     ]
-                },
+                }
+            ]
+        },
+        {
+            "action": "configure",
+            "streams": [
                 {
                     "sources": [
                         {

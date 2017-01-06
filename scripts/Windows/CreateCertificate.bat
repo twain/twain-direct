@@ -58,7 +58,7 @@ echo.
 echo Please do the following steps if you want to confirm that
 echo the certificate has been created and is in your personal
 echo node...
-echo 1 - Start/Run/MMC
+echo 1 - Start/Run/MMC.EXE
 echo 2 - File/Add-Remove Snap-In
 echo 3 - Click Add
 echo 4 - Select Certificates and click Add

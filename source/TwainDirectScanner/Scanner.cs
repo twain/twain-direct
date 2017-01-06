@@ -71,22 +71,17 @@ namespace TwainDirectScanner
             string szWriteFolder = null;
 
             // Init stuff...
-            m_blUseXmpp = true;
             a_blNoDevices = true;
             m_displaycallback = a_displaycallback;
             m_stopnotification = a_stopnotification;
             m_confirmscan = a_confirmscan;
             m_fConfirmScanScale = a_fConfirmScanScale;
-            m_iDiagnostics = 1;
 
             // Get the config and command line argument values...
             szExecutablePath = Config.Get("executablePath", "");
             szReadFolder = Config.Get("readFolder", "");
             szWriteFolder = Config.Get("writeFolder", "");
             blUseSane = (Config.Get("usesane", null) != null);
-
-            // Init stuff...
-            m_blUseXmpp = false;
 
             // Sanity check...
             if (!FindTwainDirectOnTwain(szExecutablePath, blUseSane))
@@ -104,13 +99,7 @@ namespace TwainDirectScanner
             }
 
             // Get our TWAIN Local interface...
-            m_twainlocalscanner = new TwainLocalScanner
-            (
-                m_blUseXmpp?MonitorTasks:(TimerCallback)null,
-                a_confirmscan,
-                a_fConfirmScanScale,
-                m_blUseXmpp?this:(object)null
-            );
+            m_twainlocalscanner = new TwainLocalScanner(a_confirmscan,a_fConfirmScanScale);
             if (m_twainlocalscanner == null)
             {
                 Log.Error("Failed to create TwainLocalScanner");
@@ -298,177 +287,6 @@ namespace TwainDirectScanner
         }
 
         /// <summary>
-        /// Monitor for work...
-        /// </summary>
-        /// <param name="sender"></param>
-        internal void MonitorTasks(object sender)
-        {
-            bool blSuccess;
-            string szJson;
-            string szDeviceName;
-            long lResponseCharacterOffset;
-            XmppCallback xmppcallback = (XmppCallback)sender;
-            JsonLookup jsonlookup = new JsonLookup();
-            TwainLocalScanner.Command command;
-
-            // Load the data...
-            if (jsonlookup.Load(xmppcallback.m_szData, out lResponseCharacterOffset))
-            {
-                // Check out the event type...
-                string szType = jsonlookup.Get("type");
-                if (szType == null)
-                {
-                    Log.Error("XMPP event received has no type in it...");
-                    Log.Error(xmppcallback.m_szData);
-                    return;
-                }
-
-                // Our event types...
-                switch (szType)
-                {
-                    //
-                    // Nope, gots no clue...
-                    //
-                    default:
-                        Display("");
-                        Display("Unrecognized command: " + szType);
-                        Log.Error("XMPP event has unrecognized type...");
-                        Log.Error(xmppcallback.m_szData);
-                        return;
-
-                    //
-                    // Our command has been canceled, we have to acknowledge that
-                    // and either kill it or let it finish.  We opt to kill.  In
-                    // the worst case scenerio we'll try to update a canceled
-                    // command some place else in the code.  We need to be able
-                    // to handle that pressure anyways...
-                    //
-                    case "COMMAND_CANCELED":
-                    case "COMMAND_CANCELLED":
-                        Display("");
-                        Display("Command cancelled...");
-                        szJson = jsonlookup.Get("method");
-                        if (string.IsNullOrEmpty(szJson))
-                        {
-                            blSuccess = jsonlookup.Load(szJson, out lResponseCharacterOffset);
-                            if (blSuccess)
-                            {
-                                ApiCmd apicmd = new ApiCmd(null);
-                                //apicmd.SetState("canceled", null);
-                            }
-                        }
-                        return;
-
-                    //
-                    // Our command has expired, we don't need to take any additional
-                    // action, because to get this far we must never have seen or
-                    // acknowledged the command...
-                    //
-                    case "COMMAND_EXPIRED":
-                        Display("");
-                        Display("Command expired...");
-                        Log.Error("XMPP event COMMAND_EXPIRED...");
-                        Log.Error(xmppcallback.m_szData);
-                        return;
-
-                    //
-                    // Not supported yet...
-                    //
-                    case "DEVICE_ACL_UPDATED":
-                        Display("");
-                        Display("ACL updated...");
-                        Log.Error("XMPP event DEVICE_ACL_UPDATED not supported yet...");
-                        Log.Error(xmppcallback.m_szData);
-                        return;
-
-                    //
-                    // Somebody doesn't like us anymore...
-                    //
-                    case "DEVICE_DELETED":
-                        // Well, we'd better stop...
-                        MonitorTasksStop();
-                        Display("");
-                        Display("Stop (a device has been deleted)...");
-
-                        // Refresh our device list...
-                        Thread.Sleep(1000);
-                        bool blNoDevices = RefreshDeviceList();
-
-                        // Notify the caller...
-                        if (m_stopnotification != null)
-                        {
-                            m_stopnotification(blNoDevices);
-                        }
-                        return;
-
-                    //
-                    // We have something new to work on, drop down so that we're
-                    // not doing all this work in the switch statement...
-                    //
-                    case "COMMAND_CREATED":
-                        break;
-                }
-
-                // The command was included in the notification, so let's start
-                // doing work with it.  We'll begin by collecting some info...
-                string szState = jsonlookup.Get("command.state");
-                string szDeviceId = jsonlookup.Get("deviceId");
-
-                // Find the match in our list...
-                szDeviceName = m_twainlocalscanner.GetTwainLocalTy();
-
-                // Did we find it?
-                if (!string.IsNullOrEmpty(szDeviceName))
-                {
-                    // Build the command...
-                    command = new TwainLocalScanner.Command();
-                    command.szDeviceName = szDeviceName;
-                    command.szJson = jsonlookup.Get("method");
-
-                    // Display it...
-                    switch (m_iDiagnostics)
-                    {
-                        default:
-                            break;
-                        case 1:
-                            if (command.szJson.Contains("readImageBlock") && command.szJson.Contains("Metadata"))
-                            {
-                                Display("Sending an image...");
-                            }
-                            else if (command.szJson.Contains("startCapturing"))
-                            {
-                                Display(" ");
-                                Display("Scanning started...");
-                            }
-                            else if (command.szJson.Contains("stopCapturing"))
-                            {
-                                Display("Scanning stopped...");
-                            }
-                            else if (command.szJson.Contains("createSession"))
-                            {
-                                Display(" ");
-                                Display("*** Scanner locked ***");
-                            }
-                            else if (command.szJson.Contains("closeSession"))
-                            {
-                                Display(" ");
-                                Display("*** Scanner unlocked ***");
-                            }
-                            break;
-                        case 2:
-                            Display(" ");
-                            Display("XMPP");
-                            Display(command.szDeviceName + ": " + command.szJson);
-                            break;
-                    }
-
-                    // Dispatch it...
-                    //m_twainlocalscanner.DeviceDispatchCommand(command, ref httplistenercontext);
-                }
-            }
-        }
-
-        /// <summary>
         /// Refresh our list of devices...
         /// </summary>
         /// <returns>true if we have no devices</returns>
@@ -652,11 +470,6 @@ namespace TwainDirectScanner
         private TwainLocalScanner m_twainlocalscanner;
 
         /// <summary>
-        /// Use XMPP notifications...
-        /// </summary>
-        private bool m_blUseXmpp;
-
-        /// <summary>
         /// Full path to TWAIN-Direct-on-TWAIN or TWAIN-Direct-
         /// on-SANE...
         /// </summary>
@@ -682,11 +495,6 @@ namespace TwainDirectScanner
         /// Beause sometimes forms are too darn small...
         /// </summary>
         private float m_fConfirmScanScale;
-
-        /// <summary>
-        /// If non-zero then we'll dump out some extra info...
-        /// </summary>
-        private int m_iDiagnostics;
 
         #endregion
     }

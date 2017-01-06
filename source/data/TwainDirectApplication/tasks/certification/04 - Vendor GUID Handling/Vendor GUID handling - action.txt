@@ -1,7 +1,7 @@
 {
     "category": "Vendor GUID Handling",
     "summary": "action",
-    "description": "Set up a failure condition in a non-existent vendor action.  The scanner must skip this action, and since the default exception is to ignore, the task succeeds.   However, this results in a null task, so no change is made to the scanner.  The task reply reports back a null task {}.",
+    "description": "Set up a failure condition in a non-existent vendor action.  The scanner must skip this action, and since the default exception is to ignore, the task succeeds.   However, this results in a null task, so no change is made to the scanner.  The task reply reports back a null task.",
     "expects": [
         {
             "path": "actions[0]",

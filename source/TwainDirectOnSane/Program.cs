@@ -125,7 +125,6 @@ namespace TwainDirectOnSane
             string szIpc = null;
             string szTaskFile = "";
             string szWriteFolder;
-            bool blTestTwainLocalOnSane = false;
 
             // Sleep so we can attach and debug stuff...
             int iDelay = (int)Config.Get("delayTwainDirectOnSane", 0);
@@ -137,7 +136,6 @@ namespace TwainDirectOnSane
             // Check the arguments...
             szWriteFolder   = Config.Get("writeFolder", null);
             szTaskFile      = Config.Get("task", null);
-            blTestTwainLocalOnSane = (Config.Get("testtwainlocalonsane", null) != null);
             szIpc           = Config.Get("ipc", null);
             iPid            = int.Parse(Config.Get("parentpid", "0"));
 
@@ -150,24 +148,6 @@ namespace TwainDirectOnSane
                     szSaneList = Path.Combine(Config.Get("writeFolder", ""), "sanelist.txt");
                 }
                 System.IO.File.WriteAllText(szSaneList,Sword.SaneListDrivers());
-                return (true);
-            }
-
-            // Test TWAIN Local on SANE...
-            if (blTestTwainLocalOnSane)
-            {
-                TestTwainLocalOnSane testtwainlocalonsane;
-
-                // List the scanners...
-                Sword.SaneListDrivers();
-
-                // Create our object...
-                testtwainlocalonsane = new TestTwainLocalOnSane(Config.Get("scanner", null), szWriteFolder, iPid, szTaskFile, szIpc);
-
-                // Do the test...
-                testtwainlocalonsane.Test();
-
-                // All done...
                 return (true);
             }
 
