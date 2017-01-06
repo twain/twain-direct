@@ -360,7 +360,7 @@ namespace TwainDirectApplication
             switch (m_formsetup.GetSetupMode())
             {
                 default:
-                case FormSetup.SetupMode.setTwainDirectOptions:
+                case FormSetup.SetupMode.sendTask:
                     m_pictureboxImage1.Show();
                     m_pictureboxImage2.Show();
                     m_listviewCertification.Hide();
@@ -411,14 +411,14 @@ namespace TwainDirectApplication
             }
 
             // Send down a TWAIN Direct task (if activated)...
-            if (m_formsetup.GetSetupMode() == FormSetup.SetupMode.setTwainDirectOptions)
+            if (m_formsetup.GetSetupMode() == FormSetup.SetupMode.sendTask)
             {
                 // Send down the task...
-                blSuccess = m_twainlocalscanner.ClientScannerSetTwainDirectOptions(m_formsetup.GetTask(), ref apicmd);
+                blSuccess = m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref apicmd);
                 if (!blSuccess)
                 {
-                    Log.Error("ClientScannerSetTwainDirectOptions failed: " + apicmd.HttpResponseData());
-                    MessageBox.Show("ClientScannerSetTwainDirectOptions failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+                    Log.Error("ClientScannerSendTask failed: " + apicmd.HttpResponseData());
+                    MessageBox.Show("ClientScannerSendTask failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
                     SetButtons(EBUTTONSTATE.OPEN);
                     return;
                 }
@@ -770,7 +770,7 @@ namespace TwainDirectApplication
                     Application.DoEvents();
 
                     // Perform the test...
-                    blSuccess = m_twainlocalscanner.ClientScannerSetTwainDirectOptions(aszTestData[1], ref apicmd);
+                    blSuccess = m_twainlocalscanner.ClientScannerSendTask(aszTestData[1], ref apicmd);
 
                     // Figure out the index offset to the task, so that we don't
                     // have to dink with the certification tests if the API is

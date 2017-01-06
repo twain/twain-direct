@@ -1044,10 +1044,10 @@ namespace TwainDirectSupport
         /// <param name="a_szTask">the task to use</param>
         /// <param name="a_apicmd">info about the command</param>
         /// <returns>true on success</returns>
-        public bool ClientScannerSetTwainDirectOptions(string a_szTask, ref ApiCmd a_apicmd)
+        public bool ClientScannerSendTask(string a_szTask, ref ApiCmd a_apicmd)
         {
             bool blSuccess;
-            string szFunction = "ClientScannerSetTwainDirectOptions";
+            string szFunction = "ClientScannerSendTask";
 
             // Lock this command to protect the session object...
             lock (m_twainlocalsession)
@@ -1074,7 +1074,7 @@ namespace TwainDirectSupport
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
-                    "\"method\":\"setTwainDirectOptions\"," +
+                    "\"method\":\"sendTask\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                     "\"task\":" + a_szTask +
@@ -1439,7 +1439,7 @@ namespace TwainDirectSupport
                     DeviceScannerReleaseImageBlocks(ref apicmd);
                     break;
 
-                case "setTwainDirectOptions":
+                case "sendTask":
                     // The task must be an object, we'll treat this as a JSON error,
                     // even though it's syntactically okay.  If the type is undefined
                     // it means we didn't find a task.
@@ -1464,7 +1464,7 @@ namespace TwainDirectSupport
                     }
 
                     // Go ahead and process it...
-                    DeviceScannerSetTwainDirectOptions(ref apicmd);
+                    DeviceScannerSendTask(ref apicmd);
                     break;
 
                 case "startCapturing":
@@ -3400,13 +3400,13 @@ namespace TwainDirectSupport
         /// </summary>
         /// <param name="a_jsonlookup">data from the application/cloud</param>
         /// <returns>true on success</returns>
-        private bool DeviceScannerSetTwainDirectOptions(ref ApiCmd a_apicmd)
+        private bool DeviceScannerSendTask(ref ApiCmd a_apicmd)
         {
             bool blSuccess;
             long lResponseCharacterOffset;
             string szIpc;
             string szStatus;
-            string szFunction = "DeviceScannerSetTwainDirectOptions";
+            string szFunction = "DeviceScannerSendTask";
 
             // Protect our stuff...
             lock (m_twainlocalsession)
@@ -3439,7 +3439,7 @@ namespace TwainDirectSupport
                 m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
                 (
                     "{" +
-                    "\"method\":\"setTwainDirectOptions\"," +
+                    "\"method\":\"sendTask\"," +
                     "\"task\":" + a_apicmd.GetJsonReceived("params.task") +
                     "}"
                 );

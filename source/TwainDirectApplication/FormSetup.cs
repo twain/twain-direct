@@ -158,7 +158,7 @@ namespace TwainDirectApplication
             }
 
             // Normal stuff...
-            return (SetupMode.setTwainDirectOptions);
+            return (SetupMode.sendTask);
         }
 
         /// <summary>
@@ -250,7 +250,7 @@ namespace TwainDirectApplication
         /// </summary>
         public enum SetupMode
         {
-            setTwainDirectOptions,
+            sendTask,
             twainDirectCertification
         }
 

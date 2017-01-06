@@ -342,8 +342,8 @@ namespace TwainDirectOnSane
                         }
                         break;
 
-                    case "setTwainDirectOptions":
-                        apistatus = DeviceScannerSetTwainDirectOptions(jsonlookup, out swordtask, ref blSetAppCapabilities);
+                    case "sendTask":
+                        apistatus = DeviceScannerSendTask(jsonlookup, out swordtask, ref blSetAppCapabilities);
                         if (apistatus == TwainLocalScanner.ApiStatus.success)
                         {
                             if (string.IsNullOrEmpty(swordtask.GetTaskReply()))
@@ -876,7 +876,7 @@ namespace TwainDirectOnSane
         /// <param name="a_jsonlookup">data for the task</param>
         /// <param name="a_swordtask">the result of the task</param>
         /// <returns>a twain local status</returns>
-        private TwainLocalScanner.ApiStatus DeviceScannerSetTwainDirectOptions(JsonLookup a_jsonlookup, out SwordTask a_swordtask, ref bool a_blSetAppCapabilities)
+        private TwainLocalScanner.ApiStatus DeviceScannerSendTask(JsonLookup a_jsonlookup, out SwordTask a_swordtask, ref bool a_blSetAppCapabilities)
         {
             bool blSuccess;
             string szTask;
