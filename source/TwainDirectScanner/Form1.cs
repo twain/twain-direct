@@ -149,7 +149,7 @@ namespace TwainDirectScanner
         /// <summary>
         /// Set the buttons based on the current state...
         /// </summary>
-        void SetButtons(ButtonState a_ebuttonstate)
+        private void SetButtons(ButtonState a_ebuttonstate)
         {
             switch (a_ebuttonstate)
             {
@@ -556,7 +556,7 @@ namespace TwainDirectScanner
         /// <summary>
         /// The button states (enable/disable)...
         /// </summary>
-        enum ButtonState
+        private enum ButtonState
         {
             Undefined,
             NoDevices,

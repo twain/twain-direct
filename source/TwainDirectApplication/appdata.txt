@@ -1,5 +1,7 @@
 {
     "logLevel": 3,
     "httpTimeoutCommand": 5000,
+    "httpTimeoutData": 10000,
+    "httpTimeoutEvent": 60000,
     "useHttps": "auto"
 }

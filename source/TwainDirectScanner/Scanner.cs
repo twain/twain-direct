@@ -99,7 +99,7 @@ namespace TwainDirectScanner
             }
 
             // Get our TWAIN Local interface...
-            m_twainlocalscanner = new TwainLocalScanner(a_confirmscan,a_fConfirmScanScale);
+            m_twainlocalscanner = new TwainLocalScanner(a_confirmscan,a_fConfirmScanScale, null, null);
             if (m_twainlocalscanner == null)
             {
                 Log.Error("Failed to create TwainLocalScanner");

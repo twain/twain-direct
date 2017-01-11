@@ -149,7 +149,7 @@ namespace TwainDirectApplication
             // Authorization Code using a WebBrowser object (yay C#).
             //
             // No such joy for the Linux and Mac worlds...
-            m_twainlocalscanner = new TwainLocalScanner(null, 0);
+            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this);
         }
 
         /// <summary>
@@ -168,6 +168,31 @@ namespace TwainDirectApplication
         // Private Methods...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Methods...
+
+        /// <summary>
+        /// Event callback...
+        /// </summary>
+        /// <param name="a_object"></param>
+        /// <param name="a_szEvent"></param>
+        private void EventCallback(object a_object, string a_szEvent)
+        {
+            FormScan formscan = (FormScan)a_object;
+            if (formscan != null)
+            {
+                switch (a_szEvent)
+                {
+                    // Don't recognize it...
+                    default:
+                        break;
+
+                    // We've lost our session
+                    case "sessionTimedOut":
+                        formscan.SetButtons(EBUTTONSTATE.CLOSED);
+                        MessageBox.Show("Your scanner session has timed out.", "Notification");
+                        break;
+                }
+            }
+        }
 
         /// <summary>
         /// Input text...
@@ -419,7 +444,7 @@ namespace TwainDirectApplication
                 {
                     Log.Error("ClientScannerSendTask failed: " + apicmd.HttpResponseData());
                     MessageBox.Show("ClientScannerSendTask failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                    SetButtons(EBUTTONSTATE.OPEN);
+                    m_buttonClose_Click(sender,e);
                     return;
                 }
             }
@@ -429,7 +454,7 @@ namespace TwainDirectApplication
             {
                 Log.Error("ClientScannerStartCapturing failed: " + apicmd.HttpResponseData());
                 MessageBox.Show("ClientScannerStartCapturing failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                SetButtons(EBUTTONSTATE.OPEN);
+                m_buttonClose_Click(sender,e);
                 return;
             }
 

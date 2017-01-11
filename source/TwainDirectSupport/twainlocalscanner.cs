@@ -85,7 +85,9 @@ namespace TwainDirectSupport
         public TwainLocalScanner
         (
             ConfirmScan a_confirmscan,
-            float a_fConfirmScanScale
+            float a_fConfirmScanScale,
+            EventCallback a_eventcallback,
+            object a_objectEventCallback
         )
         {
             int iDefault;
@@ -93,7 +95,7 @@ namespace TwainDirectSupport
             // Init our command timeout for HTTPS communication...
             iDefault = 10000;
             m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
-            if (m_iHttpTimeoutCommand < iDefault)
+            if (m_iHttpTimeoutCommand < 5000)
             {
                 m_iHttpTimeoutCommand = iDefault;
             }
@@ -101,7 +103,7 @@ namespace TwainDirectSupport
             // Init our data timeout for HTTPS communication...
             iDefault = 30000;
             m_iHttpTimeoutData = (int)Config.Get("httpTimeoutData", iDefault);
-            if (m_iHttpTimeoutData < iDefault)
+            if (m_iHttpTimeoutData < 10000)
             {
                 m_iHttpTimeoutData = iDefault;
             }
@@ -109,15 +111,25 @@ namespace TwainDirectSupport
             // Init our event timeout for HTTPS communication...
             iDefault = 30000;
             m_iHttpTimeoutEvent = (int)Config.Get("httpTimeoutEvent", iDefault);
-            if (m_iHttpTimeoutEvent < iDefault)
+            if (m_iHttpTimeoutEvent < 10000)
             {
                 m_iHttpTimeoutEvent = iDefault;
+            }
+
+            // Init our idle session timeout...
+            iDefault = 300000;
+            m_lSessionTimeout = Config.Get("sessionTimeout", iDefault);
+            if (m_lSessionTimeout < 10000)
+            {
+                m_lSessionTimeout = iDefault;
             }
 
             // Init stuff...
             m_szWriteFolder = Config.Get("writeFolder", "");
             m_confirmscan = a_confirmscan;
             m_fConfirmScanScale = a_fConfirmScanScale;
+            m_eventcallback = a_eventcallback;
+            m_objectEventCallback = a_objectEventCallback;
 
             // Set up session specific content...
             m_twainlocalsessionInfo = new TwainLocalSession("");
@@ -141,6 +153,9 @@ namespace TwainDirectSupport
             {
                 throw new Exception("Can't set up an images folder...");
             }
+
+            // Create the timer we'll use for expiring sessions...
+            m_timerSession = new Timer(DeviceSessionTimerCallback, this, Timeout.Infinite, Timeout.Infinite);
         }
 
         /// <summary>
@@ -413,14 +428,6 @@ namespace TwainDirectSupport
                     return (true);
                 }
                 Log.Info("ClientScan: event detected");
-
-                // Get the session data...
-                //if (!ClientScannerGetSession(ref a_apicmd))
-                //{
-                //    Log.Error("ClientScannerGetSession failed: " + a_apicmd.HttpResponseData());
-                //    a_szError = "ClientScannerGetSession failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
-                //    return (false);
-                //}
 
                 // If we have an image, then pop out...
                 alImageBlocks = ClientGetImageBlocks();
@@ -1383,13 +1390,26 @@ namespace TwainDirectSupport
 
             // If we are running a session, make sure that the command's id matches
             // the session's id...
-            if ((m_twainlocalsession != null) && !string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
+            lock (m_objectLock)
             {
-                if (jsonlookup.Get("params.sessionId") != m_twainlocalsession.GetSessionId())
+                // If we have no session, and we're not processing "createSession" then
+                // we have a problem.  We can get here is the session timeout was hit...
+                if ((m_twainlocalsession == null) && (jsonlookup.Get("method") != "createSession"))
                 {
-                    Log.Error(szFunction + ": sessionId error: <" + jsonlookup.Get("params.sessionId") + "> <" + m_twainlocalsession.GetSessionId() + ">");
+                    Log.Error(szFunction + ": sessionId error: <" + jsonlookup.Get("params.sessionId") + "> <(no session)>");
                     DeviceReturnError(szFunction, apicmd, "invalidSessionId", null, -1);
                     return;
+                }
+
+                // If we have a session, the called must match our sessionId...
+                if ((m_twainlocalsession != null) && !string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
+                {
+                    if (jsonlookup.Get("params.sessionId") != m_twainlocalsession.GetSessionId())
+                    {
+                        Log.Error(szFunction + ": sessionId error: <" + jsonlookup.Get("params.sessionId") + "> <" + m_twainlocalsession.GetSessionId() + ">");
+                        DeviceReturnError(szFunction, apicmd, "invalidSessionId", null, -1);
+                        return;
+                    }
                 }
             }
 
@@ -1417,7 +1437,7 @@ namespace TwainDirectSupport
                     }
                 }
                 Log.Info("http>>> recvdata " + a_szJsonCommand);
-           }
+            }
 
             // Dispatch the command...
             switch (jsonlookup.Get("method"))
@@ -1505,24 +1525,6 @@ namespace TwainDirectSupport
 
             // All done...
             return;
-        }
-
-        /// <summary>
-        /// The pending HTTP command for long poll events...
-        /// </summary>
-        /// <returns>the object</returns>
-        public ApiCmd GetApiCmdEvent()
-        {
-            return (m_apicmdEvent);
-        }
-
-        /// <summary>
-        /// Return the note= field...
-        /// </summary>
-        /// <returns>users friendly name</returns>
-        public string GetTwainLocalNote()
-        {
-            return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote());
         }
 
         /// <summary>
@@ -1655,6 +1657,44 @@ namespace TwainDirectSupport
             return (m_twainlocalsessionInfo.DeviceRegisterSave(Path.Combine(m_szWriteFolder, "register.txt")));
         }
 
+        /// <summary>
+        /// Queue an event for waitForEvents to send...
+        /// </summary>
+        /// <param name="a_szEvent"></param>
+        public void DeviceSendEvent(string a_szEvent)
+        {
+            // Guard us...
+            lock (m_objectLock)
+            {
+                // We only have an event if we have a session...
+                if (m_twainlocalsession != null)
+                {
+                    ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
+                    apicmd.SetEvent(a_szEvent, m_twainlocalsession.GetSessionState().ToString(), m_twainlocalsession.GetSessionRevision());
+                    DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, m_twainlocalsession.GetSessionState(), m_twainlocalsession.GetSessionRevision(), a_szEvent);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The pending HTTP command for long poll events...
+        /// </summary>
+        /// <returns>the object</returns>
+        public ApiCmd GetApiCmdEvent()
+        {
+            return (m_apicmdEvent);
+        }
+
+        /// <summary>
+        /// Return the note= field...
+        /// </summary>
+        /// <returns>users friendly name</returns>
+        public string GetTwainLocalNote()
+        {
+            return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote());
+        }
+
         #endregion
 
 
@@ -1727,6 +1767,13 @@ namespace TwainDirectSupport
         /// <param name="a_szImage"></param>
         /// <returns></returns>
         public delegate bool ScanCallback(string a_szImage);
+
+        /// <summary>
+        /// Delegate for event callback...
+        /// </summary>
+        /// <param name="a_object">caller's object</param>
+        /// <param name="a_szEvent">event</param>
+        public delegate void EventCallback(object a_object, string a_szEvent);
 
         /// <summary>
         /// Prompt the user to confirm a request to scan...
@@ -1809,6 +1856,12 @@ namespace TwainDirectSupport
             // Free managed resources...
             if (a_blDisposing)
             {
+                if (m_timerSession != null)
+                {
+                    m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
+                    m_timerSession.Dispose();
+                    m_timerSession = null;
+                }
                 if (m_autoreseteventWaitForEvents != null)
                 {
                     m_autoreseteventWaitForEvents.Dispose();
@@ -1903,7 +1956,7 @@ namespace TwainDirectSupport
         /// <param name="a_apicmd">the command object</param>
         /// <param name="a_jsonlookup">data to check</param>
         /// <returns>true on success</returns>
-        private bool ParseSession(string a_szReason, ApiCmd a_apicmd)
+        private bool ParseSession(string a_szReason, ApiCmd a_apicmd, out string a_szCode)
         {
             bool blSuccess;
             int ii;
@@ -1920,8 +1973,34 @@ namespace TwainDirectSupport
             if (!blSuccess)
             {
                 ClientReturnError(a_apicmd, false, "invalidJson", lResponseCharacterOffset, a_szReason + ": ClientHttpRequest JSON syntax error...");
+                a_szCode = "critical";
                 return (false);
             }
+
+            // Run-roh...
+            if (jsonlookup.Get("results.success") == "false")
+            {
+                // Get the code...
+                a_szCode = jsonlookup.Get("results.code");
+                if (!string.IsNullOrEmpty(a_szCode))
+                {
+                    a_szCode = "critical";
+                }
+
+                // If we've lost the session, we might as well zap things here...
+                switch (a_szCode)
+                {
+                    default: break;
+                    case "critical": SetSessionState(SessionState.noSession); break;
+                    case "invalidSessionId": SetSessionState(SessionState.noSession); break;
+                }
+
+                // Bail...
+                return (false);
+            }
+
+            // We expect success from this point on, unless set otherwise...
+            a_szCode = "success";
 
             // If we done't have one of these styles, we can't have any session
             // data, so bail here...
@@ -1966,7 +2045,8 @@ namespace TwainDirectSupport
                                 Log.Verbose(szFunction + ": unrecognized event..." + jsonlookup.Get(szEvent + ".event", false));
                                 break;
 
-                            // The session object has been updated...
+                            // The session object has been updated, specifically we have a change
+                            // to the imageBlocks array from stuff being added or removed...
                             case "imageBlocks":
                                 Log.Verbose(szFunction + ": imageBlocks event...");
                                 lock (m_objectLock)
@@ -2002,18 +2082,24 @@ namespace TwainDirectSupport
                                     }
                                 }
                                 break;
+
+                            // Our scanner session went bye-bye on us...
+                            case "sessionTimedOut":
+                                // Our reply...
+                                Log.Info(szFunction + ": sessionTimedOut event...");
+                                if (m_eventcallback != null)
+                                {
+                                    m_eventcallback(m_objectEventCallback, "sessionTimedOut");
+                                }
+
+                                // Now we can zap it...
+                                SetSessionState(SessionState.noSession);
+                                break;
                         }
                     }
                 }
 
                 // All done...
-                return (true);
-            }
-
-            // If there's an error we won't find a session object,
-            // so scoot and pretend that all is well...
-            if (jsonlookup.Get("results.success") == "false")
-            {
                 return (true);
             }
 
@@ -2029,6 +2115,7 @@ namespace TwainDirectSupport
             // this function...
             if (string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
             {
+                a_szCode = "invalidSessionId";
                 return (false);
             }
 
@@ -2036,6 +2123,7 @@ namespace TwainDirectSupport
             if (!int.TryParse(jsonlookup.Get("results.session.revision", false), out iSessionRevision))
             {
                 Log.Error(szFunction + ": bad session revision number...");
+                a_szCode = "critical";
                 return (false);
             }
 
@@ -2069,12 +2157,16 @@ namespace TwainDirectSupport
                 // Change our state...
                 switch (jsonlookup.Get("results.session.state"))
                 {
+                    // Uh-oh...
                     default:
                         Log.Error(szFunction + ":Unrecognized results.session.state..." + jsonlookup.Get("results.session.state"));
+                        a_szCode = "critical";
                         return (false);
+
                     case "capturing":
                         SetSessionState(SessionState.capturing);
                         break;
+
                     case "closed":
                         // We can't truly close until all the imageblocks are resolved...
                         if (    (m_twainlocalsession.m_alSessionImageBlocks == null)
@@ -2087,22 +2179,27 @@ namespace TwainDirectSupport
                             SetSessionState(SessionState.closed);
                         }
                         break;
+
                     case "draining":
                         SetSessionState(SessionState.draining);
                         break;
+
                     case "nosession":
                         SetSessionState(SessionState.noSession);
                         break;
+
                     case "ready":
                         SetSessionState(SessionState.ready);
                         break;
                 }
             }
-            catch
+            catch (Exception exception)
             {
+                Log.Error(szFunction + ": exception..." + exception.Message);
                 m_twainlocalsession.SetSessionId(null);
                 m_twainlocalsession.SetCallersHostName(null);
                 m_twainlocalsession.m_alSessionImageBlocks = null;
+                a_szCode = "critical";
                 return (false);
             }
 
@@ -2147,6 +2244,7 @@ namespace TwainDirectSupport
         )
         {
             bool blSuccess;
+            string szCode;
 
             // Our normal path...
             if (a_httpreplystyle != ApiCmd.HttpReplyStyle.Event)
@@ -2171,10 +2269,10 @@ namespace TwainDirectSupport
                 }
 
                 // Try to get any session data that may be in the payload...
-                blSuccess = ParseSession(a_szReason, a_apicmd);
+                blSuccess = ParseSession(a_szReason, a_apicmd, out szCode);
                 if (!blSuccess)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, a_szReason + ": ParseSession failed...");
+                    ClientReturnError(a_apicmd, false, szCode, -1, a_szReason + ": ParseSession failed...");
                     return (false);
                 }
             }
@@ -2268,6 +2366,7 @@ namespace TwainDirectSupport
                             return;
 
                         // Issue a new command...
+                        case WebExceptionStatus.ReceiveFailure:
                         case WebExceptionStatus.Timeout:
                             continue;
                     }
@@ -2278,8 +2377,10 @@ namespace TwainDirectSupport
                 // midst of processing some other command...
                 lock (m_objectLock)
                 {
+                    string szCode;
+
                     // Parse the data...
-                    ParseSession(m_waitforeventsinfo.m_szReason, m_waitforeventsinfo.m_apicmd);
+                    ParseSession(m_waitforeventsinfo.m_szReason, m_waitforeventsinfo.m_apicmd, out szCode);
 
                     // Wake up anybody waiting for an event...
                     m_autoreseteventWaitForEvents.Set();
@@ -2356,6 +2457,34 @@ namespace TwainDirectSupport
 
             // All done...
             return (true);
+        }
+
+        /// <summary>
+        /// Our device session timeout callback...
+        /// </summary>
+        /// <param name="a_objectState"></param>
+        internal void DeviceSessionTimerCallback(object a_objectState)
+        {
+            // Our scanner object...
+            TwainLocalScanner twainlocalscanner = (TwainLocalScanner)a_objectState;
+
+            // Send an event to let the app know that it's tooooooo late...
+            twainlocalscanner.DeviceSendEvent("sessionTimedOut");
+
+            // Make a note of what we're doing...
+            Log.Error("DeviceSessionTimerCallback: session timeout...");
+
+            // Scrag the session...
+            twainlocalscanner.SetSessionState(SessionState.noSession);
+        }
+
+        /// <summary>
+        /// Refresh our session timer...
+        /// </summary>
+        public void DeviceSessionRefreshTimer()
+        {
+            m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
+            m_timerSession.Change(m_lSessionTimeout, Timeout.Infinite);
         }
 
         /// <summary>
@@ -2725,6 +2854,9 @@ namespace TwainDirectSupport
             // Protect our stuff...
             lock (m_objectLock)
             {
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
+
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
                 {
@@ -2964,6 +3096,9 @@ namespace TwainDirectSupport
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
                     return (false);
                 }
+
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
             }
 
             // All done...
@@ -2980,6 +3115,9 @@ namespace TwainDirectSupport
         /// events we currently have that aren't older than a certain number
         /// of seconds, and with revision numbers newer than the one received
         /// from the last call to waitForEvents.
+        /// 
+        /// An explicit call to getSession will reset the session timer.  A
+        /// call to waitForEvents will not.
         /// </summary>
         /// <param name="a_apicmd">our command object</param>
         /// <param name="a_blSendEvents">send as events</param>
@@ -3006,6 +3144,9 @@ namespace TwainDirectSupport
                 // Handle getSession...
                 if (!a_blSendEvents)
                 {
+                    // Refresh our timer...
+                    DeviceSessionRefreshTimer();
+
                     // State check...
                     if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
                     {
@@ -3167,6 +3308,9 @@ namespace TwainDirectSupport
             // Protect our stuff...
             lock (m_objectLock)
             {
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
+
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
                 {
@@ -3262,6 +3406,9 @@ namespace TwainDirectSupport
             // Protect our stuff...
             lock (m_objectLock)
             {
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
+
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
                 {
@@ -3355,6 +3502,9 @@ namespace TwainDirectSupport
             // Protect our stuff...
             lock (m_objectLock)
             {
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
+
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
                 {
@@ -3447,6 +3597,9 @@ namespace TwainDirectSupport
             // Protect our stuff...
             lock (m_objectLock)
             {
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
+
                 // State check, we're allowing this to happen in more
                 // than just the ready state to support custom vendor
                 // actions.  The current TWAIN Direct actions can only
@@ -3569,6 +3722,9 @@ namespace TwainDirectSupport
             // Protect our stuff...
             lock (m_objectLock)
             {
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
+
                 // State check...
                 if (m_twainlocalsession.GetSessionState() != SessionState.ready)
                 {
@@ -3659,6 +3815,9 @@ namespace TwainDirectSupport
             // Protect our stuff...
             lock (m_objectLock)
             {
+                // Refresh our timer...
+                DeviceSessionRefreshTimer();
+
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
                 {
@@ -3752,6 +3911,9 @@ namespace TwainDirectSupport
         /// expiration time, or when we get a waitForEvents command
         /// that tells us what the client has received.  We never
         /// clear an event after sending it.
+        /// 
+        /// We don't refresh the session time with waitForEvents,
+        /// otherwise we'd never expire... :)
         /// </summary>
         /// <param name="a_apicmd">our command object</param>
         /// <returns>true on success</returns>
@@ -3889,6 +4051,11 @@ namespace TwainDirectSupport
         private TwainLocalSession m_twainlocalsession;
 
         /// <summary>
+        /// Our session timer for /privet/twaindirect/session...
+        /// </summary>
+        private Timer m_timerSession;
+
+        /// <summary>
         /// Something we can lock...
         /// </summary>
         private object m_objectLock;
@@ -3957,6 +4124,16 @@ namespace TwainDirectSupport
         private float m_fConfirmScanScale;
 
         /// <summary>
+        /// Event callback function...
+        /// </summary>
+        private EventCallback m_eventcallback;
+
+        /// <summary>
+        /// Caller's object for the event callback function...
+        /// </summary>
+        private object m_objectEventCallback;
+
+        /// <summary>
         /// Command timeout, this should be short (and in milliseconds)...
         /// </summary>
         private int m_iHttpTimeoutCommand;
@@ -3970,6 +4147,11 @@ namespace TwainDirectSupport
         /// Event timeout, this should be long (and in milliseconds)...
         /// </summary>
         private int m_iHttpTimeoutEvent;
+
+        /// <summary>
+        /// Idle time before a session times out (in milliseconds)...
+        /// </summary>
+        private long m_lSessionTimeout;
 
         /// <summary>
         /// Event info...
