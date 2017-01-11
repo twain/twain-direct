@@ -120,7 +120,10 @@ namespace TwainDirectSupport
             m_fConfirmScanScale = a_fConfirmScanScale;
 
             // Set up session specific content...
-            m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
+            m_twainlocalsessionInfo = new TwainLocalSession("");
+
+            // Our lock...
+            m_objectLock = new object();
 
             // We use this to get notification about events...
             m_autoreseteventWaitForEvents = new AutoResetEvent(false);
@@ -170,13 +173,13 @@ namespace TwainDirectSupport
 
             // Stock it...
             dnssddeviceinfo.szLinkLocal = "";
-            dnssddeviceinfo.szServiceName = m_twainlocalsession.DeviceRegisterGetTwainLocalInstanceName();
+            dnssddeviceinfo.szServiceName = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName();
             dnssddeviceinfo.szTxtCs = "offline";
             dnssddeviceinfo.blTxtHttps = true;
             dnssddeviceinfo.szTxtId = "";
-            dnssddeviceinfo.szTxtNote = m_twainlocalsession.DeviceRegisterGetTwainLocalNote();
+            dnssddeviceinfo.szTxtNote = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote();
             dnssddeviceinfo.szTxtTxtvers = "1";
-            dnssddeviceinfo.szTxtTy = m_twainlocalsession.DeviceRegisterGetTwainLocalTy();
+            dnssddeviceinfo.szTxtTy = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy();
             dnssddeviceinfo.szTxtType = "twaindirect";
 
             // Return it...
@@ -189,7 +192,7 @@ namespace TwainDirectSupport
         /// <returns>TWAIN Local ty= field</returns>
         public string GetTwainLocalTy()
         {
-            return (m_twainlocalsession.DeviceRegisterGetTwainLocalTy());
+            return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
         }
 
         /// <summary>
@@ -339,7 +342,7 @@ namespace TwainDirectSupport
                 "/privet/info",
                 "GET",
                 new string[] {
-                    "X-Privet-Token:"
+                    "X-Privet-Token: \"\""
                 },
                 null,
                 null,
@@ -518,12 +521,13 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerCloseSession";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Skip the command if we've no session state or if we're already closed.
                 // But return true anyway, because one should never fail when trying to
                 // shut something down...
-                if (    (m_twainlocalsession.GetSessionState() == SessionState.noSession)
+                if (    (m_twainlocalsession == null)
+                    ||  (m_twainlocalsession.GetSessionState() == SessionState.noSession)
                     ||  (m_twainlocalsession.GetSessionState() == SessionState.closed))
                 {
                     Log.Error(szFunction + ": already closed");
@@ -593,8 +597,14 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerCreateSession";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
+                // Create it if we need it...
+                if (m_twainlocalsession == null)
+                {
+                    m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
+                }
+
                 // Check our incoming state...
                 if (m_twainlocalsession.GetSessionState() != SessionState.noSession)
                 {
@@ -677,7 +687,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerGetSession";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
@@ -743,7 +753,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerReadImageBlock";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if ((m_twainlocalsession.GetSessionState() != SessionState.capturing)
@@ -856,7 +866,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerReadImageBlockMetadata";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if ((m_twainlocalsession.GetSessionState() != SessionState.capturing)
@@ -973,7 +983,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerReleaseImageBlocks";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if (    (m_twainlocalsession.GetSessionState() != SessionState.capturing)
@@ -1050,7 +1060,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerSendTask";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() != SessionState.ready)
@@ -1106,7 +1116,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerStartCapturing";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() != SessionState.ready)
@@ -1161,7 +1171,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerStopCapturing";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() != SessionState.capturing)
@@ -1216,7 +1226,7 @@ namespace TwainDirectSupport
             string szFunction = "ClientScannerWaitForEvents";
 
             // Lock this command to protect the session object...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
@@ -1313,8 +1323,8 @@ namespace TwainDirectSupport
                 return;
             }
 
-            // We found it, squirrel away the value...
-            szXPrivetToken = a_httplistenercontext.Request.Headers.Get(ii);
+            // We found it, squirrel away the value, remove any double quotes...
+            szXPrivetToken = a_httplistenercontext.Request.Headers.Get(ii).Replace("\"","");
 
             // Handle the info command...
             if (szUri == "/privet/info")
@@ -1373,7 +1383,7 @@ namespace TwainDirectSupport
 
             // If we are running a session, make sure that the command's id matches
             // the session's id...
-            if (!string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
+            if ((m_twainlocalsession != null) && !string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
             {
                 if (jsonlookup.Get("params.sessionId") != m_twainlocalsession.GetSessionId())
                 {
@@ -1512,7 +1522,7 @@ namespace TwainDirectSupport
         /// <returns>users friendly name</returns>
         public string GetTwainLocalNote()
         {
-            return (m_twainlocalsession.DeviceRegisterGetTwainLocalNote());
+            return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote());
         }
 
         /// <summary>
@@ -1538,10 +1548,10 @@ namespace TwainDirectSupport
             blSuccess = m_httpserver.ServerStart
             (
                 DeviceDispatchCommand,
-                m_twainlocalsession.DeviceRegisterGetTwainLocalInstanceName(),
+                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
                 iPort,
-                m_twainlocalsession.DeviceRegisterGetTwainLocalTy(),
-                m_twainlocalsession.DeviceRegisterGetTwainLocalNote()
+                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
+                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
             );
             if (!blSuccess)
             {
@@ -1584,7 +1594,7 @@ namespace TwainDirectSupport
             // We're being asked to clear the register...
             if (a_iScanner < 0)
             {
-                m_twainlocalsession.DeviceRegisterClear();
+                m_twainlocalsessionInfo.DeviceRegisterClear();
                 return (true);
             }
 
@@ -1603,7 +1613,7 @@ namespace TwainDirectSupport
             // Get the device code...
             try
             {
-                m_twainlocalsession.DeviceRegisterSet
+                m_twainlocalsessionInfo.DeviceRegisterSet
                 (
                     szDeviceName,
                     szSerialNumber,
@@ -1627,7 +1637,7 @@ namespace TwainDirectSupport
         public bool DeviceRegisterLoad()
         {
             // First load the data...
-            if (!m_twainlocalsession.DeviceRegisterLoad(this, Path.Combine(m_szWriteFolder, "register.txt")))
+            if (!m_twainlocalsessionInfo.DeviceRegisterLoad(this, Path.Combine(m_szWriteFolder, "register.txt")))
             {
                 return (false);
             }
@@ -1642,7 +1652,7 @@ namespace TwainDirectSupport
         /// <returns>true on success</returns>
         public bool DeviceRegisterSave()
         {
-            return (m_twainlocalsession.DeviceRegisterSave(Path.Combine(m_szWriteFolder, "register.txt")));
+            return (m_twainlocalsessionInfo.DeviceRegisterSave(Path.Combine(m_szWriteFolder, "register.txt")));
         }
 
         #endregion
@@ -1760,6 +1770,13 @@ namespace TwainDirectSupport
                     m_apicmdEvent.HttpAbort();
                     m_apicmdEvent = null;
                 }
+
+                // Lose the session...
+                if (m_twainlocalsession != null)
+                {
+                    m_twainlocalsession.Dispose();
+                    m_twainlocalsession = null;
+                }
             }
         }
 
@@ -1811,6 +1828,11 @@ namespace TwainDirectSupport
                 {
                     m_twainlocalsession.Dispose();
                     m_twainlocalsession = null;
+                }
+                if (m_twainlocalsessionInfo != null)
+                {
+                    m_twainlocalsessionInfo.Dispose();
+                    m_twainlocalsessionInfo = null;
                 }
             }
         }
@@ -1947,7 +1969,7 @@ namespace TwainDirectSupport
                             // The session object has been updated...
                             case "imageBlocks":
                                 Log.Verbose(szFunction + ": imageBlocks event...");
-                                lock (m_twainlocalsession)
+                                lock (m_objectLock)
                                 {
                                     // Check the session revision number...
                                     if (!int.TryParse(jsonlookup.Get(szEvent + ".session.revision", false), out iSessionRevision))
@@ -2254,7 +2276,7 @@ namespace TwainDirectSupport
                 // Try to get any session data that may be in the payload, we
                 // need to lock this, since it could happen while we're in the
                 // midst of processing some other command...
-                lock (m_twainlocalsession)
+                lock (m_objectLock)
                 {
                     // Parse the data...
                     ParseSession(m_waitforeventsinfo.m_szReason, m_waitforeventsinfo.m_apicmd);
@@ -2372,14 +2394,21 @@ namespace TwainDirectSupport
                 Dnssd.DnssdDeviceInfo dnssddeviceinfo = GetDnssdDeviceInfo();
 
                 // Device state...
-                switch (m_twainlocalsession.GetSessionState())
+                if (m_twainlocalsession == null)
                 {
-                    default: szDeviceState = "stopped"; break;
-                    case SessionState.noSession: szDeviceState = "idle"; break;
-                    case SessionState.capturing: szDeviceState = "processing"; break;
-                    case SessionState.closed: szDeviceState = "processing"; break;
-                    case SessionState.draining: szDeviceState = "processing"; break;
-                    case SessionState.ready: szDeviceState = "processing"; break;
+                    szDeviceState = "idle";
+                }
+                else
+                {
+                    switch (m_twainlocalsession.GetSessionState())
+                    {
+                        default: szDeviceState = "stopped"; break;
+                        case SessionState.noSession: szDeviceState = "idle"; break;
+                        case SessionState.capturing: szDeviceState = "processing"; break;
+                        case SessionState.closed: szDeviceState = "processing"; break;
+                        case SessionState.draining: szDeviceState = "processing"; break;
+                        case SessionState.ready: szDeviceState = "processing"; break;
+                    }
                 }
 
                 // If we don't have a timestamp, or if the timestamp has exceeded
@@ -2672,7 +2701,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceInfo";
 
             // Reply to the command with a session object...
-            blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsession.GetSessionState(), -1, null);
+            blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsessionInfo.GetSessionState(), -1, null);
             if (!blSuccess)
             {
                 DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -2694,7 +2723,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerCloseSession";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
@@ -2806,8 +2835,15 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerCreateSession";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
+                // Create it if we need it...
+                if (m_twainlocalsession == null)
+                {
+                    m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
+                    m_twainlocalsession.DeviceRegisterLoad(this, Path.Combine(m_szWriteFolder, "register.txt"));
+                }
+
                 // Init stuff...
                 szTwainDirectOnTwain = Config.Get("executablePath", "");
                 szTwainDirectOnTwain = szTwainDirectOnTwain.Replace("TwainDirectScanner", "TwainDirectOnTwain");
@@ -2960,7 +2996,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerGetSession";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 //////////////////////////////////////////////////////////////////////
                 // This path is taken for getSession
@@ -3129,7 +3165,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerReadImageBlock";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
@@ -3224,7 +3260,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerReadImageBlockMetadata";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
@@ -3317,7 +3353,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerReleaseImageBlocks";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
@@ -3409,7 +3445,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerSendTask";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // State check, we're allowing this to happen in more
                 // than just the ready state to support custom vendor
@@ -3531,7 +3567,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerStartCapturing";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // State check...
                 if (m_twainlocalsession.GetSessionState() != SessionState.ready)
@@ -3621,7 +3657,7 @@ namespace TwainDirectSupport
             string szFunction = "DeviceScannerStopCapturing";
 
             // Protect our stuff...
-            lock (m_twainlocalsession)
+            lock (m_objectLock)
             {
                 // State check...
                 switch (m_twainlocalsession.GetSessionState())
@@ -3843,9 +3879,19 @@ namespace TwainDirectSupport
         #region Private Attributes...
 
         /// <summary>
-        /// All of the data we need to use TWAIN Local...
+        /// Use this with the /privet/info command...
+        /// </summary>
+        private TwainLocalSession m_twainlocalsessionInfo;
+
+        /// <summary>
+        /// All of the data we need for /privet/twaindirect/session...
         /// </summary>
         private TwainLocalSession m_twainlocalsession;
+
+        /// <summary>
+        /// Something we can lock...
+        /// </summary>
+        private object m_objectLock;
 
         /// <summary>
         /// Information about our device...
