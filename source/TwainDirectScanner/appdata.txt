@@ -1,7 +1,7 @@
 {
     "logLevel": 3,
     "delayTwainDirectScanner": 0,
-    "sessionTimeout": 30000,
+    "sessionTimeout": 300000,
     "useHttps": "yes",
     "usePort": 55555
 }
