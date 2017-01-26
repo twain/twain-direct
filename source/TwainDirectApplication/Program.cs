@@ -69,9 +69,9 @@ namespace TwainDirectApplication
                     Application.Run(formscan);
                 }
             }
-            catch
+            catch (Exception exception)
             {
-                // nothing to do here...
+                Log.Error("exception - " + exception.Message);
             }
             finally
             {

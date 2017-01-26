@@ -558,6 +558,7 @@ namespace TwainDirectApplication
                 }
                 catch
                 {
+                    // Delete failed, but we don't care...
                 }
             }
 

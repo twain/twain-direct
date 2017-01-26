@@ -696,6 +696,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
                 {
@@ -762,6 +769,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if ((m_twainlocalsession.GetSessionState() != SessionState.capturing)
                     && (m_twainlocalsession.GetSessionState() != SessionState.closed))
@@ -875,6 +889,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if ((m_twainlocalsession.GetSessionState() != SessionState.capturing)
                     && (m_twainlocalsession.GetSessionState() != SessionState.closed))
@@ -992,6 +1013,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if (    (m_twainlocalsession.GetSessionState() != SessionState.capturing)
                     &&  (m_twainlocalsession.GetSessionState() != SessionState.closed))
@@ -1069,6 +1097,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() != SessionState.ready)
                 {
@@ -1125,6 +1160,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() != SessionState.ready)
                 {
@@ -1180,6 +1222,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() != SessionState.capturing)
                 {
@@ -1235,6 +1284,13 @@ namespace TwainDirectSupport
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Check our state...
                 if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
                 {
@@ -1982,8 +2038,9 @@ namespace TwainDirectSupport
             {
                 // Get the code...
                 a_szCode = jsonlookup.Get("results.code");
-                if (!string.IsNullOrEmpty(a_szCode))
+                if (string.IsNullOrEmpty(a_szCode))
                 {
+                    Log.Error("results.code is missing, so we're assuming 'critical'...");
                     a_szCode = "critical";
                 }
 
@@ -2272,7 +2329,7 @@ namespace TwainDirectSupport
                 blSuccess = ParseSession(a_szReason, a_apicmd, out szCode);
                 if (!blSuccess)
                 {
-                    ClientReturnError(a_apicmd, false, szCode, -1, a_szReason + ": ParseSession failed...");
+                    ClientReturnError(a_apicmd, false, szCode, -1, a_szReason + ": ParseSession failed - " + szCode);
                     return (false);
                 }
             }

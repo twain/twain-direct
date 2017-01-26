@@ -119,8 +119,9 @@ namespace TwainDirectApplication
                 {
                     Directory.CreateDirectory(m_szTasksFolder);
                 }
-                catch
+                catch (Exception exception)
                 {
+                    Log.Error("Can't create folder <" + m_szTasksFolder + ">, so using current folder - " + exception.Message);
                     m_szTasksFolder = Directory.GetCurrentDirectory();
                 }
             }
@@ -187,9 +188,9 @@ namespace TwainDirectApplication
                 {
                     szTask = File.ReadAllText(szTaskFile);
                 }
-                catch
+                catch (Exception exception)
                 {
-                    Log.Error("Error reading: " + szTaskFile);
+                    Log.Error("Error reading: " + szTaskFile + " - " + exception.Message);
                     szTask = "";
                 }
             }
@@ -408,9 +409,9 @@ namespace TwainDirectApplication
                     {
                         Directory.CreateDirectory(openfiledialog.InitialDirectory);
                     }
-                    catch
+                    catch (Exception exception)
                     {
-                        MessageBox.Show("Unable to create settings folder...'" + m_szTasksFolder + "'");
+                        MessageBox.Show("Unable to create settings folder...'" + m_szTasksFolder + "' - " + exception.Message);
                         return;
                     }
                 }
