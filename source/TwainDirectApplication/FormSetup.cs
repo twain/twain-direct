@@ -111,7 +111,7 @@ namespace TwainDirectApplication
             // Location of current task...
             m_szCurrentTaskFile = Path.Combine(szWriteFolder, "currenttask");
 
-            // We're putting the tasks into the read folder...
+            // We're putting the tasks into the write folder...
             m_szTasksFolder = Path.Combine(szWriteFolder, "tasks");
             if (!Directory.Exists(m_szTasksFolder))
             {
@@ -285,7 +285,12 @@ namespace TwainDirectApplication
                 {
                     return (m_twainlocalscanner.GetImagesFolder());
                 }
-                return (File.ReadAllText(Path.Combine(szSaveSpot,"folder")));
+                szSaveSpot = File.ReadAllText(Path.Combine(szSaveSpot, "folder"));
+                if (!Directory.Exists(szSaveSpot))
+                {
+                    return (m_twainlocalscanner.GetImagesFolder());
+                }
+                return (szSaveSpot);
             }
             catch
             {

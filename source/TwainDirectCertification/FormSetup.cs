@@ -284,7 +284,12 @@ namespace TwainDirectCertification
                 {
                     return (m_twainlocalscanner.GetImagesFolder());
                 }
-                return (File.ReadAllText(Path.Combine(szSaveSpot,"folder")));
+                szSaveSpot = File.ReadAllText(Path.Combine(szSaveSpot, "folder"));
+                if (!Directory.Exists(szSaveSpot))
+                {
+                    return (m_twainlocalscanner.GetImagesFolder());
+                }
+                return (szSaveSpot);
             }
             catch
             {

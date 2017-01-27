@@ -29,8 +29,8 @@ if "%1" == "" (
 :: Handle the command
 ::
 if "%command%" == "add" (
-	call:AddToFirewall "TwainDirectApplication"		"out"	"%~dp0\..\source\TwainDirectApplication\bin\x86"		"TwainDirectApplication.exe"
-	call:AddToFirewall "TwainDirectApplicationDebug"	"out"	"%~dp0\..\source\TwainDirectApplication\bin\x86\Debug"		"TwainDirectApplication.exe"
+	call:AddToFirewall "TwainDirectApplication"		"out"	"%~dp0\..\..\source\TwainDirectApplication\bin\x86"		"TwainDirectApplication.exe"
+	call:AddToFirewall "TwainDirectApplicationDebug"	"out"	"%~dp0\..\..\source\TwainDirectApplication\bin\x86\Debug"	"TwainDirectApplication.exe"
 	call:AddToFirewall "TwainDirectScanner"			"in"	""								"system"
 	call:AddToFirewall "TwainDirectScannerDebug"		"in"	""								"system"
 ) else (
