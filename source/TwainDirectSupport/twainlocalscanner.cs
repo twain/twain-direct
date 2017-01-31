@@ -323,6 +323,15 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
+        /// Return the imageBlocksDrained flag...
+        /// </summary>
+        /// <returns>true if the scanner has no more images</returns>
+        public bool ClientGetImageBlocksDrained()
+        {
+            return (m_twainlocalsession.m_blSessionImageBlocksDrained);
+        }
+
+        /// <summary>
         /// Return the current image blocks...
         /// </summary>
         /// <returns>array of image blocks</returns>
@@ -398,7 +407,6 @@ namespace TwainDirectSupport
             out string a_szError
         )
         {
-            string szImageBlocks;
             long[] alImageBlocks;
 
             // It is a message that can be shown to the caller...
@@ -474,23 +482,53 @@ namespace TwainDirectSupport
                     return (false);
                 }
 
-                // Wait for another image, or evidence that we're all done...
+                // If we have an image, go back up and process it...
+                alImageBlocks = ClientGetImageBlocks();
+                if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
+                {
+                    continue;
+                }
+                alImageBlocks = null;
+
+                // Wait for another image, or evidence that we're done...
                 while (true)
                 {
-                    // If we have an image or no data, then pop out...
-                    szImageBlocks = ClientGetImageBlocks(a_apicmd);
-                    if (string.IsNullOrEmpty(szImageBlocks) || (szImageBlocks != "[]"))
+                    // Wait for an event...
+                    if (!m_autoreseteventWaitForEvents.WaitOne())
+                    {
+                        // Stop capturing...
+                        if (!a_blStopCapturing)
+                        {
+                            a_blStopCapturing = true;
+                            if (!ClientScannerStopCapturing(ref a_apicmd))
+                            {
+                                Log.Error("ClientScannerStopCapturing failed: " + a_apicmd.HttpResponseData());
+                                a_szError = "ClientScannerStopCapturing failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
+                                return (false);
+                            }
+                        }
+
+                        // All done...
+                        return (true);
+                    }
+                    Log.Info("ClientScan: event detected");
+
+                    // If we've run out of images, then pop out...
+                    if (ClientGetImageBlocksDrained())
                     {
                         break;
                     }
 
-                    // Wait a bit before trying again...
-                    Thread.Sleep(100);
+                    // Get our image list, if we got something, break out to process it...
+                    alImageBlocks = ClientGetImageBlocks();
+                    if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
+                    {
+                        break;
+                    }
                 }
 
                 // If we run out of images, then pop out...
-                alImageBlocks = ClientGetImageBlocks();
-                if ((alImageBlocks == null) || (alImageBlocks.Length < 1))
+                if (ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -1848,12 +1886,16 @@ namespace TwainDirectSupport
         /// <summary>
         /// Set the session state, and do additional cleanup work, if needed...
         /// </summary>
-        /// <param name="a_sessionstate"></param>
-        private void SetSessionState(SessionState a_sessionstate)
+        /// <param name="a_sessionstate">new session state</param>
+        /// <returns>the previous session state</returns>
+        private SessionState SetSessionState(SessionState a_sessionstate)
         {
+            SessionState sessionstatePrevious = SessionState.noSession;
+
             // First set the session's state...
             if (m_twainlocalsession != null)
             {
+                sessionstatePrevious = m_twainlocalsession.GetSessionState();
                 m_twainlocalsession.SetSessionState(a_sessionstate);
             }
 
@@ -1881,6 +1923,9 @@ namespace TwainDirectSupport
                     m_twainlocalsession = null;
                 }
             }
+
+            // Return the previous state...
+            return (sessionstatePrevious);
         }
 
         /// <summary>
@@ -2123,6 +2168,7 @@ namespace TwainDirectSupport
                                     }
 
                                     // Get the image blocks...
+                                    m_twainlocalsession.m_blSessionImageBlocksDrained = (jsonlookup.Get(szEvent + ".session.imageBlocksDrained", false) == "true");
                                     m_twainlocalsession.m_alSessionImageBlocks = null;
                                     szImageBlocks = jsonlookup.Get(szEvent + ".session.imageBlocks", false);
                                     if (!string.IsNullOrEmpty(szImageBlocks))
@@ -2163,6 +2209,7 @@ namespace TwainDirectSupport
             // Init stuff...
             m_twainlocalsession.SetSessionId(jsonlookup.Get("results.session.sessionId"));
             m_twainlocalsession.m_alSessionImageBlocks = null;
+            m_twainlocalsession.m_blSessionImageBlocksDrained = false;
 
             // Set the metadata, if we have any, we don't care if we
             // succeed, the caller will worry about that...
@@ -2196,6 +2243,7 @@ namespace TwainDirectSupport
             try
             {
                 // Collect the image blocks data...
+                m_twainlocalsession.m_blSessionImageBlocksDrained = (jsonlookup.Get("results.session.imageBlocksDrained", false) == "true");
                 m_twainlocalsession.m_alSessionImageBlocks = null;
                 szImageBlocks = jsonlookup.Get("results.session.imageBlocks", false);
                 if (!string.IsNullOrEmpty(szImageBlocks))
@@ -2256,6 +2304,7 @@ namespace TwainDirectSupport
                 m_twainlocalsession.SetSessionId(null);
                 m_twainlocalsession.SetCallersHostName(null);
                 m_twainlocalsession.m_alSessionImageBlocks = null;
+                m_twainlocalsession.m_blSessionImageBlocksDrained = true;
                 a_szCode = "critical";
                 return (false);
             }
@@ -2659,8 +2708,10 @@ namespace TwainDirectSupport
             if (    (a_apicmd.GetUri() == "/privet/twaindirect/session")
                 &&  !a_blWaitForEvents)
             {
+                SessionState sessionstatePrevious;
+
                 // Change our state...
-                SetSessionState(a_esessionstate);
+                sessionstatePrevious = SetSessionState(a_esessionstate);
 
                 // Okay, you're going to love this.  So in order to change our revision
                 // number in a meaningful way, we'll generate the string data we want
@@ -2679,7 +2730,7 @@ namespace TwainDirectSupport
                         "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                         "\"revision\":" + m_twainlocalsession.GetSessionRevision() + "," +
                         "\"state\":\"" + a_esessionstate.ToString() + "\"," +
-                        a_apicmd.GetImageBlocksJson();
+                        a_apicmd.GetImageBlocksJson(sessionstatePrevious.ToString());
 
                     // Add the TWAIN Direct options, if any...
                     string szTaskReply = a_apicmd.GetTaskReply();
@@ -2833,7 +2884,7 @@ namespace TwainDirectSupport
                             "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                             "\"revision\":" + apicmd.GetSessionRevision() + "," +
                             "\"state\":\"" + apicmd.GetSessionState() + "\"," +
-                            apicmd.GetImageBlocksJson();
+                            apicmd.GetImageBlocksJson(apicmd.GetSessionState());
                         if (szSessionObjects.EndsWith(","))
                         {
                             szSessionObjects = szSessionObjects.Substring(0, szSessionObjects.Length - 1);
@@ -3064,6 +3115,7 @@ namespace TwainDirectSupport
 
                 // Arguments to the progream...
                 szArguments = "ipc=\"" + m_twainlocalsession.GetIpcTwainDirectOnTwain().GetConnectionInfo() + "\"";
+                szArguments += " images=\"" + m_szImagesFolder + "\"";
 
                 // Get ready to start the child process...
                 m_twainlocalsession.SetProcessTwainDirectOnTwain(new Process());
@@ -3140,7 +3192,7 @@ namespace TwainDirectSupport
                 }
 
                 // Update the ApiCmd command object...
-                a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
 
                 // Reply to the command with a session object, this is where we create our
                 // session id, public session id and set the revision to 0...
@@ -3239,11 +3291,11 @@ namespace TwainDirectSupport
                     switch (m_twainlocalsession.GetSessionState())
                     {
                         default:
-                            a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                            a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
                             break;
                         case SessionState.capturing:
                         case SessionState.draining:
-                            a_apicmd.UpdateUsingIpcData(jsonlookup, true);
+                            a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
                             break;
                     }
 
@@ -3320,11 +3372,11 @@ namespace TwainDirectSupport
                         switch (m_twainlocalsession.GetSessionState())
                         {
                             default:
-                                apicmdEvent.UpdateUsingIpcData(jsonlookup, false);
+                                apicmdEvent.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
                                 break;
                             case SessionState.capturing:
                             case SessionState.draining:
-                                apicmdEvent.UpdateUsingIpcData(jsonlookup, true);
+                                apicmdEvent.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
                                 break;
                         }
 
@@ -3415,11 +3467,11 @@ namespace TwainDirectSupport
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
                         break;
                 }
 
@@ -3512,11 +3564,11 @@ namespace TwainDirectSupport
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
                         break;
                 }
 
@@ -3603,11 +3655,11 @@ namespace TwainDirectSupport
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
                         break;
                 }
 
@@ -3720,11 +3772,11 @@ namespace TwainDirectSupport
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
                         break;
                 }
 
@@ -3808,7 +3860,7 @@ namespace TwainDirectSupport
                 }
 
                 // Update the ApiCmd command object...
-                a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
 
                 // Reply to the command with a session object...
                 blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.capturing, -1, null);
@@ -3831,12 +3883,11 @@ namespace TwainDirectSupport
 
                 // Start monitoring for imageblocks...
                 // TBD: getting the images folder this way is a hack
-                string szImages = m_szImagesFolder.Replace("TwainDirectScanner", "TwainDirectOnTwain");
-                if (!Directory.Exists(szImages))
+                if (!Directory.Exists(m_szImagesFolder))
                 {
                     try
                     {
-                        Directory.CreateDirectory(szImages);
+                        Directory.CreateDirectory(m_szImagesFolder);
                     }
                     catch (Exception exception)
                     {
@@ -3845,10 +3896,10 @@ namespace TwainDirectSupport
                     }
                 }
                 m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(new FileSystemWatcherHelper(this));
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().Path = szImages;
+                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().Path = m_szImagesFolder;
                 m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().Filter = "*.meta";
                 m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().IncludeSubdirectories = true;
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().NotifyFilter = NotifyFilters.LastWrite;
+                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
                 m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().Changed += new FileSystemEventHandler(OnChangedImageBlocks);
                 m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().EnableRaisingEvents = true;
             }
@@ -3914,17 +3965,17 @@ namespace TwainDirectSupport
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
                         break;
                 }
 
                 // If we're out of images, we can go to a ready state, otherwise go to
                 // draining...
-                if (a_apicmd.GetEndOfJob() && string.IsNullOrEmpty(a_apicmd.GetImageBlocksJson()))
+                if (a_apicmd.GetImageBlocksDrained())
                 {
                     SetSessionState(SessionState.ready);
                 }
@@ -4289,6 +4340,7 @@ namespace TwainDirectSupport
                 m_lWaitForEventsSessionRevision = 0;
                 m_szSessionSnapshot = "";
                 m_alSessionImageBlocks = null;
+                m_blSessionImageBlocksDrained = false;
                 m_szXPrivetToken = a_szXPrivetToken;
 
                 // Metadata...
@@ -4760,6 +4812,11 @@ namespace TwainDirectSupport
             /// to the client...
             /// </summary>
             public long[] m_alSessionImageBlocks;
+
+            /// <summary>
+            /// true if imageBlocksDrained has been set to true...
+            /// </summary>
+            public bool m_blSessionImageBlocksDrained;
 
             /// <summary>
             /// JSON OUT:  results.metadata

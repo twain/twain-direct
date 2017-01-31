@@ -58,6 +58,7 @@ namespace TwainDirectOnTwain
         public TwainLocalOnTwain
         (
             string a_szWriteFolder,
+            string a_szImagesFolder,
             string a_szIpc,
             int a_iPid,
             TWAINCSToolkit.RunInUiThreadDelegate a_runinuithreaddelegate,
@@ -67,7 +68,14 @@ namespace TwainDirectOnTwain
         {
             // Remember this stuff...
             m_szWriteFolder = a_szWriteFolder;
-            m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+            if (!string.IsNullOrEmpty(a_szImagesFolder))
+            {
+                m_szImagesFolder = a_szImagesFolder;
+            }
+            else
+            {
+                a_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+            }
             m_szIpc = a_szIpc;
             m_iPid = a_iPid;
             m_runinuithreaddelegate = a_runinuithreaddelegate;
@@ -587,7 +595,7 @@ namespace TwainDirectOnTwain
             {
                 TWAINWorkingGroup.Log.Info("ReportImage: no more images: " + a_szDg + " " + a_szDat + " " + a_szMsg + " " + a_sts);
                 m_blCancel = false;
-                SetEndOfJob(a_sts);
+                SetImageBlocksDrained(a_sts);
                 return (TWAINCSToolkit.MSG.RESET);
             }
 
@@ -607,7 +615,7 @@ namespace TwainDirectOnTwain
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: DatImageinfo failed...");
                     m_blCancel = false;
-                    SetEndOfJob(sts);
+                    SetImageBlocksDrained(sts);
                     return (TWAINCSToolkit.MSG.RESET);
                 }
             }
@@ -637,7 +645,7 @@ namespace TwainDirectOnTwain
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to create the image destination directory: " + m_szImagesFolder);
                     m_blCancel = false;
-                    SetEndOfJob(TWAIN.STS.FILENOTFOUND);
+                    SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
                     return (TWAINCSToolkit.MSG.RESET);
                 }
             }
@@ -675,7 +683,7 @@ namespace TwainDirectOnTwain
             {
                 TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile);
                 m_blCancel = false;
-                SetEndOfJob(TWAIN.STS.FILEWRITEERROR);
+                SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                 return (TWAINCSToolkit.MSG.RESET);
             }
 
@@ -685,7 +693,7 @@ namespace TwainDirectOnTwain
             {
                 default:
                     m_blCancel = false;
-                    SetEndOfJob(TWAIN.STS.BADVALUE);
+                    SetImageBlocksDrained(TWAIN.STS.BADVALUE);
                     return (TWAINCSToolkit.MSG.RESET);
                 case (ushort)TWAIN.TWCP.GROUP4:
                     szCompression = "group4";
@@ -704,7 +712,7 @@ namespace TwainDirectOnTwain
             {
                 default:
                     m_blCancel = false;
-                    SetEndOfJob(TWAIN.STS.BADVALUE);
+                    SetImageBlocksDrained(TWAIN.STS.BADVALUE);
                     return (TWAINCSToolkit.MSG.RESET);
                 case (short)TWAIN.TWPT.BW:
                     szPixelFormat = "bw1";
@@ -867,7 +875,7 @@ namespace TwainDirectOnTwain
             {
                 TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
                 m_blCancel = false;
-                SetEndOfJob(TWAIN.STS.FILEWRITEERROR);
+                SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                 return (TWAINCSToolkit.MSG.RESET);
             }
 
@@ -880,7 +888,7 @@ namespace TwainDirectOnTwain
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: DatPendingxfers failed...");
                     m_blCancel = false;
-                    SetEndOfJob(sts);
+                    SetImageBlocksDrained(sts);
                     return (TWAINCSToolkit.MSG.STOPFEEDER);
                 }
             }
@@ -890,29 +898,31 @@ namespace TwainDirectOnTwain
         }
 
         /// <summary>
-        /// Remove the end of job file...
+        /// Remove the imageBlocksDrained file...
         /// </summary>
-        private void ClearEndOfJob()
+        private void ClearImageBlocksDrained()
         {
-            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
-            if (File.Exists(szEndOfJob))
+            m_blImageBlocksDrained = false;
+            string szImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
+            if (File.Exists(szImageBlocksDrained))
             {
-                File.Delete(szEndOfJob);
+                File.Delete(szImageBlocksDrained);
             }
         }
 
         /// <summary>
-        /// Set end of job file with a status...
+        /// Set imageblocks drained with a status...
         /// </summary>
         /// <param name="a_sts">status of end of job</param>
-        private void SetEndOfJob(TWAINCSToolkit.STS a_sts)
+        private void SetImageBlocksDrained(TWAINCSToolkit.STS a_sts)
         {
-            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
-            if (!File.Exists(szEndOfJob))
+            string szImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
+            if (!File.Exists(szImageBlocksDrained))
             {
+                TWAINWorkingGroup.Log.Info("SetImageBlocksDrained: " + a_sts);
                 File.WriteAllText
                 (
-                    szEndOfJob,
+                    szImageBlocksDrained,
                     "{" +
                     "\"status\":\"" + a_sts + "\"" +
                     "}"
@@ -921,17 +931,18 @@ namespace TwainDirectOnTwain
         }
 
         /// <summary>
-        /// Set end of job file with a status...
+        /// Set imageblocks drained with a status...
         /// </summary>
         /// <param name="a_sts">status of end of job</param>
-        private void SetEndOfJob(TWAIN.STS a_sts)
+        private void SetImageBlocksDrained(TWAIN.STS a_sts)
         {
-            string szEndOfJob = Path.Combine(m_szImagesFolder, "endOfJob");
-            if (!File.Exists(szEndOfJob))
+            string szImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
+            if (!File.Exists(szImageBlocksDrained))
             {
+                TWAINWorkingGroup.Log.Info("SetImageBlocksDrained: " + a_sts);
                 File.WriteAllText
                 (
-                    szEndOfJob,
+                    szImageBlocksDrained,
                     "{" +
                     "\"status\":\"" + a_sts + "\"" +
                     "}"
@@ -1116,39 +1127,32 @@ namespace TwainDirectOnTwain
                 }
             }
 
-            // If we have no images, then check for end of job...
-            m_blEndOfJob = false;
-            try
+            // If we have no images, then check if the the scanner says
+            // that we're out of images...
+            if (string.IsNullOrEmpty(szImageBlocks) && File.Exists(Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta")))
             {
-                aszFiles = Directory.GetFiles(m_szImagesFolder, "endOfJob");
-            }
-            catch
-            {
-                aszFiles = null;
-            }
-            if ((szImageBlocks == "") && (aszFiles != null) && (aszFiles.Length > 0))
-            {
-                m_blEndOfJob = true;
+                m_blImageBlocksDrained = true;
             }
 
             // Build the reply.  Note that we have this kind of code in three places
             // in the solution.  This is the lowest "level", where we generate the
             // data that will be sent to TwainDirectScanner, so it's not really in
-            // the final form, though it's close.  endOfJob, for instance, is our
-            // own addition.
-            a_szSession =
-                "\"endOfJob\":" + m_blEndOfJob.ToString().ToLower() + "," +
-                "\"session\":{";
+            // the final form, though it's close.
+            a_szSession = "\"session\":{";
 
             // Tack on the image blocks, if we have any...
             if (!string.IsNullOrEmpty(szImageBlocks))
             {
-                a_szSession += "\"imageBlocks\":[" + szImageBlocks + "]" + (string.IsNullOrEmpty(m_szTwainDirectOptions) ? "" : ",");
+                a_szSession += "\"imageBlocks\":[" + szImageBlocks + "]";
             }
 
             // Tack on the task, if we have one...
             if (!string.IsNullOrEmpty(m_szTwainDirectOptions))
             {
+                if (a_szSession.Contains("imageBlocks"))
+                {
+                    a_szSession += ",";
+                }
                 a_szSession += "\"taskReply\":" + m_szTwainDirectOptions;
             }
 
@@ -1333,15 +1337,36 @@ namespace TwainDirectOnTwain
                 szFile = Path.Combine(m_szImagesFolder, "img" + ii.ToString("D6"));
                 if (File.Exists(szFile + ".meta"))
                 {
-                    File.Delete(szFile + ".meta");
+                    try
+                    {
+                        File.Delete(szFile + ".meta");
+                    }
+                    catch
+                    {
+                        // We don't care if this fails...
+                    }
                 }
                 if (File.Exists(szFile + ".txt"))
                 {
-                    File.Delete(szFile + ".txt");
+                    try
+                    {
+                        File.Delete(szFile + ".txt");
+                    }
+                    catch
+                    {
+                        // We don't care if this fails...
+                    }
                 }
                 if (File.Exists(szFile + ".pdf"))
                 {
-                    File.Delete(szFile + ".pdf");
+                    try
+                    {
+                        File.Delete(szFile + ".pdf");
+                    }
+                    catch
+                    {
+                        // We don't care if this fails...
+                    }
                 }
             }
 
@@ -1403,7 +1428,7 @@ namespace TwainDirectOnTwain
             m_blCancel = false;
             m_iImageCount = 0;
             a_szSession = "";
-            ClearEndOfJob();
+            ClearImageBlocksDrained();
 
             // Validate...
             if (m_twaincstoolkit == null)
@@ -1492,7 +1517,7 @@ namespace TwainDirectOnTwain
             }
 
             // We're done scanning, so bail...
-            if (m_blEndOfJob)
+            if (m_blImageBlocksDrained)
             {
                 sts = TWAINCSToolkit.STS.SUCCESS;
                 if (m_twaincstoolkit.GetState() == 5)
@@ -1586,7 +1611,7 @@ namespace TwainDirectOnTwain
         /// <summary>
         /// End of job detected...
         /// </summary>
-        private bool m_blEndOfJob;
+        private bool m_blImageBlocksDrained;
 
         /// <summary>
         /// We're scanning from a flatbed...

@@ -153,6 +153,7 @@ namespace TwainDirectOnTwain
             int iPid = 0;
             string szIpc;
             string szTaskFile;
+            string szImagesFolder;
             bool blTestPdfRaster;
             bool blTestDnssd;
 
@@ -163,6 +164,7 @@ namespace TwainDirectOnTwain
             blTestPdfRaster = (Config.Get("testpdfraster", null) != null);
             blTestDnssd = (Config.Get("testdnssd", null) != null);
             szIpc = Config.Get("ipc", null);
+            szImagesFolder = Config.Get("images", null);
             iPid = int.Parse(Config.Get("parentpid", "0"));
 
             // Run in IPC mode.  The caller has set up a 'pipe' for us, so we'll use
@@ -175,7 +177,7 @@ namespace TwainDirectOnTwain
                 {
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
-                    Application.Run(new FormTwain(szWriteFolder, szIpc, iPid, RunInUiThread));
+                    Application.Run(new FormTwain(szWriteFolder, szImagesFolder, szIpc, iPid, RunInUiThread));
                     return (true);
                 }
 
@@ -185,7 +187,7 @@ namespace TwainDirectOnTwain
                     TwainLocalOnTwain twainlocalontwain;
 
                     // Create our object...
-                    twainlocalontwain = new TwainLocalOnTwain(szWriteFolder, szIpc, iPid, null, null, IntPtr.Zero);
+                    twainlocalontwain = new TwainLocalOnTwain(szWriteFolder, szImagesFolder, szIpc, iPid, null, null, IntPtr.Zero);
 
                     // Run our object...
                     twainlocalontwain.Run();

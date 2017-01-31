@@ -729,7 +729,7 @@ namespace TwainDirectOnSane
             }
 
             // If we have no images, then check for end of job...
-            m_blEndOfJob = false;
+            m_blImageBlocksDrained = false;
             try
             {
                 aszFiles = Directory.GetFiles(m_szImagesFolder, "endOfJob");
@@ -740,18 +740,18 @@ namespace TwainDirectOnSane
             }
             if ((szImageBlocks == "") && (aszFiles != null) && (aszFiles.Length > 0))
             {
-                m_blEndOfJob = true;
+                m_blImageBlocksDrained = true;
             }
 
             // Start the reply...
             a_szSession =
-                "\"endOfJob\":" + m_blEndOfJob.ToString().ToLower() + "," +
+                "\"endOfJob\":" + m_blImageBlocksDrained.ToString().ToLower() + "," +
                 "\"session\":{";
 
             // If we're end of job (which is also set when we're not capturing)
             // then return the imageBlocks or nothing, where nothing will be
             // interpreted as end of job...
-            if (m_blEndOfJob)
+            if (m_blImageBlocksDrained)
             {
                 a_szSession +=
                     (!string.IsNullOrEmpty(szImageBlocks) ? "\"imageBlocks\":[" + szImageBlocks + "]" : "");
@@ -1374,7 +1374,7 @@ namespace TwainDirectOnSane
         /// <summary>
         /// End of job detected...
         /// </summary>
-        private bool m_blEndOfJob;
+        private bool m_blImageBlocksDrained;
 
         /// <summary>
         /// We're scanning from a flatbed...

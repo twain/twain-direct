@@ -160,12 +160,12 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
-        /// Return the end of job flag for this command...
+        /// Return the image blocks drained flag for this command...
         /// </summary>
         /// <returns>true if we're out of images</returns>
-        public bool GetEndOfJob()
+        public bool GetImageBlocksDrained()
         {
-            return (m_blEndOfJob);
+            return (m_blImageBlocksDrained);
         }
 
         /// <summary>
@@ -222,23 +222,46 @@ namespace TwainDirectSupport
         /// it to be dropped as-is into a results object (part of the return
         /// for a session object)...
         /// </summary>
+        /// <param name="a_szSessionState">session state for this data</param>
         /// <returns>an array of image block numbers (ex: [ 1, 2 ])</returns>
-        public string GetImageBlocksJson()
+        public string GetImageBlocksJson(string a_szSessionState)
         {
-            if (string.IsNullOrEmpty(m_szImageBlocks))
+            // We have data, this should be impossible in any state
+            // save for capturing and draining...
+            if (!string.IsNullOrEmpty(m_szImageBlocks))
             {
-                if (!m_blEndOfJob)
-                {
-                    return ("\"imageBlocks\":[],");
-                }
-                else
-                {
-                    return ("");
-                }
+                return (
+                    "\"imageBlocksDrained\":false," +
+                    "\"imageBlocks\":" + m_szImageBlocks + ","
+                );
             }
-            else
+
+            // We have no data, but that doesn't mean that we're
+            // done.  What we report depends on our state...
+            switch (a_szSessionState)
             {
-                return ("\"imageBlocks\":" + m_szImageBlocks + ",");
+                // Not a scanning state, so don't report this stuff...
+                default:
+                    return ("");
+
+                // We're capturing or draining...
+                case "capturing":
+                case "draining":
+                    // We've run out of images...
+                    if (m_blImageBlocksDrained)
+                    {
+                        return (
+                            "\"imageBlocksDrained\":true," +
+                            "\"imageBlocks\":[],"
+                        );
+                    }
+
+                    // We may have more images coming...
+                    return
+                    (
+                        "\"imageBlocksDrained\":false," +
+                        "\"imageBlocks\":[],"
+                    );
             }
         }
 
@@ -1123,7 +1146,10 @@ namespace TwainDirectSupport
         /// <summary>
         /// Update using data from the IPC...
         /// </summary>
-        public void UpdateUsingIpcData(JsonLookup a_jsonlookup, bool a_blCapturing)
+        /// <param name="a_jsonlookup">data being collected</param>
+        /// <param name="a_blCapturing">we're capturing or draining</param>
+        /// <param name="a_szImagesFolder">the images folder</param>
+        public void UpdateUsingIpcData(JsonLookup a_jsonlookup, bool a_blCapturing, string a_szImagesFolder)
         {
             string szMeta;
 
@@ -1141,20 +1167,15 @@ namespace TwainDirectSupport
             m_szThumbnailFile = a_jsonlookup.Get("thumbnailFile", false);
 
             // End of job...
-            if (a_jsonlookup.Get("endOfJob", false) == "false")
+            m_blImageBlocksDrained = true;
+            if (a_blCapturing)
             {
-                if (a_blCapturing)
+                if (    a_blCapturing
+                    &&  (!string.IsNullOrEmpty(m_szImageBlocks)
+                    ||  !File.Exists(Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta"))))
                 {
-                    m_blEndOfJob = false;
+                    m_blImageBlocksDrained = false;
                 }
-                else
-                {
-                    m_blEndOfJob = true;
-                }
-            }
-            else
-            {
-                m_blEndOfJob = true;
             }
        
             // The task reply...
@@ -1530,7 +1551,7 @@ namespace TwainDirectSupport
         private string m_szThumbnailFile;
 
         // End of job (true if we're not scanning)...
-        private bool m_blEndOfJob;
+        private bool m_blImageBlocksDrained;
 
         /// <summary>
         /// The way we want to respond to an HTTP command...

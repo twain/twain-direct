@@ -11,6 +11,7 @@ namespace TwainDirectOnTwain
         public FormTwain
         (
             string a_szWriteFolder,
+            string a_szImagesFolder,
             string a_szIpc,
             int a_iPid,
             TWAINCSToolkit.RunInUiThreadDelegate a_runinuithreaddelegate
@@ -25,6 +26,7 @@ namespace TwainDirectOnTwain
             twainlocalontwainparameters = new TwainLocalOnTwainParameters
             (
                 a_szWriteFolder,
+                a_szImagesFolder,
                 a_szIpc,
                 a_iPid,
                 a_runinuithreaddelegate,
@@ -63,6 +65,7 @@ namespace TwainDirectOnTwain
             twainlocalontwain = new TwainLocalOnTwain
             (
                 twainlocalontwainparameters.m_szWriteFolder,
+                twainlocalontwainparameters.m_szImagesFolder,
                 twainlocalontwainparameters.m_szIpc,
                 twainlocalontwainparameters.m_iPid,
                 twainlocalontwainparameters.m_runinuithreaddelegate,
@@ -82,6 +85,7 @@ namespace TwainDirectOnTwain
             public TwainLocalOnTwainParameters
             (
                 string a_szWriteFolder,
+                string a_szImagesFolder,
                 string a_szIpc,
                 int a_iPid,
                 TWAINCSToolkit.RunInUiThreadDelegate a_runinuithreaddelegate,
@@ -90,6 +94,7 @@ namespace TwainDirectOnTwain
             )
             {
                 m_szWriteFolder = a_szWriteFolder;
+                m_szImagesFolder = a_szImagesFolder;
                 m_szIpc = a_szIpc;
                 m_iPid = a_iPid;
                 m_runinuithreaddelegate = a_runinuithreaddelegate;
@@ -98,6 +103,7 @@ namespace TwainDirectOnTwain
             }
 
             public string                                   m_szWriteFolder;
+            public string                                   m_szImagesFolder;
             public string                                   m_szIpc;
             public int                                      m_iPid;
             public TWAINCSToolkit.RunInUiThreadDelegate     m_runinuithreaddelegate;
