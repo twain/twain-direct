@@ -1374,10 +1374,13 @@ namespace TwainDirectApplication
                 if (dnssddeviceinfo.szLinkLocal == szLinkLocal)
                 {
                     // Try for a match on Ipv6...
-                    if (dnssddeviceinfo.szIpv6 == szIpv6)
+                    if (!string.IsNullOrEmpty(szIpv6))
                     {
-                        m_dnssddeviceinfo = dnssddeviceinfo;
-                        break;
+                        if (dnssddeviceinfo.szIpv6 == szIpv6)
+                        {
+                            m_dnssddeviceinfo = dnssddeviceinfo;
+                            break;
+                        }
                     }
 
                     // If that fails, try various forms of Ipv4...
@@ -1385,7 +1388,7 @@ namespace TwainDirectApplication
                     {
                         string szIpv4Tmp = szIpv4;
                         // XXX.XXX.XXX.XXX...
-                        if (dnssddeviceinfo.szIpv6 == szIpv4Tmp)
+                        if (dnssddeviceinfo.szIpv4 == szIpv4Tmp)
                         {
                             m_dnssddeviceinfo = dnssddeviceinfo;
                             break;
@@ -1394,7 +1397,7 @@ namespace TwainDirectApplication
                         if (szIpv4Tmp.Contains("."))
                         {
                             szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.szIpv6.StartsWith(szIpv4Tmp + "."))
+                            if (dnssddeviceinfo.szIpv4.StartsWith(szIpv4Tmp + "."))
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
@@ -1404,7 +1407,7 @@ namespace TwainDirectApplication
                         if (szIpv4Tmp.Contains("."))
                         {
                             szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.szIpv6.StartsWith(szIpv4Tmp + "."))
+                            if (dnssddeviceinfo.szIpv4.StartsWith(szIpv4Tmp + "."))
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
@@ -1414,7 +1417,7 @@ namespace TwainDirectApplication
                         if (szIpv4Tmp.Contains("."))
                         {
                             szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.szIpv6.StartsWith(szIpv4Tmp + "."))
+                            if (dnssddeviceinfo.szIpv4.StartsWith(szIpv4Tmp + "."))
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
