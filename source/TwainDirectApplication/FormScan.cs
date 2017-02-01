@@ -64,6 +64,9 @@ namespace TwainDirectApplication
             // Build our form...
             InitializeComponent();
 
+            // Pick a place where we can write stuff...
+            m_szWriteFolder = Config.Get("writeFolder", "");
+
             // Handle scaling...
             m_fScale = (float)Config.Get("scale", 1.0);
             if (m_fScale <= 1)
@@ -94,7 +97,8 @@ namespace TwainDirectApplication
                 m_resourcemanager = new ResourceManager("TwainDirectApplication.WinFormStrings", typeof(FormSelect).Assembly);
             }
             m_buttonClose.Text = m_resourcemanager.GetString("strButtonClose");
-            m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpenEllipsis");
+            m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpen");
+            m_buttonSelect.Text = m_resourcemanager.GetString("strButtonSelectEllipsis");
             m_buttonScan.Text = m_resourcemanager.GetString("strButtonScan");
             m_buttonSetup.Text = m_resourcemanager.GetString("strButtonSetupEllipsis");
             m_buttonStop.Text = m_resourcemanager.GetString("strButtonStop");
@@ -1240,6 +1244,7 @@ namespace TwainDirectApplication
                 default:
                 case EBUTTONSTATE.UNDEFINED:
                     m_buttonOpen.Enabled = false;
+                    m_buttonSelect.Enabled = false;
                     m_buttonClose.Enabled = false;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
@@ -1248,6 +1253,7 @@ namespace TwainDirectApplication
 
                 case EBUTTONSTATE.CLOSED:
                     m_buttonOpen.Enabled = true;
+                    m_buttonSelect.Enabled = true;
                     m_buttonClose.Enabled = false;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
@@ -1256,6 +1262,7 @@ namespace TwainDirectApplication
 
                 case EBUTTONSTATE.OPEN:
                     m_buttonOpen.Enabled = false;
+                    m_buttonSelect.Enabled = false;
                     m_buttonClose.Enabled = true;
                     m_buttonSetup.Enabled = true;
                     m_buttonScan.Enabled = true;
@@ -1264,6 +1271,7 @@ namespace TwainDirectApplication
 
                 case EBUTTONSTATE.SCANNING:
                     m_buttonOpen.Enabled = false;
+                    m_buttonSelect.Enabled = false;
                     m_buttonClose.Enabled = false;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
@@ -1273,16 +1281,205 @@ namespace TwainDirectApplication
         }
 
         /// <summary>
-        /// Select and open a TWAIN driver...
+        /// Open the last selected scanner...
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void m_buttonOpen_Click(object sender, EventArgs e)
         {
+            bool blUpdated;
+            bool blSuccess;
+            long lJsonErrorIndex;
+            string szSelected = null;
+            string szSelectedFile;
+            string szLinkLocal;
+            string szIpv4;
+            string szIpv6;
+            JsonLookup jsonlookupSelected;
+            Dnssd.DnssdDeviceInfo[] adnssddeviceinfo;
+
+            // If we don't have a selected file, then run the selection
+            // function to prompt the user to pick something...
+            szSelectedFile = Path.Combine(m_szWriteFolder, "selected");
+            if (!File.Exists(szSelectedFile))
+            {
+                m_buttonSelect_Click(sender, e);
+                return;
+            }
+
+            // Init stuff...
+            m_blStopCapturing = false;
+            m_dnssddeviceinfo = null;
+
+            // Buttons off...
+            SetButtons(EBUTTONSTATE.UNDEFINED);
+
+            // Read the data...
+            try
+            {
+                szSelected = File.ReadAllText(szSelectedFile);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("m_buttonOpen_Click: failed to read - <" + szSelectedFile + "> " + exception.Message);
+            }
+
+            // No joy, open the selection form...
+            if (szSelected == null)
+            {
+                m_buttonSelect_Click(sender, e);
+                return;
+            }
+
+            // Parse the data...
+            jsonlookupSelected = new JsonLookup();
+            blSuccess = jsonlookupSelected.Load(szSelected, out lJsonErrorIndex);
+            if (!blSuccess)
+            {
+                Log.Error("m_buttonOpen_Click: failed to parse - <" + szSelected + "> " + lJsonErrorIndex);
+                m_buttonSelect_Click(sender, e);
+                return;
+            }
+
+            // We need the link-local and an IPv4 or an IPv6 to proceed...
+            szLinkLocal = jsonlookupSelected.Get("linkLocal");
+            if (string.IsNullOrEmpty(szLinkLocal))
+            {
+                Log.Error("m_buttonOpen_Click: missing linklocal - <" + szSelected + ">");
+                m_buttonSelect_Click(sender, e);
+                return;
+            }
+            szIpv4 = jsonlookupSelected.Get("ipv4");
+            szIpv6 = jsonlookupSelected.Get("ipv6");
+            if (    string.IsNullOrEmpty(szIpv4)
+                &&  string.IsNullOrEmpty(szIpv6))
+            {
+                Log.Error("m_buttonOpen_Click: missing ip - <" + szSelected + ">");
+                m_buttonSelect_Click(sender, e);
+                return;
+            }
+
+            // Grab a snapshot of what's out there...
+            adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated);
+            if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
+            {
+                MessageBox.Show("There are no TWAIN Direct scanners available at this time.");
+                SetButtons(EBUTTONSTATE.CLOSED);
+                return;
+            }
+
+            // Find our entry...
+            foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
+            {
+                if (dnssddeviceinfo.szLinkLocal == szLinkLocal)
+                {
+                    // Try for a match on Ipv6...
+                    if (dnssddeviceinfo.szIpv6 == szIpv6)
+                    {
+                        m_dnssddeviceinfo = dnssddeviceinfo;
+                        break;
+                    }
+
+                    // If that fails, try various forms of Ipv4...
+                    if (!string.IsNullOrEmpty(szIpv4))
+                    {
+                        string szIpv4Tmp = szIpv4;
+                        // XXX.XXX.XXX.XXX...
+                        if (dnssddeviceinfo.szIpv6 == szIpv4Tmp)
+                        {
+                            m_dnssddeviceinfo = dnssddeviceinfo;
+                            break;
+                        }
+                        // XXX.XXX.XXX.*
+                        if (szIpv4Tmp.Contains("."))
+                        {
+                            szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
+                            if (dnssddeviceinfo.szIpv6.StartsWith(szIpv4Tmp + "."))
+                            {
+                                m_dnssddeviceinfo = dnssddeviceinfo;
+                                break;
+                            }
+                        }
+                        // XXX.XXX.*.*
+                        if (szIpv4Tmp.Contains("."))
+                        {
+                            szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
+                            if (dnssddeviceinfo.szIpv6.StartsWith(szIpv4Tmp + "."))
+                            {
+                                m_dnssddeviceinfo = dnssddeviceinfo;
+                                break;
+                            }
+                        }
+                        // XXX.*.*.*
+                        if (szIpv4Tmp.Contains("."))
+                        {
+                            szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
+                            if (dnssddeviceinfo.szIpv6.StartsWith(szIpv4Tmp + "."))
+                            {
+                                m_dnssddeviceinfo = dnssddeviceinfo;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // No joy...
+            if (m_dnssddeviceinfo == null)
+            {
+                Log.Error("m_buttonOpen_Click: selected not found - <" + szSelected + ">");
+                m_buttonSelect_Click(sender, e);
+                return;
+            }
+
+            // We got something, so open the scanner...
+            OpenScanner();
+        }
+
+        /// <summary>
+        /// Shutdown...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonClose_Click(object sender, EventArgs e)
+        {
+            ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
+
+            // Init stuff...
+            m_blStopCapturing = false;
+
+            // Buttons off...
+            SetButtons(EBUTTONSTATE.UNDEFINED);
+
+            // Bye-bye to the form...
+            if (m_formsetup != null)
+            {
+                m_formsetup.Dispose();
+                m_formsetup = null;
+            }
+
+            // Close session...
+            if (!m_twainlocalscanner.ClientScannerCloseSession(ref apicmd))
+            {
+                Log.Error("ClientScannerCloseSession failed: " + apicmd.HttpResponseData());
+                MessageBox.Show("ClientScannerCloseSession failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+                // We're going to close anyways...
+            }
+
+            // Buttons off...
+            SetButtons(EBUTTONSTATE.CLOSED);
+        }
+
+        /// <summary>
+        /// Select a scanner...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonSelect_Click(object sender, EventArgs e)
+        {
             bool blSuccess;
             FormSelect formselect;
             DialogResult dialogresult;
-            ApiCmd apicmd;
 
             // Init stuff...
             m_blStopCapturing = false;
@@ -1339,80 +1536,8 @@ namespace TwainDirectApplication
                 return;
             }
 
-            // Create a command context...
-            apicmd = new ApiCmd(m_dnssddeviceinfo);
-
-            // We need this to get the x-privet-token...
-            blSuccess = m_twainlocalscanner.ClientInfo(m_dnssddeviceinfo, ref apicmd);
-            if (!blSuccess)
-            {
-                Log.Error("ClientInfo failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientInfo failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                SetButtons(EBUTTONSTATE.CLOSED);
-                return;
-            }
-
-            // Create session...
-            blSuccess = m_twainlocalscanner.ClientScannerCreateSession(m_dnssddeviceinfo, ref apicmd);
-            if (!blSuccess)
-            {
-                Log.Error("ClientScannerCreateSession failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerCreateSession failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                SetButtons(EBUTTONSTATE.CLOSED);
-                return;
-            }
-
-            // Create a new command context...
-            apicmd = new ApiCmd(m_dnssddeviceinfo);
-
-            // Wait for events...
-            blSuccess = m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
-            if (!blSuccess)
-            {
-                // Log it, but stay open...
-                Log.Error("ClientScannerWaitForEvents failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-            }
-
-            // New state...
-            SetButtons(EBUTTONSTATE.OPEN);
-
-            // Create the setup form...
-            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscanner);
-        }
-
-        /// <summary>
-        /// Shutdown...
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void m_buttonClose_Click(object sender, EventArgs e)
-        {
-            ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
-
-            // Init stuff...
-            m_blStopCapturing = false;
-
-            // Buttons off...
-            SetButtons(EBUTTONSTATE.UNDEFINED);
-
-            // Bye-bye to the form...
-            if (m_formsetup != null)
-            {
-                m_formsetup.Dispose();
-                m_formsetup = null;
-            }
-
-            // Close session...
-            if (!m_twainlocalscanner.ClientScannerCloseSession(ref apicmd))
-            {
-                Log.Error("ClientScannerCloseSession failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerCloseSession failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                // We're going to close anyways...
-            }
-
-            // Buttons off...
-            SetButtons(EBUTTONSTATE.CLOSED);
+            // Open, open the beastie...
+            OpenScanner();
         }
 
         /// <summary>
@@ -1442,6 +1567,74 @@ namespace TwainDirectApplication
 
             // Buttons off...
             SetButtons(EBUTTONSTATE.UNDEFINED);
+        }
+
+        /// <summary>
+        /// Open a scanner with the last selected DnssdDeviceInfo...
+        /// </summary>
+        private void OpenScanner()
+        {
+            bool blSuccess;
+            ApiCmd apicmd;
+
+            // Create a command context...
+            apicmd = new ApiCmd(m_dnssddeviceinfo);
+
+            // We need this to get the x-privet-token...
+            blSuccess = m_twainlocalscanner.ClientInfo(m_dnssddeviceinfo, ref apicmd);
+            if (!blSuccess)
+            {
+                Log.Error("ClientInfo failed: " + apicmd.HttpResponseData());
+                MessageBox.Show("ClientInfo failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+                SetButtons(EBUTTONSTATE.CLOSED);
+                return;
+            }
+
+            // Create session...
+            blSuccess = m_twainlocalscanner.ClientScannerCreateSession(m_dnssddeviceinfo, ref apicmd);
+            if (!blSuccess)
+            {
+                Log.Error("ClientScannerCreateSession failed: " + apicmd.HttpResponseData());
+                MessageBox.Show("ClientScannerCreateSession failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+                SetButtons(EBUTTONSTATE.CLOSED);
+                return;
+            }
+
+            // Try to save this selection...
+            try
+            {
+                File.WriteAllText
+                (
+                    Path.Combine(m_szWriteFolder, "selected"),
+                    "{" +
+                    "    \"linkLocal\": \"" + m_dnssddeviceinfo.szLinkLocal + "\"," +
+                    "    \"ipv4\": \"" + m_dnssddeviceinfo.szIpv4 + "\"," +
+                    "    \"ipv6\": \"" + m_dnssddeviceinfo.szIpv6 + "\"" +
+                    "}"
+                );
+            }
+            catch (Exception exception)
+            {
+                Log.Error("OpenScanner failed to write <" + Path.Combine(m_szWriteFolder, "selected") + "> - " + exception.Message);
+            }
+
+            // Create a new command context...
+            apicmd = new ApiCmd(m_dnssddeviceinfo);
+
+            // Wait for events...
+            blSuccess = m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
+            if (!blSuccess)
+            {
+                // Log it, but stay open...
+                Log.Error("ClientScannerWaitForEvents failed: " + apicmd.HttpResponseData());
+                MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+            }
+
+            // New state...
+            SetButtons(EBUTTONSTATE.OPEN);
+
+            // Create the setup form...
+            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscanner);
         }
 
         #endregion
@@ -1474,6 +1667,11 @@ namespace TwainDirectApplication
         /// Our TWAIN Local interface to the scanning api...
         /// </summary>
         private TwainLocalScanner m_twainlocalscanner;
+
+        /// <summary>
+        /// A place where we can write stuff...
+        /// </summary>
+        private string m_szWriteFolder;
 
         /// <summary>
         /// Our selected device...

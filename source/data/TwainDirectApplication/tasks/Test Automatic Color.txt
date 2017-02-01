@@ -1,0 +1,34 @@
+{
+    "actions": [
+        {
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "feeder",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "numberOfSheets",
+                                            "values": [
+                                                {
+                                                    "value": 1
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "pixelFormat": "bw1"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
