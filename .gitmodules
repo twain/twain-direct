@@ -1,0 +1,3 @@
+[submodule "source/pdfraster"]
+	path = source/pdfraster
+	url = https://github.com/spike0xff/pdfraster
