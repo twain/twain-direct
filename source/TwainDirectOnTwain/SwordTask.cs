@@ -1335,4 +1335,271 @@ namespace TwainDirectOnTwain
     }
 
     #endregion
+
+
+    /// <summary>
+    /// Track the data needed for the response to a task...
+    /// </summary>
+    #region SwordTaskResponse
+
+    // Our class...
+    public sealed class SwordTaskResponse
+    {
+        #region Public Methods
+
+        /// <summary>
+        /// Init stuff...
+        /// </summary>
+        public SwordTaskResponse()
+        {
+            // non-zero stuff...
+            Clear();
+
+            // Pack our JSON output...
+            m_blPack = (Config.Get("packJson", "true") == "true");
+        }
+
+        /// <summary>
+        /// Clear any current error information...
+        /// </summary>
+        public void Clear()
+        {
+            // Leave the task response buffer alone...
+            m_blSuccess = true;
+            m_lJsonErrorIndex = -1;
+            m_szException = "";
+            m_szJsonExceptionKey = "";
+            m_szLexiconValue = "";
+            m_szTaskResponse = "";
+        }
+
+        /// <summary>
+        /// Get the task response...
+        /// </summary>
+        /// <returns>the task response</returns>
+        public string GetTaskResponse()
+        {
+            return (m_szTaskResponse);
+        }
+
+        /// <summary>
+        /// Set a task error...
+        /// </summary>
+        public void SetError
+        (
+            string a_szException,
+            string a_szJsonExceptionKey,
+            string a_szLexiconValue,
+            long a_lJsonErrorIndex
+        )
+        {
+            // Ruh-roh, we've already done this...
+            if (!m_blSuccess)
+            {
+                // We can't log anything here, it would be too noisy...
+                return;
+            }
+
+            // Record the error...
+            Clear();
+            m_blSuccess = false;
+            m_szException = a_szException;
+            m_szJsonExceptionKey = a_szJsonExceptionKey;
+            m_szLexiconValue = a_szLexiconValue;
+            m_lJsonErrorIndex = a_lJsonErrorIndex;
+
+            // Build the task reply, since we're just parsing the JSON
+            // the only kind of errors we can run into will be invalid
+            // JSON complaints...
+            JSON_ROOT_BGN();                                                     // start root
+            JSON_ARR_BGN(1, "actions");                                          // start actions array
+            JSON_OBJ_BGN(2, "");                                                 // start action object
+            JSON_STR_SET(3, "action", ",", "");                                  // action property,
+            JSON_OBJ_BGN(3, "results");                                          // start results object
+            JSON_TOK_SET(4, "success", ",", "false");                            // success property,
+            JSON_STR_SET(4, "code", ",", a_szLexiconValue);                      // code property,
+            if (a_szLexiconValue == "invalidJson")
+            {
+                JSON_NUM_SET(4, "characterOffset", "", (int)m_lJsonErrorIndex);  // characterOffset property
+            }
+            if (!string.IsNullOrEmpty(a_szJsonExceptionKey))
+            {
+                JSON_STR_SET(4, "jsonKey", "", m_szJsonExceptionKey);            // jsonKey property
+            }
+            JSON_OBJ_END(3, "");                                                 // end response object
+            JSON_OBJ_END(2, "");                                                 // end action object
+            JSON_ARR_END(1, "");                                                 // end actions array
+            JSON_ROOT_END();                                                     // end root
+        }
+
+        /// <summary>
+        /// Set the pack flag...
+        /// </summary>
+        /// <param name="a_blPack"></param>
+        public void SetPack
+        (
+            bool a_blPack
+        )
+        {
+            m_blPack = a_blPack;
+        }
+
+        // A standalone newline marker...
+        public void JSONEOLN()
+        {
+            m_szTaskResponse += (m_blPack ? "" : Environment.NewLine);
+        }
+
+        // Root begin / end...
+        public void JSON_ROOT_BGN()
+        {
+            m_szTaskResponse = m_blPack ? "{" : ("{" + Environment.NewLine);
+        }
+        public void JSON_ROOT_END()
+        {
+            m_szTaskResponse += "}";
+        }
+
+        // Array begin / end...
+        public void JSON_ARR_BGN(int tab, string name)
+        {
+            m_szTaskResponse += !string.IsNullOrEmpty(name) ? (m_blPack ? ("\"" + name + "\":[") : (Tabs(tab) + "\"" + name + "\": [" + Environment.NewLine)) : (m_blPack ? "[" : (Tabs(tab) + "[" + Environment.NewLine));
+        }
+        public void JSON_ARR_END(int tab, string comma)
+        {
+            m_szTaskResponse += m_blPack ? ("]" + comma) : (Tabs(tab) + "]" + comma + Environment.NewLine);
+        }
+
+        // Object begin / end...
+        public void JSON_OBJ_BGN(int tab, string name)
+        {
+            m_szTaskResponse += !string.IsNullOrEmpty(name) ? (m_blPack ? ("\"" + name + "\":{") : (Tabs(tab) + "\"" + name + "\": {" + Environment.NewLine)) : (m_blPack ? "{" : (Tabs(tab) + "{" + Environment.NewLine));
+        }
+        public void JSON_OBJ_END(int tab, string comma)
+        {
+            m_szTaskResponse += m_blPack ? ("}" + comma) : (Tabs(tab) + "}" + comma + Environment.NewLine);
+        }
+
+        // Strings, tokens (null,true,false), and numbers...
+        public void JSON_STR_SET(int tab, string name, string comma, string str)
+        {
+            m_szTaskResponse += m_blPack ? ("\"" + name + "\":\"" + str + "\"" + comma) : (Tabs(tab) + "\"" + name + "\": \"" + str + "\"" + comma + Environment.NewLine);
+        }
+        public void JSON_TOK_SET(int tab, string name, string comma, string str)
+        {
+            m_szTaskResponse += m_blPack ? ("\"" + name + "\":" + str + comma) : (Tabs(tab) + "\"" + name + "\": " + str + comma + Environment.NewLine);
+        }
+        public void JSON_NUM_SET(int tab, string name, string comma, int num)
+        {
+            m_szTaskResponse += m_blPack ? ("\"" + name + "\":" + num + comma) : (Tabs(tab) + "\"" + name + "\": " + num + comma + Environment.NewLine);
+        }
+
+        #endregion
+
+
+        /// <summary>
+        /// Private Methods
+        /// </summary>
+        #region Private Methods
+
+        // Generate tabs...
+        private string Tabs(int a_iTotal)
+        {
+            if (a_iTotal <= 0)
+            {
+                return ("");
+            }
+            return (new string('\t', a_iTotal));
+        }
+
+        #endregion
+
+
+        /// <summary>
+        /// Private Definitions
+        /// </summary>
+        #region Private Definitions
+
+        // TWAIN Direct lookup stuff, map TWAIN Direct attributes to
+        // their corresponding CDatabase Id's, if we have one...
+        static readonly string[,] s_atwaindirectlookup = new string[,]
+        {
+            { "alarms",                             "CAP_ALARMS" },
+            { "alarmVolume",                        "CAP_ALARMVOLUME" },
+            { "automaticDeskew",                    "CAP_AUTOMATICDESKEW" },
+            { "automaticSize",                      "CAP_AUTOSIZE" },
+            { "barcodes",                           "ICAP_BARCODEDETECTIONENABLED" },
+            { "bitDepthReduction",                  "ICAP_BITDEPTHREDUCTION" },
+            { "brightness",                         "ICAP_BRIGHTNESS" },
+            { "compression",                        "ICAP_COMPRESSION" },
+            { "continuousScan",                     "CAP_AUTOSCAN" },
+            { "contrast",                           "ICAP_CONTRAST" },
+            { "cropping",                           "ICAP_AUTOMATICBORDERDETECTION" },
+            { "discardBlankImages",                 "ICAP_AUTODISCARDBLANKPAGES" },
+            { "doubleFeedDetection",                "CAP_DOUBLEFEEDDETECTION" },
+            { "doubleFeedDetectionLength",          "CAP_DOUBLEFEEDDETECTIONLENGTH" },
+            { "doubleFeedDetectionResponse",        "CAP_DOUBLEFEEDDETECTIONRESPONSE" },
+            { "doubleFeedDetectionSensitivity",     "CAP_DOUBLEFEEDDETECTIONSENSITIVITY" },
+            { "flipRotation",                       "ICAP_FLIPROTATION" },
+            { "height",                             "ICAP_FRAME" },
+            { "imageMerge",                         "ICAP_IMAGEMERGE" },
+            { "imageMergeHeightThreshold",          "ICAP_IMAGEMERGEHEIGHTTHREADHOLD" },
+            { "invert",                             "ICAP_PIXELFLAVOR" },
+            { "jpegQuality",                        "ICAP_JPEGQUALITY" },
+            { "micr",                               "CAP_MICRENABLED" },
+            { "mirror",                             "ICAP_MIRROR" },
+            { "noiseFilter",                        "ICAP_NOISEFILTER" },
+            { "overScan",                           "ICAP_OVERSCAN" },
+            { "numberOfSheets",                     "CAP_SHEETCOUNT" },
+            { "offsetX",                            "ICAP_FRAME" },
+            { "offsetY",                            "ICAP_FRAME" },
+            { "patchCodes",                         "ICAP_PATCHCODEDETECTIONENABLED" },
+            { "resolution",                         "CAP_XRESOLUTION" },
+            { "rotation",                           "ICAP_ROTATION" },
+            { "sheetHandling",                      "CAP_FEEDERMODE" },
+            { "sheetSize",                          "ICAP_SUPPORTEDSIZES" },
+            { "threshold",                          "ICAP_THRESHOLD" },
+            { "uncalibratedImage",                  "xxx" },
+            { "width",                              "ICAP_FRAME" },
+	        // Must be last...
+	        { "",                                   "" }
+        };
+
+        #endregion
+
+
+        /// <summary>
+        /// Private Attributes
+        /// </summary>
+        #region Private Attributes
+
+        // True as long as the task is successful, we anticipate success, so that's
+        // our starting point.  If this value goes to false, then further processing
+        // must stop, and the error info at the point of failure is returned...
+        private bool m_blSuccess;
+
+        // The exception we're reporting on failure...
+        private string m_szException;
+
+        // The location in the task, returned in the dotted key notation
+        // (ex: action[0].stream[0].source[0]
+        private string m_szJsonExceptionKey;
+
+        // Lexicon value that we used...
+        private string m_szLexiconValue;
+
+        // If the JSON can't be parsed, this value will (hopefully) point to where
+        // the error occurred...
+        private long m_lJsonErrorIndex;
+
+        // Our task reply buffer, and its size...
+        private string m_szTaskResponse;
+
+        // Pack the data in our response...
+        private bool m_blPack;
+
+        #endregion
+    }
+
+    #endregion
 }

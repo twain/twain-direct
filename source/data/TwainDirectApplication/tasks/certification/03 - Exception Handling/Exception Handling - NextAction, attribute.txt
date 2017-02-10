@@ -6,8 +6,9 @@
         {
             "path": "actions[0]",
             "success": false,
-            "code": "invalidValue"
-        },
+            "code": "invalidValue",
+            "jsonKey": "actions[0].action"
+       },
         {
             "path": "actions[1]",
             "success": true

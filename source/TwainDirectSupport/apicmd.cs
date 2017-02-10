@@ -517,10 +517,12 @@ namespace TwainDirectSupport
                 httpwebrequest.ContentLength = abData.Length;
                 if (httpwebrequest.ContentType == null)
                 {
+                    // We shouldn't be getting here...
                     httpwebrequest.ContentType = "application/x-www-form-urlencoded";
                 }
                 try
                 {
+                    // This is where we expect to be...
                     stream = httpwebrequest.GetRequestStream();
                     stream.Write(abData, 0, abData.Length);
                     stream.Close();

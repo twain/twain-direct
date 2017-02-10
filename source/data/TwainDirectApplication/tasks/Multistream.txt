@@ -4,24 +4,12 @@
             "action": "configure",
             "streams": [
                 {
-                    "exception": "fail",
                     "sources": [
                         {
                             "source": "any",
                             "pixelFormats": [
                                 {
-                                    "pixelFormat": "rgb24",
-                                    "attributes": [
-                                        {
-                                            "attribute": "compression",
-                                            "exception": "ignore",
-                                            "values": [
-                                                {
-                                                    "value": "jpeg"
-                                                }
-                                            ]
-                                        }
-                                    ]
+                                    "pixelFormat": "rgb24"
                                 }
                             ]
                         },
@@ -29,18 +17,7 @@
                             "source": "any",
                             "pixelFormats": [
                                 {
-                                    "pixelFormat": "bw1",
-                                    "attributes": [
-                                        {
-                                            "attribute": "compression",
-                                            "exception": "ignore",
-                                            "values": [
-                                                {
-                                                    "value": "group4"
-                                                }
-                                            ]
-                                        }
-                                    ]
+                                    "pixelFormat": "bw1"
                                 }
                             ]
                         }

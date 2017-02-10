@@ -859,6 +859,10 @@ namespace TwainDirectSupport
                 {
                     // Read a line of data...
                     szOutput = m_processDnssdMonitor.StandardOutput.ReadLine();
+                    if (szOutput == null)
+                    {
+                        break;
+                    }
 
                     // Something was added...
                     #region Something was added...
@@ -1277,6 +1281,10 @@ namespace TwainDirectSupport
                     try
                     {
                         szOutput = m_processDnssdMonitor.StandardOutput.ReadLine();
+                        if (szOutput == null)
+                        {
+                            break;
+                        }
                     }
                     catch
                     {
@@ -1603,12 +1611,16 @@ namespace TwainDirectSupport
             // Read each line as it comes in from the process, when the
             // caller is done they'll kill it off and the read should
             // abort at that point...
-            for (; ; )
+            for (;;)
             {
                 try
                 {
                     // Read a line of data...
                     szOutput = m_processDnssdRegisterPrivetTcpLocal.StandardOutput.ReadLine();
+                    if (szOutput == null)
+                    {
+                        break;
+                    }
                 }
 
                 // Well, this is bad...
@@ -1665,6 +1677,10 @@ namespace TwainDirectSupport
                 {
                     // Read a line of data...
                     szOutput = m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StandardOutput.ReadLine();
+                    if (szOutput == null)
+                    {
+                        break;
+                    }
                 }
 
                 // Well, this is bad...

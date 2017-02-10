@@ -848,6 +848,13 @@ namespace TwainDirectApplication
                             break;
                         }
 
+                        // We need to bump the total for values of ii > 0, this handles
+                        // tasks with multiple actions...
+                        if (ii > 0)
+                        {
+                            iTotal += 1;
+                        }
+
                         // We need the path to the results...
                         string szPath = jsonlookupTest.Get(szExpects + ".path");
                         if (string.IsNullOrEmpty(szPath))
@@ -1471,6 +1478,9 @@ namespace TwainDirectApplication
 
             // Buttons off...
             SetButtons(EBUTTONSTATE.CLOSED);
+
+            // Update the title bar...
+            Text = "TWAIN Direct: Application";
         }
 
         /// <summary>
@@ -1635,6 +1645,9 @@ namespace TwainDirectApplication
 
             // New state...
             SetButtons(EBUTTONSTATE.OPEN);
+
+            // Update the title bar...
+            Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.szLinkLocal + ")";
 
             // Create the setup form...
             m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscanner);

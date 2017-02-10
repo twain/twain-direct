@@ -1,0 +1,32 @@
+{
+    "actions": [
+        {
+            "vendor": "267d8292-7161-4891-80cf-bdc0719f6b91",
+            "action": "configure",
+            "streams": [
+                {
+                    "sources": [
+                        {
+                            "source": "any",
+                            "pixelFormats": [
+                                {
+                                    "pixelFormat": "rgb24",
+                                    "attributes": [
+                                        {
+                                            "attribute": "CAP_INDICATORS",
+                                            "values": [
+                                                {
+                                                    "value": "TWON_ONEVALUE,TWTY_BOOL,TRUE"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
