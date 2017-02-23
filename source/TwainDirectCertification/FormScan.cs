@@ -522,8 +522,10 @@ namespace TwainDirectCertification
             if (fileinfo.Length > 200)
             {
                 byte[] abImage;
-                PdfRaster.RasterPixelFormat rasterpixelformat;
-                PdfRaster.RasterCompression rastercompression;
+                // PdfRaster.RasterPixelFormat rasterpixelformat;
+                // PdfRaster.RasterCompression rastercompression;
+                PdfRasterWriter.RasterPixelFormat rasterpixelformat;//gusb
+                PdfRasterWriter.RasterCompression rastercompression;//gusb
                 long lResolution;
                 long lWidth;
                 long lHeight;

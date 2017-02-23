@@ -65,8 +65,10 @@ namespace TwainDirectSupport
         (
             string a_szPdfRaster,
             out byte[] a_abImage,
-            out PdfRaster.RasterPixelFormat a_rasterpixelformat,
-            out PdfRaster.RasterCompression a_rastercompression,
+            // out PdfRaster.RasterPixelFormat a_rasterpixelformat,
+            // out PdfRaster.RasterCompression a_rastercompression,
+            out PdfRasterWriter.RasterPixelFormat a_rasterpixelformat,//gusb
+            out PdfRasterWriter.RasterCompression a_rastercompression,//gusb
             out long a_lResolution,
             out long a_lWidth,
             out long a_lHeight
@@ -85,11 +87,16 @@ namespace TwainDirectSupport
 
             // Init stuff...
             a_abImage = null;
-            a_rasterpixelformat = PdfRaster.RasterPixelFormat.PDFRAS_BITONAL;
-            a_rastercompression = PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED;
+            // a_rasterpixelformat = PdfRaster.RasterPixelFormat.PDFRAS_BITONAL;
+            // a_rastercompression = PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED;
+            a_rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL;//gusb
+            a_rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED;//gusb
             a_lResolution = 0;
             a_lWidth = 0;
             a_lHeight = 0;
+
+            // int api = PdfRasterWriter.PdfRasterConst.PDFRASWR_API_LEVEL;//gusb
+            // String ver = PdfRasterWriter.PdfRasterConst.PDFRASWR_LIBRARY_VERSION;//gusb
 
             // Read the data...
             try
@@ -104,8 +111,10 @@ namespace TwainDirectSupport
             // We have a group4 compressed bitonal image...
             if (GetIndex(abPdfRaster, 0, 512, "/CCITTFaxDecode") > 0)
             {
-                a_rasterpixelformat = RasterPixelFormat.PDFRAS_BITONAL;
-                a_rastercompression = RasterCompression.PDFRAS_CCITTG4;
+                // a_rasterpixelformat = RasterPixelFormat.PDFRAS_BITONAL;
+                // a_rastercompression = RasterCompression.PDFRAS_CCITTG4;
+                a_rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL;//gusb
+                a_rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_CCITTG4;//gusb
             }
 
             // We have a grayscale or an uncompressed black-and-white image...
@@ -123,21 +132,26 @@ namespace TwainDirectSupport
                 // We're an uncompressed black-and-white image...
                 if (iBitsPerComponent == 1)
                 {
-                    a_rasterpixelformat = RasterPixelFormat.PDFRAS_BITONAL;
-                    a_rastercompression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                    // a_rasterpixelformat = RasterPixelFormat.PDFRAS_BITONAL;
+                    // a_rastercompression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                    a_rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL;//gusb
+                    a_rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED;//gusb
                 }
 
                 // We're a jpeg or uncompressed grayscale image...
                 else if (iBitsPerComponent == 8)
                 {
-                    a_rasterpixelformat = RasterPixelFormat.PDFRAS_GRAYSCALE;
+                    // a_rasterpixelformat = RasterPixelFormat.PDFRAS_GRAYSCALE;
+                    a_rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_GRAYSCALE;//gusb
                     if (GetIndex(abPdfRaster, 0, 512, "/DCTDecode") > 0)
                     {
-                        a_rastercompression = RasterCompression.PDFRAS_JPEG;
+                        // a_rastercompression = RasterCompression.PDFRAS_JPEG;
+                        a_rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_JPEG;//gusb
                     }
                     else
                     {
-                        a_rastercompression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                        // a_rastercompression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                        a_rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED;//gusb
                     }
                 }
 
@@ -151,14 +165,17 @@ namespace TwainDirectSupport
             // We have a jpeg or uncompressed color image...
             else if (GetIndex(abPdfRaster, 0, 512, "/DeviceRGB") > 0)
             {
-                a_rasterpixelformat = RasterPixelFormat.PDFRAS_RGB;
+                // a_rasterpixelformat = RasterPixelFormat.PDFRAS_RGB;
+                a_rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_RGB;//gusb
                 if (GetIndex(abPdfRaster, 0, 512, "/DCTDecode") > 0)
                 {
-                    a_rastercompression = RasterCompression.PDFRAS_JPEG;
+                    // a_rastercompression = RasterCompression.PDFRAS_JPEG;
+                    a_rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_JPEG;//gusb
                 }
                 else
                 {
-                    a_rastercompression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                    // a_rastercompression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                    a_rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED;//gusb
                 }
             }
 
@@ -215,13 +232,15 @@ namespace TwainDirectSupport
                 default:
                     return (false);
 
-                case RasterPixelFormat.PDFRAS_BITONAL:
+                // case RasterPixelFormat.PDFRAS_BITONAL:
+                case PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL://gusb
                     switch (a_rastercompression)
                     {
                         default:
                             return (false);
 
-                        case RasterCompression.PDFRAS_UNCOMPRESSED:
+                        // case RasterCompression.PDFRAS_UNCOMPRESSED:
+                        case PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED://gusb
                             tiffbitonaluncompressed = new TiffBitonalUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffbitonaluncompressed);
                             a_abImage = new byte[iHeader + iCount];
@@ -231,7 +250,8 @@ namespace TwainDirectSupport
                             Marshal.FreeHGlobal(intptr);
                             break;
 
-                        case RasterCompression.PDFRAS_CCITTG4:
+                        // case RasterCompression.PDFRAS_CCITTG4:
+                        case PdfRasterWriter.RasterCompression.PDFRASWR_CCITTG4://gusb
                             tiffbitonalg4 = new TiffBitonalG4((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffbitonalg4);
                             a_abImage = new byte[iHeader + iCount];
@@ -243,13 +263,15 @@ namespace TwainDirectSupport
                     }
                     break;
 
-                case RasterPixelFormat.PDFRAS_GRAYSCALE:
+                // case RasterPixelFormat.PDFRAS_GRAYSCALE:
+                case PdfRasterWriter.RasterPixelFormat.PDFRASWR_GRAYSCALE://gusb
                     switch (a_rastercompression)
                     {
                         default:
                             return (false);
 
-                        case RasterCompression.PDFRAS_UNCOMPRESSED:
+                        // case RasterCompression.PDFRAS_UNCOMPRESSED:
+                        case PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED://gusb
                             tiffgrayscaleuncompressed = new TiffGrayscaleUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffgrayscaleuncompressed);
                             a_abImage = new byte[iHeader + iCount];
@@ -259,20 +281,23 @@ namespace TwainDirectSupport
                             Marshal.FreeHGlobal(intptr);
                             break;
 
-                        case RasterCompression.PDFRAS_JPEG:
+                        // case RasterCompression.PDFRAS_JPEG:
+                        case PdfRasterWriter.RasterCompression.PDFRASWR_JPEG://gusb
                             iHeader = 0;
                             a_abImage = new byte[iCount];
                             break;
                     }
                     break;
 
-                case RasterPixelFormat.PDFRAS_RGB:
+                // case RasterPixelFormat.PDFRAS_RGB:
+                case PdfRasterWriter.RasterPixelFormat.PDFRASWR_RGB://gusb
                     switch (a_rastercompression)
                     {
                         default:
                             return (false);
 
-                        case RasterCompression.PDFRAS_UNCOMPRESSED:
+                        // case RasterCompression.PDFRAS_UNCOMPRESSED:
+                        case PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED://gusb
                             tiffcoloruncompressed = new TiffColorUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffcoloruncompressed);
                             a_abImage = new byte[iHeader + iCount];
@@ -282,7 +307,8 @@ namespace TwainDirectSupport
                             Marshal.FreeHGlobal(intptr);
                             break;
 
-                        case RasterCompression.PDFRAS_JPEG:
+                        // case RasterCompression.PDFRAS_JPEG:
+                        case PdfRasterWriter.RasterCompression.PDFRASWR_JPEG://gusb
                             iHeader = 0;
                             a_abImage = new byte[iCount];
                             break;
@@ -382,9 +408,10 @@ namespace TwainDirectSupport
 		        // fill in various defaults
 		        enc.keywords = null;
 		        enc.creator = null;
-		        enc.producer = "PdfRaster encoder " + PdfRasterConst.PDFRAS_LIBRARY_VERSION;
-		        // default sample precision
-		        enc.bitsPerChannel = 8;
+                //enc.producer = "PdfRaster encoder " + PdfRasterConst.PDFRAS_LIBRARY_VERSION;
+                enc.producer = "PdfRaster encoder " + PdfRasterWriter.PdfRasterConst.PDFRASWR_LIBRARY_VERSION;//gusb
+                // default sample precision
+                enc.bitsPerChannel = 8;
 		        // default resolution
 		        enc.xdpi = enc.ydpi = 42;
 
@@ -430,7 +457,8 @@ namespace TwainDirectSupport
         /// <param name="comp"></param>
         /// <param name="width"></param>
         /// <returns></returns>
-        public int pd_raster_encoder_start_page(object a_enc, RasterPixelFormat format, RasterCompression comp, int width)
+        // public int pd_raster_encoder_start_page(object a_enc, RasterPixelFormat format, RasterCompression comp, int width)
+        public int pd_raster_encoder_start_page(object a_enc, PdfRasterWriter.RasterPixelFormat format, PdfRasterWriter.RasterCompression comp, int width)//gusb
         {
             t_pdfrasencoder enc = (t_pdfrasencoder)a_enc;
 	        if (IS_DICT(enc.currentPage))
@@ -472,21 +500,25 @@ namespace TwainDirectSupport
         public int pd_raster_encoder_write_strip(object a_enc, int rows, byte[] buf, long offset, long len)
         {
             t_pdfrasencoder enc = (t_pdfrasencoder)a_enc;
-            e_ColorSpace colorspace = (enc.pixelFormat == RasterPixelFormat.PDFRAS_RGB) ? e_ColorSpace.kDeviceRgb : e_ColorSpace.kDeviceGray;
-	        e_ImageCompression comp;
+            // e_ColorSpace colorspace = (enc.pixelFormat == RasterPixelFormat.PDFRAS_RGB) ? e_ColorSpace.kDeviceRgb : e_ColorSpace.kDeviceGray;
+            e_ColorSpace colorspace = (enc.pixelFormat == PdfRasterWriter.RasterPixelFormat.PDFRASWR_RGB) ? e_ColorSpace.kDeviceRgb : e_ColorSpace.kDeviceGray;//gusb
+            e_ImageCompression comp;
 	        switch (enc.compression)
             {
-	            case RasterCompression.PDFRAS_CCITTG4:
+                // case RasterCompression.PDFRAS_CCITTG4:
+                case PdfRasterWriter.RasterCompression.PDFRASWR_CCITTG4://gusb
                     comp = e_ImageCompression.kCompCCITT;
 		            break;
-	            case RasterCompression.PDFRAS_JPEG:
+                // case RasterCompression.PDFRAS_JPEG:
+                case PdfRasterWriter.RasterCompression.PDFRASWR_JPEG://gusb
                     comp = e_ImageCompression.kCompDCT;
 		            break;
 	            default:
                     comp = e_ImageCompression.kCompNone;
 		            break;
-	        }
-	        int bitsPerComponent = (enc.pixelFormat == RasterPixelFormat.PDFRAS_BITONAL) ? 1 : enc.bitsPerChannel;
+            }
+            // int bitsPerComponent = (enc.pixelFormat == RasterPixelFormat.PDFRAS_BITONAL) ? 1 : enc.bitsPerChannel;
+            int bitsPerComponent = (enc.pixelFormat == PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL) ? 1 : enc.bitsPerChannel;//gusb
             t_stripinfo stripinfo = new t_stripinfo(buf, (uint)offset, (uint)len);
 	        t_pdvalue image = pd_image_new_simple
             (
@@ -580,6 +612,7 @@ namespace TwainDirectSupport
         ///////////////////////////////////////////////////////////////////////////////
         #region Public Definitions: PdfRaster
 
+        /*
         public class PdfRasterConst
         {
             public const int PDFRAS_API_LEVEL = 1;
@@ -601,6 +634,7 @@ namespace TwainDirectSupport
             PDFRAS_JPEG,				// JPEG baseline (DCTDecode)
             PDFRAS_CCITTG4,				// CCITT Group 4 (CCITTFaxDecode)
         }
+        */ //gusb
 
         #endregion
 
@@ -675,9 +709,11 @@ namespace TwainDirectSupport
                 ydpi = 0;
                 bitsPerChannel = 0;
                 currentPage = new t_pdvalue();
-                pixelFormat = RasterPixelFormat.PDFRAS_BITONAL;
+                // pixelFormat = RasterPixelFormat.PDFRAS_BITONAL;
+                pixelFormat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL;//gusb
                 width = 0;
-                compression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                // compression = RasterCompression.PDFRAS_UNCOMPRESSED;
+                compression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED;//gusb
                 height = 0;
             }
 
@@ -696,9 +732,11 @@ namespace TwainDirectSupport
             public double ydpi;				        // vertical resolution, pixels/inch
             public int bitsPerChannel;		        // 1 for bitonal, 8 otherwise
             public t_pdvalue currentPage;
-            public RasterPixelFormat pixelFormat;	// how pixels are represented
+            // public RasterPixelFormat pixelFormat;	// how pixels are represented
+            public PdfRasterWriter.RasterPixelFormat pixelFormat;	// how pixels are represented//gusb
             public int width;				        // image width in pixels
-            public RasterCompression compression;	// how data is compressed
+            // public RasterCompression compression;	// how data is compressed
+            public PdfRasterWriter.RasterCompression compression;	// how data is compressed//gusb
             public int height;				        // total pixel height of current page
         }
 

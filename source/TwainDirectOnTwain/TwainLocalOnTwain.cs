@@ -458,8 +458,10 @@ namespace TwainDirectOnTwain
         )
         {
             bool blSuccess = true;
-            TwainDirectSupport.PdfRaster.RasterPixelFormat rasterpixelformat;
-            TwainDirectSupport.PdfRaster.RasterCompression rastercompression;
+            // TwainDirectSupport.PdfRaster.RasterPixelFormat rasterpixelformat;
+            // TwainDirectSupport.PdfRaster.RasterCompression rastercompression;
+            PdfRasterWriter.RasterPixelFormat rasterpixelformat;//gusb
+            PdfRasterWriter.RasterCompression rastercompression;//gusb
             PdfRaster pdfraster = new PdfRaster();
             PdfRaster.t_OS os;
 
@@ -469,9 +471,12 @@ namespace TwainDirectOnTwain
                 default:
                     TWAINWorkingGroup.Log.Error("Unsupported pixel type: " + a_twpt);
                     return (false);
-                case TWAIN.TWPT.BW: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_BITONAL; break;
-                case TWAIN.TWPT.GRAY: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_GRAYSCALE; break;
-                case TWAIN.TWPT.RGB: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_RGB; break;
+                // case TWAIN.TWPT.BW: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_BITONAL; break;
+                // case TWAIN.TWPT.GRAY: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_GRAYSCALE; break;
+                // case TWAIN.TWPT.RGB: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_RGB; break;
+                case TWAIN.TWPT.BW: rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL; break;//gusb
+                case TWAIN.TWPT.GRAY: rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_GRAYSCALE; break;//gusb
+                case TWAIN.TWPT.RGB: rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_RGB; break;//gusb
             }
 
             // Convert the compression...
@@ -480,9 +485,12 @@ namespace TwainDirectOnTwain
                 default:
                     TWAINWorkingGroup.Log.Error("Unsupported compression: " + a_twcp);
                     return (false);
-                case TWAIN.TWCP.NONE: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED; break;
-                case TWAIN.TWCP.GROUP4: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_CCITTG4; break;
-                case TWAIN.TWCP.JPEG: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_JPEG; break;
+                // case TWAIN.TWCP.NONE: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED; break;
+                // case TWAIN.TWCP.GROUP4: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_CCITTG4; break;
+                // case TWAIN.TWCP.JPEG: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_JPEG; break;
+                case TWAIN.TWCP.NONE: rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED; break;//gusb
+                case TWAIN.TWCP.GROUP4: rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_CCITTG4; break;//gusb
+                case TWAIN.TWCP.JPEG: rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_JPEG; break;//gusb
             }
 
             // Create the file...
@@ -497,7 +505,8 @@ namespace TwainDirectOnTwain
                     os.writeoutcookie = binarywriter;
 
                     // Construct a raster PDF encoder
-                    object enc = pdfraster.pd_raster_encoder_create(TwainDirectSupport.PdfRaster.PdfRasterConst.PDFRAS_API_LEVEL, os);
+                    // object enc = pdfraster.pd_raster_encoder_create(TwainDirectSupport.PdfRaster.PdfRasterConst.PDFRAS_API_LEVEL, os);
+                    object enc = pdfraster.pd_raster_encoder_create(PdfRasterWriter.PdfRasterConst.PDFRASWR_API_LEVEL, os);//gusb
                     PdfRaster.pd_raster_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
 
                     // Create the page (we only ever have one)...
@@ -1243,8 +1252,10 @@ namespace TwainDirectOnTwain
                 long hh;
                 bool blSuccess;
                 byte[] abImage;
-                PdfRaster.RasterPixelFormat rasterpixelformat;
-                PdfRaster.RasterCompression rastercompression;
+                // PdfRaster.RasterPixelFormat rasterpixelformat;
+                // PdfRaster.RasterCompression rastercompression;
+                PdfRasterWriter.RasterPixelFormat rasterpixelformat;//gusb
+                PdfRasterWriter.RasterCompression rastercompression;//gusb
                 long lResolution;
                 long lWidth;
                 long lHeight;
