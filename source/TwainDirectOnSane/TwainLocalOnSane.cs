@@ -484,10 +484,8 @@ namespace TwainDirectOnSane
         )
         {
             bool blSuccess = true;
-            // TwainDirectSupport.PdfRaster.RasterPixelFormat rasterpixelformat;
-            // TwainDirectSupport.PdfRaster.RasterCompression rastercompression;
-            PdfRasterWriter.RasterPixelFormat rasterpixelformat;//gusb
-            PdfRasterWriter.RasterCompression rastercompression;//gusb
+            PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
+            PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
             PdfRaster pdfraster = new PdfRaster();
             PdfRaster.t_OS os;
 
@@ -497,17 +495,13 @@ namespace TwainDirectOnSane
                 default:
                     TwainDirectSupport.Log.Error("Unsupported mode: " + a_szMode);
                     return (false);
-                // case "P4": rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_BITONAL; break;
-                // case "P5": rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_GRAYSCALE; break;
-                // case "P6": rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_RGB; break;
-                case "P4": rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL; break;
-                case "P5": rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_GRAYSCALE; break;
-                case "P6": rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_RGB; break;
+                case "P4": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
+                case "P5": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
+                case "P6": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB; break;
             }
 
             // We only support none...
-            // rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED;
-            rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED;//gusb
+            rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED;
 
             // Create the file...
             try
@@ -521,8 +515,10 @@ namespace TwainDirectOnSane
                     os.writeoutcookie = binarywriter;
 
                     // Construct a raster PDF encoder
-                    //object enc = pdfraster.pd_raster_encoder_create(TwainDirectSupport.PdfRaster.PdfRasterConst.PDFRAS_API_LEVEL, os);
-                    object enc = pdfraster.pd_raster_encoder_create(PdfRasterWriter.PdfRasterConst.PDFRASWR_API_LEVEL, os);
+
+                    // TODO: change this code to use .NET interface
+
+                    object enc = pdfraster.pd_raster_encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, os);
                     PdfRaster.pd_raster_set_creator(enc, "TWAIN Direct on SANE v1.0");
 
                     // Create the page (we only ever have one)...
@@ -852,6 +848,7 @@ namespace TwainDirectOnSane
             {
                 // Build the filename...
                 szFile = Path.Combine(m_szImagesFolder, "img" + ii.ToString("D6"));
+
                 if (File.Exists(szFile + ".meta"))
                 {
                     File.Delete(szFile + ".meta");

@@ -1,6 +1,6 @@
 Windows: Setting up for TwainDirectScanner
 - install Bonjour (3xx or higher)
-  To check version, run dns-sd-V from command window:
+  To check version, run "dns-sd -V" from command window:
     C:\WINDOWS\system32>dns-sd -V
     Currently running daemon (system service) is version 333.18
   Newer version on TWAIN's Google Drive at

@@ -60,15 +60,16 @@ namespace TwainDirectOnTwain
             os.writeoutcookie = binarywriter;
 
             // Construct a raster PDF encoder
-            //object enc = pdfraster.pd_raster_encoder_create(PdfRaster.PdfRasterConst.PDFRAS_API_LEVEL, os);
-            object enc = pdfraster.pd_raster_encoder_create(PdfRasterWriter.PdfRasterConst.PDFRASWR_API_LEVEL, os);//gusb
+
+           // TODO: change this code to use .NET interface
+
+            object enc = pdfraster.pd_raster_encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, os);
             PdfRaster.pd_raster_set_creator(enc, "raster_encoder_demo 1.0");
 
-	        // First page - 4" x 5.5" at 2 DPI
+            // First page - 4" x 5.5" at 2 DPI
             PdfRaster.pd_raster_set_resolution(enc, 2.0, 2.0);
             // start a new page
-            // pdfraster.pd_raster_encoder_start_page(enc, PdfRaster.RasterPixelFormat.PDFRAS_GRAYSCALE, PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED, 8);
-            pdfraster.pd_raster_encoder_start_page(enc, PdfRasterWriter.RasterPixelFormat.PDFRASWR_GRAYSCALE, PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED, 8);//gusb
+            pdfraster.pd_raster_encoder_start_page(enc, PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE, PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED, 8);
             // write a strip of raster data to the current page
             // 11 rows high
             pdfraster.pd_raster_encoder_write_strip(enc, 11, _imdata, 0, (UInt32)_imdata.Length);
@@ -95,8 +96,7 @@ namespace TwainDirectOnTwain
 		        }
 	        }
             PdfRaster.pd_raster_set_resolution(enc, 100.0, 100.0);
-            // pdfraster.pd_raster_encoder_start_page(enc, PdfRaster.RasterPixelFormat.PDFRAS_BITONAL, PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED, 850);
-            pdfraster.pd_raster_encoder_start_page(enc, PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL, PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED, 850);//gusb
+            pdfraster.pd_raster_encoder_start_page(enc, PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL, PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED, 850);
             pdfraster.pd_raster_encoder_write_strip(enc, 1100, bitonalData, 0, (UInt32)bitonalData.Length);
 	        pdfraster.pd_raster_encoder_end_page(enc);
 
@@ -112,8 +112,7 @@ namespace TwainDirectOnTwain
 		        colorData[i + 2] = (byte)((x - y + 9999) % 255);
 	        }
             PdfRaster.pd_raster_set_resolution(enc, 50.0, 50.0);
-            // pdfraster.pd_raster_encoder_start_page(enc, PdfRaster.RasterPixelFormat.PDFRAS_RGB, PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED, 175);
-            pdfraster.pd_raster_encoder_start_page(enc, PdfRasterWriter.RasterPixelFormat.PDFRASWR_RGB, PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED, 175);//gusb
+            pdfraster.pd_raster_encoder_start_page(enc, PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB, PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED, 175);
             pdfraster.pd_raster_encoder_write_strip(enc, 100, colorData, 0, (UInt32)colorData.Length);
 	        pdfraster.pd_raster_encoder_end_page(enc);
 

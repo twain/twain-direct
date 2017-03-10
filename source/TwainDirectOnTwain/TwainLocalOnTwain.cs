@@ -458,12 +458,9 @@ namespace TwainDirectOnTwain
         )
         {
             bool blSuccess = true;
-            // TwainDirectSupport.PdfRaster.RasterPixelFormat rasterpixelformat;
-            // TwainDirectSupport.PdfRaster.RasterCompression rastercompression;
-            PdfRasterWriter.RasterPixelFormat rasterpixelformat;//gusb
-            PdfRasterWriter.RasterCompression rastercompression;//gusb
+            PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
+            PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
             PdfRaster pdfraster = new PdfRaster();
-            PdfRaster.t_OS os;
 
             // Convert the pixel type...
             switch (a_twpt)
@@ -471,12 +468,9 @@ namespace TwainDirectOnTwain
                 default:
                     TWAINWorkingGroup.Log.Error("Unsupported pixel type: " + a_twpt);
                     return (false);
-                // case TWAIN.TWPT.BW: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_BITONAL; break;
-                // case TWAIN.TWPT.GRAY: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_GRAYSCALE; break;
-                // case TWAIN.TWPT.RGB: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_RGB; break;
-                case TWAIN.TWPT.BW: rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_BITONAL; break;//gusb
-                case TWAIN.TWPT.GRAY: rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_GRAYSCALE; break;//gusb
-                case TWAIN.TWPT.RGB: rasterpixelformat = PdfRasterWriter.RasterPixelFormat.PDFRASWR_RGB; break;//gusb
+                case TWAIN.TWPT.BW: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
+                case TWAIN.TWPT.GRAY: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
+                case TWAIN.TWPT.RGB: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB; break;
             }
 
             // Convert the compression...
@@ -485,46 +479,36 @@ namespace TwainDirectOnTwain
                 default:
                     TWAINWorkingGroup.Log.Error("Unsupported compression: " + a_twcp);
                     return (false);
-                // case TWAIN.TWCP.NONE: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED; break;
-                // case TWAIN.TWCP.GROUP4: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_CCITTG4; break;
-                // case TWAIN.TWCP.JPEG: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_JPEG; break;
-                case TWAIN.TWCP.NONE: rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_UNCOMPRESSED; break;//gusb
-                case TWAIN.TWCP.GROUP4: rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_CCITTG4; break;//gusb
-                case TWAIN.TWCP.JPEG: rastercompression = PdfRasterWriter.RasterCompression.PDFRASWR_JPEG; break;//gusb
+                case TWAIN.TWCP.NONE: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED; break;
+                case TWAIN.TWCP.GROUP4: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_CCITTG4; break;
+                case TWAIN.TWCP.JPEG: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_JPEG; break;
             }
 
             // Create the file...
             try
             {
-                using (BinaryWriter binarywriter = new BinaryWriter(File.Create(a_szPdfRasterFile)))
-                {
-                    // Set up our worker functions...
-                    os = new PdfRaster.t_OS();
-                    os.allocsys = PdfRaster.pd_alloc_sys_new(os);
-                    os.writeout = PdfRasterOutputWriter;
-                    os.writeoutcookie = binarywriter;
+                // Construct a raster PDF encoder
+                PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
+                int enc2 = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                pdfRasWr.encoder_set_creator(enc2, "TWAIN Direct on TWAIN v1.0");
 
-                    // Construct a raster PDF encoder
-                    // object enc = pdfraster.pd_raster_encoder_create(TwainDirectSupport.PdfRaster.PdfRasterConst.PDFRAS_API_LEVEL, os);
-                    object enc = pdfraster.pd_raster_encoder_create(PdfRasterWriter.PdfRasterConst.PDFRASWR_API_LEVEL, os);//gusb
-                    PdfRaster.pd_raster_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
+                // Create the page (we only ever have one)...
+                pdfRasWr.encoder_set_resolution(enc2, a_u32Resolution, a_u32Resolution);
+                pdfRasWr.encoder_set_pixelformat(enc2, rasterpixelformat);
+                pdfRasWr.encoder_set_compression(enc2, rastercompression);
+                pdfRasWr.encoder_start_page(enc2, (int)a_u32Width);
+                pdfRasWr.encoder_write_strip(enc2, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
+                pdfRasWr.encoder_end_page(enc2);
 
-                    // Create the page (we only ever have one)...
-                    PdfRaster.pd_raster_set_resolution(enc, a_u32Resolution, a_u32Resolution);
-                    pdfraster.pd_raster_encoder_start_page(enc, rasterpixelformat, rastercompression, (int)a_u32Width);
-                    pdfraster.pd_raster_encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                    pdfraster.pd_raster_encoder_end_page(enc);
+                // The document is complete
+                pdfRasWr.encoder_end_document(enc2);
 
-                    // The document is complete
-                    pdfraster.pd_raster_encoder_end_document(enc);
-
-                    // clean up
-                    pdfraster.pd_raster_encoder_destroy(enc);
-                }
-            }
-            catch (Exception exception)
-            {
-                TWAINWorkingGroup.Log.Error("unable to open %s for writing: " + a_szPdfRasterFile);
+                // clean up
+                pdfRasWr.encoder_destroy(enc2);
+           }
+           catch (Exception exception)
+           {
+                TWAINWorkingGroup.Log.Error("unable to open " + a_szPdfRasterFile + " for writing");
                 TWAINWorkingGroup.Log.Error(exception.Message);
                 blSuccess = false;
             }
@@ -1252,10 +1236,8 @@ namespace TwainDirectOnTwain
                 long hh;
                 bool blSuccess;
                 byte[] abImage;
-                // PdfRaster.RasterPixelFormat rasterpixelformat;
-                // PdfRaster.RasterCompression rastercompression;
-                PdfRasterWriter.RasterPixelFormat rasterpixelformat;//gusb
-                PdfRasterWriter.RasterCompression rastercompression;//gusb
+                PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
+                PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
                 long lResolution;
                 long lWidth;
                 long lHeight;
