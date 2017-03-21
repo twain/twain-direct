@@ -460,7 +460,6 @@ namespace TwainDirectOnTwain
             bool blSuccess = true;
             PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
             PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
-            PdfRaster pdfraster = new PdfRaster();
 
             // Convert the pixel type...
             switch (a_twpt)
@@ -489,22 +488,22 @@ namespace TwainDirectOnTwain
             {
                 // Construct a raster PDF encoder
                 PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
-                int enc2 = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
-                pdfRasWr.encoder_set_creator(enc2, "TWAIN Direct on TWAIN v1.0");
+                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
 
                 // Create the page (we only ever have one)...
-                pdfRasWr.encoder_set_resolution(enc2, a_u32Resolution, a_u32Resolution);
-                pdfRasWr.encoder_set_pixelformat(enc2, rasterpixelformat);
-                pdfRasWr.encoder_set_compression(enc2, rastercompression);
-                pdfRasWr.encoder_start_page(enc2, (int)a_u32Width);
-                pdfRasWr.encoder_write_strip(enc2, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                pdfRasWr.encoder_end_page(enc2);
+                pdfRasWr.encoder_set_resolution(enc, a_u32Resolution, a_u32Resolution);
+                pdfRasWr.encoder_set_pixelformat(enc, rasterpixelformat);
+                pdfRasWr.encoder_set_compression(enc, rastercompression);
+                pdfRasWr.encoder_start_page(enc, (int)a_u32Width);
+                pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
+                pdfRasWr.encoder_end_page(enc);
 
                 // The document is complete
-                pdfRasWr.encoder_end_document(enc2);
+                pdfRasWr.encoder_end_document(enc);
 
                 // clean up
-                pdfRasWr.encoder_destroy(enc2);
+                pdfRasWr.encoder_destroy(enc);
            }
            catch (Exception exception)
            {

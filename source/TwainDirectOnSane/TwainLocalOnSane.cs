@@ -486,8 +486,6 @@ namespace TwainDirectOnSane
             bool blSuccess = true;
             PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
             PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
-            PdfRaster pdfraster = new PdfRaster();
-            PdfRaster.t_OS os;
 
             // Convert the pixel type...
             switch (a_szMode)
@@ -506,33 +504,24 @@ namespace TwainDirectOnSane
             // Create the file...
             try
             {
-                using (BinaryWriter binarywriter = new BinaryWriter(File.Create(a_szPdfRasterFile)))
-                {
-                    // Set up our worker functions...
-                    os = new PdfRaster.t_OS();
-                    os.allocsys = PdfRaster.pd_alloc_sys_new(os);
-                    os.writeout = PdfRasterOutputWriter;
-                    os.writeoutcookie = binarywriter;
+                // Construct a raster PDF encoder
+                PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
+                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on SANE v1.0");
 
-                    // Construct a raster PDF encoder
+                // Create the page (we only ever have one)...
+                pdfRasWr.encoder_set_resolution(enc, a_u32Resolution, a_u32Resolution);
+                pdfRasWr.encoder_set_pixelformat(enc, rasterpixelformat);
+                pdfRasWr.encoder_set_compression(enc, rastercompression);
+                pdfRasWr.encoder_start_page(enc, (int)a_u32Width);
+                pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
+                pdfRasWr.encoder_end_page(enc);
 
-                    // TODO: change this code to use .NET interface
+                // The document is complete
+                pdfRasWr.encoder_end_document(enc);
 
-                    object enc = pdfraster.pd_raster_encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, os);
-                    PdfRaster.pd_raster_set_creator(enc, "TWAIN Direct on SANE v1.0");
-
-                    // Create the page (we only ever have one)...
-                    PdfRaster.pd_raster_set_resolution(enc, a_u32Resolution, a_u32Resolution);
-                    pdfraster.pd_raster_encoder_start_page(enc, rasterpixelformat, rastercompression, (int)a_u32Width);
-                    pdfraster.pd_raster_encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                    pdfraster.pd_raster_encoder_end_page(enc);
-
-                    // The document is complete
-                    pdfraster.pd_raster_encoder_end_document(enc);
-
-                    // clean up
-                    pdfraster.pd_raster_encoder_destroy(enc);
-                }
+                // clean up
+                pdfRasWr.encoder_destroy(enc);
             }
             catch (Exception exception)
             {
