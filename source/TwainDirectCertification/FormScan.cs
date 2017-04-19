@@ -522,8 +522,7 @@ namespace TwainDirectCertification
             if (fileinfo.Length > 200)
             {
                 byte[] abImage;
-                PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
-                PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
+                byte[] abStripData;
                 long lResolution;
                 long lWidth;
                 long lHeight;
@@ -532,7 +531,18 @@ namespace TwainDirectCertification
                 blGotImage = true;
 
                 // Get the image data...
-                PdfRaster.GetImage(a_szImage, out abImage, out rasterpixelformat, out rastercompression, out lResolution, out lWidth, out lHeight);
+                PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
+                PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
+                PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
+                int decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
+                lWidth = pdfRasRd.decoder_get_width(decoder);
+                lHeight = pdfRasRd.decoder_get_height(decoder);
+                lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
+                rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
+                rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
+                abStripData = pdfRasRd.decoder_read_strips(decoder);
+                pdfRasRd.decoder_destroy(decoder);
+                PdfRaster.AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
                 using (var bitmap = new Bitmap(new MemoryStream(abImage)))
                 {
                     // Display the image...

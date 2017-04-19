@@ -50,6 +50,132 @@ namespace TwainDirectSupport
         #region Public Methods: PdfRaster
 
         /// <summary>
+        /// Add image header to the image data from a PDF/raster..
+        /// </summary>
+        /// <param name="a_abImage">the image data</param>
+        /// <param name="a_rasterpixelformat">color, grayscale, black and white</param>
+        /// <param name="a_rastercompression">none. group4, jpeg</param>
+        /// <param name="a_lResolution">resolution in dots per inch</param>
+        /// <param name="a_lWidth">width in pixels</param>
+        /// <param name="a_lHeight">height in pixels</param>
+        /// <returns>true on success</returns>
+        public static bool AddImageHeader
+        (
+            out byte[] a_abImage,
+            byte[] a_abStripData,
+            PdfRasterReader.Reader.PdfRasterReaderPixelFormat a_rasterpixelformat,
+            PdfRasterReader.Reader.PdfRasterReaderCompression a_rastercompression,
+            long a_lResolution,
+            long a_lWidth,
+            long a_lHeight
+        )
+        {
+            int iCount = (int) (a_lWidth * a_lHeight);
+            int iHeader;
+            IntPtr intptr;
+            TiffBitonalUncompressed tiffbitonaluncompressed;
+            TiffBitonalG4 tiffbitonalg4;
+            TiffGrayscaleUncompressed tiffgrayscaleuncompressed;
+            TiffColorUncompressed tiffcoloruncompressed;
+
+            // Init stuff...
+            a_abImage = null;
+
+            // Add a header, if needed...
+            switch (a_rasterpixelformat)
+            {
+                default:
+                    return (false);
+                    
+                case PdfRasterReader.Reader.PdfRasterReaderPixelFormat.PDFRASREAD_BITONAL:
+                    switch (a_rastercompression)
+                    {
+                        default:
+                            return (false);
+                            
+                        case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_UNCOMPRESSED:
+                            iCount = (int)(((a_lWidth + 7) / 8) * a_lHeight); //it's packed
+                            tiffbitonaluncompressed = new TiffBitonalUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
+                            iHeader = Marshal.SizeOf(tiffbitonaluncompressed);
+                            a_abImage = new byte[iHeader + iCount];
+                            intptr = Marshal.AllocHGlobal(iHeader);
+                            Marshal.StructureToPtr(tiffbitonaluncompressed, intptr, true);
+                            Marshal.Copy(intptr, a_abImage, 0, iHeader);
+                            Marshal.FreeHGlobal(intptr);
+                            break;
+                            
+                        case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASEARD_CCITTG4:
+                            tiffbitonalg4 = new TiffBitonalG4((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
+                            iHeader = Marshal.SizeOf(tiffbitonalg4);
+                            a_abImage = new byte[iHeader + iCount];
+                            intptr = Marshal.AllocHGlobal(iHeader);
+                            Marshal.StructureToPtr(tiffbitonalg4, intptr, true);
+                            Marshal.Copy(intptr, a_abImage, 0, iHeader);
+                            Marshal.FreeHGlobal(intptr);
+                            break;
+                    }
+                    break;
+                    
+                case PdfRasterReader.Reader.PdfRasterReaderPixelFormat.PDFRASREAD_GRAYSCALE:
+                    switch (a_rastercompression)
+                    {
+                        default:
+                            return (false);
+                            
+                        case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_UNCOMPRESSED:
+                            tiffgrayscaleuncompressed = new TiffGrayscaleUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
+                            iHeader = Marshal.SizeOf(tiffgrayscaleuncompressed);
+                            a_abImage = new byte[iHeader + iCount];
+                            intptr = Marshal.AllocHGlobal(iHeader);
+                            Marshal.StructureToPtr(tiffgrayscaleuncompressed, intptr, true);
+                            Marshal.Copy(intptr, a_abImage, 0, iHeader);
+                            Marshal.FreeHGlobal(intptr);
+                            break;
+                            
+                        case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_JPEG:
+                            iHeader = 0;
+                            iCount = a_abStripData.Length;
+                            a_abImage = new byte[iCount];
+                            File.WriteAllBytes("fu-gray.jpg", a_abStripData);
+                            break;
+                    }
+                    break;
+                    
+                case PdfRasterReader.Reader.PdfRasterReaderPixelFormat.PDFRASREAD_RGB:
+                    switch (a_rastercompression)
+                    {
+                        default:
+                            return (false);
+                            
+                        case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_UNCOMPRESSED:
+                            iCount *= 3; // 3 samples per pixel
+                            tiffcoloruncompressed = new TiffColorUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
+                            iHeader = Marshal.SizeOf(tiffcoloruncompressed);
+                            a_abImage = new byte[iHeader + iCount];
+                            intptr = Marshal.AllocHGlobal(iHeader);
+                            Marshal.StructureToPtr(tiffcoloruncompressed, intptr, true);
+                            Marshal.Copy(intptr, a_abImage, 0, iHeader);
+                            Marshal.FreeHGlobal(intptr);
+                            break;
+                            
+                        case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_JPEG:
+                            iHeader = 0;
+                            iCount = a_abStripData.Length;
+                            a_abImage = new byte[iCount];
+                            File.WriteAllBytes("fu-color.jpg", a_abStripData);
+                            break;
+                    }
+                    break;
+            }
+            
+            // Copy the image data...
+            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
         /// Extract the image data from a PDF/raster.  This is a quick and dirty way of
         /// getting at the image without using a fully functional PDF library...
         /// </summary>
