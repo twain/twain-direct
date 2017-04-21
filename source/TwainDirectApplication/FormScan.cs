@@ -552,7 +552,6 @@ namespace TwainDirectApplication
                 PdfRaster.AddImageHeader(out abImage,abStripData,rasterreaderpixelformat,rasterreadercompression,lResolution,lWidth,lHeight);
 
                 // Get the image data...
-                //PdfRaster.GetImage(a_szImage, out abImage, out rasterpixelformat, out rastercompression, out lResolution, out lWidth, out lHeight);
                 using (var bitmap = new Bitmap(new MemoryStream(abImage)))
                 {
                     // Display the image...

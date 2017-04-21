@@ -1289,7 +1289,6 @@ namespace TwainDirectOnTwain
                 abStripData = pdfRasRd.decoder_read_strips(decoder);
                 pdfRasRd.decoder_destroy(decoder);
                 PdfRaster.AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
-                //PdfRaster.GetImage(szPdf, out abImage, out rasterpixelformat, out rastercompression, out lResolution, out lWidth, out lHeight);
                 using (var memorystream = new MemoryStream(abImage))
                 {
                     // Get the thumbnail, fix so all thumbnails have the same height
