@@ -484,10 +484,8 @@ namespace TwainDirectOnSane
         )
         {
             bool blSuccess = true;
-            TwainDirectSupport.PdfRaster.RasterPixelFormat rasterpixelformat;
-            TwainDirectSupport.PdfRaster.RasterCompression rastercompression;
-            PdfRaster pdfraster = new PdfRaster();
-            PdfRaster.t_OS os;
+            PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
+            PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
 
             // Convert the pixel type...
             switch (a_szMode)
@@ -495,41 +493,67 @@ namespace TwainDirectOnSane
                 default:
                     TwainDirectSupport.Log.Error("Unsupported mode: " + a_szMode);
                     return (false);
-                case "P4": rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_BITONAL; break;
-                case "P5": rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_GRAYSCALE; break;
-                case "P6": rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_RGB; break;
+                case "P4": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
+                case "P5": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
+                case "P6": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB; break;
             }
 
             // We only support none...
-            rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED;
+            rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED;
 
             // Create the file...
             try
             {
-                using (BinaryWriter binarywriter = new BinaryWriter(File.Create(a_szPdfRasterFile)))
-                {
-                    // Set up our worker functions...
-                    os = new PdfRaster.t_OS();
-                    os.allocsys = PdfRaster.pd_alloc_sys_new(os);
-                    os.writeout = PdfRasterOutputWriter;
-                    os.writeoutcookie = binarywriter;
+                // Construct a raster PDF encoder
+                PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
+                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on SANE v1.0");
 
-                    // Construct a raster PDF encoder
-                    object enc = pdfraster.pd_raster_encoder_create(TwainDirectSupport.PdfRaster.PdfRasterConst.PDFRAS_API_LEVEL, os);
-                    PdfRaster.pd_raster_set_creator(enc, "TWAIN Direct on SANE v1.0");
+                // Create the page (we only ever have one)...
+                pdfRasWr.encoder_set_resolution(enc, a_u32Resolution, a_u32Resolution);
+                pdfRasWr.encoder_set_pixelformat(enc, rasterpixelformat);
+                pdfRasWr.encoder_set_compression(enc, rastercompression);
+                pdfRasWr.encoder_start_page(enc, (int)a_u32Width);
 
-                    // Create the page (we only ever have one)...
-                    PdfRaster.pd_raster_set_resolution(enc, a_u32Resolution, a_u32Resolution);
-                    pdfraster.pd_raster_encoder_start_page(enc, rasterpixelformat, rastercompression, (int)a_u32Width);
-                    pdfraster.pd_raster_encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                    pdfraster.pd_raster_encoder_end_page(enc);
-
-                    // The document is complete
-                    pdfraster.pd_raster_encoder_end_document(enc);
-
-                    // clean up
-                    pdfraster.pd_raster_encoder_destroy(enc);
+                if (rastercompression != PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED)
+                {   // write compressed image data as one strip
+                    pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
                 }
+                else
+                {   // if uncompressed, must remove BMP end of image row padding
+                    UInt32 rowWidthInBytesNotBMP = 0;
+                    switch (rasterpixelformat)
+                    {
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL: rowWidthInBytesNotBMP = (a_u32Width + 7) / 8; break;
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE: rowWidthInBytesNotBMP = a_u32Width; break;
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB: rowWidthInBytesNotBMP = a_u32Width * 3; break;
+                    }
+                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3) / 4) * 4;
+                    if (rowWidthInBytesOfBMP == rowWidthInBytesNotBMP)
+                    {   // if there is no BMP EOL padding, write out the image data as one strip
+                        pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
+                    }
+                    else
+                    {   // if there is BMP EOL padding, strip out the excess EOL bytes, then write the unpadded image data as one strip
+                        byte[] abImageNotBMP = new byte[rowWidthInBytesNotBMP * a_u32Height];
+                        UInt32 srcOffset = (UInt32)a_iImageOffset;
+                        UInt32 dstOffset = 0;
+                        for (UInt32 i = 0; i < a_u32Height; ++i)
+                        {
+                            Array.Copy(a_abImage, srcOffset, abImageNotBMP, dstOffset, rowWidthInBytesNotBMP);
+                            srcOffset += rowWidthInBytesOfBMP;
+                            dstOffset += rowWidthInBytesNotBMP;
+                        }
+                        pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, abImageNotBMP, 0, (UInt32)abImageNotBMP.Length);
+                    }
+                }
+                pdfRasWr.encoder_end_page(enc);
+
+                // The document is complete
+                pdfRasWr.encoder_end_document(enc);
+
+                // clean up
+                pdfRasWr.encoder_destroy(enc);
             }
             catch (Exception exception)
             {
@@ -845,6 +869,7 @@ namespace TwainDirectOnSane
             {
                 // Build the filename...
                 szFile = Path.Combine(m_szImagesFolder, "img" + ii.ToString("D6"));
+
                 if (File.Exists(szFile + ".meta"))
                 {
                     File.Delete(szFile + ".meta");

@@ -73,6 +73,12 @@
     <CodeAnalysisRuleSet>TwainDirectOnTwain.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="pdfras_reader_managed">
+      <HintPath>..\pdfraster\Debug\pdfras_reader_managed.dll</HintPath>
+    </Reference>
+    <Reference Include="pdfras_writer_managed">
+      <HintPath>..\pdfraster\Debug\pdfras_writer_managed.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />

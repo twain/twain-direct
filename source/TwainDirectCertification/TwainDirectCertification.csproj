@@ -78,6 +78,13 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="pdfras_reader_managed, Version=1.0.6297.28838, Culture=neutral, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\pdfraster\Debug\pdfras_reader_managed.dll</HintPath>
+    </Reference>
+    <Reference Include="pdfras_writer_managed">
+      <HintPath>..\pdfraster\Debug\pdfras_writer_managed.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
@@ -86,19 +93,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FormScan.cs">
-        <SubType>Form</SubType>
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="FormScan.Designer.cs">
       <DependentUpon>FormScan.cs</DependentUpon>
     </Compile>
     <Compile Include="FormSelect.cs">
-        <SubType>Form</SubType>
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="FormSelect.Designer.cs">
       <DependentUpon>FormSelect.cs</DependentUpon>
     </Compile>
     <Compile Include="FormSetup.cs">
-        <SubType>Form</SubType>
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="FormSetup.Designer.cs">
       <DependentUpon>FormSetup.cs</DependentUpon>

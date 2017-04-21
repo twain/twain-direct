@@ -458,10 +458,8 @@ namespace TwainDirectOnTwain
         )
         {
             bool blSuccess = true;
-            TwainDirectSupport.PdfRaster.RasterPixelFormat rasterpixelformat;
-            TwainDirectSupport.PdfRaster.RasterCompression rastercompression;
-            PdfRaster pdfraster = new PdfRaster();
-            PdfRaster.t_OS os;
+            PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
+            PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
 
             // Convert the pixel type...
             switch (a_twpt)
@@ -469,9 +467,9 @@ namespace TwainDirectOnTwain
                 default:
                     TWAINWorkingGroup.Log.Error("Unsupported pixel type: " + a_twpt);
                     return (false);
-                case TWAIN.TWPT.BW: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_BITONAL; break;
-                case TWAIN.TWPT.GRAY: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_GRAYSCALE; break;
-                case TWAIN.TWPT.RGB: rasterpixelformat = TwainDirectSupport.PdfRaster.RasterPixelFormat.PDFRAS_RGB; break;
+                case TWAIN.TWPT.BW: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
+                case TWAIN.TWPT.GRAY: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
+                case TWAIN.TWPT.RGB: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB; break;
             }
 
             // Convert the compression...
@@ -480,42 +478,62 @@ namespace TwainDirectOnTwain
                 default:
                     TWAINWorkingGroup.Log.Error("Unsupported compression: " + a_twcp);
                     return (false);
-                case TWAIN.TWCP.NONE: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_UNCOMPRESSED; break;
-                case TWAIN.TWCP.GROUP4: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_CCITTG4; break;
-                case TWAIN.TWCP.JPEG: rastercompression = TwainDirectSupport.PdfRaster.RasterCompression.PDFRAS_JPEG; break;
+                case TWAIN.TWCP.NONE: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED; break;
+                case TWAIN.TWCP.GROUP4: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_CCITTG4; break;
+                case TWAIN.TWCP.JPEG: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_JPEG; break;
             }
 
             // Create the file...
             try
             {
-                using (BinaryWriter binarywriter = new BinaryWriter(File.Create(a_szPdfRasterFile)))
+                // Construct a raster PDF encoder
+                PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
+                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
+
+                // Create the page (we only ever have one)...
+                pdfRasWr.encoder_set_resolution(enc, a_u32Resolution, a_u32Resolution);
+                pdfRasWr.encoder_set_pixelformat(enc, rasterpixelformat);
+                pdfRasWr.encoder_set_compression(enc, rastercompression);
+                pdfRasWr.encoder_start_page(enc, (int)a_u32Width);
+
+                if (rastercompression != PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED)
                 {
-                    // Set up our worker functions...
-                    os = new PdfRaster.t_OS();
-                    os.allocsys = PdfRaster.pd_alloc_sys_new(os);
-                    os.writeout = PdfRasterOutputWriter;
-                    os.writeoutcookie = binarywriter;
-
-                    // Construct a raster PDF encoder
-                    object enc = pdfraster.pd_raster_encoder_create(TwainDirectSupport.PdfRaster.PdfRasterConst.PDFRAS_API_LEVEL, os);
-                    PdfRaster.pd_raster_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
-
-                    // Create the page (we only ever have one)...
-                    PdfRaster.pd_raster_set_resolution(enc, a_u32Resolution, a_u32Resolution);
-                    pdfraster.pd_raster_encoder_start_page(enc, rasterpixelformat, rastercompression, (int)a_u32Width);
-                    pdfraster.pd_raster_encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                    pdfraster.pd_raster_encoder_end_page(enc);
-
-                    // The document is complete
-                    pdfraster.pd_raster_encoder_end_document(enc);
-
-                    // clean up
-                    pdfraster.pd_raster_encoder_destroy(enc);
+                    pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
                 }
-            }
-            catch (Exception exception)
-            {
-                TWAINWorkingGroup.Log.Error("unable to open %s for writing: " + a_szPdfRasterFile);
+                else
+                { // if uncompressed, need to remove BMP EOL conditions
+                    UInt32 rowWidthInBytesNotBMP = 0;
+                    switch(rasterpixelformat)
+                    {
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL : rowWidthInBytesNotBMP = (a_u32Width + 7) / 8; break;
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE: rowWidthInBytesNotBMP = a_u32Width; break;
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB: rowWidthInBytesNotBMP = a_u32Width * 3; break;
+                    }
+                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3)/4)*4;
+                    byte[] abImageNotBMP = new byte [rowWidthInBytesNotBMP * a_u32Height];
+
+                    UInt32 srcOffset = (UInt32)a_iImageOffset;
+                    UInt32 dstOffset = 0;
+                    for (UInt32 i=0; i<a_u32Height; ++i)
+                    {
+                        Array.Copy(a_abImage, srcOffset, abImageNotBMP, dstOffset, rowWidthInBytesNotBMP);
+                        srcOffset += rowWidthInBytesOfBMP;
+                        dstOffset += rowWidthInBytesNotBMP;
+                    }
+                    pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, abImageNotBMP, 0, (UInt32)abImageNotBMP.Length);
+                }
+                pdfRasWr.encoder_end_page(enc);
+
+                // The document is complete
+                pdfRasWr.encoder_end_document(enc);
+
+                // clean up
+                pdfRasWr.encoder_destroy(enc);
+           }
+           catch (Exception exception)
+           {
+                TWAINWorkingGroup.Log.Error("unable to open " + a_szPdfRasterFile + " for writing");
                 TWAINWorkingGroup.Log.Error(exception.Message);
                 blSuccess = false;
             }
@@ -601,7 +619,7 @@ namespace TwainDirectOnTwain
 
             // Init stuff...
             twain = m_twaincstoolkit.Twain();
-
+            
             // Get the metadata for TW_IMAGEINFO...
             TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
             if (a_szTwimageinfo != null)
@@ -1243,8 +1261,7 @@ namespace TwainDirectOnTwain
                 long hh;
                 bool blSuccess;
                 byte[] abImage;
-                PdfRaster.RasterPixelFormat rasterpixelformat;
-                PdfRaster.RasterCompression rastercompression;
+                byte[] abStripData;
                 long lResolution;
                 long lWidth;
                 long lHeight;
@@ -1260,7 +1277,18 @@ namespace TwainDirectOnTwain
                 szPdf = szPdf.Replace("\\", "/");
 
                 // Convert the image to a thumbnail...
-                PdfRaster.GetImage(szPdf, out abImage, out rasterpixelformat, out rastercompression, out lResolution, out lWidth, out lHeight);
+                PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
+                PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
+                PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
+                int decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, szPdf);
+                lWidth = pdfRasRd.decoder_get_width(decoder);
+                lHeight = pdfRasRd.decoder_get_height(decoder);
+                lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
+                rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
+                rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
+                abStripData = pdfRasRd.decoder_read_strips(decoder);
+                pdfRasRd.decoder_destroy(decoder);
+                PdfRaster.AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
                 using (var memorystream = new MemoryStream(abImage))
                 {
                     // Get the thumbnail, fix so all thumbnails have the same height
