@@ -78,12 +78,11 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="pdfras_reader_managed, Version=1.0.6297.28838, Culture=neutral, processorArchitecture=x86">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\pdfraster\Debug\pdfras_reader_managed.dll</HintPath>
+    <Reference Include="pdfras_reader_managed">
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_reader_managed.dll</HintPath>
     </Reference>
     <Reference Include="pdfras_writer_managed">
-      <HintPath>..\pdfraster\Debug\pdfras_writer_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_writer_managed.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
