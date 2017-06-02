@@ -15,6 +15,9 @@
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(BuildingInsideVisualStudio)' != 'true' ">
+    <SuppressValidation>true</SuppressValidation>
+  </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <OutputPath>bin\Debug</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)</IntermediateOutputPath>
