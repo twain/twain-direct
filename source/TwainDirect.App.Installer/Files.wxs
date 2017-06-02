@@ -32,7 +32,19 @@
           <Component Id="TwainDirect.App.exe.config" Guid="{AA05297A-5DAB-45BA-AF80-FB07D855C6A8}">
             <File Id="TwainDirect.App.exe.config" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe.config" KeyPath="yes" />
           </Component>
+
+          <Component Id="TwainDirectSupport.dll" Guid="{3374B2B1-DDF2-4E8C-99FF-2B6C21667077}">
+            <File Id="TwainDirectSupport.dll" Source="$(var.TwainDirect.App.TargetDir)\TwainDirectSupport.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_reader_managed.dll" Guid="{538B1168-62AC-42B1-9EE3-19EE64BF335E}">
+            <File Id="pdfras_reader_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_reader_managed.dll" KeyPath="yes" />
+          </Component>
           
+          <Component Id="pdfras_writer_managed.dll" Guid="{E328D096-8FD2-4B1E-BDA5-A5887160E6E6}">
+            <File Id="pdfras_writer_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_writer_managed.dll" KeyPath="yes" />
+          </Component>
+
         </Directory>
       </Directory>
     </Directory>
