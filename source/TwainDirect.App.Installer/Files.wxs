@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?include Details.wxi ?>
+  
+  <Fragment>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)">
+          <Component Id="applicationShortcut" Guid="{D5E2BA02-109A-4608-9108-9A76B01A6528}">
+            <Shortcut Id="ApplicationStartMenuShortcut"
+                      Name="$(var.ProductName)"
+                      Description="$(var.ProductName)"
+                      Target="[#TwainDirect.App.exe]"
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon ="twain.ico" />
+            <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
+            <RegistryValue Root="HKCU" Key="Software\$(var.Manufacturer)\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+
+      <Directory Id="$(var.PlatformProgramFilesFolder)">
+        <Directory Id="INSTALLFOLDER" Name="TWAIN Direct Application">
+
+          <Component Id="TwainDirect.App.exe" Guid="{71DE5FF6-CF53-4D1E-B878-BBAE69545001}">
+            <File Id="TwainDirect.App.exe" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.App.exe.config" Guid="{AA05297A-5DAB-45BA-AF80-FB07D855C6A8}">
+            <File Id="TwainDirect.App.exe.config" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe.config" KeyPath="yes" />
+          </Component>
+          
+        </Directory>
+      </Directory>
+    </Directory>
+    
+	</Fragment>
+</Wix>
