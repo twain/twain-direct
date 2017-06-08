@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnSane.Sword
+//  TwainDirect.OnSane.Sword
 //
 //  Use a TWAIN Direct task to control a TWAIN driver.  This is a general solution
 //  that represents standard TWAIN Direct on standard TWAIN.  Other schemes are
@@ -54,9 +54,9 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectOnSane
+namespace TwainDirect.OnSane
 {
     /// <summary>
     /// Manage the SWORD interface.  This section shows how to make use of a
@@ -112,7 +112,7 @@ namespace TwainDirectOnSane
         {
            bool blStatus;
            bool blError;
-           TwainDirectSupport.Log.Info("Batch mode starting...");
+           TwainDirect.Support.Log.Info("Batch mode starting...");
 
             // Init stuff...
             blStatus = false;
@@ -139,7 +139,7 @@ namespace TwainDirectOnSane
                 }
 
                 // Do something with it...
-                TwainDirectSupport.Log.Info("Analyzing the task...");
+                TwainDirect.Support.Log.Info("Analyzing the task...");
                 blStatus = SwordDeserialize(szTask, m_guidScanner, ref a_swordtask);
                 if (!blStatus)
                 {
@@ -153,7 +153,7 @@ namespace TwainDirectOnSane
                 // TBD: some kind of event trigger would be nicer than polling.
                 // and we'll need a way to process commands so that information
                 // can be requested or cancels can be issued.
-                TwainDirectSupport.Log.Info("Running the task...");
+                TwainDirect.Support.Log.Info("Running the task...");
                 for (blStatus = Process(a_szScanner, true, a_blIgnoreTaskScan, out blError, ref a_swordtask, ref a_blSetAppCapabilities);
                      blStatus && !blError;
                      blStatus = NextAction(out blError, ref a_swordtask, ref a_blSetAppCapabilities))
@@ -167,26 +167,26 @@ namespace TwainDirectOnSane
             }
             catch
             {
-                TwainDirectSupport.Log.Error("Batch mode threw exception on error...");
-                TwainDirectSupport.Log.Error("exception: " + a_swordtask.GetException());
-                TwainDirectSupport.Log.Error("location: " + a_swordtask.GetJsonExceptionKey());
-                TwainDirectSupport.Log.Error("SWORD value: " + a_swordtask.GetSwordValue());
-                TwainDirectSupport.Log.Error("TWAIN value: " + a_swordtask.GetTwainValue());
+                TwainDirect.Support.Log.Error("Batch mode threw exception on error...");
+                TwainDirect.Support.Log.Error("exception: " + a_swordtask.GetException());
+                TwainDirect.Support.Log.Error("location: " + a_swordtask.GetJsonExceptionKey());
+                TwainDirect.Support.Log.Error("SWORD value: " + a_swordtask.GetSwordValue());
+                TwainDirect.Support.Log.Error("TWAIN value: " + a_swordtask.GetTwainValue());
                 return (false);
             }
             if (blError)
             {
-                TwainDirectSupport.Log.Error("Batch mode completed on error...");
-                TwainDirectSupport.Log.Error("exception: " + a_swordtask.GetException());
-                TwainDirectSupport.Log.Error("location: " + a_swordtask.GetJsonExceptionKey());
-                TwainDirectSupport.Log.Error("SWORD value: " + a_swordtask.GetSwordValue());
-                TwainDirectSupport.Log.Error("TWAIN value: " + a_swordtask.GetTwainValue());
+                TwainDirect.Support.Log.Error("Batch mode completed on error...");
+                TwainDirect.Support.Log.Error("exception: " + a_swordtask.GetException());
+                TwainDirect.Support.Log.Error("location: " + a_swordtask.GetJsonExceptionKey());
+                TwainDirect.Support.Log.Error("SWORD value: " + a_swordtask.GetSwordValue());
+                TwainDirect.Support.Log.Error("TWAIN value: " + a_swordtask.GetTwainValue());
                 return (false);
             }
 
             // Cleanup and scoot...
             Close();
-            TwainDirectSupport.Log.Info("Batch mode completed...");
+            TwainDirect.Support.Log.Info("Batch mode completed...");
             return (true);
         }
 
@@ -238,7 +238,7 @@ namespace TwainDirectOnSane
             aszScanners = Program.ScanImage("ScannerList", "-f \"scanner,%d,%v,%m,%t,%i,%n\"", ref process, null);
             if ((aszScanners == null) || (aszScanners.Length == 0) || !aszScanners[0].StartsWith("scanner"))
             {
-                TwainDirectSupport.Log.Info("No scanners found...");
+                TwainDirect.Support.Log.Info("No scanners found...");
                 return (szList);
             }
 
@@ -277,7 +277,7 @@ namespace TwainDirectOnSane
                 }
                 catch (Exception exception)
                 {
-                    TwainDirectSupport.Log.Info("Failed to get hostName: " + exception.Message);
+                    TwainDirect.Support.Log.Info("Failed to get hostName: " + exception.Message);
                 }
 
                 #endregion
@@ -565,7 +565,7 @@ namespace TwainDirectOnSane
             blError = sword.SwordDeserialize(szTask, new Guid("211a1e90-11e1-11e5-9493-1697f925ec7b"), ref a_swordtask);
             if (!blError)
             {
-                TwainDirectSupport.Log.Error("Bad task..." + a_szFile);
+                TwainDirect.Support.Log.Error("Bad task..." + a_szFile);
                 sword.Close();
                 sword = null;
                 return (null);
@@ -580,7 +580,7 @@ namespace TwainDirectOnSane
             // using NextAction...
             if (!sword.Process(a_szDriver, true, false, out blError, ref a_swordtask, ref blSetAppCapabilities))
             {
-                TwainDirectSupport.Log.Error("Task failed..." + a_szFile);
+                TwainDirect.Support.Log.Error("Task failed..." + a_szFile);
                 sword.Close();
                 return (null);
             }
@@ -661,8 +661,8 @@ namespace TwainDirectOnSane
             bool blSuccess;
 
             // Log what's going on
-            TwainDirectSupport.Log.Info("");
-            TwainDirectSupport.Log.Info("sw> " + ((a_szTask != null) ? a_szTask : "(null)"));
+            TwainDirect.Support.Log.Info("");
+            TwainDirect.Support.Log.Info("sw> " + ((a_szTask != null) ? a_szTask : "(null)"));
             blSuccess = SwordTask.Deserialize(a_szTask, a_guidScanner, ref a_swordtask);
 
             // All done...
@@ -682,8 +682,8 @@ namespace TwainDirectOnSane
         private bool SaneInquiry()
         {
             // Give a clue where we are...
-            TwainDirectSupport.Log.Info(" ");
-            TwainDirectSupport.Log.Info("SaneInquiry begin...");
+            TwainDirect.Support.Log.Info(" ");
+            TwainDirect.Support.Log.Info("SaneInquiry begin...");
 
             // Issue a help command...
             Process process = null;
@@ -864,8 +864,8 @@ namespace TwainDirectOnSane
             #endregion
 
             // All done...
-            TwainDirectSupport.Log.Info(" ");
-            TwainDirectSupport.Log.Info("TwainInquiry completed...");
+            TwainDirect.Support.Log.Info(" ");
+            TwainDirect.Support.Log.Info("TwainInquiry completed...");
 
             // All done...
             return (true);
@@ -885,15 +885,15 @@ namespace TwainDirectOnSane
             string szSourceReply = "";
 
             // Give a clue where we are...
-            TwainDirectSupport.Log.Info(" ");
-            TwainDirectSupport.Log.Info("SaneSelectStream begin...");
+            TwainDirect.Support.Log.Info(" ");
+            TwainDirect.Support.Log.Info("SaneSelectStream begin...");
 
             // We have no action, technically, we shouldn't be here...
             if (    (m_sanetask == null)
                 ||  (m_sanetask.m_saneaction == null)
                 ||  (m_sanetask.m_saneaction[m_iAction] == null))
             {
-                TwainDirectSupport.Log.Info("SaneSelectStream: null task");
+                TwainDirect.Support.Log.Info("SaneSelectStream: null task");
                 a_swordtask.SetTaskReply
                 (
                     "{\n" +
@@ -908,7 +908,7 @@ namespace TwainDirectOnSane
             // We have no streams...
             if (saneaction.m_sanestream == null)
             {
-                TwainDirectSupport.Log.Info("SaneSelectStream: default scanning mode (task has no streams)");
+                TwainDirect.Support.Log.Info("SaneSelectStream: default scanning mode (task has no streams)");
                 a_swordtask.SetTaskReply
                 (
                     "{\n" +
@@ -928,7 +928,7 @@ namespace TwainDirectOnSane
             for (iTwainStream = 0; (saneaction.m_sanestream != null) && (iTwainStream < saneaction.m_sanestream.Length); iTwainStream++)
             {
                 SaneStream sanestream = saneaction.m_sanestream[iTwainStream];
-                TwainDirectSupport.Log.Info("Stream #" + iTwainStream);
+                TwainDirect.Support.Log.Info("Stream #" + iTwainStream);
 
                 // We can have more than one source in a stream, so do the reset up here...
                 szSourceReply = "";
@@ -939,19 +939,19 @@ namespace TwainDirectOnSane
                 for (iTwainSource = 0; (sanestream.m_sanesource != null) && (iTwainSource < sanestream.m_sanesource.Length); iTwainSource++)
                 {
                     SaneSource sanesource = sanestream.m_sanesource[iTwainSource];
-                    TwainDirectSupport.Log.Info("SaneSelectStream: source #" + iTwainSource);
+                    TwainDirect.Support.Log.Info("SaneSelectStream: source #" + iTwainSource);
 
                     // Set the source...
                     string szSource;
                     szStatus = sanesource.SetSource(m_guidScanner, out szSource, ref a_swordtask);
                     if (szStatus == "skip")
                     {
-                        TwainDirectSupport.Log.Info("SaneSelectStream: source belongs to another vendor, so skipping it");
+                        TwainDirect.Support.Log.Info("SaneSelectStream: source belongs to another vendor, so skipping it");
                         continue;
                     }
                     else if (szStatus != "success")
                     {
-                        TwainDirectSupport.Log.Info("SaneSelectStream: source exception: " + szStatus);
+                        TwainDirect.Support.Log.Info("SaneSelectStream: source exception: " + szStatus);
                         break;
                     }
 
@@ -1004,13 +1004,13 @@ namespace TwainDirectOnSane
                     for (iTwainFormat = 0; (sanesource.m_saneformat != null) && (iTwainFormat < sanesource.m_saneformat.Length); iTwainFormat++)
                     {
                         SanePixelFormat sanepixelformat = sanesource.m_saneformat[iTwainFormat];
-                        TwainDirectSupport.Log.Info("SaneSelectStream: pixelFormat #" + iTwainFormat);
+                        TwainDirect.Support.Log.Info("SaneSelectStream: pixelFormat #" + iTwainFormat);
 
                         // Pick a color...
                         szStatus = SaneSetValue(sanepixelformat.m_capabilityPixeltype, ref a_swordtask, ref szSourceReply);
                         if (szStatus != "success")
                         {
-                            TwainDirectSupport.Log.Info("SaneSelectStream: pixelFormat exception: " + szStatus);
+                            TwainDirect.Support.Log.Info("SaneSelectStream: pixelFormat exception: " + szStatus);
                             break;
                         }
 
@@ -1018,7 +1018,7 @@ namespace TwainDirectOnSane
                         szStatus = SaneSetValue(sanepixelformat.m_capabilityResolution, ref a_swordtask, ref szSourceReply);
                         if (szStatus != "success")
                         {
-                            TwainDirectSupport.Log.Info("SaneSelectStream: resolution exception: " + szStatus);
+                            TwainDirect.Support.Log.Info("SaneSelectStream: resolution exception: " + szStatus);
                             break;
                         }
 
@@ -1026,7 +1026,7 @@ namespace TwainDirectOnSane
                         szStatus = SaneSetValue(sanepixelformat.m_capabilityCompression, ref a_swordtask, ref szSourceReply);
                         if (szStatus != "success")
                         {
-                            TwainDirectSupport.Log.Info("SaneSelectStream: compression exception: " + szStatus);
+                            TwainDirect.Support.Log.Info("SaneSelectStream: compression exception: " + szStatus);
                             break;
                         }
 
@@ -1034,7 +1034,7 @@ namespace TwainDirectOnSane
                         szStatus = SaneSetValue(sanepixelformat.m_capabilityXfercount, ref a_swordtask, ref szSourceReply);
                         if (szStatus != "success")
                         {
-                            TwainDirectSupport.Log.Info("SaneSelectStream: xfercount exception: " + szStatus);
+                            TwainDirect.Support.Log.Info("SaneSelectStream: xfercount exception: " + szStatus);
                             break;
                         }
                     }
@@ -1131,7 +1131,7 @@ namespace TwainDirectOnSane
                 default:
                 case "ignore":
                 case "success":
-                    TwainDirectSupport.Log.Info("SaneSelectStream: stream search ended in " + szStatus);
+                    TwainDirect.Support.Log.Info("SaneSelectStream: stream search ended in " + szStatus);
                     break;
 
                 // The task has failed.  "nextStream" results in a failure if it was
@@ -1139,7 +1139,7 @@ namespace TwainDirectOnSane
                 // last stream is going to be "ignore"...
                 case "fail":
                 case "nextStream":
-                    TwainDirectSupport.Log.Info("SaneSelectStream: stream search ended in error, " + szStatus);
+                    TwainDirect.Support.Log.Info("SaneSelectStream: stream search ended in error, " + szStatus);
                     return ("fail");
             }
 
@@ -1151,7 +1151,7 @@ namespace TwainDirectOnSane
             //m_blDuplex = true;
 
             // We're good...
-            TwainDirectSupport.Log.Info("SaneSelectStream completed...");
+            TwainDirect.Support.Log.Info("SaneSelectStream completed...");
             return ("success");
         }
 
@@ -1176,8 +1176,8 @@ namespace TwainDirectOnSane
         {
             bool blStatus;
             bool blError;
-            TwainDirectSupport.Log.Info("");
-            TwainDirectSupport.Log.Info("Process begin...");
+            TwainDirect.Support.Log.Info("");
+            TwainDirect.Support.Log.Info("Process begin...");
 
             // Init stuff...
             a_blError = false;
@@ -1191,13 +1191,13 @@ namespace TwainDirectOnSane
             blStatus = Action(out blError, ref a_swordtask, ref a_blSetAppCapabilities);
             if (!blStatus)
             {
-                TwainDirectSupport.Log.Error("Process: action failed");
+                TwainDirect.Support.Log.Error("Process: action failed");
                 a_blError = true;
                 return (false);
             }
 
             // All done...
-            TwainDirectSupport.Log.Info("Process completed...");
+            TwainDirect.Support.Log.Info("Process completed...");
             a_blError = false;
             return (true);
         }
@@ -1210,8 +1210,8 @@ namespace TwainDirectOnSane
         /// <returns>true on success</returns>
         private bool Action(out bool a_blError, ref SwordTask a_swordtask, ref bool a_blSetAppCapabilities)
         {
-            TwainDirectSupport.Log.Info("");
-            TwainDirectSupport.Log.Info("Action...");
+            TwainDirect.Support.Log.Info("");
+            TwainDirect.Support.Log.Info("Action...");
 
             // Init stuff (just to be sure)...
             a_blError = false;
@@ -1223,7 +1223,7 @@ namespace TwainDirectOnSane
                 ||  (m_iAction >= m_sanetask.m_saneaction.Length)
                 ||  (m_sanetask.m_saneaction[m_iAction] == null))
             {
-                TwainDirectSupport.Log.Info("Action: end of actions...");
+                TwainDirect.Support.Log.Info("Action: end of actions...");
                 if (m_iAction == 0)
                 {
                     a_swordtask.SetTaskReply
@@ -1238,7 +1238,7 @@ namespace TwainDirectOnSane
 
             // Dispatch the action...
             SaneAction saneaction = m_sanetask.m_saneaction[m_iAction];
-            TwainDirectSupport.Log.Info("Action: " + saneaction.m_szAction);
+            TwainDirect.Support.Log.Info("Action: " + saneaction.m_szAction);
             switch (saneaction.m_szAction)
             {
                 // We've got a command that's new to us.  Our default
@@ -1246,12 +1246,12 @@ namespace TwainDirectOnSane
                 default:
                     if (saneaction.m_szException == "fail")
                     {
-                        TwainDirectSupport.Log.Error("Action: unrecognized action...<" + saneaction.m_szAction + ">");
+                        TwainDirect.Support.Log.Error("Action: unrecognized action...<" + saneaction.m_szAction + ">");
                         a_swordtask.SetTaskError("fail", saneaction.m_szJsonKey + ".action", saneaction.m_szAction, -1);
                         a_blError = true;
                         return (false);
                     }
-                    TwainDirectSupport.Log.Info("Action: unrecognized action...<" + saneaction.m_szAction + ">");
+                    TwainDirect.Support.Log.Info("Action: unrecognized action...<" + saneaction.m_szAction + ">");
                     return (true);
 
                 // Configure...
@@ -1263,13 +1263,13 @@ namespace TwainDirectOnSane
                     // Pick a stream...
                     if (SaneSelectStream(ref a_swordtask) != "success")
                     {
-                        TwainDirectSupport.Log.Error("Action: SaneSelectStream failed");
+                        TwainDirect.Support.Log.Error("Action: SaneSelectStream failed");
                         a_blError = true;
                         return (false);
                     }
 
                     // We're all done with this command...
-                    TwainDirectSupport.Log.Info("Action complete...");
+                    TwainDirect.Support.Log.Info("Action complete...");
                     return (true);
             }
         }

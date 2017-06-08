@@ -8,8 +8,8 @@
     <ProjectGuid>{8AB4EAB2-F716-4578-827A-104BAD246488}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>TwainDirectOnTwain</RootNamespace>
-    <AssemblyName>TwainDirectOnTwain</AssemblyName>
+    <RootNamespace>TwainDirect.OnTwain</RootNamespace>
+    <AssemblyName>TwainDirect.OnTwain</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
@@ -24,7 +24,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodeAnalysisRuleSet>TwainDirectOnTwain.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>TwainDirect.OnTwain.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <PlatformTarget>x86</PlatformTarget>
@@ -34,7 +34,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodeAnalysisRuleSet>TwainDirectOnTwain.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>TwainDirect.OnTwain.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <DebugSymbols>true</DebugSymbols>
@@ -43,7 +43,7 @@
     <DebugType>full</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>TwainDirectOnTwain.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>TwainDirect.OnTwain.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
     <OutputPath>bin\AnyCPU\Release\</OutputPath>
@@ -52,7 +52,7 @@
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>TwainDirectOnTwain.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>TwainDirect.OnTwain.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -61,7 +61,7 @@
     <DebugType>full</DebugType>
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>TwainDirectOnTwain.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>TwainDirect.OnTwain.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
@@ -70,14 +70,14 @@
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>TwainDirectOnTwain.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>TwainDirect.OnTwain.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="pdfras_reader_managed">
-      <HintPath>..\pdfraster\Debug\pdfras_reader_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_reader_managed.dll</HintPath>
     </Reference>
     <Reference Include="pdfras_writer_managed">
-      <HintPath>..\pdfraster\Debug\pdfras_writer_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_writer_managed.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -136,12 +136,12 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="TwainDirectOnTwain.ruleset" />
+    <None Include="TwainDirect.OnTwain.ruleset" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TwainDirect.Support\TwainDirectSupport.csproj">
+    <ProjectReference Include="..\TwainDirect.Support\TwainDirect.Support.csproj">
       <Project>{50d52482-9c72-45b3-9bcf-1e4b49976e48}</Project>
-      <Name>TwainDirectSupport</Name>
+      <Name>TwainDirect.Support</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

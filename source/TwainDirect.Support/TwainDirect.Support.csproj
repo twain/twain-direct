@@ -8,8 +8,8 @@
     <ProjectGuid>{50D52482-9C72-45B3-9BCF-1E4B49976E48}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>TwainDirectSupport</RootNamespace>
-    <AssemblyName>TwainDirectSupport</AssemblyName>
+    <RootNamespace>TwainDirect.Support</RootNamespace>
+    <AssemblyName>TwainDirect.Support</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -65,10 +65,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="pdfras_reader_managed">
-      <HintPath>..\pdfraster\Debug\pdfras_reader_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_reader_managed.dll</HintPath>
     </Reference>
     <Reference Include="pdfras_writer_managed">
-      <HintPath>..\pdfraster\Debug\pdfras_writer_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_writer_managed.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -83,6 +83,7 @@
     <Compile Include="ipc.cs" />
     <Compile Include="jsonlookup.cs" />
     <Compile Include="log.cs" />
+    <Compile Include="nativemethods.cs" />
     <Compile Include="pdfraster.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="twainlocalscanner.cs" />

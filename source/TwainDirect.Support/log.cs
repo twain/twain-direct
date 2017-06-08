@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.Log
+// TwainDirect.Support.Log
 //
 // Log stuff.  Yeah, it's different from TWAIN.CS...oh well...
 //
@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    31-Oct-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -37,7 +37,7 @@ using System.Runtime.InteropServices;
 using System.Security.Permissions;
 using System.Threading;
 
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     /// <summary>
     /// Our logger.  If we bump up to 4.5 (and if mono supports it at compile
@@ -368,27 +368,6 @@ namespace TwainDirectSupport
         /// a state number whenever we record a line in the log...
         /// </summary>
         public static GetStateDelegate GetState = GetStateLocal;
-
-        #endregion
-    }
-
-    /// <summary>
-    /// P/Invokes
-    /// </summary>
-    internal static class NativeMethods
-    {
-        ///////////////////////////////////////////////////////////////////////////////
-        // Windows
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Windows
-
-        /// <summary>
-        /// Having this helps a little bit with logging on Windows, it's
-        /// not a huge win, though, so it may well go away at some point...
-        /// </summary>
-        /// <returns></returns>
-        [DllImport("kernel32.dll")]
-        internal static extern int GetCurrentThreadId();
 
         #endregion
     }

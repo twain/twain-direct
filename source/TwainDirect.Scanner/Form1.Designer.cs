@@ -1,4 +1,4 @@
-﻿namespace TwainDirectScanner
+﻿namespace TwainDirect.Scanner
 {
     partial class Form1
     {

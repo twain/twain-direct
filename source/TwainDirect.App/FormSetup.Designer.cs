@@ -1,4 +1,4 @@
-﻿namespace TwainDirectApplication
+﻿namespace TwainDirect.App
 {
     partial class FormSetup
     {

@@ -1,28 +1,20 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.Dnssd
+// TwainDirect.Support.Dnssd
 //
-// Not going to be subtle about this one, this is a hack.  The problem we have is
-// the lack of well maintained, well designed C# API's for interfacing to Bonjour
-// and Avahi.  Mono.Zeroconf was the best candidate, but it's been abandoned.
-// It's a complex problem, and not one lightly undertaken.  So we're going to cheat.
-//
-// When confronted by a situation like this the rule is to design a good interface
-// to abstract the problem into a corner, and then do whatever is needed to solve it.
-//
-// In this case we're going to appeal to the diagnostic apps that come with
-// Bonjour and Avahi and run those to monitor for devices.  On the plus side it
-// won't take a lot of work, and it'll do the job.  On the downside...it feels a
-// little icky, but that's probably because I'm more used to APIs than scripting.
+// What we have here is a class that lets us register or monitor for _twaindirect
+// subtypes under _privet._tcp.  The code is currently for Bonjour on Windows.
+// Adding Avahi for Linux and Bonjour for Mac shouldn't be too big of a deal, but
+// it'll have to come later...
 //
 // As for the mDNS / DNS-SD advertising, we're complying with the TWAIN Local
 // Specification:  http://twaindirect.org
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
-//  M.McLaughlin    01-Jul-2016     Initial Release
+//  M.McLaughlin    01-Jul-2015     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2016-2016 Kodak Alaris Inc.
+//  Copyright (C) 2016-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -46,14 +38,13 @@
 // Helpers...
 using System;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Security;
+using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
 // Namespace for things shared across the system...
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     /// <summary>
     /// The interface for zeroconf stuff...
@@ -73,8 +64,38 @@ namespace TwainDirectSupport
         {
             m_reason = a_reason;
             m_objectLockCache = new Object();
-            m_processDnssdRegisterPrivetTcpLocal = null;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal = null;
+
+            // Load the library...
+            m_hmoduleDnssd = NativeMethods.LoadLibraryExW("dnssd.dll", IntPtr.Zero, 0);
+            if (m_hmoduleDnssd == IntPtr.Zero)
+            {
+                Log.Error("dnssd.dll is not installed...");
+                return;
+            }
+
+            // Load the functions...
+            m_pfndnsservicebrowse = (pfnDNSServiceBrowse)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceBrowse"), typeof(pfnDNSServiceBrowse));
+            m_pfndnsserrvicecreateconnection = (pfnDNSServiceCreateConnection)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceCreateConnection"), typeof(pfnDNSServiceCreateConnection));
+            m_pfndnsserviceprocessresult = (pfnDNSServiceProcessResult)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceProcessResult"), typeof(pfnDNSServiceProcessResult));
+            m_pfndnsservicerefdeallocate = (pfnDNSServiceRefDeallocate)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceRefDeallocate"), typeof(pfnDNSServiceRefDeallocate));
+            m_pfndnsservicerefsockfd = (pfnDNSServiceRefSockFD)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceRefSockFD"), typeof(pfnDNSServiceRefSockFD));
+            m_pfndnsserviceresolve = (pfnDNSServiceResolve)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceResolve"), typeof(pfnDNSServiceResolve));
+            m_pfndnsservicequeryrecord = (pfnDNSServiceQueryRecord)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceQueryRecord"), typeof(pfnDNSServiceQueryRecord));
+            m_pfndnsserviceregister = (pfnDNSServiceRegister)Marshal.GetDelegateForFunctionPointer(NativeMethods.GetProcAddress(m_hmoduleDnssd, "DNSServiceRegister"), typeof(pfnDNSServiceRegister));
+            if (    (m_pfndnsservicebrowse == null)
+                ||  (m_pfndnsserrvicecreateconnection == null)
+                ||  (m_pfndnsserviceprocessresult == null)
+                ||  (m_pfndnsservicerefdeallocate == null)
+                ||  (m_pfndnsservicerefsockfd == null)
+                ||  (m_pfndnsserviceresolve == null)
+                ||  (m_pfndnsservicequeryrecord == null)
+                || (m_pfndnsserviceregister == null))
+            {
+                Log.Error("dnssd.dll is missing functions...");
+                NativeMethods.FreeLibrary(m_hmoduleDnssd);
+                m_hmoduleDnssd = IntPtr.Zero;
+                return;
+            }
         }
 
         /// <summary>
@@ -148,13 +169,13 @@ namespace TwainDirectSupport
                 // They've been sorted, so they must exactly match, row for row...
                 for (ii = 0; ii < a_adnssddeviceinfoCompare.Length; ii++)
                 {
-                    if (   (a_adnssddeviceinfoCompare[ii].lInterface != dnssddeviceinfoCache[ii].lInterface)
-                        || (a_adnssddeviceinfoCompare[ii].szTxtTy != dnssddeviceinfoCache[ii].szTxtTy)
-                        || (a_adnssddeviceinfoCompare[ii].szServiceName != dnssddeviceinfoCache[ii].szServiceName)
-                        || (a_adnssddeviceinfoCompare[ii].szLinkLocal != dnssddeviceinfoCache[ii].szLinkLocal)
-                        || (a_adnssddeviceinfoCompare[ii].lPort != dnssddeviceinfoCache[ii].lPort)
-                        || (a_adnssddeviceinfoCompare[ii].szIpv4 != dnssddeviceinfoCache[ii].szIpv4)
-                        || (a_adnssddeviceinfoCompare[ii].szIpv6 != dnssddeviceinfoCache[ii].szIpv6))
+                    if (    (a_adnssddeviceinfoCompare[ii].lInterface != dnssddeviceinfoCache[ii].lInterface)
+                        ||  (a_adnssddeviceinfoCompare[ii].szTxtTy != dnssddeviceinfoCache[ii].szTxtTy)
+                        ||  (a_adnssddeviceinfoCompare[ii].szServiceName != dnssddeviceinfoCache[ii].szServiceName)
+                        ||  (a_adnssddeviceinfoCompare[ii].szLinkLocal != dnssddeviceinfoCache[ii].szLinkLocal)
+                        ||  (a_adnssddeviceinfoCompare[ii].lPort != dnssddeviceinfoCache[ii].lPort)
+                        ||  (a_adnssddeviceinfoCompare[ii].szIpv4 != dnssddeviceinfoCache[ii].szIpv4)
+                        ||  (a_adnssddeviceinfoCompare[ii].szIpv6 != dnssddeviceinfoCache[ii].szIpv6))
                     {
                         a_blUpdated = true;
                         break;
@@ -167,85 +188,136 @@ namespace TwainDirectSupport
         }
 
         /// <summary>
-        /// Start the monitoring system...
+        /// The monitor thread...
         /// </summary>
         /// <returns>true on success</returns>
-        public bool MonitorStart()
+        public void MonitorThread()
         {
-            // Validate...
-            if (m_reason != Reason.Monitor)
+            // Windows...
+            IntPtr instance;
+            NativeMethods.WNDCLASS wcex;
+            NativeMethods.MSG msg;
+            Int32 dnsserviceerrortype;
+
+            // Create the window. This window won't actually be shown, but it demonstrates how to use Bonjour
+            // with Windows GUI applications by having Bonjour events processed as messages to a Window.
+            instance = NativeMethods.GetModuleHandleW(null);
+            NativeMethods.WndProcDelegate wndprocdelegate = WndProcLaunchpad;
+
+            // Register our class...
+            wcex = new NativeMethods.WNDCLASS();
+            wcex.lpszClassName = "TwainDirectBonjourWindow";
+            wcex.lpfnWndProc = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(wndprocdelegate);
+            Int16 i16 = NativeMethods.RegisterClassW(ref wcex);
+
+            // Create our window...
+            m_hwnd = NativeMethods.CreateWindowExW
+            (
+                0x300 /*WS_EX_OVERLAPPEDWINDOW*/,
+                wcex.lpszClassName,
+                wcex.lpszClassName,
+                0,
+                0x80000000, // CW_USEDEFAULT
+                0,
+                0x80000000, // CW_USEDEFAULT
+                0,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                instance,
+                IntPtr.Zero
+            );
+            if (m_hwnd == IntPtr.Zero)
             {
-                Log.Error("This function can't be used at this time...");
-                return (false);
+                // Handle an error...
             }
-            if (m_threadDnsdMonitor != null)
+
+            // Make sure the window has our object...
+            GCHandle gchandleObject = GCHandle.Alloc(this);
+            if (Config.GetMachineWordSize() == 32)
             {
-                Log.Error("Monitor has already been started...");
-                return (true);
+                NativeMethods.SetWindowLong(m_hwnd, -21, (int)GCHandle.ToIntPtr(gchandleObject)); // GWL_USERDATA
+            }
+            else
+            {
+                NativeMethods.SetWindowLongPtr(m_hwnd, -21, GCHandle.ToIntPtr(gchandleObject)); // GWL_USERDATA
             }
 
-            // Init our program and the arguments needed to see when devices
-            // come and go on the LAN...
-            switch (TwainLocalScanner.GetPlatform())
+            // Start browsing for services and associate the Bonjour browser with our window using the 
+            // WSAAsyncSelect mechanism. Whenever something related to the Bonjour browser occurs, our 
+            // private Windows message will be sent to our window so we can give Bonjour a chance to 
+            // process it. This allows Bonjour to avoid using a secondary thread (and all the issues 
+            // with synchronization that would introduce), but still process everything asynchronously.
+            // This also simplifies app code because Bonjour will only run when we explicitly call it.
+
+            dnsserviceerrortype = m_pfndnsserrvicecreateconnection(ref m_dnsservicerefClient);
+            if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
             {
-                default:
-                    Log.Error("GetPlatform failed...");
-                    return (false);
+                // Handle an error...
+            }
 
-                case TwainLocalScanner.Platform.WINDOWS:
-                    // Check that we can do this...
-                    m_szDnssdPath = "C:\\Windows\\System32\\dns-sd.exe";
-                    m_szDnssdArguments = "-B _privet._tcp";
-                    if (!File.Exists(m_szDnssdPath))
-                    {
-                        Log.Error("dns-sd.exe not found...");
-                        return (false);
-                    }
+            m_dnsservicerefService = m_dnsservicerefClient;
+            GCHandle gchandle = GCHandle.Alloc(this);
+            DNSServiceBrowseReply dnsservicebrowsereply = BrowserCallBackLaunchpad;
+            dnsserviceerrortype = m_pfndnsservicebrowse
+            (
+                ref m_dnsservicerefService,                 // Receives reference to Bonjour browser object.
+                0x4000, //kDNSServiceFlagsShareConnection   // No flags.
+                0, //kDNSServiceInterfaceIndexAny           // Browse on all network interfaces.
+                "_privet._tcp,_twaindirect",                // Browse for privet service types, with a sub-type of _twaindirect
+                null,                                       // Browse on the default domain (e.g. local.).
+                dnsservicebrowsereply,                      // Callback function when Bonjour events occur.
+                GCHandle.ToIntPtr(gchandle)                 // No callback context needed.
+            );
+            if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
+            {
+                // Handle an error...
+            }
 
-                    // Start the thread...
-                    m_threadDnsdMonitor = new Thread(DnssdMonitorWindows);
-                    m_threadDnsdMonitor.Start();
-                    break;
+            dnsserviceerrortype = NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefClient), m_hwnd, NativeMethods.BONJOUR_EVENT, (1 << 0) /*FD_READ*/ | (1 << 5) /*FD_CLOSE*/);
+            if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
+            {
+                // Handle an error...
+            }
 
-                case TwainLocalScanner.Platform.LINUX:
-                    // Check that we can do this...
-                    m_szDnssdPath = "/usr/bin/avahi-browse";
-                    m_szDnssdArguments = "-vprk _privet._tcp";
-                    if (!File.Exists(m_szDnssdPath))
-                    {
-                        m_szDnssdPath = "/usr/local/bin/avahi-browse";
-                        if (!File.Exists(m_szDnssdPath))
-                        {
-                            Log.Error("avahi-browse not found...");
-                            return (false);
-                        }
-                        Log.Error("/usr/bin/avahi-browse not found...");
-                        return (false);
-                    }
-
-                    // Start the thread...
-                    m_threadDnsdMonitor = new Thread(DnssdMonitorLinux);
-                    m_threadDnsdMonitor.Start();
-                    break;
-
-                case TwainLocalScanner.Platform.MACOSX:
-                    // Check that we can do this...
-                    m_szDnssdPath = "/usr/bin/dns-sd";
-                    m_szDnssdArguments = "-Z _privet._tcp .";
-                    if (!File.Exists(m_szDnssdPath))
-                    {
-                        Log.Error("dns-sd not found...");
-                        return (false);
-                    }
-
-                    // Start the thread...
-                    m_threadDnsdMonitor = new Thread(DnssdMonitorMacOsX);
-                    m_threadDnsdMonitor.Start();
-                    break;
+            // Main event loop for the application. All Bonjour events are dispatched while in this loop.
+            while (NativeMethods.GetMessage(out msg, IntPtr.Zero, 0, 0) != 0)
+            {
+                NativeMethods.TranslateMessage(ref msg);
+                NativeMethods.DispatchMessage(ref msg);
             }
 
             // All done...
-            return (true);
+            return;
+        }
+
+        /// <summary>
+        /// Start the monitoring system...
+        /// </summary>
+        /// <returns>true on success</returns>
+        public bool MonitorStart(OsDnssdCallback a_osdnssdcallback, IntPtr a_pvOsdnssdcallbackArg)
+        {
+            // Hey, we already have one of these...
+            if (m_threadMonitor != null)
+            {
+                return (true);
+            }
+
+            // No joy...
+            if (m_hmoduleDnssd == IntPtr.Zero)
+            {
+                return (false);
+            }
+
+            // Init stuff...
+            m_osdnssdcallback = a_osdnssdcallback;
+            m_intptrOsdnssdcallbackArg = a_pvOsdnssdcallbackArg;
+
+            // Start our thread...
+            m_threadMonitor = new Thread(MonitorThread);
+            m_threadMonitor.Start();
+
+		    // All done...
+		    return (true);
         }
 
         /// <summary>
@@ -290,6 +362,9 @@ namespace TwainDirectSupport
             // id=
             // cs=offline
             // note=a_szNote
+            int ii;
+            int tt;
+            Int32 dnsserviceerrortype;
 
             // Validate...
             if (m_reason != Reason.Register)
@@ -297,123 +372,72 @@ namespace TwainDirectSupport
                 Log.Error("This function can't be used at this time...");
                 return (true);
             }
-            if (    (m_threadDnsdRegisterPrivetTcpLocal != null)
-                ||  (m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal != null))
+            if (m_dnsservicerefRegister != IntPtr.Zero)
             {
                 Log.Error("Register has already been started...");
                 return (true);
             }
 
-            // Init our program and the arguments needed to register a device
-            // on the LAN...
-            switch (TwainLocalScanner.GetPlatform())
+            // Build the txt record, note that there is no "auto" for https=
+            // on the registration side.  The user has to pick, and the default
+            // is for https being true.  Once the record is built we have to
+            // plug in the length prefix for each key=value pair, which is what
+            // the tab stuff is all about.  That seemed like a reasonable
+            // separator...
+            string szTxt =
+                "\t" + "txtvers=1" +
+                "\t" + "ty=" + a_szTy +
+                "\t" + "type=twaindirect" +
+                "\t" + "id=" +
+                "\t" + "cs=offline" +
+                "\t" + "https=" + ((Config.Get("useHttps", "yes") == "no") ? "0" : "1") +
+                (string.IsNullOrEmpty(a_szNote) ? "" : "\t" + "note=" + a_szNote);
+            byte[] abTxt = Encoding.UTF8.GetBytes(szTxt);
+            for (tt = ii = 0; ii < abTxt.Length; ii++)
             {
-                default:
-                    Log.Error("GetPlatform failed...");
-                    return (false);
+                // Looking for placeholders...
+                if (abTxt[ii] != '\t')
+                {
+                    continue;
+                }
 
-                case TwainLocalScanner.Platform.WINDOWS:
-                    // Check that we can do this...
-                    m_szDnssdPath = "C:\\Windows\\System32\\dns-sd.exe";
-                    m_szDnssdArgumentsTwainDirectPrivetTcpLocal =
-                        "-R " +
-                        " " + "\"" + a_szInstanceName + "._twaindirect._sub\"" +
-                        " " + "\"_privet._tcp\"" +
-                        " " + "." +
-                        " " + a_iPort +
-                        " " + "\"txtvers=1\"" +
-                        " " + "\"ty=" + a_szTy + "\"" +
-                        " " + "\"type=twaindirect\"" +
-                        " " + "\"id=\"" +
-                        " " + "\"cs=offline\"" +
-                        " " + "\"https=" + ((Config.Get("useHttps","no") == "yes") ? "1\"" : "0\"") +
-                        ((a_szNote == null) ? "" : " " + "\"note=" + a_szNote + "\"");
-                    if (!File.Exists(m_szDnssdPath))
-                    {
-                        Log.Error("dns-sd.exe not found...");
-                        return (false);
-                    }
+                // Dispatch...
+                switch (tt)
+                {
+                    default:
+                    case 0: abTxt[ii] = 9; break;
+                    case 1: abTxt[ii] = (byte)(3 + Encoding.UTF8.GetBytes(a_szTy).Length); break;
+                    case 2: abTxt[ii] = 16; break;
+                    case 3: abTxt[ii] = 3; break;
+                    case 4: abTxt[ii] = 10; break;
+                    case 5: abTxt[ii] = 7; break;
+                    case 6: abTxt[ii] = (byte)(5 + Encoding.UTF8.GetBytes(a_szNote).Length); break;
+                }
 
-                    // Start the thread for twaindirect.sub.privet.tcp.local...
-                    m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal = new Thread(DnssdRegisterWindowsTwainDirectSubPrivetTcpLocal);
-                    m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal.Start();
-
-                    // Start the thread for privet.tcp.local...
-                    m_szDnssdArgumentsPrivetTcpLocal = m_szDnssdArgumentsTwainDirectPrivetTcpLocal.Replace("._twaindirect._sub", "");
-                    m_threadDnsdRegisterPrivetTcpLocal = new Thread(DnssdRegisterWindowsPrivetTcpLocal);
-                    m_threadDnsdRegisterPrivetTcpLocal.Start();
-                    break;
-
-                case TwainLocalScanner.Platform.LINUX:
-                    // Check that we can do this...
-                    m_szDnssdPath = "/usr/bin/avahi-publish";
-                    m_szDnssdArgumentsTwainDirectPrivetTcpLocal =
-                        " " + "\"" + a_szInstanceName + "._twaindirect._sub\"" +
-                        " " + "\"_privet._tcp\"" +
-                        " " + "." +
-                        " " + a_iPort +
-                        " " + "\"txtvers=1\"" +
-                        " " + "\"ty=" + a_szTy + "\"" +
-                        " " + "\"type=twaindirect\"" +
-                        " " + "\"id=\"" +
-                        " " + "\"cs=offline\"" +
-                        " " + "\"https=" + ((Config.Get("useHttps", "no") == "yes") ? "1\"" : "0\"") +
-                        ((a_szNote == null) ? "" : " " + "\"note=" + a_szNote + "\"");
-                    if (!File.Exists(m_szDnssdPath))
-                    {
-                        m_szDnssdPath = "/usr/local/bin/avahi-browse";
-                        if (!File.Exists(m_szDnssdPath))
-                        {
-                            Log.Error("avahi-browse not found...");
-                            return (false);
-                        }
-                        Log.Error("/usr/bin/avahi-browse not found...");
-                        return (false);
-                    }
-
-                    // Start the thread for twaindirect.sub.privet.tcp.local...
-                    m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal = new Thread(DnssdRegisterWindowsTwainDirectSubPrivetTcpLocal);
-                    m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal.Start();
-
-                    // Start the thread for privet.tcp.local...
-                    m_szDnssdArgumentsPrivetTcpLocal = m_szDnssdArgumentsTwainDirectPrivetTcpLocal.Replace("._twaindirect._sub", "");
-                    m_threadDnsdRegisterPrivetTcpLocal = new Thread(DnssdRegisterWindowsPrivetTcpLocal);
-                    m_threadDnsdRegisterPrivetTcpLocal.Start();
-                    break;
-
-                case TwainLocalScanner.Platform.MACOSX:
-                    // Check that we can do this...
-                    m_szDnssdPath = "/usr/bin/dns-sd";
-                    m_szDnssdArgumentsTwainDirectPrivetTcpLocal =
-                        "-R " +
-                        " " + "\"" + a_szInstanceName + "._twaindirect._sub\"" +
-                        " " + "\"_privet._tcp\"" +
-                        " " + "." +
-                        " " + a_iPort +
-                        " " + "\"txtvers=1\"" +
-                        " " + "\"ty=" + a_szTy + "\"" +
-                        " " + "\"type=twaindirect\"" +
-                        " " + "\"id=\"" +
-                        " " + "\"cs=offline\"" +
-                        " " + "\"https=" + ((Config.Get("useHttps", "no") == "yes") ? "1\"" : "0\"") +
-                        ((a_szNote == null) ? "" : " " + "\"note=" + a_szNote + "\"");
-                    if (!File.Exists(m_szDnssdPath))
-                    {
-                        Log.Error("dns-sd not found...");
-                        return (false);
-                    }
-
-                    // Start the thread for twaindirect.sub.privet.tcp.local...
-                    m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal = new Thread(DnssdRegisterWindowsTwainDirectSubPrivetTcpLocal);
-                    m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal.Start();
-
-                    // Start the thread for privet.tcp.local...
-                    m_szDnssdArgumentsPrivetTcpLocal = m_szDnssdArgumentsTwainDirectPrivetTcpLocal.Replace("._twaindirect._sub", "");
-                    m_threadDnsdRegisterPrivetTcpLocal = new Thread(DnssdRegisterWindowsPrivetTcpLocal);
-                    m_threadDnsdRegisterPrivetTcpLocal.Start();
-                    break;
+                // Next item...
+                tt += 1;
             }
- 
+
+            // Register...
+            dnsserviceerrortype = m_pfndnsserviceregister
+            (
+                ref m_dnsservicerefRegister,
+                0,
+                0,
+                null,
+                "_privet._tcp,_twaindirect",
+                null,
+                null,
+                (short)WX((ushort)a_iPort),
+                (short)abTxt.Length,
+                abTxt,
+                IntPtr.Zero,
+                IntPtr.Zero
+            );
+            if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+            {
+            }
+
             // All done...
             return (true);
         }
@@ -487,7 +511,7 @@ namespace TwainDirectSupport
             /// The IPv4 address (if any)...
             /// </summary>
             public string szIpv4;
-            
+
             /// <summary>
             /// The IPv6 address (if any)...
             /// </summary>
@@ -498,6 +522,9 @@ namespace TwainDirectSupport
 
             // The flags reported with it...
             public long lFlags;
+
+            // Our time to live...
+            public long lTtl;
 
             /// <summary>
             /// Text version...
@@ -537,6 +564,13 @@ namespace TwainDirectSupport
             // Implement our IComparable interface...
             public int CompareTo(object obj)
             {
+                // Well, that's odd...
+                if (obj == null)
+                {
+                    return (0);
+                }
+
+                // This is our object...
                 if (obj is DnssdDeviceInfo)
                 {
                     int iResult;
@@ -555,6 +589,8 @@ namespace TwainDirectSupport
                     }
                     return (iResult);
                 }
+
+                // No joy...
                 return (0);
             }
         }
@@ -576,1179 +612,724 @@ namespace TwainDirectSupport
             // Free managed resources...
             if (a_blDisposing)
             {
-                if (m_processDnssdMonitor != null)
+                if (m_threadMonitor != null)
                 {
-                    m_processDnssdMonitor.Kill();
-                    m_processDnssdMonitor.Dispose();
-                    m_processDnssdMonitor = null;
+                    // Clean up Bonjour. This is not strictly necessary since the normal process cleanup will 
+                    // close Bonjour socket(s) and release memory, but it's here to demonstrate how to do it.
+                    if (m_dnsservicerefService != IntPtr.Zero)
+                    {
+                        NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), m_hwnd, NativeMethods.BONJOUR_EVENT, 0);
+                        m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
+                    }
+                    NativeMethods.PostMessage(m_hwnd, 0x0012, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                    if (!m_threadMonitor.Join(5000))
+                    {
+                        m_threadMonitor.Abort();
+                    }
+                    m_threadMonitor = null;
                 }
-                if (m_processDnssdRegisterPrivetTcpLocal != null)
+                if (m_dnsservicerefRegister != IntPtr.Zero)
                 {
-                    m_processDnssdRegisterPrivetTcpLocal.Kill();
-                    m_processDnssdRegisterPrivetTcpLocal.Dispose();
-                    m_processDnssdRegisterPrivetTcpLocal = null;
+                    m_pfndnsservicerefdeallocate(ref m_dnsservicerefRegister);
+                    m_dnsservicerefRegister = IntPtr.Zero;
                 }
-                if (m_processDnssdRegisterTwainDirectSubPrivetTcpLocal != null)
+                if (m_hmoduleDnssd != IntPtr.Zero)
                 {
-                    m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.Kill();
-                    m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.Dispose();
-                    m_processDnssdRegisterTwainDirectSubPrivetTcpLocal = null;
-                }
-                if (m_eventwaithandleRead != null)
-                {
-                    m_eventwaithandleRead.Close();
-                    m_eventwaithandleRead = null;
+                    NativeMethods.FreeLibrary(m_hmoduleDnssd);
+                    m_hmoduleDnssd = IntPtr.Zero;
                 }
             }
         }
 
         /// <summary>
-        /// Read data for the "dns-sd -L" command...
+        /// A helper function to flip unsigned shorts from network order
+        /// to something that's actually useful...
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        internal void procReadLookupData(object sender, DataReceivedEventArgs e)
+        /// <param name="a">the value to flip</param>
+        /// <returns>the flipped value</returns>
+        internal UInt16 WX(UInt16 a)
         {
-            // Filter for our interface number...
-            if (e.Data.Replace("\n","").Replace("\r","").Contains(" " + m_dnssddeviceinfoTmp.lInterface + ")"))
+            return ((UInt16)((((a) & 0xFF) << 8) + (((a) >> 8) & 0xFF)));
+        }
+
+        /// <summary>
+        /// This is the launchpad for WndProc.  It's main claim to fame is
+        /// using the user data region to pass the Dnssd object into the
+        /// callback...
+        /// </summary>
+        /// <param name="a_hwnd"></param>
+        /// <param name="a_uiMsg"></param>
+        /// <param name="a_wparam"></param>
+        /// <param name="a_lparam"></param>
+        /// <returns></returns>
+        internal IntPtr WndProcLaunchpad
+        (
+            IntPtr a_hwnd,
+            uint a_uiMsg,
+            IntPtr a_wparam,
+            IntPtr a_lparam
+        )
+        {
+            Dnssd dnssd;
+            GCHandle gchandle;
+            IntPtr intptrGchandle;
+
+            // Get our user defined data...
+            if (Config.GetMachineWordSize() == 32)
             {
-                int ii;
-                string[] aszOutput = e.Data.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (aszOutput != null)
-                {
-                    for (ii = 0; ii < aszOutput.Length; ii++)
+                intptrGchandle = (IntPtr)NativeMethods.GetWindowLong(a_hwnd, -21); // GWL_USERDATA
+            }
+            else
+            {
+                intptrGchandle = (IntPtr)NativeMethods.GetWindowLongPtr(a_hwnd, -21); // GWL_USERDATA
+            }
+
+            // If we don't have our object, then scoot...
+            if (intptrGchandle == IntPtr.Zero)
+            {
+                return (NativeMethods.DefWindowProc(a_hwnd, a_uiMsg, a_wparam, a_lparam));
+            }
+
+            // Otherwise we can pass this to our handler...
+            gchandle = GCHandle.FromIntPtr(intptrGchandle);
+            dnssd = (gchandle.Target as Dnssd);
+
+            // Dispatch it...
+            return (dnssd.WndProc(a_hwnd, a_uiMsg, a_wparam, a_lparam));
+        }
+
+        /// <summary>
+        /// Bonjour on Windows is a happier puppy when it has a window it can
+        /// send messages to.  This is the launchpad for that.  When we get
+        /// something we process the result, and that kicks off the brower
+        /// callback function...
+        /// </summary>
+        /// <param name="a_hwnd"></param>
+        /// <param name="a_uiMsg"></param>
+        /// <param name="a_wparam"></param>
+        /// <param name="a_lparam"></param>
+        /// <returns></returns>
+        internal IntPtr WndProc
+        (
+            IntPtr a_hwnd,
+            uint a_uiMsg,
+            IntPtr a_wparam,
+            IntPtr a_lparam
+        )
+        {
+            Int32 dnsserviceerrortype;
+
+            // Dispatch the message...
+            switch (a_uiMsg)
+            {
+                default:
+                    return (NativeMethods.DefWindowProc(a_hwnd, a_uiMsg, a_wparam, a_lparam));
+
+                case NativeMethods.BONJOUR_EVENT:
+                    // Process the Bonjour event. All Bonjour callbacks occur from within this function.
+                    // If an error occurs while trying to process the result, it most likely means that
+                    // something serious has gone wrong with Bonjour, such as it being terminated. This 
+                    // does not normally occur, but code should be prepared to handle it. If the error 
+                    // is ignored, the window will receive a constant stream of BONJOUR_EVENT messages so
+                    // if an error occurs, we disassociate the DNSServiceRef from the window, deallocate
+                    // it, and invalidate the reference so we don't try to deallocate it again on quit. 
+                    // Since this is a simple example app, if this error occurs, we quit the app too.
+                    dnsserviceerrortype = m_pfndnsserviceprocessresult(m_dnsservicerefClient);
+                    if (dnsserviceerrortype == 0) // kDNSServiceErr_NoError
                     {
-                        if (aszOutput[ii].Contains(".:"))
-                        {
-                            string[] aszTmp = aszOutput[ii].Split(new string[] { ".:" }, StringSplitOptions.None);
-                            m_dnssddeviceinfoTmp.szLinkLocal = aszTmp[0];
-                            long.TryParse(aszTmp[1], out m_dnssddeviceinfoTmp.lPort);
-                            m_eventwaithandleRead.Set();
-                            return;
-                        }
+                        // Do the callback...
                     }
-                }
+                    else
+                    {
+                        Log.Error("bonjour error..." + dnsserviceerrortype);
+                        NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), a_hwnd, NativeMethods.BONJOUR_EVENT, 0);
+                        m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
+                        m_dnsservicerefService = IntPtr.Zero;
+                        NativeMethods.PostMessage(a_hwnd, 0x0012, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                    }
+
+                    // All done...
+                    return (IntPtr.Zero);
             }
         }
 
         /// <summary>
-        /// Read data for the "dns-sd -Q A" command...
+        /// The launchpad function for BrowserCallBack, coming in from WndProc...
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        internal void procReadIpv4Data(object sender, DataReceivedEventArgs e)
+        /// <param name="a_dnsserviceref"></param>
+        /// <param name="a_dnsserviceflags"></param>
+        /// <param name="a_i32Interface"></param>
+        /// <param name="a_dnsserviceerrortype"></param>
+        /// <param name="a_szName"></param>
+        /// <param name="a_szType"></param>
+        /// <param name="a_szDomain"></param>
+        /// <param name="a_pvContext"></param>
+        internal void BrowserCallBackLaunchpad
+        (
+	        ref IntPtr a_dnsserviceref,
+	        Int32 a_dnsserviceflags,
+	        Int32 a_i32Interface,
+	        Int32 a_dnsserviceerrortype,
+	        string a_szName,
+            string a_szType,
+            string a_szDomain,
+	        IntPtr a_pvContext
+        )
         {
-            long lInterface;
-            string[] aszOutput = e.Data.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (aszOutput != null)
-            {
-                if ((aszOutput.Length < 8) || !long.TryParse(aszOutput[3],out lInterface))
-                {
-                    return;
-                }
-                if (lInterface == m_dnssddeviceinfoTmp.lInterface)
-                {
-                    m_dnssddeviceinfoTmp.szIpv4 = aszOutput[7];
-                    if (m_dnssddeviceinfoTmp.szIpv4 == "No")
-                    {
-                        m_dnssddeviceinfoTmp.szIpv4 = null;
-                    }
-                    m_eventwaithandleRead.Set();
-                    return;
-                }
-            }
+            GCHandle gchandle = GCHandle.FromIntPtr(a_pvContext);
+            Dnssd dnssd = (gchandle.Target as Dnssd);
+            dnssd.BrowserCallBack
+	        (
+		        ref a_dnsserviceref,
+		        a_dnsserviceflags,
+		        a_i32Interface,
+		        a_dnsserviceerrortype,
+		        a_szName,
+		        a_szType,
+		        a_szDomain,
+		        a_pvContext
+	        );
         }
 
         /// <summary>
-        /// Read data for the "dns-sd -Q AAAA" command...
+        /// The browser callback.  This is the point hit when new stuff is
+        /// coming and going.  We're filtering for _privet._tcp,_twaindirect,
+        /// so we shouldn't se anything else.  If we see that an item is
+        /// leaving, we try to yank it from our cache.  If we see that an item
+        /// is coming in, then we ask the service to resolve it to get more
+        /// info...
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        internal void procReadIpv6Data(object sender, DataReceivedEventArgs e)
+        /// <param name="a_dnsserviceref"></param>
+        /// <param name="a_dnsserviceflags"></param>
+        /// <param name="a_i32Interface"></param>
+        /// <param name="a_dnsserviceerrortype"></param>
+        /// <param name="a_szName"></param>
+        /// <param name="a_szType"></param>
+        /// <param name="a_szDomain"></param>
+        /// <param name="a_pvContext"></param>
+        internal void BrowserCallBack
+        (
+            ref IntPtr a_dnsserviceref,
+            Int32 a_dnsserviceflags,
+            Int32 a_i32Interface,
+            Int32 a_dnsserviceerrortype,
+            string a_szName,
+            string a_szType,
+            string a_szDomain,
+            IntPtr a_pvContext
+        )
         {
-            long lInterface;
-            string[] aszOutput = e.Data.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (aszOutput != null)
-            {
-                if ((aszOutput.Length < 8) || !long.TryParse(aszOutput[3],out lInterface))
-                {
-                    return;
-                }
-                if (lInterface == m_dnssddeviceinfoTmp.lInterface)
-                {
-                    m_dnssddeviceinfoTmp.szIpv6 = aszOutput[7];
-                    if (m_dnssddeviceinfoTmp.szIpv6 == "No")
-                    {
-                        m_dnssddeviceinfoTmp.szIpv6 = null;
-                    }
-                    m_eventwaithandleRead.Set();
-                    return;
-                }
-            }
-        }
+            int ii;
+	        IntPtr pdnsserviceref;
+	        Int32 dnsserviceerrortype;
 
-        /// <summary>
-        /// Read data for the "dns-sd -Q TXT" command...
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        internal void procReadTxtData(object sender, DataReceivedEventArgs e)
-        {
-            long ii;
-            long lInterface;
-            string[] aszOutput = e.Data.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (aszOutput != null)
-            {
-                if ((aszOutput.Length < 8) || !long.TryParse(aszOutput[3], out lInterface))
+	        // Ruh-roh...
+	        if (a_dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+	        {
+		        Log.Error("BrowserCallback failed..." + a_dnsserviceerrortype);
+		        return;
+	        }
+
+	        // We're removing something...
+	        if ((a_dnsserviceflags & 0x2) == 0) // kDNSServiceFlagsAdd
+	        {
+                // We have enough information to find our beastie, we just
+                // need the link service name and the interface it's on...
+                lock (m_objectLockCache)
                 {
-                    return;
-                }
-                if (lInterface == m_dnssddeviceinfoTmp.lInterface)
-                {
-                    // Find the "bytes:" tag...
-                    for (ii = 0; ii < aszOutput.Length; ii++)
+                    if (m_adnssddeviceinfoCache != null)
                     {
-                        if (aszOutput[ii].StartsWith("bytes:"))
+                        for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
                         {
-                            break;
-                        }
-                    }
-                    if (ii >= aszOutput.Length)
-                    {
-                        return;
-                    }
-
-                    // Process the TXT data, each hexit it a byte in a UTF-8
-                    // string, and each string is of the form key=value, so
-                    // we'll capture the data as a byte array, convert it to
-                    // a string, and then parse out the contents of the key.
-                    // The first hexit indicates the total number of bytes in
-                    // the key=value string (it doesn't include the prefix
-                    // byte).
-                    long lPrefix;
-                    byte[] abValue = new byte[aszOutput.Length + 1];
-                    ii += 1;
-                    while (ii < aszOutput.Length)
-                    {
-                        long bb;
-                        long pp;
-                        string szKey;
-                        string szValue;
-
-                        // Get the prefix byte...
-                        if (!long.TryParse(aszOutput[ii], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out lPrefix))
-                        {
-                            return;
-                        }
-
-                        // Get the key, stop at the equal size (hex 3D)...
-                        bb = 0;
-                        pp = 0;
-                        for (ii += 1; (pp < lPrefix) && (ii < aszOutput.Length) && (aszOutput[ii] != "3D"); ii++, pp++)
-                        {
-                            if (!byte.TryParse(aszOutput[ii], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out abValue[bb++]))
+                            if (    (m_adnssddeviceinfoCache[ii].lInterface == a_i32Interface)
+                                &&  (m_adnssddeviceinfoCache[ii].szServiceName == (a_szName + "." + a_szType + a_szDomain)))
                             {
-                                return;
-                            }
-                        }
-                        szKey = Encoding.UTF8.GetString(abValue, 0, (int)bb);
-
-                        // Get the value, stop at the end of the data...
-                        bb = 0;
-                        for (ii += 1, pp += 1; (pp < lPrefix) && (ii < aszOutput.Length); ii++, pp++)
-                        {
-                            if (!byte.TryParse(aszOutput[ii], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out abValue[bb++]))
-                            {
-                                return;
-                            }
-                        }
-                        szValue = Encoding.UTF8.GetString(abValue, 0, (int)bb);
-
-                        // Store the data...
-                        if (m_dnssddeviceinfoTmp.aszText == null)
-                        {
-                            m_dnssddeviceinfoTmp.aszText = new string[1];
-                            m_dnssddeviceinfoTmp.aszText[0] = szKey + "=" + szValue;
-                        }
-                        else
-                        {
-                            string[] asz = new string[m_dnssddeviceinfoTmp.aszText.Length + 1];
-                            m_dnssddeviceinfoTmp.aszText.CopyTo(asz, 0);
-                            asz[m_dnssddeviceinfoTmp.aszText.Length] = szKey + "=" + szValue;
-                            m_dnssddeviceinfoTmp.aszText = asz;
-                            asz = null;
-                        }
-
-                        // txtvers...
-                        if (szKey == "txtvers")
-                        {
-                            m_dnssddeviceinfoTmp.szTxtTxtvers = szValue;
-                        }
-
-                        // ty...
-                        else if (szKey == "ty")
-                        {
-                            m_dnssddeviceinfoTmp.szTxtTy = szValue;
-                        }
-
-                        // type...
-                        else if (szKey == "type")
-                        {
-                            m_dnssddeviceinfoTmp.szTxtType = szValue;
-                        }
-
-                        // id...
-                        else if (szKey == "id")
-                        {
-                            m_dnssddeviceinfoTmp.szTxtId = szValue;
-                        }
-
-                        // cs...
-                        else if (szKey == "cs")
-                        {
-                            m_dnssddeviceinfoTmp.szTxtCs = szValue;
-                        }
-
-                        // https...
-                        else if (szKey == "https")
-                        {
-                            m_dnssddeviceinfoTmp.blTxtHttps = (szValue != "0");
-                        }
-
-                        // note...
-                        else if (szKey == "note")
-                        {
-                            m_dnssddeviceinfoTmp.szTxtNote = szValue;
-                        }
-                    }
-
-                    m_eventwaithandleRead.Set();
-                    return;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Handle the Windows dns-sd process output from this thread...
-        /// </summary>
-        internal void DnssdMonitorWindows()
-        {
-            string szOutput;
-            Process process;
-
-            // Start the child process.
-            m_processDnssdMonitor = new Process();
-
-            // Redirect the output stream of the child process.
-            m_processDnssdMonitor.StartInfo.UseShellExecute = false;
-            m_processDnssdMonitor.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-            m_processDnssdMonitor.StartInfo.CreateNoWindow = true;
-            m_processDnssdMonitor.StartInfo.RedirectStandardOutput = true;
-            m_processDnssdMonitor.StartInfo.RedirectStandardError = true;
-            m_processDnssdMonitor.StartInfo.FileName = m_szDnssdPath;
-            m_processDnssdMonitor.StartInfo.Arguments = m_szDnssdArguments;
-            m_processDnssdMonitor.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            m_processDnssdMonitor.Start();
-
-            // Read each line as it comes in from the process, when the
-            // caller is done they'll kill it off and the read should
-            // abort at that point...
-            for (;;)
-            {
-                try
-                {
-                    // Read a line of data...
-                    szOutput = m_processDnssdMonitor.StandardOutput.ReadLine();
-                    if (szOutput == null)
-                    {
-                        break;
-                    }
-
-                    // Something was added...
-                    #region Something was added...
-                    if (szOutput.Contains(" Add "))
-                    {
-                        int ii;
-                        string szInstanceName;
-
-                        // Give ourself a place to store what we find...
-                        m_dnssddeviceinfoTmp = new DnssdDeviceInfo();
-
-
-                        ///////////////////////////////////////////////////////////
-                        // Parse the -B data (browsing)...
-                        #region Parse -B
-
-                        // We can get the flags and the interface by splitting, we
-                        // need to remove empty entries because there could be a
-                        // leading space...
-                        string[] aszOutput = szOutput.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (aszOutput.Length < 4)
-                        {
-                            continue;
-                        }
-
-                        // The flags are at index 2...
-                        if (!long.TryParse(aszOutput[2], out m_dnssddeviceinfoTmp.lFlags))
-                        {
-                            continue;
-                        }
-
-                        // The interface is at index 3...
-                        if (!long.TryParse(aszOutput[3], out m_dnssddeviceinfoTmp.lInterface))
-                        {
-                            continue;
-                        }
-
-                        // Parse the instance name.  Unfortunately we can't just split it
-                        // because the name may include spaces, so we'll sneak up on it.  Start
-                        // by locating "_private._tcp"...
-                        ii = szOutput.IndexOf("_privet._tcp");
-                        if (ii <= 0)
-                        {
-                            continue;
-                        }
-
-                        // Skip over _privet._tcp, and skip all whitespace...
-                        for (ii += "_privet._tcp.".Length; (ii < szOutput.Length); ii++)
-                        {
-                            if (!Char.IsWhiteSpace(szOutput[ii]))
-                            {
+                                // Last item...
+                                if (m_adnssddeviceinfoCache.Length == 1)
+                                {
+                                    m_adnssddeviceinfoCache = null;
+                                }
+                                else
+                                {
+                                    DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length - 1];
+                                    // Drop the first item...
+                                    if (ii == 0)
+                                    {
+                                        Array.Copy(m_adnssddeviceinfoCache, 1, adnssddeviceinfo, 0, m_adnssddeviceinfoCache.Length - 1);
+                                    }
+                                    // Drop the last item...
+                                    else if (ii == (m_adnssddeviceinfoCache.Length - 1))
+                                    {
+                                        Array.Copy(m_adnssddeviceinfoCache, 0, adnssddeviceinfo, 0, m_adnssddeviceinfoCache.Length - 1);
+                                    }
+                                    // Drop a middle item...
+                                    else
+                                    {
+                                        // 0 1 2 3 4 5
+                                        // . . . i . .
+                                        Array.Copy(m_adnssddeviceinfoCache, 0, adnssddeviceinfo, 0, ii); // ex: s[0] -> d[0] : 3
+                                        Array.Copy(m_adnssddeviceinfoCache, ii + 1, adnssddeviceinfo, ii, m_adnssddeviceinfoCache.Length - (ii + 1)); // ex: s[4] -> d[3] : 2
+                                    }
+                                    m_adnssddeviceinfoCache = adnssddeviceinfo;
+                                }
                                 break;
                             }
                         }
-                        if (ii >= szOutput.Length)
-                        {
-                            continue;
-                        }
-
-                        // Everything from this index on is our instance name...
-                        szInstanceName = szOutput.Substring(ii);
-
-                        // Our instance name has to end with "._twaindirect._sub"
-                        if (!szInstanceName.EndsWith("._twaindirect._sub"))
-                        {
-                            continue;
-                        }
-
-                        #endregion
-
-
-                        ///////////////////////////////////////////////////////////
-                        // Get the lookup data from dns-sd (link local and port)...
-                        #region Parse -L
-
-                        // Give us an event to know when we're done reading...
-                        m_eventwaithandleRead = new EventWaitHandle(false, EventResetMode.ManualReset);
-
-                        // Launch a process to resolve the link local name and the port number...
-                        process = new Process();
-                        process.StartInfo.UseShellExecute = false;
-                        process.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-                        process.StartInfo.CreateNoWindow = true;
-                        process.StartInfo.RedirectStandardOutput = true;
-                        process.StartInfo.RedirectStandardError = true;
-                        process.StartInfo.FileName = m_szDnssdPath;
-                        process.StartInfo.Arguments = "-L \"" + szInstanceName + "\" _privet._tcp";
-                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                        process.OutputDataReceived += procReadLookupData;
-                        process.ErrorDataReceived += procReadLookupData;
-                        process.Start();
-
-                        // Start reading the data, stop when we get it, or when we run
-                        // out of time waiting for it...
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-
-                        // Wait for the data to arrive, the only way this should time
-                        // out is if we lost our device between the time -B saw it and
-                        // when we tried to get this data...
-                        m_eventwaithandleRead.WaitOne(5000);
-
-                        // End the process...
-                        process.CancelOutputRead();
-                        process.CancelErrorRead();
-                        m_eventwaithandleRead = null;
-                        process.Kill();
-
-                        // If we didn't get a port number, we're done with this line...
-                        if (m_dnssddeviceinfoTmp.lPort == 0)
-                        {
-                            continue;
-                        }
-
-                        // Squirrel away our full service name...
-                        m_dnssddeviceinfoTmp.szServiceName = szInstanceName.Replace(".", "\\.") + "._privet._tcp.local";
-
-                        // Seed the friendly name with the topmost part of the instance
-                        // name, plus the topmost part of the link local, and the
-                        // instance number, this should be unique...
-                        m_dnssddeviceinfoTmp.szTxtTy = szInstanceName.Split(new char[] { '.' })[0] + "_" + m_dnssddeviceinfoTmp.szLinkLocal.Split(new char[] { '.' })[0] + "_" + m_dnssddeviceinfoTmp.lInterface;
-
-                        #endregion
-
-
-                        ///////////////////////////////////////////////////////////
-                        // Get the -Q A record data (ipv4)...
-                        #region Parse -Q A
-
-                        // Give us an event to know when we're done reading...
-                        m_eventwaithandleRead = new EventWaitHandle(false, EventResetMode.ManualReset);
-
-                        // Launch a process to resolve the link local name and the port number...
-                        process = new Process();
-                        process.StartInfo.UseShellExecute = false;
-                        process.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-                        process.StartInfo.CreateNoWindow = true;
-                        process.StartInfo.RedirectStandardOutput = true;
-                        process.StartInfo.RedirectStandardError = true;
-                        process.StartInfo.FileName = m_szDnssdPath;
-                        process.StartInfo.Arguments = "-Q \"" + m_dnssddeviceinfoTmp.szLinkLocal + "\" A";
-                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                        process.OutputDataReceived += procReadIpv4Data;
-                        process.ErrorDataReceived += procReadIpv4Data;
-                        process.Start();
-
-                        // Start reading the data, stop when we get it, or when we run
-                        // out of time waiting for it...
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-
-                        // Wait for the data to arrive, the only way this should time
-                        // out is if we lost out device between the time -B saw it and
-                        // when we tried to get this data...
-                        m_eventwaithandleRead.WaitOne(5000);
-
-                        // End the process...
-                        process.CancelOutputRead();
-                        process.CancelErrorRead();
-                        m_eventwaithandleRead = null;
-                        process.Kill();
-
-                        #endregion
-
-
-                        ///////////////////////////////////////////////////////////
-                        // Get the -Q AAAA record data (ipv6)...
-                        #region Parse -Q AAAA
-
-                        // Give us an event to know when we're done reading...
-                        m_eventwaithandleRead = new EventWaitHandle(false, EventResetMode.ManualReset);
-
-                        // Launch a process to resolve the link local name and the port number...
-                        process = new Process();
-                        process.StartInfo.UseShellExecute = false;
-                        process.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-                        process.StartInfo.CreateNoWindow = true;
-                        process.StartInfo.RedirectStandardOutput = true;
-                        process.StartInfo.RedirectStandardError = true;
-                        process.StartInfo.FileName = m_szDnssdPath;
-                        process.StartInfo.Arguments = "-Q \"" + m_dnssddeviceinfoTmp.szLinkLocal + "\" AAAA";
-                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                        process.OutputDataReceived += procReadIpv6Data;
-                        process.ErrorDataReceived += procReadIpv6Data;
-                        process.Start();
-
-                        // Start reading the data, stop when we get it, or when we run
-                        // out of time waiting for it...
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-
-                        // Wait for the data to arrive, the only way this should time
-                        // out is if we lost out device between the time -B saw it and
-                        // when we tried to get this data...
-                        m_eventwaithandleRead.WaitOne(5000);
-
-                        // End the process...
-                        process.CancelOutputRead();
-                        process.CancelErrorRead();
-                        m_eventwaithandleRead = null;
-                        process.Kill();
-
-                        // We have to have either ipv4 or ipv6 data...
-                        if (    ((m_dnssddeviceinfoTmp.szIpv4 == null) || (m_dnssddeviceinfoTmp.szIpv4.Length == 0))
-                            &&  ((m_dnssddeviceinfoTmp.szIpv6 == null) || (m_dnssddeviceinfoTmp.szIpv6.Length == 0)))
-                        {
-                            continue;
-                        }
-
-                        #endregion
-
-
-                        ///////////////////////////////////////////////////////////
-                        // Get the -Q TXT record data...
-                        #region Parse -Q TXT
-
-                        // Give us an event to know when we're done reading...
-                        m_eventwaithandleRead = new EventWaitHandle(false, EventResetMode.ManualReset);
-
-                        // Launch a process to resolve the link local name and the port number...
-                        process = new Process();
-                        process.StartInfo.UseShellExecute = false;
-                        process.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-                        process.StartInfo.CreateNoWindow = true;
-                        process.StartInfo.RedirectStandardOutput = true;
-                        process.StartInfo.RedirectStandardError = true;
-                        process.StartInfo.FileName = m_szDnssdPath;
-                        process.StartInfo.Arguments = "-Q \"" + szInstanceName.Replace(".","\\.") + "._privet._tcp.local\" TXT";
-                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                        process.OutputDataReceived += procReadTxtData;
-                        process.ErrorDataReceived += procReadTxtData;
-                        process.Start();
-
-                        // Start reading the data, stop when we get it, or when we run
-                        // out of time waiting for it...
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-
-                        // Wait for the data to arrive, the only way this should time
-                        // out is if we lost out device between the time -B saw it and
-                        // when we tried to get this data...
-                        m_eventwaithandleRead.WaitOne(5000);
-
-                        // End the process...
-                        process.CancelOutputRead();
-                        process.CancelErrorRead();
-                        m_eventwaithandleRead = null;
-                        process.Kill();
-
-                        #endregion
-
-
-                        // Update the cache...
-                        lock (m_objectLockCache)
-                        {
-                            // Find the item (in case we're out of sync)...
-                            if (m_adnssddeviceinfoCache != null)
-                            {
-                                // Look for it...
-                                for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
-                                {
-                                    if (    (m_adnssddeviceinfoCache[ii].lInterface == m_dnssddeviceinfoTmp.lInterface)
-                                        &&  (m_adnssddeviceinfoCache[ii].szServiceName == m_dnssddeviceinfoTmp.szServiceName))
-                                    {
-                                        // Update it...
-                                        m_adnssddeviceinfoCache[ii] = m_dnssddeviceinfoTmp;
-                                        break;
-                                    }
-                                }
-
-                                // Hey, we found it, so we're done...
-                                if (ii < m_adnssddeviceinfoCache.Length)
-                                {
-                                    continue;
-                                }
-                            }
-
-                            // Add the new item...
-                            if (m_adnssddeviceinfoCache == null)
-                            {
-                                m_adnssddeviceinfoCache = new DnssdDeviceInfo[1];
-                                m_adnssddeviceinfoCache[0] = m_dnssddeviceinfoTmp;
-                            }
-                            // Append the item...
-                            else
-                            {
-                                DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length + 1];
-                                m_adnssddeviceinfoCache.CopyTo(adnssddeviceinfo, 0);
-                                adnssddeviceinfo[m_adnssddeviceinfoCache.Length] = m_dnssddeviceinfoTmp;
-                                m_adnssddeviceinfoCache = adnssddeviceinfo;
-                                Array.Sort(m_adnssddeviceinfoCache);
-                            }
-                        }
                     }
-                    #endregion
-
-                    // Something was removed...
-                    #region Something was removed...
-                    else if (szOutput.Contains(" Rmv "))
-                    {
-                        // Parse the data...
-                        m_dnssddeviceinfoTmp = new DnssdDeviceInfo();
-                        string[] aszOutput = szOutput.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (aszOutput.Length < 7)
-                        {
-                            continue;
-                        }
-                        if (!long.TryParse(aszOutput[3], out m_dnssddeviceinfoTmp.lInterface))
-                        {
-                            continue;
-                        }
-                        m_dnssddeviceinfoTmp.szServiceName = aszOutput[6].Replace(".","\\.") + "._privet._tcp.local";
-
-                        // Update the cache...
-                        lock (m_objectLockCache)
-                        {
-                            // Find the item and remove it...
-                            if (m_adnssddeviceinfoCache != null)
-                            {
-                                int ss;
-                                int dd;
-
-                                // Last item...
-                                if (m_adnssddeviceinfoCache.Length == 1)
-                                {
-                                    if (    (m_adnssddeviceinfoCache[0].lInterface == m_dnssddeviceinfoTmp.lInterface)
-                                        &&  (m_adnssddeviceinfoCache[0].szServiceName == m_dnssddeviceinfoTmp.szServiceName))
-                                    {
-                                        m_adnssddeviceinfoCache = null;
-                                    }
-                                }
-
-                                // Not the last item...
-                                else
-                                {
-                                    // Save everything except for the "Rmv" item that matches...
-                                    DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length];
-                                    for (ss = dd = 0; ss < m_adnssddeviceinfoCache.Length; ss++)
-                                    {
-                                        if (m_adnssddeviceinfoCache[ss] == null)
-                                        {
-                                            continue;
-                                        }
-                                        if (    (m_adnssddeviceinfoCache[ss].lInterface != m_dnssddeviceinfoTmp.lInterface)
-                                            ||  (m_adnssddeviceinfoCache[ss].szServiceName != m_dnssddeviceinfoTmp.szServiceName))
-                                        {
-                                            adnssddeviceinfo[dd++] = m_adnssddeviceinfoCache[ss];
-                                        }
-                                    }
-                                    if (dd == 0)
-                                    {
-                                        m_adnssddeviceinfoCache = null;
-                                    }
-                                    else
-                                    {
-                                        m_adnssddeviceinfoCache = new DnssdDeviceInfo[dd];
-                                        for (ss = 0; ss < dd; ss++)
-                                        {
-                                            m_adnssddeviceinfoCache[ss] = adnssddeviceinfo[ss];
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    #endregion
                 }
+		        return;
+	        }
 
-                // Well, this is bad...
-                catch (Exception exception)
-                {
-                    Log.Info("ReadLine failed..." + exception.Message);
-                    break;
-                }
-            }
+            // Otherwise, we're adding something...
 
-            // Wait for the process to exit...
-            if (m_processDnssdMonitor != null)
+	        // Handle our reference...
+	        pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
+	        if (pdnsserviceref == IntPtr.Zero)
+	        {
+		        Log.Error("calloc failed...");
+		        return;
+	        }
+            Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
+
+            // Build a callback context...
+            IntPtr pcallbackcontext = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
+            if (pcallbackcontext == IntPtr.Zero)
+	        {
+                NativeMethods.free(pdnsserviceref);
+		        return;
+	        }
+            CallbackContext callbackcontext;
+            callbackcontext.dnssddeviceinfo = new DnssdDeviceInfo();
+            GCHandle gchandle = GCHandle.Alloc(this);
+            callbackcontext.dnssd = GCHandle.ToIntPtr(gchandle);
+            callbackcontext.dnssddeviceinfo.lInterface = a_i32Interface;
+            callbackcontext.dnssddeviceinfo.szServiceName = a_szName + "." + a_szType + a_szDomain;
+            Marshal.StructureToPtr(callbackcontext, pcallbackcontext, false);
+
+            // Resolve the rest of the info...
+            DNSServiceResolveReply dnsserviceresolvereply = ResolveCallbackLaunchpad;
+            dnsserviceerrortype = m_pfndnsserviceresolve
+	        (
+                pdnsserviceref,
+		        0x4000, // kDNSServiceFlagsShareConnection
+                a_i32Interface,
+		        a_szName,
+		        a_szType,
+		        a_szDomain,
+                dnsserviceresolvereply,
+		        pcallbackcontext
+	        );
+            if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
             {
-                m_processDnssdMonitor.Kill();
-                m_processDnssdMonitor.Dispose();
-                m_processDnssdMonitor = null;
             }
         }
 
         /// <summary>
-        /// Handle the Linux avahi-browse process output from this thread...
+        /// The launchpad for ResolveCallback.  This is coming in from a call
+        /// we made in the brower callback...
         /// </summary>
-        internal void DnssdMonitorLinux()
+        /// <param name="a_dnsserviceref"></param>
+        /// <param name="a_dnsserviceflags"></param>
+        /// <param name="a_i32Interface"></param>
+        /// <param name="a_dnsserviceerrortype"></param>
+        /// <param name="a_szFullname"></param>
+        /// <param name="a_szHosttarget"></param>
+        /// <param name="a_u16Opaqueport"></param>
+        /// <param name="a_u16Txtlen"></param>
+        /// <param name="a_pu8Txt"></param>
+        /// <param name="a_pvContext"></param>
+        internal void ResolveCallbackLaunchpad
+        (
+            ref IntPtr a_dnsserviceref,
+            Int32 a_dnsserviceflags,
+            Int32 a_i32Interface,
+            Int32 a_dnsserviceerrortype,
+            string a_szFullname,
+            string a_szHosttarget,
+	        Int16 a_u16Opaqueport,
+            Int16 a_u16Txtlen,
+	        string a_pu8Txt,
+	        IntPtr a_pvContext
+        )
         {
-            string szOutput;
+            CallbackContext callbackcontext = (CallbackContext)Marshal.PtrToStructure(a_pvContext, typeof(CallbackContext));
+            GCHandle gchandle = GCHandle.FromIntPtr(callbackcontext.dnssd);
+            Dnssd dnssd = (gchandle.Target as Dnssd);
+            dnssd.ResolveCallback
+	        (
+		        ref a_dnsserviceref,
+		        a_dnsserviceflags,
+		        a_i32Interface,
+		        a_dnsserviceerrortype,
+		        a_szFullname,
+		        a_szHosttarget,
+                unchecked((ushort)a_u16Opaqueport),
+                unchecked((ushort)a_u16Txtlen),
+		        a_pu8Txt,
+		        a_pvContext
+	        );
+        }
 
-            // Start the child process.
-            m_processDnssdMonitor = new Process();
+        /// <summary>
+        /// We collect most of what we need in this function.  But, of course,
+        /// we don't get everything we want, so we do a query to get the IPv4
+        /// and IPv4 data...
+        /// </summary>
+        /// <param name="a_dnsserviceref"></param>
+        /// <param name="a_dnsserviceflags"></param>
+        /// <param name="a_i32Interface"></param>
+        /// <param name="a_dnsserviceerrortype"></param>
+        /// <param name="a_szFullname"></param>
+        /// <param name="a_szHosttarget"></param>
+        /// <param name="a_u16Opaqueport"></param>
+        /// <param name="a_u16Txtlen"></param>
+        /// <param name="a_pu8Txt"></param>
+        /// <param name="a_pvContext"></param>
+        private void ResolveCallback
+        (
+            ref IntPtr a_dnsserviceref,
+            Int32 a_dnsserviceflags,
+            Int32 a_i32Interface,
+            Int32 a_dnsserviceerrortype,
+            string a_szFullname,
+            string a_szHosttarget,
+            UInt16 a_u16Opaqueport,
+            UInt16 a_u16Txtlen,
+            string a_pu8Txt,
+            IntPtr a_pvContext
+        )
+        {
+	        int oo;
+	        int jj;
+	        UInt16 u16Opaqueport;
+	        IntPtr pdnsserviceref;
+	        Int32 dnsserviceerrortype;
+            CallbackContext callbackcontext = (CallbackContext)Marshal.PtrToStructure(a_pvContext, typeof(CallbackContext));
+	        IntPtr pcallbackcontextQuery;
 
-            // Redirect the output stream of the child process.
-            m_processDnssdMonitor.StartInfo.UseShellExecute = false;
-            m_processDnssdMonitor.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-            m_processDnssdMonitor.StartInfo.CreateNoWindow = true;
-            m_processDnssdMonitor.StartInfo.RedirectStandardOutput = true;
-            m_processDnssdMonitor.StartInfo.RedirectStandardError = true;
-            m_processDnssdMonitor.StartInfo.FileName = m_szDnssdPath;
-            m_processDnssdMonitor.StartInfo.Arguments = m_szDnssdArguments;
-            m_processDnssdMonitor.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            m_processDnssdMonitor.Start();
+	        // Grab simple stuff...
+	        // Apparently bonjour gives us stuff in network (big endian) order...
+	        u16Opaqueport = WX(a_u16Opaqueport);
+            callbackcontext.dnssddeviceinfo.lInterface = a_i32Interface;
+            callbackcontext.dnssddeviceinfo.lPort = u16Opaqueport;
+            callbackcontext.dnssddeviceinfo.szLinkLocal = a_szHosttarget;
 
-            // Read each line as it comes in from the process, when the
-            // caller is done they'll kill it off and the read should
-            // abort at that point...
-            szOutput = "";
-            for (;;)
-            {
-                try
+            // Handle the text data...
+            // TXT stuff...
+            bool blHttpsFound = false;
+            for (oo = jj = 0; jj < a_u16Txtlen; jj += a_pu8Txt[jj] + 1)
+	        {
+		        // Skip empty stuff...
+		        if (a_pu8Txt[jj] == 0)
+		        {
+			        continue;
+		        }
+
+                // Add this to our TXT array...
+                string szTxt = a_pu8Txt.Substring(jj + 1, a_pu8Txt[jj]);
+                if (callbackcontext.dnssddeviceinfo.aszText == null)
                 {
-                    // Read a line of data...
-                    try
+                    callbackcontext.dnssddeviceinfo.aszText = new string[1];
+                    callbackcontext.dnssddeviceinfo.aszText[0] = szTxt;
+                }
+                else
+                {
+                    string[] asz = new string[callbackcontext.dnssddeviceinfo.aszText.Length + 1];
+                    Array.Copy(callbackcontext.dnssddeviceinfo.aszText, asz, callbackcontext.dnssddeviceinfo.aszText.Length);
+                    asz[callbackcontext.dnssddeviceinfo.aszText.Length] = szTxt;
+                    callbackcontext.dnssddeviceinfo.aszText = asz;
+                }
+
+                // txtvers...
+                if (szTxt.StartsWith("txtvers="))
+                {
+                    callbackcontext.dnssddeviceinfo.szTxtTxtvers = szTxt.Remove(0,8);
+                }
+
+                // ty...
+                else if (szTxt.StartsWith("ty="))
+                {
+                    callbackcontext.dnssddeviceinfo.szTxtTy = szTxt.Remove(0, 3);
+                }
+
+                // type...
+                else if (szTxt.StartsWith("type="))
+                {
+                    callbackcontext.dnssddeviceinfo.szTxtType = szTxt.Remove(0, 5);
+                }
+
+                // id...
+                else if (szTxt.StartsWith("id="))
+                {
+                    callbackcontext.dnssddeviceinfo.szTxtId = szTxt.Remove(0, 3);
+                }
+
+                // cs...
+                else if (szTxt.StartsWith("cs="))
+                {
+                    callbackcontext.dnssddeviceinfo.szTxtCs = szTxt.Remove(0, 3);
+                }
+
+                // https...
+                else if (szTxt.StartsWith("https="))
+                {
+                    callbackcontext.dnssddeviceinfo.blTxtHttps = (szTxt.Remove(0, 6) != "0");
+                    blHttpsFound = true;
+                }
+
+                // note...
+                else if (szTxt.StartsWith("note="))
+                {
+                    callbackcontext.dnssddeviceinfo.szTxtNote = szTxt.Remove(0, 5);
+                }
+
+                // Point to the next spot for data...
+                oo += szTxt.Length + 1;
+            }
+
+            // If we're missing anything critical, we're done, note that
+            // note= is optional in the spec...
+            if (    (string.IsNullOrEmpty(callbackcontext.dnssddeviceinfo.szTxtTxtvers) || (callbackcontext.dnssddeviceinfo.szTxtTxtvers != "1"))
+                ||  (callbackcontext.dnssddeviceinfo.szTxtTy == null)
+                ||  (string.IsNullOrEmpty(callbackcontext.dnssddeviceinfo.szTxtType) || !callbackcontext.dnssddeviceinfo.szTxtType.Contains("twaindirect"))
+                ||  (callbackcontext.dnssddeviceinfo.szTxtId == null)
+                ||  (callbackcontext.dnssddeviceinfo.szTxtCs == null)
+                ||  !blHttpsFound)
+            {
+		        goto ABORT;
+	        }
+
+            // Query our IPv4 address...
+
+            // Handle our reference...
+            pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
+            if (pdnsserviceref == IntPtr.Zero)
+	        {
+		        Log.Error("calloc failed...");
+		        goto ABORT;
+	        }
+            Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
+
+            // Build a callback context...
+            pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
+	        if (pcallbackcontextQuery == IntPtr.Zero)
+	        {
+                Log.Error("calloc failed...");
+                goto ABORT;
+	        }
+            Marshal.StructureToPtr(callbackcontext, pcallbackcontextQuery, false);
+
+            // Make the query...
+            DNSServiceQueryRecordReply dnsservicequeryrecordreply = QueryCallbackLaunchpad;
+            dnsserviceerrortype = m_pfndnsservicequeryrecord
+	        (
+		        pdnsserviceref,
+		        0x4000, // kDNSServiceFlagsShareConnection
+                a_i32Interface, // kDNSServiceInterfaceIndexAny,
+                callbackcontext.dnssddeviceinfo.szLinkLocal,
+		        1, // kDNSServiceType_A
+                1, // kDNSServiceClass_IN
+                dnsservicequeryrecordreply,
+		        pcallbackcontextQuery
+	        );
+	        if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+            {
+		        Log.Error("m_pfndnsservicequeryrecord failed..." + dnsserviceerrortype);
+	        }
+
+            // Query our IPv6 address...
+
+            // Handle our reference...
+            pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
+            if (pdnsserviceref == IntPtr.Zero)
+            {
+                Log.Error("calloc failed...");
+                goto ABORT;
+            }
+            Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
+
+            // Build a callback context...
+            pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
+            if (pcallbackcontextQuery == IntPtr.Zero)
+            {
+                Log.Error("calloc failed...");
+                goto ABORT;
+            }
+            Marshal.StructureToPtr(callbackcontext, pcallbackcontextQuery, false);
+
+            // Make the query...
+            dnsservicequeryrecordreply = QueryCallbackLaunchpad;
+            dnsserviceerrortype = m_pfndnsservicequeryrecord
+            (
+                pdnsserviceref,
+                0x4000, // kDNSServiceFlagsShareConnection
+                a_i32Interface, // kDNSServiceInterfaceIndexAny,
+                callbackcontext.dnssddeviceinfo.szLinkLocal,
+                28, // kDNSServiceType_AAAA
+                1, // kDNSServiceClass_IN
+                dnsservicequeryrecordreply,
+                pcallbackcontextQuery
+            );
+            if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+            {
+                Log.Error("m_pfndnsservicequeryrecord failed..." + dnsserviceerrortype);
+            }
+
+            // Cleanup...
+            ABORT:
+                NativeMethods.free(a_pvContext);
+
+	        // All done...
+	        return;
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////
+        //	Description:
+        //		Process a query record...
+        ////////////////////////////////////////////////////////////////////////////////
+        private void QueryCallbackLaunchpad
+        (
+	        IntPtr a_dnsserviceref,
+	        Int32 a_dnsserviceflags,
+	        Int32 a_u32Interface,
+	        Int32 a_dnsserviceerrortype,
+	        string a_szFullname,
+	        Int16 a_u16Rrtype,
+            Int16 a_u16Rrclass,
+            Int16 a_u16Rdlen,
+	        IntPtr a_pvRdata,
+	        Int32 a_u32Ttl,
+	        IntPtr a_pvContext
+        )
+        {
+            CallbackContext callbackcontext = (CallbackContext)Marshal.PtrToStructure(a_pvContext, typeof(CallbackContext));
+            GCHandle gchandle = GCHandle.FromIntPtr(callbackcontext.dnssd);
+            Dnssd dnssd = (gchandle.Target as Dnssd);
+            dnssd.QueryCallback
+	        (
+                a_dnsserviceref,
+                a_dnsserviceflags,
+                a_u32Interface,
+                a_dnsserviceerrortype,
+                a_szFullname,
+                unchecked((ushort)a_u16Rrtype),
+                unchecked((ushort)a_u16Rrclass),
+                unchecked((ushort)a_u16Rdlen),
+                a_pvRdata,
+                unchecked((ushort)a_u32Ttl),
+                a_pvContext
+            );
+        }
+        private void QueryCallback
+        (
+            IntPtr a_dnsserviceref,
+            Int32 a_dnsserviceflags,
+            Int32 a_i32Interface,
+            Int32 a_dnsserviceerrortype,
+            string a_szFullname,
+            UInt16 a_u16Rrtype,
+            UInt16 a_u16Rrclass,
+            UInt16 a_u16Rdlen,
+            IntPtr a_pvRdata,
+            UInt32 a_u32Ttl,
+            IntPtr a_pvContext
+        )
+        {
+            int ii;
+            byte[] abIpv6;
+            UInt32 u32Ipv4;
+            CallbackContext callbackcontext = (CallbackContext)Marshal.PtrToStructure(a_pvContext, typeof(CallbackContext));
+
+	        // We're leaving...
+	        if (a_u32Ttl == 0)
+	        {
+		        return;
+	        }
+
+	        // Dispatch the record type...
+	        switch (a_u16Rrtype)
+	        {
+		        default:
+			        // Ignore it...
+			        goto ABORT;
+
+                case 1: // kDNSServiceType_A
+                    u32Ipv4 = (UInt32)Marshal.PtrToStructure(a_pvRdata, typeof(UInt32));
+                    callbackcontext.dnssddeviceinfo.szIpv4 = new IPAddress(u32Ipv4).ToString();
+                    callbackcontext.dnssddeviceinfo.lTtl = a_u32Ttl;
+                    break;
+
+                case 28: // kDNSServiceType_AAAA
+                    abIpv6 = new byte[a_u16Rdlen];
+                    Marshal.Copy(a_pvRdata, abIpv6, 0, a_u16Rdlen);
+                    callbackcontext.dnssddeviceinfo.szIpv6 = new IPAddress(abIpv6).ToString();
+                    callbackcontext.dnssddeviceinfo.lTtl = a_u32Ttl;
+                    break;
+	        }
+
+            // Okay, we have enough info, add the beastie to the list...
+            lock (m_objectLockCache)
+            {
+                // First item in the list...
+                if (m_adnssddeviceinfoCache == null)
+                {
+                    m_adnssddeviceinfoCache = new DnssdDeviceInfo[1];
+                    m_adnssddeviceinfoCache[0] = callbackcontext.dnssddeviceinfo;
+                }
+
+                // Check if we already have this item...
+                for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
+                {
+                    if (    (m_adnssddeviceinfoCache[ii].lInterface == a_i32Interface)
+                        &&  (m_adnssddeviceinfoCache[ii].szLinkLocal == a_szFullname))
                     {
-                        szOutput = m_processDnssdMonitor.StandardOutput.ReadLine();
-                        if (szOutput == null)
-                        {
+                        break;
+                    }
+                }
+
+                // Yes we do, so see about updating it...
+                if (ii < m_adnssddeviceinfoCache.Length)
+                {
+                    switch (a_u16Rrtype)
+                    {
+                        default:
+                            // Ignore it...
+                            goto ABORT;
+
+                        case 1: // kDNSServiceType_A
+                            m_adnssddeviceinfoCache[ii].szIpv4 = callbackcontext.dnssddeviceinfo.szIpv4;
+                            m_adnssddeviceinfoCache[ii].lTtl = callbackcontext.dnssddeviceinfo.lTtl;
                             break;
-                        }
+
+                        case 28: // kDNSServiceType_AAAA
+                            m_adnssddeviceinfoCache[ii].szIpv6 = callbackcontext.dnssddeviceinfo.szIpv6;
+                            m_adnssddeviceinfoCache[ii].lTtl = callbackcontext.dnssddeviceinfo.lTtl;
+                            break;
                     }
-                    catch
-                    {
-                        break;
-                    }
-
-                    // Something was added...
-                    #region Something was added...
-                    if (szOutput.StartsWith("="))
-                    {
-                        int ii;
-
-                        // Give ourself a place to store what we find...
-                        m_dnssddeviceinfoTmp = new DnssdDeviceInfo();
-
-
-                        ///////////////////////////////////////////////////////////
-                        // Parse the -pvrk data (browsing)...
-                        #region Parse -pvrk
-
-                        // We can get the flags and the interface by splitting, we
-                        // need to remove empty entries because there could be a
-                        // leading space...
-                        string[] aszOutput = szOutput.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (aszOutput.Length < 9)
-                        {
-                            continue;
-                        }
-
-                        // Get the interface...
-                        m_dnssddeviceinfoTmp.lInterface = 0;
-                        if (aszOutput[1].StartsWith("eth"))
-                        {
-                            if (!long.TryParse(aszOutput[1].Substring(3), out m_dnssddeviceinfoTmp.lInterface))
-                            {
-                                continue;
-                            }
-                            m_dnssddeviceinfoTmp.lInterface += 1000; 
-                        }
-                        else if (aszOutput[1].StartsWith("wlan"))
-                        {
-                            if (!long.TryParse(aszOutput[1].Substring(4), out m_dnssddeviceinfoTmp.lInterface))
-                            {
-                                continue;
-                            }
-                            m_dnssddeviceinfoTmp.lInterface += 2000;
-                        }
-                        else
-                        {
-                            continue;
-                        }
-
-                        // Get the servicename...
-                        m_dnssddeviceinfoTmp.szServiceName = aszOutput[3];
-
-                        // Get the link local...
-                        m_dnssddeviceinfoTmp.szLinkLocal = aszOutput[6];
-
-                        // Get the ip address...
-                        if ((m_dnssddeviceinfoTmp.lInterface >= 2000) && (m_dnssddeviceinfoTmp.lInterface <= 2999))
-                        {
-                            if (aszOutput[2] == "IPv4")
-                            {
-                                m_dnssddeviceinfoTmp.szIpv4 = aszOutput[7];
-                            }
-                            else if (aszOutput[2] == "IPv6")
-                            {
-                                m_dnssddeviceinfoTmp.szIpv6 = aszOutput[7];
-                            }
-                            else
-                            {
-                                continue;
-                            }
-                        }
-                        else if ((m_dnssddeviceinfoTmp.lInterface >= 1000) && (m_dnssddeviceinfoTmp.lInterface <= 1999))
-                        {
-                            if (aszOutput[2] == "IPv4")
-                            {
-                                m_dnssddeviceinfoTmp.szIpv4 = aszOutput[7];
-                            }
-                            else if (aszOutput[2] == "IPv6")
-                            {
-                                m_dnssddeviceinfoTmp.szIpv6 = aszOutput[7];
-                            }
-                            else
-                            {
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            continue;
-                        }
-
-                        // Get the port...
-                        if (!long.TryParse(aszOutput[8], out m_dnssddeviceinfoTmp.lPort))
-                        {
-                            continue;
-                        }
-
-                        // Get the whole text section...
-                        string[] aszTxt = szOutput.Split(new string[] { ";" + m_dnssddeviceinfoTmp.lPort + ";" }, StringSplitOptions.RemoveEmptyEntries);
-                        if ((aszTxt == null) || (aszTxt.Length < 2) || (aszTxt.Length < 2) || !aszTxt[1].Contains("\""))
-                        {
-                            continue;
-                        }
-
-                        // Lose the opening and closing quotes...
-                        szOutput = aszTxt[1].Substring(1, aszTxt[1].Length - 1);
-
-                        // Split the rest on " " boundaries...
-                        aszTxt = szOutput.Split(new string[] { "\" \"" }, StringSplitOptions.RemoveEmptyEntries);
-
-                        // Loop through those items...
-                        for (ii = 0; ii < aszTxt.Length; ii++)
-                        {
-                            // txtvers...
-                            if (aszTxt[ii].StartsWith("txtvers="))
-                            {
-                                m_dnssddeviceinfoTmp.szTxtTxtvers = aszTxt[ii].Substring(8);
-                            }
-
-                            // ty...
-                            else if (aszTxt[ii].StartsWith("ty="))
-                            {
-                                m_dnssddeviceinfoTmp.szTxtTy = aszTxt[ii].Substring(3);
-                            }
-
-                            // type...
-                            else if (aszTxt[ii].StartsWith("type="))
-                            {
-                                m_dnssddeviceinfoTmp.szTxtType = aszTxt[ii].Substring(5);
-                            }
-
-                            // id...
-                            else if (aszTxt[ii].StartsWith("id="))
-                            {
-                                m_dnssddeviceinfoTmp.szTxtId = aszTxt[ii].Substring(3);
-                            }
-
-                            // cs...
-                            else if (aszTxt[ii].StartsWith("cs="))
-                            {
-                                m_dnssddeviceinfoTmp.szTxtCs = aszTxt[ii].Substring(3);
-                            }
-
-                            // https...
-                            else if (aszTxt[ii].StartsWith("https="))
-                            {
-                                m_dnssddeviceinfoTmp.blTxtHttps = (aszTxt[ii].Substring(3) != "0");
-                            }
-
-                            // note...
-                            else if (aszTxt[ii].StartsWith("note="))
-                            {
-                                m_dnssddeviceinfoTmp.szTxtNote = aszTxt[ii].Substring(5);
-                            }
-                        }
-
-                        #endregion
-
-
-                        // Update the cache...
-                        lock (m_objectLockCache)
-                        {
-                            // Find the item (in case we're out of sync)...
-                            if (m_adnssddeviceinfoCache != null)
-                            {
-                                // Look for it...
-                                for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
-                                {
-                                    if (    (m_adnssddeviceinfoCache[ii].lInterface == m_dnssddeviceinfoTmp.lInterface)
-                                        &&  (m_adnssddeviceinfoCache[ii].szServiceName == m_dnssddeviceinfoTmp.szServiceName))
-                                    {
-                                        // Update it...
-                                        m_adnssddeviceinfoCache[ii] = m_dnssddeviceinfoTmp;
-                                        break;
-                                    }
-                                }
-
-                                // Hey, we found it, so we're done...
-                                if (ii < m_adnssddeviceinfoCache.Length)
-                                {
-                                    continue;
-                                }
-                            }
-
-                            // Add the new item...
-                            if (m_adnssddeviceinfoCache == null)
-                            {
-                                m_adnssddeviceinfoCache = new DnssdDeviceInfo[1];
-                                m_adnssddeviceinfoCache[0] = m_dnssddeviceinfoTmp;
-                            }
-                            // Append the item...
-                            else
-                            {
-                                DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length + 1];
-                                m_adnssddeviceinfoCache.CopyTo(adnssddeviceinfo, 0);
-                                adnssddeviceinfo[m_adnssddeviceinfoCache.Length] = m_dnssddeviceinfoTmp;
-                                m_adnssddeviceinfoCache = adnssddeviceinfo;
-                                Array.Sort(m_adnssddeviceinfoCache);
-                            }
-                        }
-                    }
-                    #endregion
-
-                    // Something was removed...
-                    #region Something was removed...
-                    else if (szOutput.StartsWith("-"))
-                    {
-                        // Parse the data...
-                        m_dnssddeviceinfoTmp = new DnssdDeviceInfo();
-                        string[] aszOutput = szOutput.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (aszOutput.Length < 7)
-                        {
-                            continue;
-                        }
-                        if (!long.TryParse(aszOutput[3], out m_dnssddeviceinfoTmp.lInterface))
-                        {
-                            continue;
-                        }
-                        m_dnssddeviceinfoTmp.szServiceName = aszOutput[6].Replace(".", "\\.") + "._privet._tcp.local";
-
-                        // Update the cache...
-                        lock (m_objectLockCache)
-                        {
-                            // Find the item and remove it...
-                            if (m_adnssddeviceinfoCache != null)
-                            {
-                                int ss;
-                                int dd;
-
-                                // Last item...
-                                if (m_adnssddeviceinfoCache.Length == 1)
-                                {
-                                    if ((m_adnssddeviceinfoCache[0].lInterface == m_dnssddeviceinfoTmp.lInterface)
-                                        && (m_adnssddeviceinfoCache[0].szServiceName == m_dnssddeviceinfoTmp.szServiceName))
-                                    {
-                                        m_adnssddeviceinfoCache = null;
-                                    }
-                                }
-
-                                // Not the last item...
-                                else
-                                {
-                                    // Save everything except for the "Rmv" item that matches...
-                                    DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length];
-                                    for (ss = dd = 0; ss < m_adnssddeviceinfoCache.Length; ss++)
-                                    {
-                                        if (m_adnssddeviceinfoCache[ss] == null)
-                                        {
-                                            continue;
-                                        }
-                                        if ((m_adnssddeviceinfoCache[ss].lInterface != m_dnssddeviceinfoTmp.lInterface)
-                                            || (m_adnssddeviceinfoCache[ss].szServiceName != m_dnssddeviceinfoTmp.szServiceName))
-                                        {
-                                            adnssddeviceinfo[dd++] = m_adnssddeviceinfoCache[ss];
-                                        }
-                                    }
-                                    if (dd == 0)
-                                    {
-                                        m_adnssddeviceinfoCache = null;
-                                    }
-                                    else
-                                    {
-                                        m_adnssddeviceinfoCache = new DnssdDeviceInfo[dd];
-                                        for (ss = 0; ss < dd; ss++)
-                                        {
-                                            m_adnssddeviceinfoCache[ss] = adnssddeviceinfo[ss];
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    #endregion
                 }
 
-                // Well, this is bad...
-                catch (Exception exception)
+                // No we don't, so add it to our list...
+                else
                 {
-                    Log.Info("ReadLine failed..." + exception.Message);
-                    break;
+                    DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length + 1];
+                    m_adnssddeviceinfoCache.CopyTo(adnssddeviceinfo, 0);
+                    adnssddeviceinfo[m_adnssddeviceinfoCache.Length] = callbackcontext.dnssddeviceinfo;
+                    m_adnssddeviceinfoCache = adnssddeviceinfo;
+                    Array.Sort(m_adnssddeviceinfoCache);
                 }
             }
 
-            // Wait for the process to exit...
-            m_processDnssdMonitor.WaitForExit();
-            m_processDnssdMonitor.Close();
-            m_processDnssdMonitor = null;
-        }
+            // Cleanup...
+            ABORT:
+                NativeMethods.free(a_pvContext);
 
-        /// <summary>
-        /// Handle the Mac OS X (aka macOS) dns-sd process output from this thread.
-        /// Right now it's identical to Windows, assuming you have the right version
-        /// of Bonjour installed...
-        /// </summary>
-        internal void DnssdMonitorMacOsX()
-        {
-            DnssdMonitorWindows();
-        }
-
-        /// <summary>
-        /// Handle the Windows dns-sd process output from this thread...
-        /// </summary>
-        internal void DnssdRegisterWindowsPrivetTcpLocal()
-        {
-            string szOutput;
-
-            // Start the child process.
-            m_processDnssdRegisterPrivetTcpLocal = new Process();
-
-            // Redirect the output stream of the child process.
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.UseShellExecute = false;
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.CreateNoWindow = true;
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.RedirectStandardOutput = true;
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.RedirectStandardError = true;
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.FileName = m_szDnssdPath;
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.Arguments = m_szDnssdArgumentsPrivetTcpLocal;
-            m_processDnssdRegisterPrivetTcpLocal.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            m_processDnssdRegisterPrivetTcpLocal.Start();
-
-            // Read each line as it comes in from the process, when the
-            // caller is done they'll kill it off and the read should
-            // abort at that point...
-            for (;;)
-            {
-                try
-                {
-                    // Read a line of data...
-                    szOutput = m_processDnssdRegisterPrivetTcpLocal.StandardOutput.ReadLine();
-                    if (szOutput == null)
-                    {
-                        break;
-                    }
-                }
-
-                // Well, this is bad...
-                catch (Exception exception)
-                {
-                    Log.Info("ReadLine failed..." + exception.Message);
-                    break;
-                }
-            }
-
-            // Wait for the process to exit...
-            if (m_processDnssdRegisterPrivetTcpLocal != null)
-            {
-                try
-                {
-                    m_processDnssdRegisterPrivetTcpLocal.WaitForExit();
-                }
-                catch
-                {
-                    // nothing needed here...
-                }
-                m_processDnssdRegisterPrivetTcpLocal.Dispose();
-                m_processDnssdRegisterPrivetTcpLocal = null;
-            }
-        }
-
-        /// <summary>
-        /// Handle the Windows dns-sd process output from this thread...
-        /// </summary>
-        internal void DnssdRegisterWindowsTwainDirectSubPrivetTcpLocal()
-        {
-            string szOutput;
-
-            // Start the child process.
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal = new Process();
-
-            // Redirect the output stream of the child process.
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.UseShellExecute = false;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.WorkingDirectory = Path.GetDirectoryName(m_szDnssdPath);
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.CreateNoWindow = true;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.RedirectStandardOutput = true;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.RedirectStandardError = true;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.FileName = m_szDnssdPath;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.Arguments = m_szDnssdArgumentsTwainDirectPrivetTcpLocal;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.Start();
-
-            // Read each line as it comes in from the process, when the
-            // caller is done they'll kill it off and the read should
-            // abort at that point...
-            for (;;)
-            {
-                try
-                {
-                    // Read a line of data...
-                    szOutput = m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.StandardOutput.ReadLine();
-                    if (szOutput == null)
-                    {
-                        break;
-                    }
-                }
-
-                // Well, this is bad...
-                catch (Exception exception)
-                {
-                    Log.Info("ReadLine failed..." + exception.Message);
-                    break;
-                }
-            }
-
-            // Wait for the process to exit...
-            if (m_processDnssdRegisterTwainDirectSubPrivetTcpLocal != null)
-            {
-                try
-                {
-                    m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.WaitForExit();
-                }
-                catch
-                {
-                    // nothing needed here...
-                }
-                m_processDnssdRegisterTwainDirectSubPrivetTcpLocal.Dispose();
-                m_processDnssdRegisterTwainDirectSubPrivetTcpLocal = null;
-
-            }
-        }
-
-        /// <summary>
-        /// Handle the Linux avahi-publish process output from this thread.
-        /// Right now we don't need anything different from Windows...
-        /// </summary>
-        internal void DnssdRegisterLinuxPrivetTcpLocal()
-        {
-            DnssdRegisterWindowsPrivetTcpLocal();
-        }
-
-        /// <summary>
-        /// Handle the Linux avahi-publish process output from this thread.
-        /// Right now we don't need anything different from Windows...
-        /// </summary>
-        internal void DnssdRegisterLinuxTwainDirectSubPrivetTcpLocal()
-        {
-            DnssdRegisterWindowsTwainDirectSubPrivetTcpLocal();
-        }
-
-        /// <summary>
-        /// Handle the Mac OS X (aka macOS) dns-sd process output from this thread.
-        /// Right now it's identical to Windows, assuming you have the right version
-        /// of Bonjour installed...
-        /// </summary>
-        internal void DnssdRegisterMacOsXPrivetTcpLocal()
-        {
-            DnssdRegisterWindowsPrivetTcpLocal();
-        }
-
-        /// <summary>
-        /// Handle the Mac OS X (aka macOS) dns-sd process output from this thread.
-        /// Right now it's identical to Windows, assuming you have the right version
-        /// of Bonjour installed...
-        /// </summary>
-        internal void DnssdRegisterMacOsXTwainDirectSubPrivetTcpLocal()
-        {
-            DnssdRegisterWindowsTwainDirectSubPrivetTcpLocal();
+            // All done...
+            return;
         }
 
         #endregion
 
-        
+
         ///////////////////////////////////////////////////////////////////////////////
         // Private Attributes...
         ///////////////////////////////////////////////////////////////////////////////
@@ -1761,78 +1342,186 @@ namespace TwainDirectSupport
         private Reason m_reason;
 
         /// <summary>
-        /// The thread that'll monitor for devices...
-        /// </summary>
-        private Thread m_threadDnsdMonitor;
-
-        /// <summary>
-        /// The process that'll monitor for devices...
-        /// </summary>
-        private Process m_processDnssdMonitor;
-
-        /// <summary>
-        /// The thread for registering a device as a privet
-        /// service...
-        /// </summary>
-        private Thread m_threadDnsdRegisterPrivetTcpLocal;
-
-        /// <summary>
-        /// The thread for registering a device as a twaindirect
-        /// sub privet service...
-        /// </summary>
-        private Thread m_threadDnsdRegisterTwainDirectSubPrivetTcpLocal;
-
-        /// <summary>
-        /// The process for registering a device...
-        /// </summary>
-        private Process m_processDnssdRegisterPrivetTcpLocal;
-
-        /// <summary>
-        /// The process for registering a device...
-        /// </summary>
-        private Process m_processDnssdRegisterTwainDirectSubPrivetTcpLocal;
-
-        /// <summary>
-        /// The full path to the diagnostic program we'll be running...
-        /// </summary>
-        private string m_szDnssdPath;
-
-        /// <summary>
-        /// The browser arguments to the mDNS program...
-        /// </summary>
-        private string m_szDnssdArguments;
-
-        /// <summary>
-        /// The browser arguments to the mDNS program...
-        /// </summary>
-        private string m_szDnssdArgumentsPrivetTcpLocal;
-
-        /// <summary>
-        /// The browser arguments to the mDNS program...
-        /// </summary>
-        private string m_szDnssdArgumentsTwainDirectPrivetTcpLocal;
-
-        /// <summary>
         /// Our cache of devices currently on the LAN, this is the
         /// official cache that can be referenced at any given time...
         /// </summary>
         private DnssdDeviceInfo[] m_adnssddeviceinfoCache;
 
         /// <summary>
-        /// A scratchpad used to assemble data...
-        /// </summary>
-        private DnssdDeviceInfo m_dnssddeviceinfoTmp;
-
-        /// <summary>
-        /// An event to know when we are done reading data
-        /// from a process...
-        /// </summary>
-        private EventWaitHandle m_eventwaithandleRead;
-
-        /// <summary>
         /// Object used to lock the cache...
         /// </summary>
         private object m_objectLockCache;
+
+        struct CallbackContext
+        {
+	        public IntPtr dnssd;
+            public DnssdDeviceInfo dnssddeviceinfo;
+        };
+
+        // The callback...
+        public delegate int OsDnssdCallback(IntPtr a_pvArg, DnssdDeviceInfo a_dnssddeviceinfo);
+
+        // The callback...
+        OsDnssdCallback m_osdnssdcallback;
+        IntPtr m_intptrOsdnssdcallbackArg;
+
+        // Our thread...
+        Thread m_threadMonitor;
+
+        // The Bonjour functions...
+        readonly pfnDNSServiceBrowse m_pfndnsservicebrowse;
+        readonly pfnDNSServiceCreateConnection m_pfndnsserrvicecreateconnection;
+        readonly pfnDNSServiceProcessResult m_pfndnsserviceprocessresult;
+        readonly pfnDNSServiceRefDeallocate m_pfndnsservicerefdeallocate;
+        readonly pfnDNSServiceRefSockFD m_pfndnsservicerefsockfd;
+        readonly pfnDNSServiceResolve m_pfndnsserviceresolve;
+        readonly pfnDNSServiceQueryRecord m_pfndnsservicequeryrecord;
+        readonly pfnDNSServiceRegister m_pfndnsserviceregister;
+
+        // Windows stuff...
+        IntPtr m_hmoduleDnssd;
+	    IntPtr m_dnsservicerefClient;
+        IntPtr m_dnsservicerefService;
+        IntPtr m_dnsservicerefRegister;
+        IntPtr m_hwnd;
+
+        // Linux stuff...
+        // nothing at this time...
+
+        // osMac stuff...
+        // nothing at this time...
+
+        /// <summary>
+        /// Function and callback for browse...
+        /// </summary>
+        /// <param name="sdRef"></param>
+        /// <param name="flags"></param>
+        /// <param name="interfaceIndex"></param>
+        /// <param name="regtype"></param>
+        /// <param name="domain"></param>
+        /// <param name="callBack"></param>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate Int32 pfnDNSServiceBrowse
+        (
+            ref IntPtr sdRef,
+            Int32 flags,
+            Int32 interfaceIndex,
+            string regtype,
+            string domain,      // may be NULL
+            DNSServiceBrowseReply callBack,
+            IntPtr context      // may be NULL
+        );
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate void DNSServiceBrowseReply
+        (
+            ref IntPtr sdRef,
+            Int32 flags,
+            Int32 interfaceIndex,
+            Int32 errorCode,
+            string serviceName,
+            string regtype,
+            string replyDomain,
+            IntPtr context
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate Int32 pfnDNSServiceCreateConnection
+        (
+            ref IntPtr sdRef
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate Int32 pfnDNSServiceProcessResult
+        (
+            IntPtr sdRef
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate void pfnDNSServiceRefDeallocate
+        (
+            ref IntPtr sdRef
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate IntPtr pfnDNSServiceRefSockFD
+        (
+            IntPtr sdRef
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        delegate Int32 pfnDNSServiceResolve
+        (
+            IntPtr sdRef,
+            Int32 flags,
+            Int32 interfaceIndex,
+            string name,
+            string regtype,
+            string domain,      // may be NULL
+            DNSServiceResolveReply callBack,
+            IntPtr context      // may be NULL
+        );
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate void DNSServiceResolveReply
+        (
+            ref IntPtr a_dnsserviceref,
+            Int32 a_dnsserviceflags,
+            Int32 a_i32Interface,
+            Int32 a_dnsserviceerrortype,
+            string a_szFullname,
+            string a_szHosttarget,
+            Int16 a_u16Opaqueport,
+            Int16 a_u16Txtlen,
+            string a_pu8Txt,
+            IntPtr a_pvContext
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate Int32 pfnDNSServiceQueryRecord
+        (
+            IntPtr sdRef,
+            Int32 flags,
+            Int32 interfaceIndex,
+            string fullname,
+            Int16 rrtype,
+            Int16 rrclass,
+            DNSServiceQueryRecordReply callBack,
+            IntPtr context
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate void DNSServiceQueryRecordReply
+        (
+            IntPtr sdRef,
+            Int32 flags,
+            Int32 interfaceIndex,
+            Int32 errorCode,
+            string fullname,
+            Int16 rrtype,
+            Int16 rrclass,
+            Int16 rdlen,
+            IntPtr rdata,
+            Int32 ttl,
+            IntPtr context
+        );
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate Int32 pfnDNSServiceRegister
+        (
+            ref IntPtr sdRef,
+            Int32 flags,
+            Int32 interfaceIndex,
+            string name,
+            string regtype,
+            string domain,
+            string host,
+            Int16 port,
+            Int16 txtLen,
+            byte[] txtRecord,
+            IntPtr callBack,
+            IntPtr context
+        );
 
         #endregion
     }

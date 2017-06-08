@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace TwainDirectCertification {
+namespace TwainDirect.Certification {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace TwainDirectCertification {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("TwainDirectCertification.WinFormStrings", typeof(WinFormStrings).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("TwainDirect.Certification.WinFormStrings", typeof(WinFormStrings).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;

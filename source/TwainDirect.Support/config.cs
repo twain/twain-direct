@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.Config
+// TwainDirect.Support.Config
 //
 // One stop shop for configuration and command line argument data...
 //
@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    11-Sep-2015     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2015-2016 Kodak Alaris Inc.
+//  Copyright (C) 2015-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -31,10 +31,12 @@
 
 // Helpers...
 using System;
-using System.Diagnostics;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.IO;
 
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     /// <summary>
     /// Our configuration object.  We must be able to access this
@@ -44,52 +46,6 @@ namespace TwainDirectSupport
     {
         // Public Methods...
         #region Public Methods...
-
-        /// <summary>
-        /// Load the configuration object.  We want to read in the
-        /// configuaration data (in JSON format) and a list of the
-        /// command line arguments.
-        /// </summary>
-        /// <param name="a_szExecutablePath">the fill path to the program using us</param>
-        /// <param name="a_szCommandLine">key[=value] groupings</param>
-        /// <param name="a_szConfigFile">a JSON file</param>
-        public static bool Load(string a_szExecutablePath, string[] a_aszCommandLine, string a_szConfigFile)
-        {
-            try
-            {
-                // Set up our folders...
-                ms_szExecutablePath = a_szExecutablePath;
-                ms_szExecutableName = Path.GetFileNameWithoutExtension(ms_szExecutablePath);
-                ms_szWriteFolder = ms_szExecutablePath.Split(new string[] { ms_szExecutableName }, StringSplitOptions.None)[0];
-                ms_szReadFolder = Path.Combine(ms_szWriteFolder, ms_szExecutableName);
-                ms_szWriteFolder = Path.Combine(ms_szWriteFolder, "data");
-                ms_szWriteFolder = Path.Combine(ms_szWriteFolder, ms_szExecutableName);
-                if (!Directory.Exists(ms_szWriteFolder))
-                {
-                    Directory.CreateDirectory(ms_szWriteFolder);
-                }
-
-                // Store the command line...
-                ms_aszCommandLine = a_aszCommandLine;
-
-                // Load the config...
-                string szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
-                if (File.Exists(szConfigFile))
-                {
-                    long a_lJsonErrorindex;
-                    string szConfig = File.ReadAllText(szConfigFile);
-                    ms_jsonlookup = new JsonLookup();
-                    ms_jsonlookup.Load(szConfig, out a_lJsonErrorindex);
-                }
-            }
-            catch
-            {
-                return (false);
-            }
-
-            // All done...
-            return (true);
-        }
 
         /// <summary>
         /// Get a value, if the value can't be found, return a default.  We look
@@ -207,6 +163,110 @@ namespace TwainDirectSupport
 
             // No joy, use the default...
             return (a_dfDefault);
+        }
+
+        /// <summary>
+        /// Load the configuration object.  We want to read in the
+        /// configuaration data (in JSON format) and a list of the
+        /// command line arguments.
+        /// </summary>
+        /// <param name="a_szExecutablePath">the fill path to the program using us</param>
+        /// <param name="a_szCommandLine">key[=value] groupings</param>
+        /// <param name="a_szConfigFile">a JSON file</param>
+        public static bool Load(string a_szExecutablePath, string[] a_aszCommandLine, string a_szConfigFile)
+        {
+            try
+            {
+                // Work out where our executable lives...
+                ms_szExecutablePath = a_szExecutablePath;
+                ms_szExecutableName = Path.GetFileNameWithoutExtension(ms_szExecutablePath);
+
+                // The read folder is the path to the executable.  This is where we're
+                // going to find our appdata.txt file, which contains configuration
+                // information that can be overridden by the user (assuming they have
+                // rights to it).  We'll put other readonly stuff here too, like the
+                // certification tests...
+                ms_szReadFolder = Path.GetDirectoryName(ms_szExecutablePath);
+
+                // The write folder is the path to all of the the files we can update,
+                // which includes image files, metadata, log files, registration/selection
+                // files.  This stuff is specific to a user, so by default we're going to
+                // keep it in their %appdata%/twaindirect/executablename folder...
+                ms_szWriteFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                ms_szWriteFolder = Path.Combine(ms_szWriteFolder, "twaindirect");
+                ms_szWriteFolder = Path.Combine(ms_szWriteFolder, ms_szExecutableName);
+
+                // Store the command line...
+                ms_aszCommandLine = a_aszCommandLine;
+
+                // Load the config...
+                string szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
+                if (File.Exists(szConfigFile))
+                {
+                    long a_lJsonErrorindex;
+                    string szConfig = File.ReadAllText(szConfigFile);
+                    ms_jsonlookup = new JsonLookup();
+                    ms_jsonlookup.Load(szConfig, out a_lJsonErrorindex);
+                }
+
+                // Check if the user wants to override the read and write folders...
+                ms_szReadFolder = Get("readFolder", ms_szReadFolder);
+                ms_szWriteFolder = Get("writeFolder", ms_szWriteFolder);
+
+                // Make sure we have a write folder...
+                if (!Directory.Exists(ms_szWriteFolder))
+                {
+                    Directory.CreateDirectory(ms_szWriteFolder);
+                }
+            }
+            catch
+            {
+                return (false);
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Verify a certificate.  We want to validate the binaries that we're
+        /// running, both ourselves, and anything we spawn.  The strength of the
+        /// test depends on our level of paranoia (we'd like to be pretty fierce
+        /// about this).  But for now it'll be pretty laid back...
+        /// </summary>
+        /// <param name="a_szFile">binary to check</param>
+        /// <returns>true if it's signed</returns>
+        public static bool IsDigitalSignature(string a_szFile)
+        {
+            // Get our modules...
+            Assembly assembly = Assembly.Load(a_szFile);
+            Module[] modules = assembly.GetLoadedModules();
+
+            // Check the beasties...
+            foreach (Module module in modules)
+            {
+                X509Certificate certificate = module.GetSignerCertificate();
+                if (certificate == null)
+                {
+                    return (false);
+                }
+            }
+
+            // We're signed...
+            return (true);
+        }
+
+        /// <summary>
+        /// Return 32 or 64...
+        /// </summary>
+        /// <returns>32 or 64</returns>
+        public static long GetMachineWordSize()
+        {
+            if (IntPtr.Size == 4)
+            {
+                return (32);
+            }
+            return (64);
         }
 
         #endregion

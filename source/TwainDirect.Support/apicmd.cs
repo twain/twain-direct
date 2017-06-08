@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.ApiCmd
+// TwainDirect.Support.ApiCmd
 //
 // ApiCmd is the payload for a TWAIN Local command.  We must to support multiple
 // concurrent API calls, this means multi-threading, so we need to be able to
@@ -11,7 +11,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    30-Jun-2015     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2015-2016 Kodak Alaris Inc.
+//  Copyright (C) 2015-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -41,7 +41,7 @@ using System.Net.Mime;
 using System.Text;
 using System.Threading;
 
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     /// <summary>
     /// Manage a single command as it moves through the system, this includes
@@ -455,7 +455,9 @@ namespace TwainDirectSupport
                 Log.Error(a_szReason + ": a_szUri is null");
                 return (false);
             }
-            if ((a_szUri != "/privet/info") && (a_szUri != "/privet/twaindirect/session"))
+            if (    (a_szUri != "/privet/info")
+                &&  (a_szUri != "/privet/infoex")
+                &&  (a_szUri != "/privet/twaindirect/session"))
             {
                 Log.Error(a_szReason + ": bad a_szUri '" + a_szUri + "'");
                 return (false);
@@ -467,7 +469,8 @@ namespace TwainDirectSupport
             // name of the device...
             if (m_blUseHttps)
             {
-                szUri = "https://" + a_dnssddeviceinfo.szLinkLocal + ":" + a_dnssddeviceinfo.lPort + a_szUri;
+                string szLinkLocal = a_dnssddeviceinfo.szLinkLocal.Replace(".local.", ".local");
+                szUri = "https://" + szLinkLocal + ":" + a_dnssddeviceinfo.lPort + a_szUri;
             }
 
             // Build the URI, for HTTP we can use the IP address to get to our device...
@@ -609,7 +612,6 @@ namespace TwainDirectSupport
             lContentLength = httpwebresponse.ContentLength;
 
             // Get the content type...
-            string sz = httpwebresponse.ContentType;
             ContentType contenttype = new ContentType(httpwebresponse.ContentType);
 
             // application/json with UTF-8 is okay...
@@ -1170,14 +1172,11 @@ namespace TwainDirectSupport
 
             // End of job...
             m_blImageBlocksDrained = true;
-            if (a_blCapturing)
+            if (    a_blCapturing
+                &&  (!string.IsNullOrEmpty(m_szImageBlocks)
+                ||  !File.Exists(Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta"))))
             {
-                if (    a_blCapturing
-                    &&  (!string.IsNullOrEmpty(m_szImageBlocks)
-                    ||  !File.Exists(Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta"))))
-                {
-                    m_blImageBlocksDrained = false;
-                }
+                m_blImageBlocksDrained = false;
             }
        
             // The task reply...
@@ -1281,13 +1280,29 @@ namespace TwainDirectSupport
             // Validate...
             if ((a_webexception == null) || ((HttpWebResponse)a_webexception.Response == null))
             {
-                // If it's an event, it's probably our connect being forcibly closed...
+                // If it's an event, it's probably our connection being forcibly closed...
                 // COR_E_INVALIDOPERATION / 0x80131509 / -2146233079
                 if (    (m_httpreplystyle != HttpReplyStyle.Event)
-                    || (System.Runtime.InteropServices.Marshal.GetHRForException(a_webexception) != -2146233079))
+                    ||  (System.Runtime.InteropServices.Marshal.GetHRForException(a_webexception) != -2146233079))
                 {
                     Log.Error("http>>> sts web exception (null exception data)");
                     Log.Error("http>>> stsreason " + a_szReason);
+                    if (a_webexception == null)
+                    {
+                        Log.Error("http>>> null web exception data, best guess (if Windows, and HTTPS) is the URL ACL isn't right.  Read up on 'netsh http add/delete urlacl' for more info.");
+                    }
+                    else
+                    {
+                        Log.Error("http>>> we have web exception data, let's see what we can dump...");
+                        if (!string.IsNullOrEmpty(a_webexception.Message))
+                        {
+                            Log.Error("http>>> message: " + a_webexception.Message);
+                        }
+                        if ((a_webexception.GetBaseException() != null) && !string.IsNullOrEmpty(a_webexception.GetBaseException().Message))
+                        {
+                            Log.Error("http>>> message: " + a_webexception.GetBaseException().Message);
+                        }
+                    }
                 }
 
                 // Handle it...
@@ -1360,12 +1375,12 @@ namespace TwainDirectSupport
             ref HttpListenerContext a_httplistenercontext
         )
         {
-            // Should we use HTTP or HTTPS?
-            switch (Config.Get("useHttps", "auto"))
+            // Should we use HTTP or HTTPS?  Our default behavior is to
+            // require HTTPS...
+            switch (Config.Get("useHttps", "yes"))
             {
-                // Default to auto, which causes us to check the
+                // auto causes us to check the
                 // https= field in the mDNS TXT record...
-                default:
                 case "auto":
                     if (a_dnssddeviceinfo != null)
                     {
@@ -1375,6 +1390,7 @@ namespace TwainDirectSupport
 
                 // Force us to use HTTPS, use this to guarantee
                 // a secure connection...
+                default:
                 case "yes":
                     m_blUseHttps = true;
                     break;
@@ -1401,8 +1417,8 @@ namespace TwainDirectSupport
             m_httplistenerresponse = null;
 
             // If this is null, we're the initiator, meaning that we're running
-            // inside of the application (like TwainDirectApplication), so we're
-            // done.  Later on this could be TwainDirectScanner talking to TWAIN
+            // inside of the application (like TwainDirect.App), so we're
+            // done.  Later on this could be TwainDirect.Scanner talking to TWAIN
             // Cloud, but we'll worry about that later...
             if (a_httplistenercontext == null)
             {
@@ -1410,7 +1426,7 @@ namespace TwainDirectSupport
             }
 
             // Code from this point on is only going to run inside of the
-            // TwainDirectScanner program for TWAIN Local...
+            // TwainDirect.Scanner program for TWAIN Local...
 
             // Squirrel these away...
             m_jsonlookupReceived = a_jsonlookup;

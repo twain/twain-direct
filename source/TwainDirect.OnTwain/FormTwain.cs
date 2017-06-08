@@ -4,7 +4,7 @@ using System.Threading;
 using System.Windows.Forms;
 using TWAINWorkingGroupToolkit;
 
-namespace TwainDirectOnTwain
+namespace TwainDirect.OnTwain
 {
     public partial class FormTwain : Form
     {

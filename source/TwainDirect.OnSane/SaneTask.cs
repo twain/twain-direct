@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnSane.SaneTask
+//  TwainDirect.OnSane.SaneTask
 //
 //  A data structure that contains that SWORD task data converted into commands
 //  for a SANE driver.
@@ -34,7 +34,7 @@
 using System;
 using System.IO;
 
-namespace TwainDirectOnSane
+namespace TwainDirect.OnSane
 {
     /// <summary>
     /// A SWORD Task is converted to a SANE Task, to make it easier to manage
@@ -124,7 +124,7 @@ namespace TwainDirectOnSane
                 // Vendor check, skip stuff that we don't recognize...
                 if (a_swordtask.GetGuidOwner(swordaction.m_szVendor) == SwordTask.GuidOwner.Unknown)
                 {
-                    TwainDirectSupport.Log.Info("Skipping vendor specific action...");
+                    TwainDirect.Support.Log.Info("Skipping vendor specific action...");
                     continue;
                 }
 
@@ -188,7 +188,7 @@ namespace TwainDirectOnSane
                             // Vendor check, skip stuff that we don't recognize...
                             if (a_swordtask.GetGuidOwner(swordstream.m_szVendor) == SwordTask.GuidOwner.Unknown)
                             {
-                                TwainDirectSupport.Log.Info("Skipping vendor specific stream...");
+                                TwainDirect.Support.Log.Info("Skipping vendor specific stream...");
                                 continue;
                             }
 
@@ -208,7 +208,7 @@ namespace TwainDirectOnSane
                                     // Vendor check, skip stuff that we don't recognize...
                                     if (a_swordtask.GetGuidOwner(swordsource.m_szVendor) == SwordTask.GuidOwner.Unknown)
                                     {
-                                        TwainDirectSupport.Log.Info("Skipping vendor specific source...");
+                                        TwainDirect.Support.Log.Info("Skipping vendor specific source...");
                                         continue;
                                     }
 
@@ -223,14 +223,14 @@ namespace TwainDirectOnSane
                                             // Handle the exception right here...
                                             if (swordsource.m_szException == "fail")
                                             {
-                                                TwainDirectSupport.Log.Info("Unrecognized source: " + swordsource.m_szSource);
+                                                TwainDirect.Support.Log.Info("Unrecognized source: " + swordsource.m_szSource);
                                                 a_swordtask.SetTaskError(swordsource.m_szException, swordsource.m_szJsonKey + ".source", swordsource.m_szSource, -1);
                                                 swordaction.m_swordstatus = SwordStatus.Unsupported;
                                                 throw new Exception("action failure");
                                             }
                                             else if (swordsource.m_szException == "nextStream")
                                             {
-                                                TwainDirectSupport.Log.Info("Unrecognized source: " + swordsource.m_szSource);
+                                                TwainDirect.Support.Log.Info("Unrecognized source: " + swordsource.m_szSource);
                                                 blNextStream = true;
                                             }
                                             // How's this for sneaky?  We need a value here, we'll let the code try
@@ -314,7 +314,7 @@ namespace TwainDirectOnSane
                                             // Vendor check, skip stuff that we don't recognize...
                                             if (a_swordtask.GetGuidOwner(swordpixelformat.m_szVendor) == SwordTask.GuidOwner.Unknown)
                                             {
-                                                TwainDirectSupport.Log.Info("Skipping vendor specific pixelFormat...");
+                                                TwainDirect.Support.Log.Info("Skipping vendor specific pixelFormat...");
                                                 continue;
                                             }
 
@@ -328,14 +328,14 @@ namespace TwainDirectOnSane
                                                     // Handle the exception right here...
                                                     if (swordpixelformat.m_szException == "fail")
                                                     {
-                                                        TwainDirectSupport.Log.Info("Unrecognized pixelFormat: " + swordpixelformat.m_szPixelFormat);
+                                                        TwainDirect.Support.Log.Info("Unrecognized pixelFormat: " + swordpixelformat.m_szPixelFormat);
                                                         a_swordtask.SetTaskError(swordpixelformat.m_szException, swordpixelformat.m_szJsonKey + ".pixelFormat", swordpixelformat.m_szPixelFormat, -1);
                                                         swordaction.m_swordstatus = SwordStatus.Unsupported;
                                                         throw new Exception("action failure");
                                                     }
                                                     else if (swordpixelformat.m_szException == "nextStream")
                                                     {
-                                                        TwainDirectSupport.Log.Info("Unrecognized pixelFormat: " + swordpixelformat.m_szPixelFormat);
+                                                        TwainDirect.Support.Log.Info("Unrecognized pixelFormat: " + swordpixelformat.m_szPixelFormat);
                                                         blNextStream = true;
                                                     }
                                                     // Me again...
@@ -376,7 +376,7 @@ namespace TwainDirectOnSane
                                                         // Vendor check, skip stuff that we don't recognize...
                                                         if (a_swordtask.GetGuidOwner(swordattribute.m_szVendor) == SwordTask.GuidOwner.Unknown)
                                                         {
-                                                            TwainDirectSupport.Log.Info("Skipping vendor specific attribute...");
+                                                            TwainDirect.Support.Log.Info("Skipping vendor specific attribute...");
                                                             continue;
                                                         }
 
@@ -385,7 +385,7 @@ namespace TwainDirectOnSane
                                                         {
                                                             // Handle stuff that confuddles us...
                                                             default:
-                                                                TwainDirectSupport.Log.Info("Unrecognized attribute: " + swordattribute.m_szAttribute);
+                                                                TwainDirect.Support.Log.Info("Unrecognized attribute: " + swordattribute.m_szAttribute);
                                                                 if (swordattribute.m_szException == "fail")
                                                                 {
                                                                     a_swordtask.SetTaskError(swordattribute.m_szException, swordattribute.m_szJsonKey + ".attribute", swordattribute.m_szAttribute, -1);
@@ -394,7 +394,7 @@ namespace TwainDirectOnSane
                                                                 }
                                                                 else if (swordattribute.m_szException == "nextStream")
                                                                 {
-                                                                    TwainDirectSupport.Log.Info("Unrecognized attribute: " + swordattribute.m_szAttribute);
+                                                                    TwainDirect.Support.Log.Info("Unrecognized attribute: " + swordattribute.m_szAttribute);
                                                                     blNextStream = true;
                                                                 }
                                                                 break;
@@ -444,7 +444,7 @@ namespace TwainDirectOnSane
             }
             catch
             {
-                TwainDirectSupport.Log.Error("Bad guid..." + a_szGuid);
+                TwainDirect.Support.Log.Error("Bad guid..." + a_szGuid);
                 return (Guid.Empty);
             }
         }
@@ -513,7 +513,7 @@ namespace TwainDirectOnSane
                 // Vendor check, skip stuff that we don't recognize...
                 if (a_swordtask.GetGuidOwner(swordvalue.m_szVendor) == SwordTask.GuidOwner.Unknown)
                 {
-                    TwainDirectSupport.Log.Info("Skipping vendor specific value...");
+                    TwainDirect.Support.Log.Info("Skipping vendor specific value...");
                     continue;
                 }
 
@@ -569,7 +569,7 @@ namespace TwainDirectOnSane
                 // Vendor check, skip stuff that we don't recognize...
                 if (a_swordtask.GetGuidOwner(swordvalue.m_szVendor) == SwordTask.GuidOwner.Unknown)
                 {
-                    TwainDirectSupport.Log.Info("Skipping vendor specific value...");
+                    TwainDirect.Support.Log.Info("Skipping vendor specific value...");
                     continue;
                 }
 
@@ -619,7 +619,7 @@ namespace TwainDirectOnSane
                 // Vendor check, skip stuff that we don't recognize...
                 if (a_swordtask.GetGuidOwner(swordvalue.m_szVendor) == SwordTask.GuidOwner.Unknown)
                 {
-                    TwainDirectSupport.Log.Info("Skipping vendor specific value...");
+                    TwainDirect.Support.Log.Info("Skipping vendor specific value...");
                     continue;
                 }
 
@@ -668,7 +668,7 @@ namespace TwainDirectOnSane
                 // Vendor check, skip stuff that we don't recognize...
                 if (a_swordtask.GetGuidOwner(swordvalue.m_szVendor) == SwordTask.GuidOwner.Unknown)
                 {
-                    TwainDirectSupport.Log.Info("Skipping vendor specific value...");
+                    TwainDirect.Support.Log.Info("Skipping vendor specific value...");
                     continue;
                 }
 
@@ -720,7 +720,7 @@ namespace TwainDirectOnSane
                 // Vendor check, skip stuff that we don't recognize...
                 if (a_swordtask.GetGuidOwner(swordvalue.m_szVendor) == SwordTask.GuidOwner.Unknown)
                 {
-                    TwainDirectSupport.Log.Info("Skipping vendor specific value...");
+                    TwainDirect.Support.Log.Info("Skipping vendor specific value...");
                     continue;
                 }
 

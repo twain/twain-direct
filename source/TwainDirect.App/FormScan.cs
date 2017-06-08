@@ -33,19 +33,17 @@
 
 // Helpers...
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Resources;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-using PdfRasterWriter;
-
-namespace TwainDirectApplication
+namespace TwainDirect.App
 {
     /// <summary>
     /// Our mainform for this application...
@@ -146,7 +144,7 @@ namespace TwainDirectApplication
 
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
-            m_dnssd.MonitorStart();
+            m_dnssd.MonitorStart(null,IntPtr.Zero);
 
             // Get our TWAIN Local interface.
             //
@@ -155,7 +153,7 @@ namespace TwainDirectApplication
             // Authorization Code using a WebBrowser object (yay C#).
             //
             // No such joy for the Linux and Mac worlds...
-            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this);
+            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this, null);
         }
 
         /// <summary>
@@ -529,8 +527,6 @@ namespace TwainDirectApplication
             {
                 byte[] abImage;
                 byte[] abStripData;
-                ///PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
-                ///PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
                 long lResolution;
                 long lWidth;
                 long lHeight;
@@ -614,6 +610,13 @@ namespace TwainDirectApplication
             // Find our cert stuff...
             szCertificationFolder = Path.Combine(Config.Get("writeFolder",""), "tasks");
             szCertificationFolder = Path.Combine(szCertificationFolder, "certification");
+
+            // Whoops...nothing to work with...
+            if (!Directory.Exists(szCertificationFolder))
+            {
+                MessageBox.Show("Cannot find certification folder:\n" + szCertificationFolder, "Error");
+                return;
+            }
 
             // Get the categories...
             aszCategories = Directory.GetDirectories(szCertificationFolder);
@@ -1145,16 +1148,6 @@ namespace TwainDirectApplication
             // Make sure we're at the bottom, and that we're fully updated...
             m_listviewCertification.EnsureVisible(m_listviewCertification.Items.Count - 1);
             m_listviewCertification.EndUpdate();
-        }
-
-        /// <summary>
-        /// Debugging output that we can monitor, this is just a place
-        /// holder for this particular application...
-        /// </summary>
-        /// <param name="a_szOutput"></param>
-        private void WriteOutput(string a_szOutput)
-        {
-            return;
         }
 
         /// <summary>

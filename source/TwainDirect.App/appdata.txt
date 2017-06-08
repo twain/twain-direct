@@ -3,5 +3,6 @@
     "httpTimeoutCommand": 15000,
     "httpTimeoutData": 30000,
     "httpTimeoutEvent": 30000,
-    "useHttps": "auto"
+    "useHttps": "auto",
+    "useInfoex": "yes"
 }

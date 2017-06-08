@@ -25,7 +25,7 @@
       <ComponentRef Id="TwainDirect.App.exe"/>
       <ComponentRef Id="TwainDirect.App.exe.config"/>
       
-      <ComponentRef Id="TwainDirectSupport.dll"/>
+      <ComponentRef Id="TwainDirect.Support.dll"/>
       <ComponentRef Id="pdfras_reader_managed.dll"/>
       <ComponentRef Id="pdfras_writer_managed.dll"/>      
     </Feature>

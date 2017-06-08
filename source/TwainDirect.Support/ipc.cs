@@ -1,16 +1,16 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.Ipc
+// TwainDirect.Support.Ipc
 //
 // This provides a way for us to communicate between processes, the case we're
-// targeting is the TwainDirectScanner talking to TwainDirectOnTwain.  The class
+// targeting is the TwainDirect.Scanner talking to TwainDirect.OnTwain.  The class
 // is not concerned with content, it just shuttles payloads around.
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
 //  M.McLaughlin    13-Dec-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -41,7 +41,7 @@ using System.Security.Permissions;
 using System.Text;
 using System.Threading;
 
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     /// <summary>
     /// Interprocess communication.  This version has two kinds: a simple paired
@@ -305,6 +305,8 @@ namespace TwainDirectSupport
 
             if (m_connectiontype == ConnectionType.Socket)
             {
+                Log.Info("Ipc.Connect: " + m_szIpAddress + ":" + m_iPort);
+
                 // Connect...
                 try
                 {

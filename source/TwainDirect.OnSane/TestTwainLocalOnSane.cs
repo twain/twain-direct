@@ -3,9 +3,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectOnSane
+namespace TwainDirect.OnSane
 {
     public sealed class TestTwainLocalOnSane : IDisposable
     {

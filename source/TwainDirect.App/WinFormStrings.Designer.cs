@@ -8,7 +8,8 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace TwainDirectApplication {
+namespace TwainDirect.App
+{
     using System;
     
     

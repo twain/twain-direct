@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Media;
 using System.Windows.Forms;
 
-namespace TwainDirectScanner
+namespace TwainDirect.Scanner
 {
     public partial class ConfirmScan : Form
     {

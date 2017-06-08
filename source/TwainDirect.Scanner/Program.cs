@@ -4,10 +4,10 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 [assembly: CLSCompliant(true)]
 
-namespace TwainDirectScanner
+namespace TwainDirect.Scanner
 {
     /// <summary>
     /// Our entry point.  From here we'll dispatch to the mode: window, terminal
@@ -65,7 +65,7 @@ namespace TwainDirectScanner
                     {
                         NativeMethods.AllocConsole();
                     }
-                    Terminal terminal = new TwainDirectScanner.Terminal();
+                    Terminal terminal = new TwainDirect.Scanner.Terminal();
                     switch (szCommand.ToLower())
                     {
                         default:
@@ -115,7 +115,7 @@ namespace TwainDirectScanner
             a_fScale = 1;
 
             // Sleep so we can attach and debug stuff...
-            int iDelay = (int)Config.Get("delayTwainDirectScanner", 0);
+            int iDelay = (int)Config.Get("delayTwainDirect.Scanner", 0);
             if (iDelay > 0)
             {
                 Thread.Sleep(iDelay);

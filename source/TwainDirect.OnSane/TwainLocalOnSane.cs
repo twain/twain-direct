@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnSane.TwainLocalToSane
+//  TwainDirect.OnSane.TwainLocalToSane
 //
 //  Map TWAIN Local calls to SANE calls...
 //
@@ -37,9 +37,9 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectOnSane
+namespace TwainDirect.OnSane
 {
     /// <summary>
     /// Map TWAIN Local calls to SANE.  This seems like the best way to make sure
@@ -114,7 +114,7 @@ namespace TwainDirectOnSane
             TwainLocalScanner.ApiStatus apistatus;
 
             // Pipe mode starting...
-            TwainDirectSupport.Log.Info("IPC mode starting...");
+            TwainDirect.Support.Log.Info("IPC mode starting...");
 
             // Set up communication with our server process...
             ipc = new Ipc(m_szIpc, false);
@@ -123,7 +123,7 @@ namespace TwainDirectOnSane
 
             // TBD (hack)
             string szCapabilities = Sword.SaneListDrivers();
-            TwainDirectSupport.Log.Info("TwainListDrivers: " + szCapabilities);
+            TwainDirect.Support.Log.Info("TwainListDrivers: " + szCapabilities);
             JsonLookup jsonlookupCapabilities = new JsonLookup();
             jsonlookupCapabilities.Load(szCapabilities, out lResponseCharacterOffset);
             m_szTwainDriverIdentity = jsonlookupCapabilities.Get("scanners[0].sane");
@@ -147,13 +147,13 @@ namespace TwainDirectOnSane
                 szJson = ipc.Read();
                 if (szJson == null)
                 {
-                    TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                    TwainDirect.Support.Log.Info("IPC channel disconnected...");
                     break;
                 }
 
                 // Log it...
-                //TwainDirectSupport.Log.Info("");
-                //TwainDirectSupport.Log.Info(szJson);
+                //TwainDirect.Support.Log.Info("");
+                //TwainDirect.Support.Log.Info(szJson);
 
                 // Parse the command...
                 JsonLookup jsonlookup = new JsonLookup();
@@ -191,7 +191,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -219,7 +219,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -251,7 +251,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -279,7 +279,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -309,7 +309,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -337,7 +337,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -380,7 +380,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -408,7 +408,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -436,7 +436,7 @@ namespace TwainDirectOnSane
                         }
                         if (!blSuccess)
                         {
-                            TwainDirectSupport.Log.Info("IPC channel disconnected...");
+                            TwainDirect.Support.Log.Info("IPC channel disconnected...");
                             blRunning = false;
                         }
                         break;
@@ -444,7 +444,7 @@ namespace TwainDirectOnSane
             }
 
             // All done...
-            TwainDirectSupport.Log.Info("IPC mode completed...");
+            TwainDirect.Support.Log.Info("IPC mode completed...");
             return (true);
         }
 
@@ -491,7 +491,7 @@ namespace TwainDirectOnSane
             switch (a_szMode)
             {
                 default:
-                    TwainDirectSupport.Log.Error("Unsupported mode: " + a_szMode);
+                    TwainDirect.Support.Log.Error("Unsupported mode: " + a_szMode);
                     return (false);
                 case "P4": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
                 case "P5": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
@@ -557,8 +557,8 @@ namespace TwainDirectOnSane
             }
             catch (Exception exception)
             {
-                TwainDirectSupport.Log.Error("unable to open %s for writing: " + a_szPdfRasterFile);
-                TwainDirectSupport.Log.Error(exception.Message);
+                TwainDirect.Support.Log.Error("unable to open %s for writing: " + a_szPdfRasterFile);
+                TwainDirect.Support.Log.Error(exception.Message);
                 blSuccess = false;
             }
 
@@ -814,7 +814,7 @@ namespace TwainDirectOnSane
             }
             else
             {
-                TwainDirectSupport.Log.Error("Image not found: " + a_szImageBlock);
+                TwainDirect.Support.Log.Error("Image not found: " + a_szImageBlock);
                 return (TwainLocalScanner.ApiStatus.invalidImageBlockNumber);
             }
 
@@ -836,7 +836,7 @@ namespace TwainDirectOnSane
             a_szMetadata = a_szMetadata.Replace("\\", "/");
             if (!File.Exists(a_szMetadata))
             {
-                TwainDirectSupport.Log.Error("Image metadata not found: " + a_szMetadata);
+                TwainDirect.Support.Log.Error("Image metadata not found: " + a_szMetadata);
                 return (TwainLocalScanner.ApiStatus.invalidImageBlockNumber);
             }
 
@@ -983,17 +983,17 @@ namespace TwainDirectOnSane
                 // nice to show what we can get...
                 if (e == null)
                 {
-                    TwainDirectSupport.Log.Info("scanimage>>> (program exited)");
+                    TwainDirect.Support.Log.Info("scanimage>>> (program exited)");
                     blEndOfJob = true;
                 }
                 else if (string.IsNullOrEmpty(e.Data))
                 {
-                    TwainDirectSupport.Log.Info("scanimage>>> (no data)");
+                    TwainDirect.Support.Log.Info("scanimage>>> (no data)");
                     return;
                 }
                 else
                 {
-                    TwainDirectSupport.Log.Info("scanimage>>> " + e.Data);
+                    TwainDirect.Support.Log.Info("scanimage>>> " + e.Data);
                     if (!e.Data.StartsWith("Scanned page"))
                     {
                         return;
@@ -1024,7 +1024,7 @@ namespace TwainDirectOnSane
                     }
 
                     // Load the .pnm data...
-                    TwainDirectSupport.Log.Info("scanimage>>> load " + szPnm);
+                    TwainDirect.Support.Log.Info("scanimage>>> load " + szPnm);
                     try
                     {
                         abPnm = File.ReadAllBytes(szPnm);
@@ -1033,7 +1033,7 @@ namespace TwainDirectOnSane
                     {
                         // We'll assume that the file isn't ready for us yet,
                         // so bail...
-                        TwainDirectSupport.Log.Info("scanimage>>> ReadAllBytes failed (file may be in use)...");
+                        TwainDirect.Support.Log.Info("scanimage>>> ReadAllBytes failed (file may be in use)...");
                         if (blEndOfJob)
                         {
                             SetEndOfJob("SUCCESS");
@@ -1054,7 +1054,7 @@ namespace TwainDirectOnSane
                     switch (szPixelFormat)
                     {
                         default:
-                            TwainDirectSupport.Log.Info("scanimage>>> Not supported pixel format..." + szHeader);
+                            TwainDirect.Support.Log.Info("scanimage>>> Not supported pixel format..." + szHeader);
                             continue;
 
                         case "P4":
@@ -1092,18 +1092,18 @@ namespace TwainDirectOnSane
                     iStride = abImage.Length / iHeight;
 
                     // Get a byte array from the image...
-                    TwainDirectSupport.Log.Info("scanimage>>> done: format=" + szPixelFormat + " " + iWidth + "x" + iHeight + " res=" + SaneTask.ms_szResolution + " stride=" + iStride);
+                    TwainDirect.Support.Log.Info("scanimage>>> done: format=" + szPixelFormat + " " + iWidth + "x" + iHeight + " res=" + SaneTask.ms_szResolution + " stride=" + iStride);
 
                     // So far so good, let's extract the image number...
                     if (!int.TryParse(Path.GetFileNameWithoutExtension(szPnm).Replace("img",""), out iImageNumber))
                     {
-                        TwainDirectSupport.Log.Info("scanimage>>> failed to get the image number...");
+                        TwainDirect.Support.Log.Info("scanimage>>> failed to get the image number...");
                         continue;
                     }
 
                     // Create the .pdf...
                     string szPdfFile = szPnm.Remove(szPnm.Length - 4, 4) + ".pdf";
-                    TwainDirectSupport.Log.Info("scanimage>>> creating pdf " + szPdfFile);
+                    TwainDirect.Support.Log.Info("scanimage>>> creating pdf " + szPdfFile);
                     blSuccess = CreatePdfRaster
                     (
                         szPdfFile,
@@ -1116,13 +1116,13 @@ namespace TwainDirectOnSane
                     );
                     if (!blSuccess)
                     {
-                        TwainDirectSupport.Log.Error("ReportImage: unable to save the image file..." + szPdfFile);
+                        TwainDirect.Support.Log.Error("ReportImage: unable to save the image file..." + szPdfFile);
                         //m_blProcessing = false;
                         //m_blCancel = false;
                         SetEndOfJob("FILEWRITEERROR");
                         return;
                     }
-                    TwainDirectSupport.Log.Info("scanimage>>> done...");
+                    TwainDirect.Support.Log.Info("scanimage>>> done...");
 
                     // TWAIN Direct metadata...
                     szMeta = "";
@@ -1223,7 +1223,7 @@ namespace TwainDirectOnSane
                     szMeta += "        }\n";
 
                     // Get rid of the .pnm file...
-                    TwainDirectSupport.Log.Info("scanimage>>> deleting the pnm file...");
+                    TwainDirect.Support.Log.Info("scanimage>>> deleting the pnm file...");
                     abImage = null;
                     abPnm = null;
                     try
@@ -1240,11 +1240,11 @@ namespace TwainDirectOnSane
                     {
                         string szMetaFile = szPnm.Remove(szPnm.Length-4,4) + ".meta";
                         File.WriteAllText(szMetaFile, szMeta);
-                        TwainDirectSupport.Log.Info("ReportImage: saved " + szMetaFile);
+                        TwainDirect.Support.Log.Info("ReportImage: saved " + szMetaFile);
                     }
                     catch
                     {
-                        TwainDirectSupport.Log.Error("ReportImage: unable to save the metadata file...");
+                        TwainDirect.Support.Log.Error("ReportImage: unable to save the metadata file...");
                         //m_blProcessing = false;
                         //m_blCancel = false;
                         SetEndOfJob("FILEWRITEERROR");

@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace TwainDirectApplication.Properties {
+namespace TwainDirect.App.Properties {
     using System;
     
     

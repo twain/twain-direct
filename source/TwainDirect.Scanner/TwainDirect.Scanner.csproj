@@ -8,8 +8,8 @@
     <ProjectGuid>{F8463B8B-C0F9-46D2-86C5-053F3301DF2F}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>TwainDirectScanner</RootNamespace>
-    <AssemblyName>TwainDirectScanner</AssemblyName>
+    <RootNamespace>TwainDirect.Scanner</RootNamespace>
+    <AssemblyName>TwainDirect.Scanner</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
@@ -121,9 +121,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TwainDirect.Support\TwainDirectSupport.csproj">
+    <ProjectReference Include="..\TwainDirect.Support\TwainDirect.Support.csproj">
       <Project>{50d52482-9c72-45b3-9bcf-1e4b49976e48}</Project>
-      <Name>TwainDirectSupport</Name>
+      <Name>TwainDirect.Support</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

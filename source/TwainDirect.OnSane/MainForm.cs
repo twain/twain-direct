@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnSane.MainForm
+//  TwainDirect.OnSane.MainForm
 //
 //  This is our interactive dialog that allows users to select the TWAIN driver
 //  they want to use and experiment with SWORD tasks.
@@ -39,9 +39,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectOnSane
+namespace TwainDirect.OnSane
 {
     /// <summary>
     /// Our main form...

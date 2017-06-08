@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.DeviceRegister
+// TwainDirect.Support.DeviceRegister
 //
 // Container for device information, both ephemeral and persistant.  This class is
 // only used by TwainLocalScanner.
@@ -9,7 +9,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    31-Oct-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -36,7 +36,7 @@ using System.IO;
 using System.Net;
 using System.Threading;
 
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     /// <summary>
     /// The device register.  We use this to squirrel away data about the devices

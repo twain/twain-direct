@@ -1,4 +1,4 @@
-﻿namespace TwainDirectOnSane
+﻿namespace TwainDirect.OnSane
 {
     partial class MainForm
     {

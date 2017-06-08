@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnTwain.TwainLocalToTwain
+//  TwainDirect.OnTwain.TwainLocalToTwain
 //
 //  Map TWAIN Local calls to TWAIN calls...
 //
@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    17-Dec-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -35,11 +35,11 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Text;
-using TwainDirectSupport;
+using TwainDirect.Support;
 using TWAINWorkingGroup;
 using TWAINWorkingGroupToolkit;
 
-namespace TwainDirectOnTwain
+namespace TwainDirect.OnTwain
 {
     /// <summary>
     /// Map TWAIN Local calls to TWAIN.  This seems like the best way to make
@@ -103,7 +103,7 @@ namespace TwainDirectOnTwain
             string szSession;
             string szImageFile;
             Ipc ipc;
-            SwordTask swordtask;
+            ProcessSwordTask processswordtask;
             TwainLocalScanner.ApiStatus apistatus;
 
             // Pipe mode starting...
@@ -317,45 +317,14 @@ namespace TwainDirectOnTwain
                         break;
 
                     case "sendTask":
-                        apistatus = DeviceScannerSendTask(jsonlookup, out swordtask, ref blSetAppCapabilities);
-                        if (apistatus == TwainLocalScanner.ApiStatus.success)
-                        {
-                            if (string.IsNullOrEmpty(swordtask.GetTaskReply()))
-                            {
-                                blSuccess = ipc.Write
-                                (
-                                    "{" +
-                                    "\"status\":\"" + apistatus + "\"" +
-                                    "}"
-                                );
-                            }
-                            else
-                            {
-                                blSuccess = ipc.Write
-                                (
-                                    "{" +
-                                    "\"status\":\"" + apistatus + "\"," +
-                                    "\"taskReply\":" + swordtask.GetTaskReply() +
-                                    "}"
-                                );
-                            }
-                        }
-                        else
-                        {
-                            blSuccess = ipc.Write
-                            (
-                                "{" +
-                                "\"status\":\"" + apistatus + "\"," +
-                                "\"exception\":\"" + swordtask.GetException() + "\"," +
-                                "\"jsonKey\":\"" + swordtask.GetJsonExceptionKey() + "\"" +
-                                "}"
-                            );
-                        }
-                        if (!blSuccess)
-                        {
-                            TWAINWorkingGroup.Log.Info("IPC channel disconnected...");
-                            blRunning = false;
-                        }
+                        apistatus = DeviceScannerSendTask(jsonlookup, out processswordtask, ref blSetAppCapabilities);
+                        blSuccess = ipc.Write
+                        (
+                            "{" +
+                            "\"status\":\"" + apistatus + "\"," +
+                            "\"taskReply\":" + processswordtask.GetTaskReply() +
+                            "}"
+                        );
                         break;
 
                     case "startCapturing":
@@ -619,7 +588,7 @@ namespace TwainDirectOnTwain
 
             // Init stuff...
             twain = m_twaincstoolkit.Twain();
-            
+
             // Get the metadata for TW_IMAGEINFO...
             TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
             if (a_szTwimageinfo != null)
@@ -816,72 +785,72 @@ namespace TwainDirectOnTwain
             // Imagecount (counts images)...
             szMeta += "\"imageNumber\":" + m_iImageCount + ",";
 
+            // Segmentcount (long document or huge document)...
+            szMeta += "\"imagePart\":" + "1" + ",";
+
+            // Segmentlast (long document or huge document)...
+            szMeta += "\"moreParts\":" + "false,";
+
             // Sheetcount (counts sheets, including ones lost to blank image dropout)...
             szMeta += "\"sheetNumber\":" + "1" + ",";
 
             // The image came from a flatbed or a feederFront or whatever...
-            szMeta += "                \"source\": \"" + szSource + "\"\n";
+            szMeta += "\"source\":\"" + szSource + "\",";
+
+            // Name of this stream...
+            szMeta += "\"streamName\":\"" + "" + "\",";
+
+            // Name of this source...
+            szMeta += "\"sourceName\":\"" + "" + "\",";
+
+            // Name of this pixelFormat...
+            szMeta += "\"pixelFormatName\":\"" + "" + "\"";
 
             // TWAIN Direct metadata.address end...
-            szMeta += "            },\n";
+            szMeta += "},";
 
             // TWAIN Direct metadata.image begin...
-            szMeta += "            \"image\": {\n";
+            szMeta += "\"image\":{";
 
             // Add compression...
-            szMeta += "                \"compression\": \"" + szCompression + "\",\n";
+            szMeta += "\"compression\":\"" + szCompression + "\",";
 
             // Add pixel format...
-            szMeta += "                \"pixelFormat\": \"" + szPixelFormat + "\",\n";
+            szMeta += "\"pixelFormat\":\"" + szPixelFormat + "\",";
 
             // Add height...
-            szMeta += "                \"pixelHeight\": " + twimageinfo.ImageLength + ",\n";
+            szMeta += "\"pixelHeight\":" + twimageinfo.ImageLength + ",";
 
             // X-offset...
-            szMeta += "                \"pixelOffsetX\": " + "0" + ",\n";
+            szMeta += "\"pixelOffsetX\":" + "0" + ",";
 
             // Y-offset...
-            szMeta += "                \"pixelOffsetY\": " + "0" + ",\n";
+            szMeta += "\"pixelOffsetY\":" + "0" + ",";
 
             // Add width...
-            szMeta += "                \"pixelWidth\": " + twimageinfo.ImageWidth + ",\n";
+            szMeta += "\"pixelWidth\":" + twimageinfo.ImageWidth + ",";
 
             // Add resolution...
-            szMeta += "                \"resolution\": " + twimageinfo.XResolution.Whole + ",\n";
+            szMeta += "\"resolution\":" + twimageinfo.XResolution.Whole + ",";
 
             // Add size...
             FileInfo fileinfo = new FileInfo(szImageFile);
-            szMeta += "                \"size\": " + fileinfo.Length + "\n";
+            szMeta += "\"size\":" + fileinfo.Length;
 
             // TWAIN Direct metadata.image end...
-            szMeta += "            },\n";
-
-            // TWAIN Direct metadata.address begin...
-            szMeta += "            \"imageBlock\": {\n";
-
-            // Imagecount (counts images)...
-            szMeta += "                \"imageNumber\": " + m_iImageCount + ",\n";
-
-            // Segmentcount (long document or huge document)...
-            szMeta += "                \"imagePart\": " + "1" + ",\n";
-
-            // Segmentlast (long document or huge document)...
-            szMeta += "                \"moreParts\": " + "false" + "\n";
-
-            // TWAIN Direct metadata.address end...
-            szMeta += "            },\n";
+            szMeta += "},";
 
             // Open SWORD.metadata.status...
-            szMeta += "            \"status\": {\n";
+            szMeta += "\"status\":{";
 
             // Add the status...
-            szMeta += "                \"success\": true\n";
+            szMeta += "\"success\":true";
 
             // TWAIN Direct metadata.status end...
-            szMeta += "            }\n";
+            szMeta += "}";
 
             // TWAIN Direct metadata end...
-            szMeta += "        }\n";
+            szMeta += "}";
 
             // Save the metadata to disk...
             try
@@ -1154,7 +1123,7 @@ namespace TwainDirectOnTwain
 
             // Build the reply.  Note that we have this kind of code in three places
             // in the solution.  This is the lowest "level", where we generate the
-            // data that will be sent to TwainDirectScanner, so it's not really in
+            // data that will be sent to TwainDirect.Scanner, so it's not really in
             // the final form, though it's close.
             a_szSession = "\"session\":{";
 
@@ -1162,16 +1131,6 @@ namespace TwainDirectOnTwain
             if (!string.IsNullOrEmpty(szImageBlocks))
             {
                 a_szSession += "\"imageBlocks\":[" + szImageBlocks + "]";
-            }
-
-            // Tack on the task, if we have one...
-            if (!string.IsNullOrEmpty(m_szTwainDirectOptions))
-            {
-                if (a_szSession.Contains("imageBlocks"))
-                {
-                    a_szSession += ",";
-                }
-                a_szSession += "\"taskReply\":" + m_szTwainDirectOptions;
             }
 
             // End of the session object...
@@ -1410,31 +1369,32 @@ namespace TwainDirectOnTwain
         /// </summary>
         /// <param name="a_jsonlookup">data for the task</param>
         /// <param name="a_swordtask">the result of the task</param>
+        /// <param name="a_blSetAppCapabilities">set the application capabilities (ex: ICAP_XFERMECH)</param>
         /// <returns>a twain local status</returns>
-        private TwainLocalScanner.ApiStatus DeviceScannerSendTask(JsonLookup a_jsonlookup, out SwordTask a_swordtask, ref bool a_blSetAppCapabilities)
+        private TwainLocalScanner.ApiStatus DeviceScannerSendTask(JsonLookup a_jsonlookup, out ProcessSwordTask a_processswordtask, ref bool a_blSetAppCapabilities)
         {
             bool blSuccess;
             string szTask;
-            Sword sword;
 
             // Init stuff...
-            a_swordtask = new SwordTask();
+            a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit);
 
-            // Create our object...
-            sword = new Sword(m_twaincstoolkit);
-
-            // Convert the base64 task into a string...
+            // Get the task from the TWAIN Local command...
             szTask = a_jsonlookup.GetJson("task");
 
-            // Run our task...
-            blSuccess = sword.BatchMode(m_szScanner, szTask, true, ref a_swordtask, ref a_blSetAppCapabilities);
+            // Deserialize our task...
+            blSuccess = a_processswordtask.Deserialize(szTask, "211a1e90-11e1-11e5-9493-1697f925ec7b");
             if (!blSuccess)
             {
                 return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
             }
 
-            // Success, make a note of the twainDirectOptions...
-            m_szTwainDirectOptions = a_swordtask.GetTaskReply();
+            // Process our task...
+            blSuccess = a_processswordtask.ProcessAndRun();
+            if (!blSuccess)
+            {
+                return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+            }
 
             // All done...
             return (TwainLocalScanner.ApiStatus.success);
@@ -1650,16 +1610,6 @@ namespace TwainDirectOnTwain
         /// We're scanning duplex (front and rear) off an automatic document feeder (ADF)...
         /// </summary>
         private bool m_blDuplex;
-
-        /// <summary>
-        /// The capturingOptions in the session object.  We need to persist these
-        /// when we move from a ready state to anything else.  The way TWAIN Local is designed
-        /// we're guaranteed to set these values before we get out of the ready state.
-        /// Technically, the twainDirectOptions are part of the session object and not
-        /// the capturingOptions, but since they go hand-in-hand, this is as good a
-        /// place as any to declare them.
-        /// </summary>
-        private string m_szTwainDirectOptions;
 
         /// <summary>
         /// The delegate that lets us run stuff in the main GUI thread on Windows,

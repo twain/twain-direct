@@ -1,4 +1,4 @@
-﻿namespace TwainDirectCertification
+﻿namespace TwainDirect.Certification
 {
     partial class FormScan
     {

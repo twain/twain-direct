@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnSane.Program
+//  TwainDirect.OnSane.Program
 //
 //  Use a SWORD task to control a SANE driver.  This is a general solution that
 //  represents standard SWORD on standard SANE.  Other schemes are needed to get
@@ -57,10 +57,10 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 //[assembly: CLSCompliant(true)]
 
-namespace TwainDirectOnSane
+namespace TwainDirect.OnSane
 {
     /// <summary>
     /// Our main program.  We're keeping it simple here...
@@ -86,7 +86,7 @@ namespace TwainDirectOnSane
             string szExecutableName = Config.Get("executableName", "");
             Log.Open(szExecutableName, Config.Get("writeFolder", ""), 1);
             Log.SetLevel((int)Config.Get("logLevel", 0));
-            TwainDirectSupport.Log.Info(szExecutableName + " Log Started...");
+            TwainDirect.Support.Log.Info(szExecutableName + " Log Started...");
 
             // Let the manager figure out which mode we're in: batch or
             // interactive.  If batch it'll return true and it'll silently
@@ -94,7 +94,7 @@ namespace TwainDirectOnSane
             // down and raise the dialog...
             if (SelectMode())
             {
-                TwainDirectSupport.Log.Info("Exiting...");
+                TwainDirect.Support.Log.Info("Exiting...");
                 Log.Close();
                 Environment.Exit(0);
                 return;
@@ -190,7 +190,7 @@ namespace TwainDirectOnSane
             }
 
             // Otherwise let the user interact with us...
-            TwainDirectSupport.Log.Info("Interactive mode...");
+            TwainDirect.Support.Log.Info("Interactive mode...");
             return (false);
         }
 
@@ -220,9 +220,9 @@ namespace TwainDirectOnSane
         )
         {
             // Log what we're sending...
-            TwainDirectSupport.Log.Info("");
-            TwainDirectSupport.Log.Info("scanimage>>> " + a_szReason);
-            TwainDirectSupport.Log.Info("scanimage>>> scanimage" + " " + a_szArguments);
+            TwainDirect.Support.Log.Info("");
+            TwainDirect.Support.Log.Info("scanimage>>> " + a_szReason);
+            TwainDirect.Support.Log.Info("scanimage>>> scanimage" + " " + a_szArguments);
             ms_datareceivedeventhandlerReadLine = null;
 
             // Just start the process and return...
@@ -287,7 +287,7 @@ namespace TwainDirectOnSane
                 }
 
                 // Log what we got back......
-                TwainDirectSupport.Log.Info("scanimage>>> " + szReply);
+                TwainDirect.Support.Log.Info("scanimage>>> " + szReply);
 
                 // Return the data as a string (it's usually json)...
                 return (szReply.Split(new char[] { '\n' }));

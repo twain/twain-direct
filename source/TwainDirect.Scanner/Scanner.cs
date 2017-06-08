@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectScanner.Scanner
+// TwainDirect.Scanner.Scanner
 //
 // The actual interface to the scanner is in here, so that we can decouple it from
 // the presentation layer.  This allows us to run in window mode, console mode or
@@ -10,7 +10,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    05-Dec-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -36,9 +36,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectScanner
+namespace TwainDirect.Scanner
 {
     public sealed class Scanner : IDisposable
     {
@@ -58,7 +58,7 @@ namespace TwainDirectScanner
         public Scanner
         (
             bool a_blNeedBrowser,
-            DisplayCallback a_displaycallback,
+            TwainLocalScanner.DisplayCallback a_displaycallback,
             StopNotification a_stopnotification,
             TwainLocalScanner.ConfirmScan a_confirmscan,
             float a_fConfirmScanScale,
@@ -88,18 +88,18 @@ namespace TwainDirectScanner
             {
                 if (blUseSane)
                 {
-                    Log.Error("Unable to locate TwainDirectOnSane.exe");
-                    throw new Exception("Unable to locate TwainDirectOnSane.exe");
+                    Log.Error("Unable to locate TwainDirect.OnSane.exe");
+                    throw new Exception("Unable to locate TwainDirect.OnSane.exe");
                 }
                 else
                 {
-                    Log.Error("Unable to locate TwainDirectOnTwain.exe");
-                    throw new Exception("Unable to locate TwainDirectOnTwain.exe");
+                    Log.Error("Unable to locate TwainDirect.OnTwain.exe");
+                    throw new Exception("Unable to locate TwainDirect.OnTwain.exe");
                 }
             }
 
             // Get our TWAIN Local interface...
-            m_twainlocalscanner = new TwainLocalScanner(a_confirmscan,a_fConfirmScanScale, null, null);
+            m_twainlocalscanner = new TwainLocalScanner(a_confirmscan,a_fConfirmScanScale, null, null, Display);
             if (m_twainlocalscanner == null)
             {
                 Log.Error("Failed to create TwainLocalScanner");
@@ -238,12 +238,6 @@ namespace TwainDirectScanner
         #region Public Definitions...
 
         /// <summary>
-        /// Display callback...
-        /// </summary>
-        /// <param name="a_szText">text to display</param>
-        public delegate void DisplayCallback(string a_szText);
-
-        /// <summary>
         /// Notification that we've stopped monitoring...
         /// </summary>
         /// <param name="a_blNoDevices">true if we have no devices</param>
@@ -377,7 +371,7 @@ namespace TwainDirectScanner
         /// C:\Users\user\Desktop\SWORD on TWAIN Kit\Device Proxy\bin\Debug\thing.exe
         /// 
         /// We want to get to this:
-        ///  C:\Users\user\Desktop\SWORD on TWAIN Kit\...\TwainDirectOnTwain.exe
+        ///  C:\Users\user\Desktop\SWORD on TWAIN Kit\...\TwainDirect.OnTwain.exe
         /// 
         /// We'd also like to honor the debug/release, if possible.
         /// </summary>
@@ -394,11 +388,11 @@ namespace TwainDirectScanner
                 string szConfiguration;
                 if (a_blUseSane)
                 {
-                    szTwainDirectOn = "TwainDirectOnSane";
+                    szTwainDirectOn = "TwainDirect.OnSane";
                 }
                 else
                 {
-                    szTwainDirectOn = "TwainDirectOnTwain";
+                    szTwainDirectOn = "TwainDirect.OnTwain";
                 }
                 if (szDataFolder.Contains("Debug"))
                 {
@@ -478,7 +472,7 @@ namespace TwainDirectScanner
         /// <summary>
         /// Optional display callback...
         /// </summary>
-        private DisplayCallback m_displaycallback;
+        private TwainLocalScanner.DisplayCallback m_displaycallback;
 
         /// <summary>
         /// Notification that we've stopped monitoring...

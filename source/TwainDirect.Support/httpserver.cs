@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.HttpServer
+// TwainDirect.Support.HttpServer
 //
 // A lightweight Http server using HttpListen.  Ideally the code will be written
 // such that any server can do the job.  The plan for this is to keep as much
@@ -9,9 +9,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
-//  M.McLaughlin    13-Oct-2016     Initial Version
+//  M.McLaughlin    13-Oct-2017     Initial Version
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2016-2016 Kodak Alaris Inc.
+//  Copyright (C) 2016-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -40,7 +40,7 @@ using System.Net.Sockets;
 using System.Security.Permissions;
 using System.Text;
 
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     public sealed class HttpServer : IDisposable
     {
@@ -116,19 +116,24 @@ namespace TwainDirectSupport
 
             // Add our prefixes, we'll accept input from any address on this port
             // which is how the advertisement should work.  We won't register
-            // until the service is up...
-            if (Config.Get("useHttps", "no") == "no")
+            // until the service is up.  Note that our default is to require the
+            // use of HTTPS...
+            if (Config.Get("useHttps", "yes") == "yes")
             {
-                szUri = @"http://+:" + m_iPort + "/privet/info/";
+                szUri = @"https://+:" + m_iPort + "/privet/info/";
                 m_httplistener.Prefixes.Add(szUri);
-                szUri = @"http://+:" + m_iPort + "/privet/twaindirect/session/";
+                szUri = @"https://+:" + m_iPort + "/privet/infoex/";
+                m_httplistener.Prefixes.Add(szUri);
+                szUri = @"https://+:" + m_iPort + "/privet/twaindirect/session/";
                 m_httplistener.Prefixes.Add(szUri);
             }
             else
             {
-                szUri = @"https://+:" + m_iPort + "/privet/info/";
+                szUri = @"http://+:" + m_iPort + "/privet/info/";
                 m_httplistener.Prefixes.Add(szUri);
-                szUri = @"https://+:" + m_iPort + "/privet/twaindirect/session/";
+                szUri = @"http://+:" + m_iPort + "/privet/infoex/";
+                m_httplistener.Prefixes.Add(szUri);
+                szUri = @"http://+:" + m_iPort + "/privet/twaindirect/session/";
                 m_httplistener.Prefixes.Add(szUri);
             }
 

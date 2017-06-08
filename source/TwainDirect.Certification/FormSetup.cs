@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectCertification.FormSetup
+//  TwainDirect.Certification.FormSetup
 //
 //  This class helps us configure a TWAIN driver prior to scanning.
 //
@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    21-Oct-2013     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2013-2016 Kodak Alaris Inc.
+//  Copyright (C) 2013-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -37,9 +37,9 @@ using System.Reflection;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectCertification
+namespace TwainDirect.Certification
 {
     /// <summary>
     /// Select the image destination folder.  If supported, allow the user to
@@ -94,11 +94,11 @@ namespace TwainDirectCertification
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirectCertification.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.Certification.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirectCertification.WinFormStrings", typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.Certification.WinFormStrings", typeof(FormSelect).Assembly);
             }
             m_groupboxImageDestination.Text = m_resourcemanager.GetString("strGroupboxSelectImageDestination");
             m_labelSelectDestinationFolder.Text = m_resourcemanager.GetString("strLabelSelectImageDestination");

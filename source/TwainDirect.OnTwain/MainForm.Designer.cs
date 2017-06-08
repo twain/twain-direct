@@ -1,4 +1,4 @@
-﻿namespace TwainDirectOnTwain
+﻿namespace TwainDirect.OnTwain
 {
     partial class MainForm
     {

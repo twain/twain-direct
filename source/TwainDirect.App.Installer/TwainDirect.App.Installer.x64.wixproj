@@ -48,7 +48,7 @@
     </WixExtension>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TwainDirectApplication\TwainDirect.App.csproj">
+    <ProjectReference Include="..\TwainDirect.App\TwainDirect.App.csproj">
       <Name>TwainDirect.App</Name>
       <Project>{de8ac167-cff1-446d-9145-29179ca1b472}</Project>
       <Private>True</Private>

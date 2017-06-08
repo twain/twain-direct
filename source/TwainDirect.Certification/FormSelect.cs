@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectCertification.FormSelect
+//  TwainDirect.Certification.FormSelect
 //
 //  This class helps us select a TWAIN Direct scanner that we wish to open.
 //
@@ -8,7 +8,7 @@
 //  Author          Date            Commen6
 //  M.McLaughlin    21-Oct-2013     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2013-2016 Kodak Alaris Inc.
+//  Copyright (C) 2013-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -35,9 +35,9 @@ using System.Drawing;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectCertification
+namespace TwainDirect.Certification
 {
     public partial class FormSelect : Form
 {
@@ -74,11 +74,11 @@ namespace TwainDirectCertification
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirectCertification.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.Certification.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirectCertification.WinFormStrings", typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.Certification.WinFormStrings", typeof(FormSelect).Assembly);
             }
             m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpen");
             m_labelSelect.Text = m_resourcemanager.GetString("strLabelSelectScanner");

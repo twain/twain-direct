@@ -1,7 +1,7 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectSupport.TwainLocalScanner
-// TwainDirectSupport.TwainLocalScanner.TwainLocalSession
+// TwainDirect.Support.TwainLocalScanner
+// TwainDirect.Support.TwainLocalScanner.TwainLocalSession
 //
 // Interface to TWAIN Local scanners scanners.  This class is used by applications
 // and scanners, since they share enough common features to make it worthwhile to
@@ -28,9 +28,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
-//  M.McLaughlin    15-Oct-2016     Initial Release
+//  M.McLaughlin    15-Oct-2017     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2016-2016 Kodak Alaris Inc.
+//  Copyright (C) 2016-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -60,11 +60,11 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using TwainDirectSupport;
+using TwainDirect.Support;
 [assembly: CLSCompliant(true)]
 
 // This namespace supports applications and scanners...
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     /// <summary>
     /// A scanner interface to TWAIN Local scanners....
@@ -87,13 +87,14 @@ namespace TwainDirectSupport
             ConfirmScan a_confirmscan,
             float a_fConfirmScanScale,
             EventCallback a_eventcallback,
-            object a_objectEventCallback
+            object a_objectEventCallback,
+            DisplayCallback a_displaycallback
         )
         {
             int iDefault;
 
             // Init our command timeout for HTTPS communication...
-            iDefault = 10000;
+            iDefault = 15000; // 15 seconds
             m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
             if (m_iHttpTimeoutCommand < 5000)
             {
@@ -101,7 +102,7 @@ namespace TwainDirectSupport
             }
 
             // Init our data timeout for HTTPS communication...
-            iDefault = 30000;
+            iDefault = 30000; // 30 seconds
             m_iHttpTimeoutData = (int)Config.Get("httpTimeoutData", iDefault);
             if (m_iHttpTimeoutData < 10000)
             {
@@ -109,7 +110,7 @@ namespace TwainDirectSupport
             }
 
             // Init our event timeout for HTTPS communication...
-            iDefault = 30000;
+            iDefault = 30000; // 30 seconds
             m_iHttpTimeoutEvent = (int)Config.Get("httpTimeoutEvent", iDefault);
             if (m_iHttpTimeoutEvent < 10000)
             {
@@ -117,7 +118,7 @@ namespace TwainDirectSupport
             }
 
             // Init our idle session timeout...
-            iDefault = 300000;
+            iDefault = 300000; // five minutes
             m_lSessionTimeout = Config.Get("sessionTimeout", iDefault);
             if (m_lSessionTimeout < 10000)
             {
@@ -130,6 +131,7 @@ namespace TwainDirectSupport
             m_fConfirmScanScale = a_fConfirmScanScale;
             m_eventcallback = a_eventcallback;
             m_objectEventCallback = a_objectEventCallback;
+            m_displaycallback = a_displaycallback;
 
             // Set up session specific content...
             m_twainlocalsessionInfo = new TwainLocalSession("");
@@ -357,13 +359,14 @@ namespace TwainDirectSupport
             // Squirrel this away...
             m_dnssddeviceinfo = a_dnssddeviceinfo;
 
-            // Send the RESTful API command...
+            // Send the RESTful API command, we'll support using either
+            // privet/info or /privet/infoex, but we'll default to infoex...
             blSuccess = ClientHttpRequest
             (
                 szFunction,
                 m_dnssddeviceinfo,
                 ref a_apicmd,
-                "/privet/info",
+                (Config.Get("useInfoex", "yes") == "yes") ? "/privet/infoex" : "/privet/info",
                 "GET",
                 new string[] {
                     "X-Privet-Token: \"\""
@@ -657,11 +660,13 @@ namespace TwainDirectSupport
                     return (false);
                 }
 
-                // Squirrel this away...
+                // Squirrel this away, do the useHttps check in such a way that
+                // one must precisely specify "no" to get it, otherwise we're
+                // going to use HTTPS...
                 m_dnssddeviceinfo = a_dnssddeviceinfo;
                 if (m_dnssddeviceinfo.szIpv4 != null)
                 {
-                    if (Config.Get("useHttps", "false") == "false")
+                    if (Config.Get("useHttps", "yes") == "no")
                     {
                         m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv4;
                     }
@@ -672,7 +677,7 @@ namespace TwainDirectSupport
                 }
                 else if (m_dnssddeviceinfo.szIpv6 != null)
                 {
-                    if (Config.Get("useHttps", "false") == "false")
+                    if (Config.Get("useHttps", "yes") == "no")
                     {
                         m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv6;
                     }
@@ -1402,6 +1407,7 @@ namespace TwainDirectSupport
             // then ignore it...
             szUri = a_httplistenercontext.Request.RawUrl.ToString();
             if (    (szUri != "/privet/info")
+                &&  (szUri != "/privet/infoex")
                 &&  (szUri != "/privet/twaindirect/session"))
             {
                 return;
@@ -1427,12 +1433,13 @@ namespace TwainDirectSupport
             // We found it, squirrel away the value, remove any double quotes...
             szXPrivetToken = a_httplistenercontext.Request.Headers.Get(ii).Replace("\"","");
 
-            // Handle the info command...
-            if (szUri == "/privet/info")
+            // Handle the /privet/info and /privet/infoex commands...
+            if (    (szUri == "/privet/info")
+                ||  (szUri == "/privet/infoex"))
             {
                 // Log it...
                 Log.Info("");
-                Log.Info("http>>> info");
+                Log.Info("http>>> " + szUri.Replace("/privet/",""));
                 Log.Info("http>>> " + a_httplistenercontext.Request.HttpMethod + " uri " + a_httplistenercontext.Request.Url.AbsoluteUri);
 
                 // Get each header and display each value.
@@ -1633,7 +1640,24 @@ namespace TwainDirectSupport
             // Get our port...
             if (!int.TryParse(Config.Get("usePort","55555"), out iPort))
             {
-                Log.Error("DeviceHttpServerStart: bas port..." + Config.Get("usePort", "55555"));
+                Log.Error("DeviceHttpServerStart: bad port..." + Config.Get("usePort", "55555"));
+                return (false);
+            }
+
+            // Validate values, note is optional, so we don't test it...
+            if (string.IsNullOrEmpty(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName()))
+            {
+                Log.Error("DeviceHttpServerStart: bad instance name...");
+                return (false);
+            }
+            if (iPort == 0)
+            {
+                Log.Error("DeviceHttpServerStart: bad port...");
+                return (false);
+            }
+            if (string.IsNullOrEmpty(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy()))
+            {
+                Log.Error("DeviceHttpServerStart: bad ty...");
                 return (false);
             }
 
@@ -1875,6 +1899,12 @@ namespace TwainDirectSupport
         /// <returns>button the user pressed</returns>
         public delegate ButtonPress ConfirmScan(float a_fConfirmScanScale);
 
+        /// <summary>
+        /// Display callback...
+        /// </summary>
+        /// <param name="a_szText">text to display</param>
+        public delegate void DisplayCallback(string a_szText);
+
         #endregion
 
 
@@ -1882,6 +1912,18 @@ namespace TwainDirectSupport
         // Private Common methods...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Common Methods...
+
+        /// <summary>
+        /// Display a message, if we have a callback for it...
+        /// </summary>
+        /// <param name="a_szMsg">the message to display</param>
+        private void Display(string a_szMsg)
+        {
+            if (m_displaycallback != null)
+            {
+                m_displaycallback(a_szMsg);
+            }
+        }
 
         /// <summary>
         /// Set the session state, and do additional cleanup work, if needed...
@@ -1922,6 +1964,9 @@ namespace TwainDirectSupport
                     m_twainlocalsession.Dispose();
                     m_twainlocalsession = null;
                 }
+
+                // Display what happened...
+                Display("Session ended...");
             }
 
             // Return the previous state...
@@ -2112,8 +2157,9 @@ namespace TwainDirectSupport
                 return (true);
             }
 
-            // Is this /privet/info?
-            if (a_apicmd.GetUri() == "/privet/info")
+            // Is this /privet/info or /privet/infoex?
+            if (    (a_apicmd.GetUri() == "/privet/info")
+                ||  (a_apicmd.GetUri() == "/privet/infoex"))
             {
                 // Squirrel away the x-privet-token...
                 m_szXPrivetToken = jsonlookup.Get("x-privet-token");
@@ -2529,34 +2575,58 @@ namespace TwainDirectSupport
                 return (true);
             }
 
-            // Our base response...
-            szResponse =
-                "{" +
-                "\"kind\":\"twainlocalscanner\"," +
-                "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
-                "\"method\":\"" + a_apicmd.GetCommandName() + "\"," +
-                "\"results\":{" +
-                "\"success\":false," +
-                "\"code\":\"" + a_szCode + "\"";
-
-            // Add a character offset, if needed...
-            if (a_szCode == "invalidJson")
+            // Handle a JSON error...
+            if (string.IsNullOrEmpty(a_szCode) || (a_szCode == "invalidJson"))
             {
-                szResponse +=
-                    ",\"characterOffset\":" + a_lResponseCharacterOffset;
-            }
-            
-            // Add a JSON key, if needed...
-            if (!string.IsNullOrEmpty(a_szJsonKey))
-            {
-                szResponse +=
-                    ",\"jsonKey\":\"" + a_szJsonKey + "\"";
+                // Our base response...
+                szResponse =
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
+                    "\"method\":\"" + a_apicmd.GetCommandName() + "\"," +
+                    "\"results\":{" +
+                    "\"success\":false," +
+                    "\"code\":\"" + "invalidJson" + "\"," +
+                    "\"characterOffset\":" + a_lResponseCharacterOffset +
+                    "}" + // results
+                    "}"; //root
             }
 
-            // Finish it...
-            szResponse +=
-                "}" +
-                "}";
+            // If it's an invalidTask, then include that data...
+            else if (a_szCode == "invalidTask")
+            {
+                szResponse =
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
+                    "\"method\":\"" + a_apicmd.GetCommandName() + "\"," +
+                    "\"results\":{" +
+                    "\"success\":true," +
+                    "\"session\":{" +
+                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
+                    "\"revision\":\"" + m_twainlocalsession.GetSessionRevision() + "\"," +
+                    "\"state\":\"" + m_twainlocalsession.GetSessionState() + "\"," +
+                    "\"task\":" + a_szJsonKey + 
+                    "}" + // session
+                    "}" + // results
+                    "}"; //root
+            }
+
+            // Anything else...
+            else
+            {
+                // Our base response...
+                szResponse =
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
+                    "\"method\":\"" + a_apicmd.GetCommandName() + "\"," +
+                    "\"results\":{" +
+                    "\"success\":false," +
+                    "\"code\":\"" + a_szCode + "\"" +
+                    "}" + // results
+                    "}"; //root
+            }
 
             // Send the response...
             a_apicmd.HttpRespond(a_szCode, szResponse);
@@ -2621,9 +2691,11 @@ namespace TwainDirectSupport
             ApiCmd apicmd;
 
             //////////////////////////////////////////////////
-            // We're responding to the /privet/info command...
+            // We're responding to the /privet/info or the
+            // /privet/infoex command...
             #region We're responding to the /privet/info command...
-            if (a_apicmd.GetUri() == "/privet/info")
+            if (    (a_apicmd.GetUri() == "/privet/info")
+                ||  (a_apicmd.GetUri() == "/privet/infoex"))
             {
                 string szDeviceState;
                 Dnssd.DnssdDeviceInfo dnssddeviceinfo = GetDnssdDeviceInfo();
@@ -2668,13 +2740,23 @@ namespace TwainDirectSupport
                 // Refresh the privet token timeout...
                 m_lPrivetTokenTimestamp = (long)DateTime.Now.Subtract(DateTime.MinValue).TotalSeconds;
 
+                // Add additional data for infoex...
+                string szInfoex = "";
+                if (a_apicmd.GetUri() == "/privet/infoex")
+                {
+                    szInfoex =
+                        "," +
+                        "\"clouds\":[" +
+                        "]";
+                }
+
                 // Construct a response...
                 szResponse =
                     "{" +
                     "\"version\":\"1.0\"," +
                     "\"name\":\"" + dnssddeviceinfo.szTxtTy + "\"," +
                     "\"description\":\"" + dnssddeviceinfo.szTxtNote + "\"," +
-                    "\"url\":\"" + ((Config.Get("useHttps", "false") == "false") ? "http://" : "https://") + Dns.GetHostName() + ".local:" + m_httpserver.GetPort() + "/twaindirect" + "\"," +
+                    "\"url\":\"" + ((Config.Get("useHttps", "yes") == "no") ? "http://" : "https://") + Dns.GetHostName() + ".local:" + m_httpserver.GetPort() + "/privet/twaindirect" + "\"," +
                     "\"type\":\"" + dnssddeviceinfo.szTxtType + "\"," +
                     "\"id\":\"\"," +
                     "\"device_state\": \"" + szDeviceState + "\"," +
@@ -2692,6 +2774,7 @@ namespace TwainDirectSupport
                     "\"/privet/twaindirect/session\"" +
                     "]," +
                     "\"semantic_state\":\"" + "" + "\"" +
+                    szInfoex +
                     "}";
 
                 // Send the response...
@@ -3086,7 +3169,7 @@ namespace TwainDirectSupport
 
                 // Init stuff...
                 szTwainDirectOnTwain = Config.Get("executablePath", "");
-                szTwainDirectOnTwain = szTwainDirectOnTwain.Replace("TwainDirectScanner", "TwainDirectOnTwain");
+                szTwainDirectOnTwain = szTwainDirectOnTwain.Replace("TwainDirect.Scanner", "TwainDirect.OnTwain");
 
                 // State check...
                 if (m_twainlocalsession.GetSessionState() != SessionState.noSession)
@@ -3116,6 +3199,7 @@ namespace TwainDirectSupport
                 // Arguments to the progream...
                 szArguments = "ipc=\"" + m_twainlocalsession.GetIpcTwainDirectOnTwain().GetConnectionInfo() + "\"";
                 szArguments += " images=\"" + m_szImagesFolder + "\"";
+                szArguments += " twainlist=\"" + Path.Combine(m_szWriteFolder,"twainlist.txt") + "\"";
 
                 // Get ready to start the child process...
                 m_twainlocalsession.SetProcessTwainDirectOnTwain(new Process());
@@ -3208,6 +3292,10 @@ namespace TwainDirectSupport
 
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
+
+                // Display what happened...
+                Display("");
+                Display("Session started by <" + a_apicmd.HttpGetCallersHostName() + ">");
             }
 
             // All done...
@@ -3762,7 +3850,7 @@ namespace TwainDirectSupport
                             DeviceReturnError(szFunction, a_apicmd, szStatus, null, -1);
                             break;
                         case "invalidCapturingOptions":
-                            DeviceReturnError(szFunction, a_apicmd, "invalidTask", jsonlookup.Get("jsonKey"), -1);
+                            DeviceReturnError(szFunction, a_apicmd, "invalidTask", jsonlookup.Get("taskReply"), -1);
                             break;
                     }
                     return (false);
@@ -4149,7 +4237,7 @@ namespace TwainDirectSupport
         #region Private Attributes...
 
         /// <summary>
-        /// Use this with the /privet/info command...
+        /// Use this with the /privet/info and /privet/infoex commands...
         /// </summary>
         private TwainLocalSession m_twainlocalsessionInfo;
 
@@ -4240,6 +4328,12 @@ namespace TwainDirectSupport
         /// Caller's object for the event callback function...
         /// </summary>
         private object m_objectEventCallback;
+
+        /// <summary>
+        /// Optional callback for displaying text, this could
+        /// be useful for debugging...
+        /// </summary>
+        private DisplayCallback m_displaycallback;
 
         /// <summary>
         /// Command timeout, this should be short (and in milliseconds)...
@@ -4842,7 +4936,7 @@ namespace TwainDirectSupport
 
             /// <summary>
             /// The interprocess communication object we
-            /// use to talk to the TwainDirectOnTwain process...
+            /// use to talk to the TwainDirect.OnTwain process...
             /// </summary>
             private Ipc m_ipcTwainDirectOnTwain;
 
@@ -4853,22 +4947,22 @@ namespace TwainDirectSupport
             private long m_lWaitForEventsSessionRevision;
 
             /// <summary>
-            /// The TwainDirectOnTwain process...
+            /// The TwainDirect.OnTwain process...
             /// </summary>
             private Process m_processTwainDirectOnTwain;
 
             /// <summary>
             /// Privet requires this in the header for every
-            /// command, except privet/info (which returns the
-            /// value used by all other commands).  Google
+            /// command, except /privet/info and /privet/info (which
+            /// return the value used by all other commands).  Google
             /// recommends that it be refreshed every 24 hours,
             /// but this can get weird with long lasting sessions,
             /// so instead we're going to refresh it if it's been
             /// more than two minutes since the last call to
-            /// /privet/info.  Clients must call createSession
-            /// immediately after info.  The token is stored in
-            /// TwainLocalSession, so it will be valid for that
-            /// session as long as it lasts...
+            /// /privet/info or /privet/infoex.  Clients must call
+            /// createSession immediately after info.  The token is
+            /// stored in TwainLocalSession, so it will be valid for
+            /// that session as long as it lasts...
             /// </summary>
             private string m_szXPrivetToken;
 

@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectCertification.FormScan
+// TwainDirect.Certification.FormScan
 //
 // This is the main class for the certification app.  We're showing how to select and
 // load a device.  How to configure it for a scan session, and how to capture
@@ -10,7 +10,7 @@
 //  Author          Date            Version     Comment
 //  M.McLaughlin    31-Oct-2014     0.0.0.1     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -38,12 +38,11 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Resources;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectCertification
+namespace TwainDirect.Certification
 {
     /// <summary>
     /// Our mainform for this application...
@@ -87,11 +86,11 @@ namespace TwainDirectCertification
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirectCertification.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.Certification.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirectCertification.WinFormStrings", typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.Certification.WinFormStrings", typeof(FormSelect).Assembly);
             }
             m_buttonClose.Text = m_resourcemanager.GetString("strButtonClose");
             m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpenEllipsis");
@@ -140,7 +139,7 @@ namespace TwainDirectCertification
 
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
-            m_dnssd.MonitorStart();
+            m_dnssd.MonitorStart(null, IntPtr.Zero);
 
             // Get our TWAIN Local interface.
             //
@@ -149,7 +148,7 @@ namespace TwainDirectCertification
             // Authorization Code using a WebBrowser object (yay C#).
             //
             // No such joy for the Linux and Mac worlds...
-            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this);
+            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this, null);
         }
 
         /// <summary>
@@ -373,8 +372,6 @@ namespace TwainDirectCertification
         /// <param name="e"></param>
         private void m_buttonSetup_Click(object sender, EventArgs e)
         {
-            ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
-
             // Make sure the form is centered on our form...
             m_formsetup.StartPosition = FormStartPosition.CenterParent;
 
@@ -523,6 +520,8 @@ namespace TwainDirectCertification
             {
                 byte[] abImage;
                 byte[] abStripData;
+                ///PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
+                ///PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
                 long lResolution;
                 long lWidth;
                 long lHeight;
@@ -530,7 +529,6 @@ namespace TwainDirectCertification
                 // Just for now...
                 blGotImage = true;
 
-                // Get the image data...
                 PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
                 PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
                 PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
@@ -543,6 +541,8 @@ namespace TwainDirectCertification
                 abStripData = pdfRasRd.decoder_read_strips(decoder);
                 pdfRasRd.decoder_destroy(decoder);
                 PdfRaster.AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
+
+                // Get the image data...
                 using (var bitmap = new Bitmap(new MemoryStream(abImage)))
                 {
                     // Display the image...
@@ -568,6 +568,7 @@ namespace TwainDirectCertification
                 }
                 catch
                 {
+                    // Delete failed, but we don't care...
                 }
             }
 
@@ -806,6 +807,10 @@ namespace TwainDirectCertification
 
                     // Perform the test...
                     blSuccess = m_twainlocalscanner.ClientScannerSendTask(aszTestData[1], ref apicmd);
+                    if (!blSuccess)
+                    {
+                        //mlmtbd Add errror check...
+                    }
 
                     // Figure out the index offset to the task, so that we don't
                     // have to dink with the certification tests if the API is
@@ -1128,16 +1133,6 @@ namespace TwainDirectCertification
             // Make sure we're at the bottom, and that we're fully updated...
             m_listviewCertification.EnsureVisible(m_listviewCertification.Items.Count - 1);
             m_listviewCertification.EndUpdate();
-        }
-
-        /// <summary>
-        /// Debugging output that we can monitor, this is just a place
-        /// holder for this particular application...
-        /// </summary>
-        /// <param name="a_szOutput"></param>
-        private void WriteOutput(string a_szOutput)
-        {
-            return;
         }
 
         /// <summary>

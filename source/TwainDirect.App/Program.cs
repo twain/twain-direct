@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    21-Oct-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -32,10 +32,10 @@
 // Helpers...
 using System;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 [assembly: CLSCompliant(true)]
 
-namespace TwainDirectApplication
+namespace TwainDirect.App
 {
     static class Program
     {

@@ -8,8 +8,8 @@
     <ProjectGuid>{AB4D6AC2-5F73-4AE9-B1B6-D85FBCDFDCE8}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>TwainDirectOnSane</RootNamespace>
-    <AssemblyName>TwainDirectOnSane</AssemblyName>
+    <RootNamespace>TwainDirect.OnSane</RootNamespace>
+    <AssemblyName>TwainDirect.OnSane</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
@@ -68,10 +68,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="pdfras_reader_managed">
-      <HintPath>..\pdfraster\Debug\pdfras_reader_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_reader_managed.dll</HintPath>
     </Reference>
     <Reference Include="pdfras_writer_managed">
-      <HintPath>..\pdfraster\Debug\pdfras_writer_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_writer_managed.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -124,9 +124,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TwainDirect.Support\TwainDirectSupport.csproj">
+    <ProjectReference Include="..\TwainDirect.Support\TwainDirect.Support.csproj">
       <Project>{50d52482-9c72-45b3-9bcf-1e4b49976e48}</Project>
-      <Name>TwainDirectSupport</Name>
+      <Name>TwainDirect.Support</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

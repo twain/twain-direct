@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace TwainDirectCertification.Properties {
+namespace TwainDirect.Certification.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]

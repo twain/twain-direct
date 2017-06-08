@@ -1,12 +1,12 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectOnTwain AssemblyInfo
+// TwainDirect.OnTwain AssemblyInfo
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
 //  M.McLaughlin    21-Oct-2013     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2013-2016 Kodak Alaris Inc.
+//  Copyright (C) 2013-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -34,11 +34,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("TwainDirectOnTwain")]
+[assembly: AssemblyTitle("TwainDirect.OnTwain")]
 [assembly: AssemblyDescription("TWAIN Direct on TWAIN")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Kodak Alaris Inc.")]
-[assembly: AssemblyProduct("TwainDirectOnTwain")]
+[assembly: AssemblyProduct("TwainDirect.OnTwain")]
 [assembly: AssemblyCopyright("Copyright © 2014-2015, Kodak Alaris Inc.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectOnSane AssemblyInfo
+// TwainDirect.OnSane AssemblyInfo
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
@@ -34,11 +34,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("TwainDirectOnSane")]
+[assembly: AssemblyTitle("TwainDirect.OnSane")]
 [assembly: AssemblyDescription("TWAIN Direct on SANE")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Kodak Alaris Inc.")]
-[assembly: AssemblyProduct("TwainDirectOnSane")]
+[assembly: AssemblyProduct("TwainDirect.OnSane")]
 [assembly: AssemblyCopyright("Copyright © 2015-2015, Kodak Alaris Inc.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

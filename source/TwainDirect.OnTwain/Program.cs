@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnTwain.Program
+//  TwainDirect.OnTwain.Program
 //
 //  Use a SWORD task to control a TWAIN driver.  This is a general solution that
 //  represents standard SWORD on standard TWAIN.  Other schemes are needed to get
@@ -17,7 +17,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    16-Jun-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -44,12 +44,12 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 using TWAINWorkingGroup;
 using TWAINWorkingGroupToolkit;
 //[assembly: CLSCompliant(true)]
 
-namespace TwainDirectOnTwain
+namespace TwainDirect.OnTwain
 {
     /// <summary>
     /// Our main program.  We're keeping it simple here...
@@ -65,16 +65,16 @@ namespace TwainDirectOnTwain
             // Override the logging system...
             TWAINWorkingGroup.Log.Override
             (
-                TwainDirectSupport.Log.Close,
-                TwainDirectSupport.Log.GetLevel,
-                TwainDirectSupport.Log.Open,
+                TwainDirect.Support.Log.Close,
+                TwainDirect.Support.Log.GetLevel,
+                TwainDirect.Support.Log.Open,
                 null,
-                TwainDirectSupport.Log.SetFlush,
-                TwainDirectSupport.Log.SetLevel,
-                TwainDirectSupport.Log.WriteEntry,
+                TwainDirect.Support.Log.SetFlush,
+                TwainDirect.Support.Log.SetLevel,
+                TwainDirect.Support.Log.WriteEntry,
                 out ms_getstatedelegate
             );
-            TwainDirectSupport.Log.SetStateDelegate(GetState);
+            TwainDirect.Support.Log.SetStateDelegate(GetState);
 
             // Load our configuration information and our arguments,
             // so that we can access them from anywhere in the code...
@@ -152,20 +152,75 @@ namespace TwainDirectOnTwain
         {
             int iPid = 0;
             string szIpc;
+            string szTask;
             string szTaskFile;
             string szImagesFolder;
             bool blTestPdfRaster;
-            bool blTestDnssd;
+            string szTestDnssd;
+            bool blSuccess;
 
             // Check the arguments...
             string szWriteFolder = Config.Get("writeFolder", null);
             string szExecutableName = Config.Get("executableName", null);
             szTaskFile = Config.Get("task", null);
             blTestPdfRaster = (Config.Get("testpdfraster", null) != null);
-            blTestDnssd = (Config.Get("testdnssd", null) != null);
+            szTestDnssd = Config.Get("testdnssd", null);
             szIpc = Config.Get("ipc", null);
             szImagesFolder = Config.Get("images", null);
+            if (string.IsNullOrEmpty(szImagesFolder))
+            {
+                szImagesFolder = Path.Combine(szWriteFolder, "images");
+            }
             iPid = int.Parse(Config.Get("parentpid", "0"));
+
+            // Test ProcessSwordTask...
+            if (!string.IsNullOrEmpty(Config.Get("testtask", null)))
+            {
+                // Create our object...
+                ProcessSwordTask processswordtask = new ProcessSwordTask(szImagesFolder, null);
+
+                // Did we get a valid filename?
+                if ((szTaskFile == null) || !File.Exists(szTaskFile))
+                {
+                    Console.Out.WriteLine("");
+                    Console.Out.WriteLine("Please provide a valid task=file argument...");
+                    return (false);
+                }
+
+                // Load the file...
+                szTask = File.ReadAllText(szTaskFile);
+
+                // Handle certification files...
+                string[] aszTask = szTask.Split(new string[] { "***DATADATADATA***" }, StringSplitOptions.RemoveEmptyEntries);
+                if ((aszTask == null) || (aszTask.Length == 0))
+                {
+                    Console.Out.WriteLine("");
+                    Console.Out.WriteLine("Please provide a task file with data...");
+                    return (false);
+                }
+
+                // Get our task data...
+                if (aszTask.Length == 1)
+                {
+                    szTask = aszTask[0];
+                }
+                else
+                {
+                    szTask = aszTask[1];
+                }
+
+                // Run a test...
+                bool blSetAppCapabilities = true;
+                blSuccess = processswordtask.BatchMode(null, szTask, true, ref blSetAppCapabilities);
+                //blSuccess = processswordtask.Deserialize(szTask, "211a1e90-11e1-11e5-9493-1697f925ec7b");
+                if (blSuccess)
+                {
+                    //blSuccess = processswordtask.ProcessAndRun();
+                }
+
+                // All done...
+                return (true);
+            }
 
             // Run in IPC mode.  The caller has set up a 'pipe' for us, so we'll use
             // that to send commands back and forth.  This is the normal mode when
@@ -206,74 +261,56 @@ namespace TwainDirectOnTwain
                 {
                     szTwainList = Path.Combine(Config.Get("writeFolder", ""), "twainlist.txt");
                 }
-                System.IO.File.WriteAllText(szTwainList, Sword.TwainListDrivers());
-                return (true);
-            }
-
-            // Test PDF/Raster...
-            if (blTestPdfRaster)
-            {
-                TestPdfRaster testpdfraster;
-
-                // Create our object...
-                testpdfraster = new TestPdfRaster();
-
-                // Do the test...
-                testpdfraster.Test();
-
-                // All done...
-                TWAINWorkingGroup.Log.Close();
+                System.IO.File.WriteAllText(szTwainList, ProcessSwordTask.TwainListDrivers());
                 return (true);
             }
 
             /// Test DNS-SD...
-            if (blTestDnssd)
+            if (!string.IsNullOrEmpty(szTestDnssd))
             {
-                // Do the test...
-                int tt;
-                int jj;
-                TwainDirectSupport.Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
-                NativeMethods.AllocConsole();
-                TwainDirectSupport.Dnssd dnssd = new TwainDirectSupport.Dnssd(TwainDirectSupport.Dnssd.Reason.Monitor);
-                dnssd.MonitorStart();
-                for (tt = 0; tt < 6000000; tt++)
+                if (szTestDnssd == "monitor")
                 {
-                    bool blUpdated;
-                    TwainDirectSupport.Dnssd.DnssdDeviceInfo[] adnssddeviceinfoNew;
-                    TwainDirectSupport.Dnssd.DnssdDeviceInfo[] adnssddeviceinfoCompare = adnssddeviceinfo;
-                    adnssddeviceinfoNew = dnssd.GetSnapshot(adnssddeviceinfoCompare, out blUpdated);
-                    adnssddeviceinfo = adnssddeviceinfoNew;
-                    adnssddeviceinfoNew = null;
-                    if (adnssddeviceinfo == null)
+                    int ii;
+                    int jj;
+                    Dnssd dnssd;
+                    NativeMethods.AllocConsole();
+                    Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
+                    dnssd = new Dnssd(Dnssd.Reason.Monitor);
+                    dnssd.MonitorStart(null, IntPtr.Zero);
+                    for (ii = 0; ii < 60; ii++)
                     {
+                        bool blUpdated = false;
+                        Thread.Sleep(1000);
+                        adnssddeviceinfo = dnssd.GetSnapshot(adnssddeviceinfo, out blUpdated);
                         if (blUpdated)
                         {
                             Console.Out.WriteLine("");
-                            Console.Out.WriteLine("*** empty list ***");
-                        }
-                        System.Threading.Thread.Sleep(1000);
-                        continue;
-                    }
-                    if (blUpdated)
-                    {
-                        Console.Out.WriteLine("");
-                        for (jj = 0; jj < adnssddeviceinfo.Length; jj++)
-                        {
-                            Console.Out.WriteLine
-                            (
-                                adnssddeviceinfo[jj].szServiceName + Environment.NewLine +
-                                "  " + adnssddeviceinfo[jj].szLinkLocal +
-                                " " + adnssddeviceinfo[jj].lInterface +
-                                ((adnssddeviceinfo[jj].szIpv4 == null) ? " NoIpv4" : (" " + adnssddeviceinfo[jj].szIpv4)) +
-                                ((adnssddeviceinfo[jj].szIpv6 == null) ? " NoIpv6" : (" " + adnssddeviceinfo[jj].szIpv6)) +
-                                " " + adnssddeviceinfo[jj].lPort +
-                                ((adnssddeviceinfo[jj].aszText == null) ? "" : (Environment.NewLine + "  " + string.Join(" ", adnssddeviceinfo[jj].aszText)))
-                            );
+                            if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
+                            {
+                                Console.Out.WriteLine("***empty***");
+                            }
+                            else
+                            {
+                                for (jj = 0; jj < adnssddeviceinfo.Length; jj++)
+                                {
+                                    Console.Out.WriteLine(adnssddeviceinfo[jj].lInterface + " " + adnssddeviceinfo[jj].szServiceName);
+                                }
+                            }
                         }
                     }
-                    System.Threading.Thread.Sleep(1000);
+                    dnssd.MonitorStop();
+                    dnssd.Dispose();
                 }
-                dnssd.MonitorStop();
+                else if (szTestDnssd == "register")
+                {
+                    Dnssd dnssd;
+                    NativeMethods.AllocConsole();
+                    dnssd = new Dnssd(Dnssd.Reason.Register);
+                    dnssd.RegisterStart("Instance", 55556, "Ty", "Note");
+                    Thread.Sleep(60000);
+                    dnssd.RegisterStop();
+                    dnssd.Dispose();
+                }
 
                 // All done...
                 return (true);
@@ -283,17 +320,13 @@ namespace TwainDirectOnTwain
             if (File.Exists(szTaskFile))
             {
                 bool blSetAppCapabilities = false;
-                Sword sword;
-                SwordTask swordtask;
+                ProcessSwordTask processswordtask;
 
                 // Init stuff...
-                swordtask = new SwordTask();
-
-                // Create our object...
-                sword = new Sword(null);
+                processswordtask = new ProcessSwordTask(szImagesFolder, null);
 
                 // Run our task...
-                sword.BatchMode(Config.Get("scanner", null), szTaskFile, false, ref swordtask, ref blSetAppCapabilities);
+                processswordtask.BatchMode(Config.Get("scanner", null), szTaskFile, false, ref blSetAppCapabilities);
 
                 // All done...
                 return (true);

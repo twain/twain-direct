@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectOnTwain.MainForm
+//  TwainDirect.OnTwain.MainForm
 //
 //  This is our interactive dialog that allows users to select the TWAIN driver
 //  they want to use and experiment with SWORD tasks.
@@ -9,7 +9,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    16-Jun-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -35,9 +35,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectOnTwain
+namespace TwainDirect.OnTwain
 {
     /// <summary>
     /// Our main form...
@@ -55,7 +55,7 @@ namespace TwainDirectOnTwain
             this.FormClosing += new FormClosingEventHandler(MainForm_FormClosing);
 
             // Init stuff...
-            m_swordtask = null;
+            m_processswordtask = null;
 
             // Remember this stuff...
             m_szExecutablePath = Config.Get("executablePath","");
@@ -65,7 +65,7 @@ namespace TwainDirectOnTwain
             szScanner = Config.Get("scanner", null);
 
             // Check for a TWAIN driver, yelp if we can't find one...
-            m_szTwainDefaultDriver = Sword.GetCurrentDriver(m_szWriteFolder, szScanner);
+            m_szTwainDefaultDriver = ProcessSwordTask.GetCurrentDriver(m_szWriteFolder, szScanner);
             if (m_szTwainDefaultDriver == null)
             {
                 MessageBox.Show("No TWAIN drivers installed...", "Warning");
@@ -123,10 +123,10 @@ namespace TwainDirectOnTwain
                 m_timer.Stop();
                 m_timer = null;
             }
-            if (m_sword != null)
+            if (m_processswordtask != null)
             {
-                m_sword.Close();
-                m_sword = null;
+                m_processswordtask.Close();
+                m_processswordtask = null;
             }
         }
  
@@ -147,26 +147,23 @@ namespace TwainDirectOnTwain
         /// <param name="e"></param>
         private void m_buttonRun_Click(object sender, EventArgs e)
         {
+            bool blSuccess;
+            bool blSetAppCapabilities = true;
+
             // Protection...
-            if (m_sword != null)
+            if (m_processswordtask != null)
             {
                 return;
             }
 
             // Init stuff...
-            m_swordtask = new SwordTask();
+            m_processswordtask = new ProcessSwordTask(Path.Combine(m_szWriteFolder,"images"), null);
 
             // Buttons off, cancel on...
             SetButtonMode(ButtonMode.Scanning);
 
-            // Let the user select a default driver...
-            m_sword = Sword.Task(m_szWriteFolder, m_szTwainDefaultDriver, (string)m_listviewTasks.SelectedItems[0].Tag, m_blWriteFolderNotNull, null, ref m_swordtask);
-            if (m_sword == null)
-            {
-                MessageBox.Show("Unable to run task...", "Error");
-                SetButtonMode(ButtonMode.Ready);
-                return;
-            }
+            // Start the batch...
+            blSuccess = m_processswordtask.BatchMode("", (string)m_listviewTasks.SelectedItems[0].Tag, false, ref blSetAppCapabilities);
 
             // Set up a timer to wait for completion...
             Timer m_timer = new Timer();
@@ -185,10 +182,10 @@ namespace TwainDirectOnTwain
         /// <param name="e"></param>
         private void m_buttonCancel_Click(object sender, EventArgs e)
         {
-            if (m_sword != null)
+            if (m_processswordtask != null)
             {
                 SetButtonMode(ButtonMode.Canceled);
-                m_sword.Cancel();
+                m_processswordtask.Cancel();
             }
         }
 
@@ -199,29 +196,23 @@ namespace TwainDirectOnTwain
         /// <param name="e"></param>
         private void m_timer_Tick(object sender, EventArgs e)
         {
-            bool blError;
-
             // We still have a manager...
-            if (m_sword != null)
+            if (m_processswordtask != null)
             {
                 // Processing this action is done...
-                if (!m_sword.IsProcessing())
+                if (!m_processswordtask.IsProcessing())
                 {
-                    // See if we have another action...
-                    if (!m_sword.NextAction(out blError, ref m_swordtask, ref m_blSetAppCapabilities))
+                    // Cleanup...
+                    if (m_timer != null)
                     {
-                        // Cleanup...
-                        if (m_timer != null)
-                        {
-                            m_timer.Enabled = false;
-                            m_timer = null;
-                        }
-                        m_sword.Close();
-                        m_sword = null;
-
-                        // Turn the buttons on...
-                        SetButtonMode(ButtonMode.Ready);
+                        m_timer.Enabled = false;
+                        m_timer = null;
                     }
+                    m_processswordtask.Close();
+                    m_processswordtask = null;
+
+                    // Turn the buttons on...
+                    SetButtonMode(ButtonMode.Ready);
                 }
             }
         }
@@ -248,7 +239,7 @@ namespace TwainDirectOnTwain
         private void m_buttonSelect_Click(object sender, EventArgs e)
         {
             // Let the user select a default driver...
-            m_szTwainDefaultDriver = Sword.SelectDriver(m_szTwainDefaultDriver);
+            m_szTwainDefaultDriver = ProcessSwordTask.SelectDriver(m_szTwainDefaultDriver);
         }
 
         /// <summary>
@@ -316,9 +307,7 @@ namespace TwainDirectOnTwain
         private string m_szWriteFolder;
         private bool m_blWriteFolderNotNull;
         private Timer m_timer;
-        private Sword m_sword;
         private string m_szTwainDefaultDriver;
-        private SwordTask m_swordtask;
-        private bool m_blSetAppCapabilities;
+        private ProcessSwordTask m_processswordtask;
     }
 }

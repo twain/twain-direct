@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectScanner.Form1
+// TwainDirect.Scanner.Form1
 //
 // This is our main form.  Our goal is to keep it pretty thin, it's sole purpose
 // is to act as a presentation layer for when a windowing system is being used,
@@ -10,7 +10,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    29-Nov-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -37,9 +37,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectScanner
+namespace TwainDirect.Scanner
 {
     public partial class Form1 : Form, IDisposable
     {
@@ -352,7 +352,7 @@ namespace TwainDirectScanner
             // Turn the buttons off...
             SetButtons(ButtonState.Undefined);
             Display("");
-            Display("Registering (please wait, if there are a lot of scanner drivers, this can take a while)...");
+            Display("Looking for Scanners (please wait, this can take a while)...");
 
             // Get the list of scanners...
             szScanners = m_scanner.GetAvailableScanners();

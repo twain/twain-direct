@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectScanner.Service
+// TwainDirect.Scanner.Service
 //
 // Run the scanner as a service.
 //
@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    05-Dec-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,9 @@
 // Helpers...
 using System;
 using System.ServiceProcess;
-using TwainDirectSupport;
+using TwainDirect.Support;
 
-namespace TwainDirectScanner
+namespace TwainDirect.Scanner
 {
     public sealed class Service : ServiceBase
     {
@@ -97,7 +97,7 @@ namespace TwainDirectScanner
             ApiCmd apicmd;
 
             // Turn the buttons off...
-            Display("Registering (please wait, if there are a lot of scanner drivers, this can take a while)...");
+            Display("Looking for Scanners (please wait, this can take a while)...");
 
             // Get the list of scanners...
             szScanners = m_scanner.GetAvailableScanners();

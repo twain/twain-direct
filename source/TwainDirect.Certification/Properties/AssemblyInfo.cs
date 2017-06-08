@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectCertification AssemblyInfo
+// TwainDirect.Certification AssemblyInfo
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
@@ -34,11 +34,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("TwainDirectCertification")]
+[assembly: AssemblyTitle("TwainDirect.Certification")]
 [assembly: AssemblyDescription("TWAIN Direct Certification")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Kodak Alaris Inc.")]
-[assembly: AssemblyProduct("TwainDirectCertification")]
+[assembly: AssemblyProduct("TwainDirect.Certification")]
 [assembly: AssemblyCopyright("Copyright © 2017-2017, Kodak Alaris Inc.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
