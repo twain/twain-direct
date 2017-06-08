@@ -74,10 +74,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="pdfras_reader_managed">
-      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_reader_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\x86\Debug\pdfras_reader_managed.dll</HintPath>
     </Reference>
     <Reference Include="pdfras_writer_managed">
-      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_writer_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\x86\Debug\pdfras_writer_managed.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -100,14 +100,11 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Sword.cs" />
     <Compile Include="SwordTask.cs" />
-    <Compile Include="TestPdfRaster.cs" />
     <Compile Include="TWAIN.cs" />
     <Compile Include="TWAINCSTool.cs" />
     <Compile Include="TwainLocalOnTwain.cs" />
     <Compile Include="TWAINH.cs" />
-    <Compile Include="TwainTask.cs" />
     <EmbeddedResource Include="FormTwain.resx">
       <DependentUpon>FormTwain.cs</DependentUpon>
     </EmbeddedResource>
