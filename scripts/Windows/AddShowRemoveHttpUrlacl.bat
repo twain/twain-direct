@@ -1,6 +1,6 @@
 @echo off
-echo AddShowRemoveHttpUrlacl.bat v1.1 15-Nov-2016
-echo Copyright (c) 2016 Kodak Alaris Inc.
+echo AddShowRemoveHttpUrlacl.bat v1.2 23-Mar-2017
+echo Copyright (c) 2016 - 2017 Kodak Alaris Inc.
 echo.
 
 
@@ -21,67 +21,84 @@ if %errorLevel% NEQ 0 (
 ::
 set command=%1
 if "%1" == "" (
-	set /p command="add, adds, show, or remove? "
+	set /p command="addhttps, addhttp, show, or remove? "
 )
 
 
 ::
-:: Handle the command
+:: Dispatcher...
 ::
-if "%command%" == "add" (
-	:: clear old stuff first
-	echo Setting up for HTTP access
+if "%command%" == "addhttp" goto:Addhttp
+if "%command%" == "addhttps" goto:Addhttps
+if "%command%" == "show" goto:Show
+if "%command%" == "remove" goto:Remove
+echo Please specify "add", "adds", "show", or "remove"
+goto:done
+
+
+::
+:: HTTP
+::
+:Addhttp
+	echo Setting up for HTTP access (not recommended)
         netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
         netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
 	netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
 	netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/infoex/" > NUL
 	netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
 	netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
 	netsh http delete sslcert ipport=0.0.0.0:55555 > NUL
-	:: now add the new stuff
 	netsh http add urlacl "url=http://+:55555/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
+	netsh http add urlacl "url=http://+:55555/privet/infoex/" "sddl=D:(A;;GX;;;S-1-2-0)"
 	netsh http add urlacl "url=http://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;S-1-2-0)"
-) else (
-	if "%command%" == "adds" (
-		echo Setting up for HTTPS access
-		:: clear old stuff first
-        	netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
-        	netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
-		netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
-		netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
-		netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
-		netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
-		netsh http delete sslcert ipport=0.0.0.0:55555 > NUL
-		:: now add the new stuff
-		netsh http add urlacl "url=https://+:55555/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
-		netsh http add urlacl "url=https://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;S-1-2-0)"
-		netsh http add sslcert ipport=0.0.0.0:55555 certhash=4bcc20ab03c592d4db80ad2b4cce893f9c54ab30 appid={aadc29dd-1d81-42f5-873d-5d89cf6e58ee} certstore=my
-	) else (
-		if "%command%" == "show" (
-			netsh http show urlacl "url=http://+:55555/privet/info/"
-			netsh http show urlacl "url=https://+:55555/privet/info/"
-			netsh http show urlacl "url=http://+:55555/privet/twaindirect/session/"
-			netsh http show urlacl "url=https://+:55555/privet/twaindirect/session/"
-			netsh http show sslcert ipport=0.0.0.0:55555
-		) else (
-			if "%command%" == "remove" (
-        			netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
-        			netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
-				netsh http delete urlacl "url=http://+:55555/privet/info/"
-				netsh http delete urlacl "url=https://+:55555/privet/info/"
-				netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/"
-				netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/"
-				netsh http delete sslcert ipport=0.0.0.0:55555
-			) else (
-				echo Please specify "add", "adds", "show", or "remove"
-			)
-		)
-	)
-)
+	goto:done
 
+:Addhttps
+	echo Setting up for HTTPS access
+       	netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+       	netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete sslcert ipport=0.0.0.0:55555 > NUL
+	netsh http add urlacl "url=https://+:55555/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
+	netsh http add urlacl "url=https://+:55555/privet/infoex/" "sddl=D:(A;;GX;;;S-1-2-0)"
+	netsh http add urlacl "url=https://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;S-1-2-0)"
+	netsh http add sslcert ipport=0.0.0.0:55555 certhash=4e017253251c9357320a5d8d20eb8d3014185274 appid={aadc29dd-1d81-42f5-873d-5d89cf6e58ee} certstore=my
+	goto:done
+
+:Show	
+	echo showing
+	netsh http show urlacl "url=http://+:55555/privet/info/"
+	netsh http show urlacl "url=https://+:55555/privet/info/"
+	netsh http show urlacl "url=http://+:55555/privet/infoex/"
+	netsh http show urlacl "url=https://+:55555/privet/infoex/"
+	netsh http show urlacl "url=http://+:55555/privet/twaindirect/session/"
+	netsh http show urlacl "url=https://+:55555/privet/twaindirect/session/"
+	netsh http show sslcert ipport=0.0.0.0:55555
+	goto:done
+
+:Remove
+	echo removing
+	netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+	netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/info/"
+	netsh http delete urlacl "url=https://+:55555/privet/info/"
+	netsh http delete urlacl "url=http://+:55555/privet/infoex/"
+	netsh http delete urlacl "url=https://+:55555/privet/infoex/"
+	netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/"
+	netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/"
+	netsh http delete sslcert ipport=0.0.0.0:55555
+	goto:done
 
 ::
 :: All done...
 ::
+:done
 pause
 goto:eof

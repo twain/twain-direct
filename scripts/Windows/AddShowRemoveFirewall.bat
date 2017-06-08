@@ -1,6 +1,6 @@
 @echo off
-echo AddShowRemoveFirewall.bat v1.0 03-Nov-2016
-echo Copyright (c) 2016 Kodak Alaris Inc.
+echo AddShowRemoveFirewall.bat v1.1 06-Jun-2017
+echo Copyright (c) 2017 Kodak Alaris Inc.
 echo.
 
 
@@ -29,22 +29,16 @@ if "%1" == "" (
 :: Handle the command
 ::
 if "%command%" == "add" (
-	call:AddToFirewall "TwainDirectApplication"		"out"	"%~dp0\..\..\source\TwainDirectApplication\bin\x86"		"TwainDirectApplication.exe"
-	call:AddToFirewall "TwainDirectApplicationDebug"	"out"	"%~dp0\..\..\source\TwainDirectApplication\bin\x86\Debug"	"TwainDirectApplication.exe"
-	call:AddToFirewall "TwainDirectScanner"			"in"	""								"system"
-	call:AddToFirewall "TwainDirectScannerDebug"		"in"	""								"system"
+	call:AddToFirewall "TwainDirect.Scanner"	"in"	""	"system"
+	call:AddToFirewall "TwainDirect.ScannerDebug"	"in"	""	"system"
 ) else (
 	if "%command%" == "show" (
-		call:ShowFirewall "TwainDirectApplication"
-		call:ShowFirewall "TwainDirectApplicationDebug"
-		call:ShowFirewall "TwainDirectScanner"
-		call:ShowFirewall "TwainDirectScannerDebug"
+		call:ShowFirewall "TwainDirect.Scanner"
+		call:ShowFirewall "TwainDirect.ScannerDebug"
 	) else (
 		if "%command%" == "remove" (
-			call:RemoveFromFirewall "TwainDirectApplication"
-			call:RemoveFromFirewall "TwainDirectApplicationDebug"
-			call:RemoveFromFirewall "TwainDirectScanner"
-			call:RemoveFromFirewall "TwainDirectScannerDebug"
+			call:RemoveFromFirewall "TwainDirect.Scanner"
+			call:RemoveFromFirewall "TwainDirect.ScannerDebug"
 		) else (
 			echo Please specify "add", "show", or "remove"
 		)

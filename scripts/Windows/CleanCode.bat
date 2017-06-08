@@ -1,14 +1,20 @@
 :: 
-:: TwainDirectApplication
+:: TwainDirect.App
 ::
-rmdir /s /q %~dp0\..\..\source\TwainDirectApplication\bin
-rmdir /s /q %~dp0\..\..\source\TwainDirectApplication\obj
+rmdir /s /q %~dp0\..\..\source\TwainDirect.App\bin
+rmdir /s /q %~dp0\..\..\source\TwainDirect.App\obj
 
 :: 
-:: TwainDirectOnTwain
+:: TwainDirect.Certification
 ::
-rmdir /s /q %~dp0\..\..\source\TwainDirectOnTwain\bin
-rmdir /s /q %~dp0\..\..\source\TwainDirectOnTwain\obj
+rmdir /s /q %~dp0\..\..\source\TwainDirect.Certification\bin
+rmdir /s /q %~dp0\..\..\source\TwainDirect.Certification\obj
+
+:: 
+:: TwainDirect.OnTwain
+::
+rmdir /s /q %~dp0\..\..\source\TwainDirect.OnTwain\bin
+rmdir /s /q %~dp0\..\..\source\TwainDirect.OnTwain\obj
 
 :: 
 :: TwainDirectOnSane
@@ -17,13 +23,13 @@ rmdir /s /q %~dp0\..\..\source\TwainDirectOnSane\bin
 rmdir /s /q %~dp0\..\..\source\TwainDirectOnSane\obj
 
 :: 
-:: TwainDirectScanner
+:: TwainDirect.Scanner
 ::
-rmdir /s /q %~dp0\..\..\source\TwainDirectScanner\bin
-rmdir /s /q %~dp0\..\..\source\TwainDirectScanner\obj
+rmdir /s /q %~dp0\..\..\source\TwainDirect.Scanner\bin
+rmdir /s /q %~dp0\..\..\source\TwainDirect.Scanner\obj
 
 :: 
-:: TwainDirectSupport
+:: TwainDirect.Support
 ::
-rmdir /s /q %~dp0\..\..\source\TwainDirectSupport\bin
-rmdir /s /q %~dp0\..\..\source\TwainDirectSupport\obj
+rmdir /s /q %~dp0\..\..\source\TwainDirect.Support\bin
+rmdir /s /q %~dp0\..\..\source\TwainDirect.Support\obj

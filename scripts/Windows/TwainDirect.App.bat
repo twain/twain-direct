@@ -1,17 +1,17 @@
 :: 
 :: Debug...
 ::
-if exist %~dp0\..\..\source\TwainDirectApplication\bin\x86\Debug\TwainDirectApplication.exe (
-	cd "%~dp0\..\..\source\TwainDirectApplication\bin\x86\Debug"
-	start TwainDirectApplication.exe scale=1
+if exist %~dp0\..\..\source\TwainDirect.App\bin\x86\Debug\TwainDirect.App.exe (
+	cd "%~dp0\..\..\source\TwainDirect.App\bin\x86\Debug"
+	start TwainDirect.App.exe scale=1
 	exit
 )
 
 :: 
 :: Release...
 ::
-if exist %~dp0\..\..\source\TwainDirectApplication\bin\x86\Release\TwainDirectApplication.exe (
-	cd "%~dp0\..\..\source\TwainDirectApplication\bin\x86\Release"
-	start TwainDirectApplication.exe scale=1
+if exist %~dp0\..\..\source\TwainDirect.App\bin\x86\Release\TwainDirect.App.exe (
+	cd "%~dp0\..\..\source\TwainDirect.App\bin\x86\Release"
+	start TwainDirect.App.exe scale=1
 	exit
 )

@@ -3,29 +3,29 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.App", "TwainDirectApplication\TwainDirect.App.csproj", "{DE8AC167-CFF1-446D-9145-29179CA1B472}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.App", "TwainDirect.App\TwainDirect.App.csproj", "{DE8AC167-CFF1-446D-9145-29179CA1B472}"
 	ProjectSection(ProjectDependencies) = postProject
 		{50D52482-9C72-45B3-9BCF-1E4B49976E48} = {50D52482-9C72-45B3-9BCF-1E4B49976E48}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectOnTwain", "TwainDirectOnTwain\TwainDirectOnTwain.csproj", "{8AB4EAB2-F716-4578-827A-104BAD246488}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectOnTwain", "TwainDirect.OnTwain\TwainDirectOnTwain.csproj", "{8AB4EAB2-F716-4578-827A-104BAD246488}"
 	ProjectSection(ProjectDependencies) = postProject
 		{50D52482-9C72-45B3-9BCF-1E4B49976E48} = {50D52482-9C72-45B3-9BCF-1E4B49976E48}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectScanner", "TwainDirectScanner\TwainDirectScanner.csproj", "{F8463B8B-C0F9-46D2-86C5-053F3301DF2F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectScanner", "TwainDirect.Scanner\TwainDirectScanner.csproj", "{F8463B8B-C0F9-46D2-86C5-053F3301DF2F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{50D52482-9C72-45B3-9BCF-1E4B49976E48} = {50D52482-9C72-45B3-9BCF-1E4B49976E48}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectSupport", "TwainDirectSupport\TwainDirectSupport.csproj", "{50D52482-9C72-45B3-9BCF-1E4B49976E48}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectSupport", "TwainDirect.Support\TwainDirectSupport.csproj", "{50D52482-9C72-45B3-9BCF-1E4B49976E48}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectOnSane", "TwainDirectOnSane\TwainDirectOnSane.csproj", "{AB4D6AC2-5F73-4AE9-B1B6-D85FBCDFDCE8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectOnSane", "TwainDirect.OnSane\TwainDirectOnSane.csproj", "{AB4D6AC2-5F73-4AE9-B1B6-D85FBCDFDCE8}"
 	ProjectSection(ProjectDependencies) = postProject
 		{50D52482-9C72-45B3-9BCF-1E4B49976E48} = {50D52482-9C72-45B3-9BCF-1E4B49976E48}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectCertification", "TwainDirectCertification\TwainDirectCertification.csproj", "{ED11A4C1-1C03-4092-B1FA-F1D35C47D59D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirectCertification", "TwainDirect.Certification\TwainDirectCertification.csproj", "{ED11A4C1-1C03-4092-B1FA-F1D35C47D59D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Bridges", "Bridges", "{91332E2E-AD35-43C7-AD6D-5AAF64280C4B}"
 EndProject

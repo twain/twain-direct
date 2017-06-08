@@ -121,7 +121,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TwainDirectSupport\TwainDirectSupport.csproj">
+    <ProjectReference Include="..\TwainDirect.Support\TwainDirectSupport.csproj">
       <Project>{50d52482-9c72-45b3-9bcf-1e4b49976e48}</Project>
       <Name>TwainDirectSupport</Name>
     </ProjectReference>
