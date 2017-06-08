@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectApplication.FormSetup
+//  TwainDirect.App.FormSetup
 //
 //  This class helps us configure a TWAIN driver prior to scanning.
 //
@@ -94,11 +94,11 @@ namespace TwainDirect.App
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirectApplication.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirectApplication.WinFormStrings", typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
             m_groupboxImageDestination.Text = m_resourcemanager.GetString("strGroupboxSelectImageDestination");
             m_labelSelectDestinationFolder.Text = m_resourcemanager.GetString("strLabelSelectImageDestination");

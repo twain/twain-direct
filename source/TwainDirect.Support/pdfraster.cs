@@ -37,7 +37,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace TwainDirectSupport
+namespace TwainDirect.Support
 {
     public sealed class PdfRaster
     {

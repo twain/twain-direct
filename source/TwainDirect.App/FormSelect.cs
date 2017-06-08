@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-//  TwainDirectApplication.FormSelect
+//  TwainDirect.App.FormSelect
 //
 //  This class helps us select a TWAIN Direct scanner that we wish to open.
 //
@@ -74,11 +74,11 @@ namespace TwainDirect.App
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirectApplication.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirectApplication.WinFormStrings", typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
             m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpen");
             m_labelSelect.Text = m_resourcemanager.GetString("strLabelSelectScanner");

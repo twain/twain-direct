@@ -1,6 +1,6 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
-// TwainDirectApplication.FormScan
+// TwainDirect.App.FormScan
 //
 // This is the main class for the application.  We're showing how to select and
 // load a device.  How to configure it for a scan session, and how to capture
@@ -10,7 +10,7 @@
 //  Author          Date            Version     Comment
 //  M.McLaughlin    31-Oct-2014     0.0.0.1     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2016 Kodak Alaris Inc.
+//  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -90,11 +90,11 @@ namespace TwainDirect.App
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirectApplication.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirectApplication.WinFormStrings", typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
             m_buttonClose.Text = m_resourcemanager.GetString("strButtonClose");
             m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpen");
