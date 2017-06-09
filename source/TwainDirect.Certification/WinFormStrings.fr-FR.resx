@@ -125,10 +125,6 @@
     <value>Ouvert</value>
     <comment>Open a scanner...</comment>
   </data>
-  <data name="strButtonOpenEllipsis" xml:space="preserve">
-    <value>Ouvert...</value>
-    <comment>Open the scanner select dialog...</comment>
-  </data>
   <data name="strButtonRegisterEllipsis" xml:space="preserve">
     <value>Enregister...</value>
     <comment>Register a new scanner in the cloud...</comment>
@@ -136,6 +132,10 @@
   <data name="strButtonScan" xml:space="preserve">
     <value>Balayage</value>
     <comment>Start scanning...</comment>
+  </data>
+  <data name="strButtonSelectEllipsis" xml:space="preserve">
+    <value>Choisir...</value>
+    <comment>Open the scanner select dialog...</comment>
   </data>
   <data name="strButtonSetupEllipsis" xml:space="preserve">
     <value>Configurer...</value>

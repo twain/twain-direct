@@ -111,7 +111,7 @@ namespace TwainDirect.Certification
             // Location of current task...
             m_szCurrentTaskFile = Path.Combine(szWriteFolder, "currenttask");
 
-            // We're putting the tasks into the read folder...
+            // We're putting the tasks into the write folder...
             m_szTasksFolder = Path.Combine(szWriteFolder, "tasks");
             if (!Directory.Exists(m_szTasksFolder))
             {
@@ -119,8 +119,9 @@ namespace TwainDirect.Certification
                 {
                     Directory.CreateDirectory(m_szTasksFolder);
                 }
-                catch
+                catch (Exception exception)
                 {
+                    Log.Error("Can't create folder <" + m_szTasksFolder + ">, so using current folder - " + exception.Message);
                     m_szTasksFolder = Directory.GetCurrentDirectory();
                 }
             }
@@ -187,9 +188,9 @@ namespace TwainDirect.Certification
                 {
                     szTask = File.ReadAllText(szTaskFile);
                 }
-                catch
+                catch (Exception exception)
                 {
-                    Log.Error("Error reading: " + szTaskFile);
+                    Log.Error("Error reading: " + szTaskFile + " - " + exception.Message);
                     szTask = "";
                 }
             }
@@ -413,9 +414,9 @@ namespace TwainDirect.Certification
                     {
                         Directory.CreateDirectory(openfiledialog.InitialDirectory);
                     }
-                    catch
+                    catch (Exception exception)
                     {
-                        MessageBox.Show("Unable to create settings folder...'" + m_szTasksFolder + "'");
+                        MessageBox.Show("Unable to create settings folder...'" + m_szTasksFolder + "' - " + exception.Message);
                         return;
                     }
                 }

@@ -33,6 +33,7 @@
             this.m_buttonOpen = new System.Windows.Forms.Button();
             this.m_buttonStop = new System.Windows.Forms.Button();
             this.m_listviewCertification = new System.Windows.Forms.ListView();
+            this.m_buttonSelect = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage2)).BeginInit();
             this.SuspendLayout();
@@ -99,7 +100,7 @@
             this.m_buttonOpen.Name = "m_buttonOpen";
             this.m_buttonOpen.Size = new System.Drawing.Size(75, 23);
             this.m_buttonOpen.TabIndex = 6;
-            this.m_buttonOpen.Text = "open...";
+            this.m_buttonOpen.Text = "open";
             this.m_buttonOpen.UseVisualStyleBackColor = true;
             this.m_buttonOpen.Click += new System.EventHandler(this.m_buttonOpen_Click);
             // 
@@ -125,11 +126,23 @@
             this.m_listviewCertification.TabIndex = 8;
             this.m_listviewCertification.UseCompatibleStateImageBehavior = false;
             // 
+            // m_buttonSelect
+            // 
+            this.m_buttonSelect.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.m_buttonSelect.Location = new System.Drawing.Point(176, 453);
+            this.m_buttonSelect.Name = "m_buttonSelect";
+            this.m_buttonSelect.Size = new System.Drawing.Size(75, 23);
+            this.m_buttonSelect.TabIndex = 9;
+            this.m_buttonSelect.Text = "select...";
+            this.m_buttonSelect.UseVisualStyleBackColor = true;
+            this.m_buttonSelect.Click += new System.EventHandler(this.m_buttonSelect_Click);
+            // 
             // FormScan
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(702, 488);
+            this.Controls.Add(this.m_buttonSelect);
             this.Controls.Add(this.m_buttonStop);
             this.Controls.Add(this.m_buttonOpen);
             this.Controls.Add(this.m_buttonClose);
@@ -156,5 +169,6 @@
         private System.Windows.Forms.Button m_buttonOpen;
         private System.Windows.Forms.Button m_buttonStop;
         private System.Windows.Forms.ListView m_listviewCertification;
+        private System.Windows.Forms.Button m_buttonSelect;
     }
 }

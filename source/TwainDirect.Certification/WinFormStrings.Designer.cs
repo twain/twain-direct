@@ -79,15 +79,6 @@ namespace TwainDirect.Certification {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Open....
-        /// </summary>
-        internal static string strButtonOpenEllipsis {
-            get {
-                return ResourceManager.GetString("strButtonOpenEllipsis", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Register....
         /// </summary>
         internal static string strButtonRegisterEllipsis {
@@ -102,6 +93,15 @@ namespace TwainDirect.Certification {
         internal static string strButtonScan {
             get {
                 return ResourceManager.GetString("strButtonScan", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select....
+        /// </summary>
+        internal static string strButtonSelectEllipsis {
+            get {
+                return ResourceManager.GetString("strButtonSelectEllipsis", resourceCulture);
             }
         }
         

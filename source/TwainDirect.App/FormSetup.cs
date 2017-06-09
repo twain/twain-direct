@@ -100,7 +100,6 @@ namespace TwainDirect.App
             {
                 m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
-            m_groupboxImageDestination.Text = m_resourcemanager.GetString("strGroupboxSelectImageDestination");
             m_labelSelectDestinationFolder.Text = m_resourcemanager.GetString("strLabelSelectImageDestination");
             this.Text = m_resourcemanager.GetString("strFormSetupTitle");
 
@@ -144,22 +143,6 @@ namespace TwainDirect.App
         public bool GetMetadataWithImage()
         {
             return (m_checkboxMetadataWithImage.Checked);
-        }
-
-        /// <summary>
-        /// Get the setup mode...
-        /// </summary>
-        /// <returns></returns>
-        public SetupMode GetSetupMode()
-        {
-            // Run the certification tests...
-            if (m_checkboxTwainDirectCertifictionTests.Checked)
-            {
-                return (SetupMode.twainDirectCertification);
-            }
-
-            // Normal stuff...
-            return (SetupMode.sendTask);
         }
 
         /// <summary>
@@ -236,23 +219,6 @@ namespace TwainDirect.App
         public bool GetThumbnails()
         {
             return (m_checkboxThumbnails.Checked);
-        }
-
-        #endregion
-
-        
-        ///////////////////////////////////////////////////////////////////////////////
-        // Public Definitions...
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Public Definitions...
-
-        /// <summary>
-        /// The various ways we can run the application...
-        /// </summary>
-        public enum SetupMode
-        {
-            sendTask,
-            twainDirectCertification
         }
 
         #endregion
@@ -434,23 +400,6 @@ namespace TwainDirect.App
             {
                 openfiledialog.Dispose();
                 openfiledialog = null;
-            }
-        }
-
-        /// <summary>
-        /// Checked if we want to run the cert tests...
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void m_checkboxTwainDirectCertifictionTests_CheckedChanged(object sender, EventArgs e)
-        {
-            if (m_checkboxTwainDirectCertifictionTests.Checked)
-            {
-                m_groupboxSelectTwainDirect.Enabled = false;
-            }
-            else
-            {
-                m_groupboxSelectTwainDirect.Enabled = true;
             }
         }
 
