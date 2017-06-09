@@ -7,6 +7,14 @@ del /f /s /q %appdata%\twaindirect\TwainDirect.App\data.txt
 del /f /s /q %appdata%\twaindirect\TwainDirect.App\images\*.*
 
 :: 
+:: TwainDirect.Certification
+::
+del /f /s /q %appdata%\twaindirect\TwainDirect.Certification\*.Log
+del /f /s /q %appdata%\twaindirect\TwainDirect.Certification\cmd
+del /f /s /q %appdata%\twaindirect\TwainDirect.Certification\data.txt
+del /f /s /q %appdata%\twaindirect\TwainDirect.Certification\images\*.*
+
+:: 
 :: TwainDirectOnTwain
 ::
 del /f /s /q %appdata%\twaindirect\TwainDirect.OnTwain\*.Log

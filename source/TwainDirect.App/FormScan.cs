@@ -147,12 +147,6 @@ namespace TwainDirect.App
             m_dnssd.MonitorStart(null,IntPtr.Zero);
 
             // Get our TWAIN Local interface.
-            //
-            // For Windows we don't need a browser, because we're
-            // suppling our own callback that'll take care of getting the
-            // Authorization Code using a WebBrowser object (yay C#).
-            //
-            // No such joy for the Linux and Mac worlds...
             m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this, null);
         }
 
@@ -371,7 +365,8 @@ namespace TwainDirect.App
         }
 
         /// <summary>
-        /// The user wants to setup a customdsdata or a scan session...
+        /// The user wants to select a destination folder or a TWAIN
+        /// Direct task.  We have some other options in here too...
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -379,7 +374,7 @@ namespace TwainDirect.App
         {
             ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
 
-            // Make sure the form is centered on our form...
+            // Make sure the form is centered on our parent...
             m_formsetup.StartPosition = FormStartPosition.CenterParent;
 
             // Show the form and wait for the user to close it...
@@ -414,7 +409,7 @@ namespace TwainDirect.App
             LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null);
 
             // You won't find FormSetup.SetupMode.capturingOptions being handled
-            // here, because it's negotiation takes place entirely on the setup
+            // here, because its negotiation takes place entirely on the setup
             // dialog, so when we get here there's nothing left to do...
 
             // Send down the task...
@@ -1070,24 +1065,6 @@ namespace TwainDirect.App
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Definitions...
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Private Definitions...
-
-        /// <summary>
-        /// Columns that we list...
-        /// </summary>
-        private enum CerificationColumns
-        {
-            Category = 0,
-            Summary = 1,
-            Status = 2
-        }
-
-        #endregion
-
-
-        ///////////////////////////////////////////////////////////////////////////////
         // Private Attributes...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Attributes...
@@ -1127,10 +1104,14 @@ namespace TwainDirect.App
         /// </summary>
         private bool m_blStopCapturing;
 
-        // Setup information...
+        /// <summary>
+        /// Setup information...
+        /// </summary>
         private FormSetup m_formsetup;
 
-        // Help with the look of the form...
+        /// <summary>
+        /// Help with the look of the form...
+        /// </summary>
         private float m_fScale;
 
         /// <summary>

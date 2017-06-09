@@ -2510,7 +2510,7 @@ namespace TwainDirect.OnTwain
                                 continue;
                             }
 
-                            // Well that's not goo, not sure how we got this far, but
+                            // Well that's not good, not sure how we got this far, but
                             // go ahead and ignore it...
                             aszCapabilities = swordvalue.GetCapability();
                             if ((aszCapabilities == null) || (aszCapabilities.Length == 0))
@@ -2520,6 +2520,7 @@ namespace TwainDirect.OnTwain
                             }
 
                             // Some attributes need to set more than one TWAIN capability...
+                            string szCapabilityFail = "";
                             sts = TWAINCSToolkit.STS.SUCCESS;
                             foreach (string sz in aszCapabilities)
                             {
@@ -2529,6 +2530,7 @@ namespace TwainDirect.OnTwain
                                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                                 if (sts != TWAINCSToolkit.STS.SUCCESS)
                                 {
+                                    szCapabilityFail = szCapability;
                                     break;
                                 }
                             }
@@ -2552,6 +2554,8 @@ namespace TwainDirect.OnTwain
                                     case "fail":
                                         // Whoops, time to empty the pool...
                                         swordstatus = SwordStatus.Fail;
+                                        TWAINWorkingGroup.Log.Error("Set error: " + szCapabilityFail + szStatus);
+                                        m_swordtaskresponse.SetError("fail", swordvalue.GetJsonKey() + ".value", "invalidValue", -1);
                                         break;
                                     case "nextStream":
                                         // We're out of here...
@@ -2603,6 +2607,13 @@ namespace TwainDirect.OnTwain
                                 swordattribute.SetSwordStatus(swordstatus);
                                 break;
                         }
+
+                        // Only continue this loop on SuccessIgnore or Success...
+                        if (    (swordstatus != SwordStatus.SuccessIgnore)
+                            &&  (swordstatus != SwordStatus.Success))
+                        {
+                            break;
+                        }
                     } // END: For each attribute...
 
                     // How did we do with the attribute?
@@ -2631,6 +2642,13 @@ namespace TwainDirect.OnTwain
                             swordpixelformat.SetSwordStatus(swordstatus);
                             break;
                     }
+
+                    // Only continue this loop on SuccessIgnore or Success...
+                    if (    (swordstatus != SwordStatus.SuccessIgnore)
+                        &&  (swordstatus != SwordStatus.Success))
+                    {
+                        break;
+                    }
                 } // END: For each pixelformat...
 
                 // How did we do with the pixelformat?
@@ -2658,6 +2676,13 @@ namespace TwainDirect.OnTwain
                         swordstatus = SwordStatus.Success;
                         swordsource.SetSwordStatus(swordstatus);
                         break;
+                }
+
+                // Only continue this loop on SuccessIgnore or Success...
+                if (    (swordstatus != SwordStatus.SuccessIgnore)
+                    &&  (swordstatus != SwordStatus.Success))
+                {
+                    break;
                 }
             } // END: For each source...
 
@@ -4276,6 +4301,14 @@ namespace TwainDirect.OnTwain
             {
                 bool blSuccess;
                 SwordAction swordaction;
+
+                // Bail if we already have data, this should be error
+                // data, since this is the only function that should
+                // be constructing the response on success...
+                if (!string.IsNullOrEmpty(m_swordtaskresponse.GetTaskResponse()))
+                {
+                    return (true);
+                }
 
                 // If we don't have any actions, then return an empty action
                 // array with success...
@@ -6980,13 +7013,13 @@ namespace TwainDirect.OnTwain
 	            if (m_szTdValue == "on")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,TRUE";
-	            }
+                    m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                }
 
 	            else if (m_szTdValue == "off")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,FALSE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
                 }
 
                 else
@@ -7009,19 +7042,19 @@ namespace TwainDirect.OnTwain
 	            if (m_szTdValue == "none")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_NONE";
-	            }
+                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                }
 
 	            else if (m_szTdValue == "group4")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_GROUP4";
-	            }
+                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
+                }
 
 	            else if (m_szTdValue == "jpeg")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_JPEG";
+                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
                 }
 
                 else if (m_szTdValue == "autoVersion1")
@@ -7033,12 +7066,12 @@ namespace TwainDirect.OnTwain
 				            return (SwordStatus.SuccessIgnore);
 			            case "bw1":
                             m_aszTwValue = new string[1];
-                            m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_GROUP4";
+                            m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
                             break;
 			            case "gray8":
 			            case "rgb24":
                             m_aszTwValue = new string[1];
-                            m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_JPEG";
+                            m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
                             break;
 		            }
 	            }
@@ -7064,7 +7097,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "on")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,TRUE";
+                    m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
                     return (m_swordstatus);
                 }
 
@@ -7073,7 +7106,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "off")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,FALSE";
+                    m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
                     return (m_swordstatus);
                 }
 
@@ -7105,7 +7138,7 @@ namespace TwainDirect.OnTwain
 	            if (m_szTdValue == "automatic")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,TRUE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
                     return (m_swordstatus);
                 }
 
@@ -7119,16 +7152,16 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "fixed")
 	            {
                     m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,FALSE";
-                    m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,FALSE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                    m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "fixedAutomaticLength")
 	            {
                     m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,FALSE";
-                    m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,TRUE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                    m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
                     return (m_swordstatus);
                 }
 
@@ -7161,14 +7194,14 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "on")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,TWBP_AUTO";
+                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,-1"; // TWBP_AUTO
                 }
 
                 // Keep blank images...
                 if (m_szTdValue == "off")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,TWBP_DISABLE";
+                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,-2"; // TWBP_DISABLE
                 }
 
                 // Oh well...
@@ -7185,35 +7218,35 @@ namespace TwainDirect.OnTwain
 	            if (m_szTdValue == "off")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,TWIM_NONE";
+                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWIM_NONE
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "frontAboveRear")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,TWIM_FRONTONTOP";
+                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,1"; // TWIM_FRONTONTOP
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "frontBelowRear")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,TWIM_FRONTONBOTTOM";
+                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,2"; // TWIM_FRONTONBOTTOM
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "frontLeftOfRear")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,TWIM_FRONTONLEFT";
+                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,3"; // TWIM_FRONTONLEFT
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "frontRightOfRear")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,TWIM_FRONTONRIGHT";
+                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,4"; // TWIM_FRONTONRIGHT
                     return (m_swordstatus);
                 }
 
@@ -7231,28 +7264,28 @@ namespace TwainDirect.OnTwain
 	            if (m_szTdValue == "off")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,TWNF_NONE";
+                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,0"; // TWNF_NONE
                     return (m_swordstatus);
                 }
 
 	            if (m_szTdValue == "auto")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,TWNF_AUTO";
+                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,1"; // TWNF_AUTO
                     return (m_swordstatus);
                 }
 
 	            if (m_szTdValue == "lonePixel")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,TWNF_LONEPIXEL";
+                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,2"; // TWNF_LONEPIXEL
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "majorityRule")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,TWNF_MAJORITYRULE";
+                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,3"; // TWNF_MAJORITYRULE
                     return (m_swordstatus);
                 }
 
@@ -7299,14 +7332,14 @@ namespace TwainDirect.OnTwain
 	            if (m_szTdValue == "off")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,TWPF_CHOCOLATE";
+                    m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPF_CHOCOLATE
                     return (m_swordstatus);
                 }
 
 	            if (m_szTdValue == "on")
 	            {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,TWPF_VANILLA";
+                    m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPF_VANILLA
                     return (m_swordstatus);
                 }
 
@@ -7585,7 +7618,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "0")
                 {
                     m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,FALSE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
                     m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,0";
                     return (m_swordstatus);
                 }
@@ -7593,7 +7626,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "90")
                 {
                     m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,FALSE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
                     m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,90";
                     return (m_swordstatus);
                 }
@@ -7601,7 +7634,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "180")
                 {
                     m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,FALSE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
                     m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,180";
                     return (m_swordstatus);
                 }
@@ -7609,7 +7642,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "270")
                 {
                     m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,FALSE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
                     m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,270";
                     return (m_swordstatus);
                 }
@@ -7617,7 +7650,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "automatic")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,TRUE";
+                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
                     return (m_swordstatus);
                 }
 
@@ -7635,35 +7668,35 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "normal")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,TWPH_NORMAL";
+                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPH_NORMAL
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "fragile")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,TWPH_FRAGILE";
+                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPH_FRAGILE
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "photograph")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,TWPH_PHOTOGRAPH";
+                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,4"; // TWPH_PHOTOGRAPH
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "thick")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,TWPH_THICK";
+                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,2"; // TWPH_THICK
                     return (m_swordstatus);
                 }
 
                 if (m_szTdValue == "trifold")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,TWPH_TRIFOLD";
+                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,3"; // TWPH_TRIFOLD
                     return (m_swordstatus);
                 }
 
