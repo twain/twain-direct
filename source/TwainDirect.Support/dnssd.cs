@@ -621,7 +621,7 @@ namespace TwainDirect.Support
                         NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), m_hwnd, NativeMethods.BONJOUR_EVENT, 0);
                         m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
                     }
-                    NativeMethods.PostMessage(m_hwnd, 0x0012, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                    NativeMethods.PostMessage(m_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
                     if (!m_threadMonitor.Join(5000))
                     {
                         m_threadMonitor.Abort();
@@ -745,7 +745,7 @@ namespace TwainDirect.Support
                         NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), a_hwnd, NativeMethods.BONJOUR_EVENT, 0);
                         m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
                         m_dnsservicerefService = IntPtr.Zero;
-                        NativeMethods.PostMessage(a_hwnd, 0x0012, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                        NativeMethods.PostMessage(a_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
                     }
 
                     // All done...

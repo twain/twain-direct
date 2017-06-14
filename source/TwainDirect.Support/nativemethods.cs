@@ -39,12 +39,32 @@ namespace TwainDirect.Support
     /// <summary>
     /// P/Invokes
     /// </summary>
-    internal static class NativeMethods
+    public static class NativeMethods
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Windows
         ///////////////////////////////////////////////////////////////////////////////
         #region Windows
+
+        /// <summary>
+        /// So we can get a console window on Windows...
+        /// </summary>
+        /// <returns></returns>
+        [DllImport("kernel32.dll", EntryPoint = "AllocConsole", SetLastError = true, CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern int AllocConsole();
+
+        /// <summary>
+        /// Get the desktop window so we have a parent...
+        /// </summary>
+        /// <returns></returns>
+        [DllImport("user32.dll", SetLastError = false)]
+        public static extern IntPtr GetDesktopWindow();
+
+        [DllImport("kernel32.dll", EntryPoint = "GetStdHandle", SetLastError = true, CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern IntPtr GetStdHandle(int nStdHandle);
+
+        public const int STD_OUTPUT_HANDLE = -11;
+        public const int MY_CODE_PAGE = 437;
 
         /// <summary>
         /// Having this helps a little bit with logging on Windows, it's
@@ -68,8 +88,8 @@ namespace TwainDirect.Support
         (
             out MSG lpMsg,
             IntPtr hWnd,
-            uint wMsgFilterMin,
-            uint wMsgFilterMax
+            int wMsgFilterMin,
+            int wMsgFilterMax
         );
 
         [DllImport("user32.dll")]
@@ -105,7 +125,7 @@ namespace TwainDirect.Support
 
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        public static extern bool PostMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern IntPtr LoadLibraryExW(string lpFileName, IntPtr hReservedNull, Loadlibrary dwFlags);

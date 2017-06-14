@@ -122,16 +122,6 @@ namespace TwainDirect.Certification
             this.m_listviewCertification.Columns.Add("Summary", 400);
             this.m_listviewCertification.Columns.Add("Status", 100);
 
-            // Set up a data folder, in this instance we're assuming the project
-            // name matches the binary, so we can quickly locate it...
-            string szExecutableName = Config.Get("executableName", "");
-            string szWriteFolder = Config.Get("writeFolder", "");
-
-            // Turn on logging...
-            Log.Open(szExecutableName, szWriteFolder, 1);
-            Log.SetLevel((int)Config.Get("logLevel", 0));
-            Log.Info(szExecutableName + " Log Started...");
-
             // Init our picture box...
             InitImage();
 

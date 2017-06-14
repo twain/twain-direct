@@ -349,31 +349,4 @@ namespace TwainDirect.OnTwain
         // Our helper for getting the state value...
         private static TWAINWorkingGroup.Log.GetStateDelegate ms_getstatedelegate;
     }
-
-    /// <summary>
-    /// P/Invokes
-    /// </summary>
-    internal static class NativeMethods
-    {
-        ///////////////////////////////////////////////////////////////////////////////
-        // Windows
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Windows
-
-        /// <summary>
-        /// So we can get a console window on Windows...
-        /// </summary>
-        /// <returns></returns>
-        [DllImport("kernel32")]
-        internal static extern bool AllocConsole();
-
-        /// <summary>
-        /// Get the desktop window so we have a parent...
-        /// </summary>
-        /// <returns></returns>
-        [DllImport("user32.dll", SetLastError = false)]
-        internal static extern IntPtr GetDesktopWindow();
-
-        #endregion
-    }
 }

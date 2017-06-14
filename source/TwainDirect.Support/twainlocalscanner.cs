@@ -2694,8 +2694,7 @@ namespace TwainDirect.Support
             // We're responding to the /privet/info or the
             // /privet/infoex command...
             #region We're responding to the /privet/info command...
-            if (    (a_apicmd.GetUri() == "/privet/info")
-                ||  (a_apicmd.GetUri() == "/privet/infoex"))
+            if ((a_apicmd != null) && ((a_apicmd.GetUri() == "/privet/info") ||  (a_apicmd.GetUri() == "/privet/infoex")))
             {
                 string szDeviceState;
                 Dnssd.DnssdDeviceInfo dnssddeviceinfo = GetDnssdDeviceInfo();
@@ -2788,7 +2787,8 @@ namespace TwainDirect.Support
             ////////////////////////////////////////////////////////////////
             // /privet/twaindirect/session command
             #region /privet/twaindirect/session command
-            if (    (a_apicmd.GetUri() == "/privet/twaindirect/session")
+            if (    (a_apicmd != null)
+                &&  (a_apicmd.GetUri() == "/privet/twaindirect/session")
                 &&  !a_blWaitForEvents)
             {
                 SessionState sessionstatePrevious;
@@ -2868,7 +2868,7 @@ namespace TwainDirect.Support
             ////////////////////////////////////////////////////////////////
             // /privet/twaindirect/session event
             #region /privet/twaindirect/session event
-            if (    (a_apicmd.GetUri() == "/privet/twaindirect/session")
+            if (    ((a_apicmd == null) || (a_apicmd.GetUri() == "/privet/twaindirect/session"))
                 &&  a_blWaitForEvents)
             {
                 // This should never happen, but let's be sure...
@@ -3006,7 +3006,7 @@ namespace TwainDirect.Support
 
             // Getting this far is a bad thing.  We shouldn't be here
             // unless somebody upstream fell asleep at the switch...
-            Log.Error("UpdateSession: bad uri..." + a_apicmd.GetUri());
+            Log.Error("UpdateSession: bad uri..." + ((a_apicmd != null) ? a_apicmd.GetUri() : "no apicmd"));
             return (false);
         }
 

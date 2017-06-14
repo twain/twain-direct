@@ -82,6 +82,7 @@
     <Compile Include="dnssd.cs" />
     <Compile Include="apicmd.cs" />
     <Compile Include="httpserver.cs" />
+    <Compile Include="interpreter.cs" />
     <Compile Include="ipc.cs" />
     <Compile Include="jsonlookup.cs" />
     <Compile Include="log.cs" />

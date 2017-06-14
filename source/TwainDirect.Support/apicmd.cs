@@ -116,6 +116,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return the response data...
+        /// </summary>
+        /// <returns>the HTTP response</returns>
+        public string GetResponseData()
+        {
+            return (m_szResponseData);
+        }
+
+        /// <summary>
         /// Return the task reply...
         /// </summary>
         /// <returns>task reply in base64</returns>
@@ -131,6 +140,15 @@ namespace TwainDirect.Support
         public string GetUri()
         {
             return (m_szUri);
+        }
+
+        /// <summary>
+        /// Return the full URI for this command...
+        /// </summary>
+        /// <returns>method + uri</returns>
+        public string GetUriFull()
+        {
+            return (m_szUriFull);
         }
 
         /// <summary>
@@ -178,12 +196,21 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Return the HTTP headers...
+        /// Return the HTTP request headers...
         /// </summary>
         /// <returns>string with all the data or null</returns>
-        public string GetResponseHeaders()
+        public string[] GetRequestHeaders()
         {
-            return (m_szResponseHeaders);
+            return (m_aszRequestHeaders);
+        }
+
+        /// <summary>
+        /// Return the HTTP response headers...
+        /// </summary>
+        /// <returns>string with all the data or null</returns>
+        public string[] GetResponseHeaders()
+        {
+            return (m_aszResponseHeaders);
         }
 
         /// <summary>
@@ -427,7 +454,6 @@ namespace TwainDirect.Support
             long lImageBlockSeperator;
             string szUri;
             string szReply = "";
-            string szOutputHeaders = "";
             string szMultipartBoundary = "";
             byte[] abBuffer;
             Stream stream = null;
@@ -478,13 +504,23 @@ namespace TwainDirect.Support
             {
                 szUri = "http://" + a_dnssddeviceinfo.szIpv4 + ":" + a_dnssddeviceinfo.lPort + a_szUri;
             }
-            Log.Info("http>>> " + a_szMethod + " uri " + szUri);
+            m_szUriFull = a_szMethod + " " + szUri;
+            Log.Info("http>>> " + m_szUriFull);
             httpwebrequest = (HttpWebRequest)WebRequest.Create(szUri);
             httpwebrequest.AllowWriteStreamBuffering = true;
             httpwebrequest.KeepAlive = true;
 
             // Pick our method...
             httpwebrequest.Method = a_szMethod;
+
+            // We'd like any data lengths done before the header, so that
+            // we can offer a meaningful value for Content-Length...
+            byte[] abData = null;
+            if (!string.IsNullOrEmpty(a_szData))
+            {
+                abData = Encoding.UTF8.GetBytes(a_szData);
+                httpwebrequest.ContentLength = abData.Length;
+            }
 
             // Add any headers we have laying about...
             if (a_aszHeader != null)
@@ -497,13 +533,34 @@ namespace TwainDirect.Support
                     {
                         httpwebrequest.ContentType = szHeader.Remove(0, 14);
                     }
-                    else if (szHeader.ToLower().StartsWith("content-length: "))
-                    {
-                        httpwebrequest.ContentLength = long.Parse(szHeader.Remove(0, 16));
-                    }
                     else
                     {
                         httpwebrequest.Headers.Add(szHeader);
+                    }
+                }
+            }
+            m_aszRequestHeaders = null;
+            if (httpwebrequest.Headers != null)
+            {
+                int hh = 0;
+                if (abData == null)
+                {
+                    m_aszRequestHeaders = new string[httpwebrequest.Headers.Keys.Count];
+                }
+                else
+                {
+                    m_aszRequestHeaders = new string[httpwebrequest.Headers.Keys.Count + 1];
+                    m_aszRequestHeaders[hh++] = "Content-Length=" + httpwebrequest.ContentLength;
+                }
+                for (int kk = 0; kk < httpwebrequest.Headers.Keys.Count; kk++, hh++)
+                {
+                    if (httpwebrequest.Headers.GetValues(kk) == null)
+                    {
+                        m_aszRequestHeaders[hh] = httpwebrequest.Headers.Keys.Get(kk) + "=";
+                    }
+                    else
+                    {
+                        m_aszRequestHeaders[hh] = httpwebrequest.Headers.Keys.Get(kk) + "=" + httpwebrequest.Headers.GetValues(kk).GetValue(0);
                     }
                 }
             }
@@ -512,12 +569,9 @@ namespace TwainDirect.Support
             httpwebrequest.Timeout = a_iTimeout;
 
             // Data we're sending...
-            if (a_szData != null)
+            if (abData != null)
             {
                 Log.Info("http>>> senddata " + a_szData);
-                byte[] abData = null;
-                abData = Encoding.UTF8.GetBytes(a_szData);
-                httpwebrequest.ContentLength = abData.Length;
                 if (httpwebrequest.ContentType == null)
                 {
                     // We shouldn't be getting here...
@@ -585,6 +639,24 @@ namespace TwainDirect.Support
 
             // Dump the status...
             Log.Info("http>>> recvsts " + (int)(HttpStatusCode)httpwebresponse.StatusCode + " (" + httpwebresponse.StatusCode + ")");
+
+            // Get the response headers, if any...
+            m_aszResponseHeaders = null;
+            if (httpwebresponse.Headers != null)
+            {
+                m_aszResponseHeaders = new string[httpwebresponse.Headers.Keys.Count];
+                for (int kk = 0; kk < m_aszResponseHeaders.Length; kk++)
+                {
+                    if (httpwebresponse.Headers.GetValues(kk) == null)
+                    {
+                        m_aszResponseHeaders[kk] = httpwebresponse.Headers.Keys.Get(kk) + "=";
+                    }
+                    else
+                    {
+                        m_aszResponseHeaders[kk] = httpwebresponse.Headers.Keys.Get(kk) + "=" + httpwebresponse.Headers.GetValues(kk).GetValue(0);
+                    }
+                }
+            }
 
             // Dump the header info...
             if ((Log.GetLevel() & 0x0002) != 0)
@@ -840,7 +912,6 @@ namespace TwainDirect.Support
 
             // All done, final check...
             m_szResponseHttpStatus = ((int)httpwebresponse.StatusCode).ToString();
-            m_szResponseHeaders = szOutputHeaders;
             m_szResponseData = szReply;
             if (int.Parse(m_szResponseHttpStatus) >= 300)
             {
@@ -1553,6 +1624,7 @@ namespace TwainDirect.Support
         /// The URI used to call us...
         /// </summary>
         private string m_szUri;
+        private string m_szUriFull;
 
         /// <summary>
         /// True if we should use HTTPS...
@@ -1622,9 +1694,10 @@ namespace TwainDirect.Support
         private long m_lResponseCharacterOffset;
 
         /// <summary>
-        /// Headers that went with the sata returned to us...
+        /// Headers that went with the data returned to us...
         /// </summary>
-        private string m_szResponseHeaders;
+        private string[] m_aszRequestHeaders;
+        private string[] m_aszResponseHeaders;
 
         /// <summary>
         /// Data returned to us...

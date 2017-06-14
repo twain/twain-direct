@@ -168,24 +168,4 @@ namespace TwainDirect.Scanner
             WINDOW
         }
     }
-
-    /// <summary>
-    /// P/Invokes
-    /// </summary>
-    internal static class NativeMethods
-    {
-        ///////////////////////////////////////////////////////////////////////////////
-        // Windows
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Windows
-
-        /// <summary>
-        /// So we can get a console window on Windows...
-        /// </summary>
-        /// <returns></returns>
-        [DllImport("kernel32")]
-        internal static extern bool AllocConsole();
-
-        #endregion
-    }
 }
