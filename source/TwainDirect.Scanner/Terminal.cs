@@ -308,6 +308,12 @@ namespace TwainDirect.Scanner
                 {
                     break;
                 }
+
+                // Status...
+                if (iChar == '?')
+                {
+                    m_scanner.GetInfo();
+                }
             }
 
             // Stop...

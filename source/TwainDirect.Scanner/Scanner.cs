@@ -159,6 +159,20 @@ namespace TwainDirect.Scanner
             return (szList);
         }
 
+        // Get information about our session...
+        public void GetInfo()
+        {
+            // Ain't got one...
+            if (m_twainlocalscanner == null)
+            {
+                Console.Out.WriteLine("no TWAIN Local session...");
+                return;
+            }
+
+            // Info...
+            Console.Out.WriteLine("State: " + m_twainlocalscanner.GetState());
+        }
+
         /// <summary>
         /// Start polling for tasks...
         /// </summary>

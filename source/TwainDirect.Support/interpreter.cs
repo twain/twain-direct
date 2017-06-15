@@ -125,6 +125,13 @@ namespace TwainDirect.Support
                 return (aszTokens);
             }
 
+            // Handle comments and whitespace...
+            if (a_szCmd[0] == ';')
+            {
+                aszTokens[tt] = "";
+                return (aszTokens);
+            }
+
             // If we have no special characters, then we're done...
             if (a_szCmd.IndexOfAny(new char[] { ' ', '\t', '\'', '"' }) == -1)
             {
@@ -221,11 +228,10 @@ namespace TwainDirect.Support
         {
             string szCmd;
 
-            // The command to find...
+            // Apparently we got nothing, it's a noop...
             if ((a_aszCmd == null) || (a_aszCmd.Length == 0) || string.IsNullOrEmpty(a_aszCmd[0]))
             {
-                Console.Out.WriteLine("dispatch error...");
-                return (true);
+                return (false);
             }
 
             // Find the command...

@@ -81,6 +81,8 @@ namespace TwainDirect.Certification
 
             // Build our command table...
             m_ldispatchtable = new List<Interpreter.DispatchTable>();
+
+            // Api commands...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,          new string[] { "close", "closesession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,         new string[] { "create", "createsession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,            new string[] { "get", "getsession" }));
@@ -89,9 +91,12 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,        new string[] { "start", "startcapturing" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,         new string[] { "stop", "stopcapturing" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,         new string[] { "wait", "waitforevents" }));
+
+            // Other stuff...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                     new string[] { "h", "help", "?" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                     new string[] { "l", "list" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                     new string[] { "ex", "exit", "q", "quit" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                      new string[] { "r", "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                   new string[] { "s", "select" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                   new string[] { "status" }));
 
@@ -408,21 +413,22 @@ namespace TwainDirect.Certification
         private bool CmdHelp(string[] a_aszCmd)
         {
             Console.Out.WriteLine("Discovery and Selection");
-            Console.Out.WriteLine("help                - this text");
-            Console.Out.WriteLine("list                - list scanners");
-            Console.Out.WriteLine("quit                - exit the program");
-            Console.Out.WriteLine("select              - select 'scanner'");
-            Console.Out.WriteLine("status              - status of the program");
+            Console.Out.WriteLine("help                               - this text");
+            Console.Out.WriteLine("list                               - list scanners");
+            Console.Out.WriteLine("quit                               - exit the program");
+            Console.Out.WriteLine("run [script]                       - run a script");
+            Console.Out.WriteLine("select {pattern}                   - select a scanner");
+            Console.Out.WriteLine("status                             - status of the program");
             Console.Out.WriteLine("");
             Console.Out.WriteLine("Image Capture (in order of use)");
-            Console.Out.WriteLine("infoex              - get information about the scanner");
-            Console.Out.WriteLine("createsession       - create a new session");
-            Console.Out.WriteLine("getsession          - show the current session object");
-            Console.Out.WriteLine("waitforevents       - wait for events, like session object changes");
-            Console.Out.WriteLine("startcapturing      - start capturing new images");
-            Console.Out.WriteLine("releaseimageblocks  - release images blocks in the scanner");
-            Console.Out.WriteLine("stopcapturing       - stop capturing new images");
-            Console.Out.WriteLine("closesession        - close the current session");
+            Console.Out.WriteLine("infoex                             - get information about the scanner");
+            Console.Out.WriteLine("createsession                      - create a new session");
+            Console.Out.WriteLine("getsession                         - show the current session object");
+            Console.Out.WriteLine("waitforevents                      - wait for events, like session object changes");
+            Console.Out.WriteLine("startcapturing                     - start capturing new images");
+            Console.Out.WriteLine("releaseimageblocks {first} {last}  - release images blocks in the scanner");
+            Console.Out.WriteLine("stopcapturing                      - stop capturing new images");
+            Console.Out.WriteLine("closesession                       - close the current session");
             return (false);
         }
 
@@ -467,6 +473,108 @@ namespace TwainDirect.Certification
         private bool CmdQuit(string[] a_aszCmd)
         {
             return (true);
+        }
+
+        /// <summary>
+        /// With no arguments, list the scripts.  With an argument,
+        /// run the specified script.
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdRun(string[] a_aszCmd)
+        {
+            string szPrompt = "tdc>>> ";
+            string[] aszScript;
+            string szScriptFile;
+            Interpreter interpreter;
+
+            // List...
+            if ((a_aszCmd == null) || (a_aszCmd.Length < 2) || (a_aszCmd[1] == null))
+            {
+                // Get the script files...
+                string[] aszScriptFiles = Directory.GetFiles(".", "*.tdc");
+                if ((aszScriptFiles == null) || (aszScriptFiles.Length == 0))
+                {
+                    Console.Out.WriteLine("no script files found");
+                }
+
+                // List what we found...
+                Console.Out.WriteLine("SCRIPT FILES");
+                foreach (string sz in aszScriptFiles)
+                {
+                    Console.Out.WriteLine(sz.Replace(".tdc",""));
+                }
+
+                // All done...
+                return (false);
+            }
+
+            // Make sure the file exists...
+            szScriptFile = a_aszCmd[1];
+            if (!File.Exists(szScriptFile))
+            {
+                szScriptFile = a_aszCmd[1] + ".tdc";
+                if (!File.Exists(szScriptFile))
+                {
+                    Console.Out.WriteLine("script not found");
+                    return (false);
+                }
+            }
+
+            // Read the file...
+            try
+            {
+                aszScript = File.ReadAllLines(szScriptFile);
+            }
+            catch (Exception exception)
+            {
+                Console.Out.WriteLine("failed to read script: " + exception.Message);
+                return (false);
+            }
+
+            // Give ourselves an interpreter...
+            interpreter = new Interpreter("");
+
+            // Run each line in the script...
+            foreach (string szLine in aszScript)
+            {
+                bool blDone;
+                string[] aszCmd;
+
+                // Show the command...
+                Console.Out.WriteLine(szPrompt + szLine.Trim());
+
+                // Tokenize...
+                aszCmd = interpreter.Tokenize(szLine.Trim());
+
+                // Dispatch...
+                blDone = interpreter.Dispatch(aszCmd, m_ldispatchtable);
+                if (blDone)
+                {
+                    break;
+                }
+
+                // Update the prompt with state information...
+                if (m_twainlocalscanner == null)
+                {
+                    szPrompt = "tdc>>> ";
+                }
+                else
+                {
+                    switch (m_twainlocalscanner.GetState())
+                    {
+                        default: szPrompt = "tdc." + m_twainlocalscanner.GetState() + ">>> "; break;
+                        case "noSession": szPrompt = "tdc>>> "; break;
+                        case "ready": szPrompt = "tdc.rdy>>> "; break;
+                        case "capturing": szPrompt = "tdc.cap>>> "; break;
+                        case "draining": szPrompt = "tdc.drn>>> "; break;
+                        case "closed": szPrompt = "tdc.cls>>> "; break;
+                    }
+                }
+            }
+
+            // All done...
+            return (false);
         }
 
         /// <summary>
