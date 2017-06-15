@@ -40,7 +40,7 @@ namespace TwainDirect.Support
     /// <summary>
     /// Interpret and dispatch user commands...
     /// </summary>
-    public class Interpreter
+    public sealed class Interpreter
     {
         // Public Methods
         #region Public Methods
@@ -89,6 +89,15 @@ namespace TwainDirect.Support
 
             // All done...
             return (szCmd);
+        }
+
+        /// <summary>
+        /// Change the prompt...
+        /// </summary>
+        /// <param name="a_szPrompt">new prompt</param>
+        public void SetPrompt(string a_szPrompt)
+        {
+            m_szPrompt = a_szPrompt;
         }
 
         /// <summary>

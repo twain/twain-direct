@@ -81,14 +81,19 @@ namespace TwainDirect.Certification
 
             // Build our command table...
             m_ldispatchtable = new List<Interpreter.DispatchTable>();
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,  new string[] { "cl", "closesession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession, new string[] { "cr", "createsession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,        new string[] { "in", "infoex" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,             new string[] { "h", "help", "?" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,             new string[] { "l", "list" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,             new string[] { "ex", "exit", "q", "quit" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,           new string[] { "s", "select" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,           new string[] { "status" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,          new string[] { "cl", "close", "closesession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,         new string[] { "cr", "create", "createsession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,            new string[] { "get", "getsession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                new string[] { "in", "info", "infoex" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,    new string[] { "rel", "releaseimageblocks" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,        new string[] { "start", "startcapturing" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,         new string[] { "stop", "stopcapturing" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,         new string[] { "wait", "waitforevents" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                     new string[] { "h", "help", "?" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                     new string[] { "l", "list" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                     new string[] { "ex", "exit", "q", "quit" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                   new string[] { "s", "select" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                   new string[] { "status" }));
 
             // Say hi...
             Assembly assembly = typeof(Terminal).Assembly;
@@ -105,7 +110,8 @@ namespace TwainDirect.Certification
         /// </summary>
         public void Run()
         {
-            Interpreter interpreter = new Interpreter("tdc>>> ");
+            string szPrompt = "tdc";
+            Interpreter interpreter = new Interpreter(szPrompt + ">>> ");
 
             // Run until told to stop...
             while (true)
@@ -126,14 +132,25 @@ namespace TwainDirect.Certification
                 {
                     return;
                 }
+
+                // Update the prompt with state information...
+                switch (m_twainlocalscanner.GetState())
+                {
+                    default: interpreter.SetPrompt(szPrompt + "." + m_twainlocalscanner.GetState() + ">>> "); break;
+                    case "noSession": interpreter.SetPrompt(szPrompt + ">>> "); break;
+                    case "ready": interpreter.SetPrompt(szPrompt + ".rdy>>> "); break;
+                    case "capturing": interpreter.SetPrompt(szPrompt + ".cap>>> "); break;
+                    case "draining": interpreter.SetPrompt(szPrompt + ".drn>>> "); break;
+                    case "closed": interpreter.SetPrompt(szPrompt + ".cls>>> "); break;
+                }
             }
         }
 
         #endregion
 
 
-        // Private Methods (commands)
-        #region Private Methods (commands)
+        // Private Methods (api)
+        #region Private Methods (api)
 
         /// <summary>
         /// Close a session...
@@ -190,6 +207,33 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Get the current session object
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiGetsession(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerGetSession(ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Send an infoex command to the selected scanner...
         /// </summary>
         /// <param name="a_aszCmd">tokenized command</param>
@@ -217,17 +261,161 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Release or or more image blocks, or all image blocks...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiReleaseimageblocks(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+            long lFirstImageBlock;
+            long lLastImageBlock;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+            if (a_aszCmd.Length < 3)
+            {
+                Console.Out.WriteLine("please specify the first and last image block to release...");
+                return (false);
+            }
+
+            // Get the values...
+            if (!long.TryParse(a_aszCmd[1], out lFirstImageBlock))
+            {
+                Console.Out.WriteLine("first image block must be a number...");
+                return (false);
+            }
+            if (!long.TryParse(a_aszCmd[2], out lLastImageBlock))
+            {
+                Console.Out.WriteLine("last image block must be a number...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerReleaseImageBlocks(lFirstImageBlock, lLastImageBlock, ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Start capturing...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiStartcapturing(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Stop capturing...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiStopcapturing(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Wait for events, like changes to the session object...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiWaitforevents(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        #endregion
+
+
+        // Private Methods (commands)
+        #region Private Methods (commands)
+
+        /// <summary>
         /// Help the user...
         /// </summary>
         /// <param name="a_aszCmd">tokenized command</param>
         /// <returns>true to quit</returns>
         private bool CmdHelp(string[] a_aszCmd)
         {
-            Console.Out.WriteLine("help   - this text");
-            Console.Out.WriteLine("list   - list scanners");
-            Console.Out.WriteLine("quit   - exit the program");
-            Console.Out.WriteLine("select - select 'scanner'");
-            Console.Out.WriteLine("status - status of the program");
+            Console.Out.WriteLine("Discovery and Selection");
+            Console.Out.WriteLine("help                - this text");
+            Console.Out.WriteLine("list                - list scanners");
+            Console.Out.WriteLine("quit                - exit the program");
+            Console.Out.WriteLine("select              - select 'scanner'");
+            Console.Out.WriteLine("status              - status of the program");
+            Console.Out.WriteLine("");
+            Console.Out.WriteLine("Image Capture (in order of use)");
+            Console.Out.WriteLine("infoex              - get information about the scanner");
+            Console.Out.WriteLine("createsession       - create a new session");
+            Console.Out.WriteLine("getsession          - show the current session object");
+            Console.Out.WriteLine("waitforevents       - wait for events, like session object changes");
+            Console.Out.WriteLine("startcapturing      - start capturing new images");
+            Console.Out.WriteLine("releaseimageblocks  - release images blocks in the scanner");
+            Console.Out.WriteLine("stopcapturing       - stop capturing new images");
+            Console.Out.WriteLine("closesession        - close the current session");
             return (false);
         }
 

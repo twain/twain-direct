@@ -241,6 +241,19 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return the current state...
+        /// </summary>
+        /// <returns>the enum as a string</returns>
+        public string GetState()
+        {
+            if (m_twainlocalsession == null)
+            {
+                return ("noSession");
+            }
+            return (m_twainlocalsession.GetSessionState().ToString());
+        }
+
+        /// <summary>
         /// Quick access to our platform id.  We probably need a better way to
         /// figure this all out...
         /// </summary>
@@ -1080,9 +1093,9 @@ namespace TwainDirect.Support
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
-                    "Content-Type: application/json; charset=UTF-8",
-                    "X-Privet-Token: " + m_szXPrivetToken
-                },
+                        "Content-Type: application/json; charset=UTF-8",
+                        "X-Privet-Token: " + m_szXPrivetToken
+                    },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
@@ -3901,6 +3914,11 @@ namespace TwainDirect.Support
         {
             FileSystemWatcherHelper filesystemwatcherhelper = (FileSystemWatcherHelper)source;
             ApiCmd apicmdEvent = filesystemwatcherhelper.GetTwainLocalScanner().GetApiCmdEvent();
+            if (apicmdEvent == null)
+            {
+                Log.Error("The session has been modified, but we have no apicmdEvent, did you forget to run DeviceScannerWaitForEvents?");
+                return;
+            }
             filesystemwatcherhelper.GetTwainLocalScanner().DeviceScannerGetSession(ref apicmdEvent, true, true, "imageBlocks");
         }
 
