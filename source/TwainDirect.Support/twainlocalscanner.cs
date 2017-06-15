@@ -1078,6 +1078,7 @@ namespace TwainDirect.Support
 
                 // Check our state...
                 if (    (m_twainlocalsession.GetSessionState() != SessionState.capturing)
+                    &&  (m_twainlocalsession.GetSessionState() != SessionState.draining)
                     &&  (m_twainlocalsession.GetSessionState() != SessionState.closed))
                 {
                     ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
@@ -1117,10 +1118,11 @@ namespace TwainDirect.Support
                 }
 
                 // If closeSession was previously called, we can be in a closed
-                // state, until all of the image blocks have been released...
-                if (    (m_twainlocalsession.GetSessionState() == SessionState.closed)
-                    &&  ((m_twainlocalsession.m_alSessionImageBlocks == null)
-                    ||  (m_twainlocalsession.m_alSessionImageBlocks.Length == 0)))
+                // state, until all of the image blocks have been released.  We'll
+                // also go noSession if our m_twainlocalsession has gone bye-bye...
+                if (    (m_twainlocalsession == null)
+                    ||  ((m_twainlocalsession.GetSessionState() == SessionState.closed)
+                    &&  ((m_twainlocalsession.m_alSessionImageBlocks == null) || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))))
                 {
                     SetSessionState(SessionState.noSession);
                 }
@@ -2677,6 +2679,53 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Try to shutdown TWAIN Direct on TWAIN...
+        /// </summary>
+        /// <param name="a_blForce">force the shutdown</param>
+        private void DeviceShutdownTwainDirectOnTwain(bool a_blForce)
+        {
+            // Apparently we've already done this...
+            if (m_twainlocalsession == null)
+            {
+                return;
+            }
+
+            //
+            // We'll only fully shutdown if we have no outstanding
+            // images, so the close reply should tell us that, then
+            // we can issue and exit to shut it down.  If we know
+            // that the session is closed, then the releaseImageBlocks
+            // function is the one that'll do the final shutdown when
+            // the last block is released...
+            if (!a_blForce && (m_twainlocalsession != null) && (m_twainlocalsession.GetSessionState() != SessionState.noSession))
+            {
+                return;
+            }
+
+            // Shut down the process...
+            if (m_twainlocalsession.GetIpcTwainDirectOnTwain() != null)
+            {
+                m_twainlocalsession.GetIpcTwainDirectOnTwain().Dispose();
+                m_twainlocalsession.SetIpcTwainDirectOnTwain(null);
+            }
+
+            // Make sure the process is gone...
+            if (m_twainlocalsession.GetProcessTwainDirectOnTwain() != null)
+            {
+                // Log what we're doing...
+                Log.Info("kill>>> " + m_twainlocalsession.GetProcessTwainDirectOnTwain().StartInfo.FileName);
+                Log.Info("kill>>> " + m_twainlocalsession.GetProcessTwainDirectOnTwain().StartInfo.Arguments);
+
+                // Wait a bit for it...
+                if (!m_twainlocalsession.GetProcessTwainDirectOnTwain().WaitForExit(5000))
+                {
+                    m_twainlocalsession.GetProcessTwainDirectOnTwain().Kill();
+                }
+                m_twainlocalsession.SetProcessTwainDirectOnTwain(null);
+            }
+        }
+
+        /// <summary>
         /// Update the session object...
         /// </summary>
         /// <param name="a_szReason">something for logging</param>
@@ -3053,6 +3102,8 @@ namespace TwainDirect.Support
         private bool DeviceScannerCloseSession(ref ApiCmd a_apicmd)
         {
             bool blSuccess;
+            long lResponseCharacterOffset;
+            string szIpc;
             string szFunction = "DeviceScannerCloseSession";
 
             // Protect our stuff...
@@ -3094,10 +3145,37 @@ namespace TwainDirect.Support
                     "}"
                 );
 
-                // Get the result, we're not going to check it, though, because
-                // we're going to close the session no matter what happens with
-                // the TWAIN driver...
-                m_twainlocalsession.GetIpcTwainDirectOnTwain().Read();
+                // Get the result...
+                JsonLookup jsonlookup = new JsonLookup();
+                szIpc = m_twainlocalsession.GetIpcTwainDirectOnTwain().Read();
+                if (!jsonlookup.Load(szIpc, out lResponseCharacterOffset))
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lResponseCharacterOffset);
+                    return (false);
+                }
+
+                // Update the ApiCmd command object...
+                switch (m_twainlocalsession.GetSessionState())
+                {
+                    default:
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                        break;
+                    case SessionState.capturing:
+                    case SessionState.draining:
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                        break;
+                }
+
+                // Parse it...
+                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                {
+                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    if (!blSuccess)
+                    {
+                        Log.Error(szFunction + ": error parsing the reply (but we're going to continue)...");
+                        // keep going, we can't lock the user into this state
+                    }
+                }
 
                 // Exit the process...
                 m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
@@ -3106,35 +3184,6 @@ namespace TwainDirect.Support
                     "\"method\":\"exit\"" +
                     "}"
                 );
-
-                // We'll only fully shutdown if we have no outstanding
-                // images, so the close reply should tell us that, then
-                // we can issue and exit to shut it down.  If we know
-                // that the session is closed, then the releaseImageBlocks
-                // function is the one that'll do the final shutdown when
-                // the last block is released...
-
-                // Shut down the process...
-                if (m_twainlocalsession.GetIpcTwainDirectOnTwain() != null)
-                {
-                    m_twainlocalsession.GetIpcTwainDirectOnTwain().Dispose();
-                    m_twainlocalsession.SetIpcTwainDirectOnTwain(null);
-                }
-
-                // Make sure the process is gone...
-                if (m_twainlocalsession.GetProcessTwainDirectOnTwain() != null)
-                {
-                    // Log what we're doing...
-                    Log.Info("kill>>> " + m_twainlocalsession.GetProcessTwainDirectOnTwain().StartInfo.FileName);
-                    Log.Info("kill>>> " + m_twainlocalsession.GetProcessTwainDirectOnTwain().StartInfo.Arguments);
-
-                    // Wait a bit for it...
-                    if (!m_twainlocalsession.GetProcessTwainDirectOnTwain().WaitForExit(5000))
-                    {
-                        m_twainlocalsession.GetProcessTwainDirectOnTwain().Kill();
-                    }
-                    m_twainlocalsession.SetProcessTwainDirectOnTwain(null);
-                }
 
                 // Reply to the command with a session object...
                 blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.closed, -1, null);
@@ -3150,6 +3199,10 @@ namespace TwainDirect.Support
                 {
                     SetSessionState(SessionState.noSession);
                 }
+
+                // Shutdown TWAIN Direct on TWAIN, but only if we've run out of
+                // images...
+                DeviceShutdownTwainDirectOnTwain(false);
             }
 
             // All done...
@@ -3783,6 +3836,25 @@ namespace TwainDirect.Support
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
                         return (false);
+                    }
+                }
+
+                // If we're out of imageBlocks, and can't get anymore,
+                // then transition to nosession or ready...
+                if (string.IsNullOrEmpty(a_apicmd.GetImageBlocks()))
+                {
+                    switch (GetState())
+                    {
+                        default:
+                            // Ignore it...
+                            break;
+                        case "draining":
+                            SetSessionState(SessionState.ready);
+                            break;
+                        case "closed":
+                            SetSessionState(SessionState.noSession);
+                            DeviceShutdownTwainDirectOnTwain(false);
+                            break;
                     }
                 }
             }
@@ -4876,7 +4948,15 @@ namespace TwainDirect.Support
                     }
                     if (m_processTwainDirectOnTwain != null)
                     {
-                        m_processTwainDirectOnTwain.Kill();
+                        try
+                        {
+                            m_processTwainDirectOnTwain.Kill();
+                        }
+                        catch
+                        {
+                            // Not really interested in what we catch.
+                            // Unless it's a goretrout... :)
+                        }
                         m_processTwainDirectOnTwain.Dispose();
                         m_processTwainDirectOnTwain = null;
                     }

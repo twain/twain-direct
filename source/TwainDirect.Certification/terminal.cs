@@ -81,11 +81,11 @@ namespace TwainDirect.Certification
 
             // Build our command table...
             m_ldispatchtable = new List<Interpreter.DispatchTable>();
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,          new string[] { "cl", "close", "closesession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,         new string[] { "cr", "create", "createsession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,          new string[] { "close", "closesession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,         new string[] { "create", "createsession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,            new string[] { "get", "getsession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                new string[] { "in", "info", "infoex" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,    new string[] { "rel", "releaseimageblocks" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                new string[] { "info", "infoex" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,    new string[] { "release", "releaseimageblocks" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,        new string[] { "start", "startcapturing" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,         new string[] { "stop", "stopcapturing" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,         new string[] { "wait", "waitforevents" }));
@@ -134,14 +134,21 @@ namespace TwainDirect.Certification
                 }
 
                 // Update the prompt with state information...
-                switch (m_twainlocalscanner.GetState())
+                if (m_twainlocalscanner == null)
                 {
-                    default: interpreter.SetPrompt(szPrompt + "." + m_twainlocalscanner.GetState() + ">>> "); break;
-                    case "noSession": interpreter.SetPrompt(szPrompt + ">>> "); break;
-                    case "ready": interpreter.SetPrompt(szPrompt + ".rdy>>> "); break;
-                    case "capturing": interpreter.SetPrompt(szPrompt + ".cap>>> "); break;
-                    case "draining": interpreter.SetPrompt(szPrompt + ".drn>>> "); break;
-                    case "closed": interpreter.SetPrompt(szPrompt + ".cls>>> "); break;
+                    interpreter.SetPrompt(szPrompt + ">>> ");
+                }
+                else
+                {
+                    switch (m_twainlocalscanner.GetState())
+                    {
+                        default: interpreter.SetPrompt(szPrompt + "." + m_twainlocalscanner.GetState() + ">>> "); break;
+                        case "noSession": interpreter.SetPrompt(szPrompt + ">>> "); break;
+                        case "ready": interpreter.SetPrompt(szPrompt + ".rdy>>> "); break;
+                        case "capturing": interpreter.SetPrompt(szPrompt + ".cap>>> "); break;
+                        case "draining": interpreter.SetPrompt(szPrompt + ".drn>>> "); break;
+                        case "closed": interpreter.SetPrompt(szPrompt + ".cls>>> "); break;
+                    }
                 }
             }
         }

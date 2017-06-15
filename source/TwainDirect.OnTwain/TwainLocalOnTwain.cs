@@ -967,15 +967,16 @@ namespace TwainDirect.OnTwain
                 return (TwainLocalScanner.ApiStatus.invalidSessionId);
             }
 
+            // Build the reply (we need this before the close so that we can get
+            // the image block info, if there is any)...
+            DeviceScannerGetSession(out a_szSession);
+
             // Close the driver...
             szStatus = "";
             m_twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_CLOSEDS", ref m_szTwainDriverIdentity, ref szStatus);
             m_twaincstoolkit.Cleanup();
             m_twaincstoolkit = null;
             m_szTwainDriverIdentity = null;
-
-            // Build the reply...
-            DeviceScannerGetSession(out a_szSession);
 
             // All done...
             return (TwainLocalScanner.ApiStatus.success);
