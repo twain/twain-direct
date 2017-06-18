@@ -39,7 +39,7 @@ namespace TwainDirect.Support
     /// <summary>
     /// P/Invokes
     /// </summary>
-    public static class NativeMethods
+    public sealed class NativeMethods
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Windows
@@ -107,28 +107,12 @@ namespace TwainDirect.Support
             int lEvent
         );
 
-        [Flags]
-        public enum Loadlibrary : uint
-        {
-            DONT_RESOLVE_DLL_REFERENCES = 0x00000001,
-            LOAD_IGNORE_CODE_AUTHZ_LEVEL = 0x00000010,
-            LOAD_LIBRARY_AS_DATAFILE = 0x00000002,
-            LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE = 0x00000040,
-            LOAD_LIBRARY_AS_IMAGE_RESOURCE = 0x00000020,
-            LOAD_LIBRARY_SEARCH_APPLICATION_DIR = 0x00000200,
-            LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000,
-            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR = 0x00000100,
-            LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800,
-            LOAD_LIBRARY_SEARCH_USER_DIRS = 0x00000400,
-            LOAD_WITH_ALTERED_SEARCH_PATH = 0x00000008
-        }
-
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         public static extern bool PostMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern IntPtr LoadLibraryExW(string lpFileName, IntPtr hReservedNull, Loadlibrary dwFlags);
+        public static extern IntPtr LoadLibraryExW(string lpFileName, IntPtr hReservedNull, int dwFlags);
 
         [DllImport("kernel32", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         public static extern IntPtr GetProcAddress
@@ -165,9 +149,9 @@ namespace TwainDirect.Support
            [MarshalAs(UnmanagedType.LPWStr)] string lpClassName,
            [MarshalAs(UnmanagedType.LPWStr)] string lpWindowName,
            Int32 dwStyle,
-           UInt32 x,
+           Int32 x,
            Int32 y,
-           UInt32 nWidth,
+           Int32 nWidth,
            Int32 nHeight,
            IntPtr hWndParent,
            IntPtr hMenu,
@@ -200,14 +184,14 @@ namespace TwainDirect.Support
         public struct MSG
         {
             public IntPtr hwnd;
-            public UInt32 message;
+            public Int32 message;
             public IntPtr wParam;
             public IntPtr lParam;
-            public UInt32 time;
+            public Int32 time;
             public POINT pt;
         }
 
-        public delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        public delegate IntPtr WndProcDelegate(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         [SuppressMessage("Microsoft.Design", "CA1049:TypesThatOwnNativeResourcesShouldBeDisposable", Justification = "Not allocating any resources.")]
@@ -232,7 +216,7 @@ namespace TwainDirect.Support
         public static extern IntPtr GetModuleHandleW(string lpModuleName);
 
         [DllImport("user32.dll")]
-        public static extern IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+        public static extern IntPtr DefWindowProc(IntPtr hWnd, int iMsg, IntPtr wParam, IntPtr lParam);
 
         #endregion
     }

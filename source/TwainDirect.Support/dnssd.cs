@@ -217,9 +217,9 @@ namespace TwainDirect.Support
                 wcex.lpszClassName,
                 wcex.lpszClassName,
                 0,
-                0x80000000, // CW_USEDEFAULT
+                -2147483648, // CW_USEDEFAULT
                 0,
-                0x80000000, // CW_USEDEFAULT
+                -2147483648, // CW_USEDEFAULT
                 0,
                 IntPtr.Zero,
                 IntPtr.Zero,
@@ -665,7 +665,7 @@ namespace TwainDirect.Support
         internal IntPtr WndProcLaunchpad
         (
             IntPtr a_hwnd,
-            uint a_uiMsg,
+            int a_iMsg,
             IntPtr a_wparam,
             IntPtr a_lparam
         )
@@ -687,7 +687,7 @@ namespace TwainDirect.Support
             // If we don't have our object, then scoot...
             if (intptrGchandle == IntPtr.Zero)
             {
-                return (NativeMethods.DefWindowProc(a_hwnd, a_uiMsg, a_wparam, a_lparam));
+                return (NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam));
             }
 
             // Otherwise we can pass this to our handler...
@@ -695,7 +695,7 @@ namespace TwainDirect.Support
             dnssd = (gchandle.Target as Dnssd);
 
             // Dispatch it...
-            return (dnssd.WndProc(a_hwnd, a_uiMsg, a_wparam, a_lparam));
+            return (dnssd.WndProc(a_hwnd, a_iMsg, a_wparam, a_lparam));
         }
 
         /// <summary>
@@ -712,7 +712,7 @@ namespace TwainDirect.Support
         internal IntPtr WndProc
         (
             IntPtr a_hwnd,
-            uint a_uiMsg,
+            int a_iMsg,
             IntPtr a_wparam,
             IntPtr a_lparam
         )
@@ -720,10 +720,10 @@ namespace TwainDirect.Support
             Int32 dnsserviceerrortype;
 
             // Dispatch the message...
-            switch (a_uiMsg)
+            switch (a_iMsg)
             {
                 default:
-                    return (NativeMethods.DefWindowProc(a_hwnd, a_uiMsg, a_wparam, a_lparam));
+                    return (NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam));
 
                 case NativeMethods.BONJOUR_EVENT:
                     // Process the Bonjour event. All Bonjour callbacks occur from within this function.

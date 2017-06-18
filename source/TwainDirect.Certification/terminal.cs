@@ -84,14 +84,15 @@ namespace TwainDirect.Certification
             m_ldispatchtable = new List<Interpreter.DispatchTable>();
 
             // Api commands...
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,          new string[] { "close", "closesession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,         new string[] { "create", "createsession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,            new string[] { "get", "getsession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,          new string[] { "close", "closesession", "closeSession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,         new string[] { "create", "createsession", "createSession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,            new string[] { "get", "getsession", "getSession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                new string[] { "info", "infoex" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,    new string[] { "release", "releaseimageblocks" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,        new string[] { "start", "startcapturing" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,         new string[] { "stop", "stopcapturing" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,         new string[] { "wait", "waitforevents" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,    new string[] { "release", "releaseimageblocks", "releaseImageBlocks" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiSendtask,              new string[] { "send", "sendtask", "sendTask" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,        new string[] { "start", "startcapturing", "startCapturing" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,         new string[] { "stop", "stopcapturing", "stopCapturing" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,         new string[] { "wait", "waitforevents", "waitForEvents" }));
 
             // Other stuff...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                     new string[] { "h", "help", "?" }));
@@ -347,6 +348,59 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Send task...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiSendtask(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+            string szTask;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+
+            // Must supply a task...
+            if ((a_aszCmd.Length < 2) || (a_aszCmd[1] == null))
+            {
+                Console.Out.WriteLine("must supply a task...");
+                return (false);
+            }
+
+            // Is the argument a file?
+            if (File.Exists(a_aszCmd[1]))
+            {
+                try
+                {
+                    szTask = File.ReadAllText(a_aszCmd[1]);
+                }
+                catch (Exception exception)
+                {
+                    Console.Out.WriteLine("failed to open file...<" + a_aszCmd[1] + "> - " + exception.Message);
+                    return (false);
+                }
+            }
+            else
+            {
+                szTask = a_aszCmd[1];
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerSendTask(szTask, ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Start capturing...
         /// </summary>
         /// <param name="a_aszCmd">tokenized command</param>
@@ -450,13 +504,14 @@ namespace TwainDirect.Certification
             Console.Out.WriteLine("");
             Console.Out.WriteLine("Image Capture (in order of use)");
             Console.Out.WriteLine("infoex                             - get information about the scanner");
-            Console.Out.WriteLine("createsession                      - create a new session");
-            Console.Out.WriteLine("getsession                         - show the current session object");
-            Console.Out.WriteLine("waitforevents                      - wait for events, like session object changes");
-            Console.Out.WriteLine("startcapturing                     - start capturing new images");
-            Console.Out.WriteLine("releaseimageblocks {first} {last}  - release images blocks in the scanner");
-            Console.Out.WriteLine("stopcapturing                      - stop capturing new images");
-            Console.Out.WriteLine("closesession                       - close the current session");
+            Console.Out.WriteLine("createSession                      - create a new session");
+            Console.Out.WriteLine("getSession                         - show the current session object");
+            Console.Out.WriteLine("waitForEvents                      - wait for events, like session object changes");
+            Console.Out.WriteLine("sendTask {task|file}               - send task");
+            Console.Out.WriteLine("startCapturing                     - start capturing new images");
+            Console.Out.WriteLine("releaseImageBlocks {first} {last}  - release images blocks in the scanner");
+            Console.Out.WriteLine("stopCapturing                      - stop capturing new images");
+            Console.Out.WriteLine("closeSession                       - close the current session");
             return (false);
         }
 

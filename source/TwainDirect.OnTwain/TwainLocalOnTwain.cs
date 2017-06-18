@@ -992,14 +992,14 @@ namespace TwainDirect.OnTwain
                 case 7:
                     szStatus = "";
                     szPendingxfers = "0,0";
-                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXGERS", "MSG_ENDXFER", ref szPendingxfers, ref szStatus);
+                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_ENDXFER", ref szPendingxfers, ref szStatus);
                     break;
 
                 // DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET...
                 case 6:
                     szStatus = "";
                     szPendingxfers = "0,0";
-                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXGERS", "MSG_RESET", ref szPendingxfers, ref szStatus);
+                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingxfers, ref szStatus);
                     break;
 
                 // DG_CONTROL / DAT_USERINTERFACE / MSG_DISABLEDS, but only if we have no images...
