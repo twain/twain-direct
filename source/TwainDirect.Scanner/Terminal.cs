@@ -302,6 +302,10 @@ namespace TwainDirect.Scanner
 
                 // Read the data...
                 iChar = Console.In.Read();
+                while (Console.In.Peek() != -1)
+                {
+                    Console.In.Read();
+                }
 
                 // We're done...
                 if ((iChar == '\r') || (iChar == '\n'))

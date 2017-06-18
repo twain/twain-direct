@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using TwainDirect.Support;
 using Microsoft.Win32.SafeHandles;
 
@@ -98,6 +99,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                     new string[] { "ex", "exit", "q", "quit" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                      new string[] { "r", "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                   new string[] { "s", "select" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                    new string[] { "sleep" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                   new string[] { "status" }));
 
             // Say hi...
@@ -307,9 +309,35 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
-            // Make the call...
-            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerReleaseImageBlocks(lFirstImageBlock, lLastImageBlock, ref apicmd);
+            // Loop so we can handle the release-all scenerio...
+            while (true)
+            {
+                // Make the call...
+                apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+                m_twainlocalscanner.ClientScannerReleaseImageBlocks(lFirstImageBlock, lLastImageBlock, ref apicmd);
+
+                // Scoot...
+                if ((lFirstImageBlock != 1) || (lLastImageBlock != int.MaxValue))
+                {
+                    break;
+                }
+
+                // Otherwise, we'll only scoot if we're out of images, we
+                // must be in a draining state for this to be allowed...
+                if (apicmd.GetSessionState() != "draining")
+                {
+                    break;
+                }
+
+                // If the flag says we're done, then we're done...
+                if (apicmd.GetImageBlocksDrained())
+                {
+                    break;
+                }
+
+                // Wait a little before beating up the scanner with another attempt...
+                Thread.Sleep(1000);
+            }
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -659,6 +687,32 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Sleep some number of milliseconds...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdSleep(string[] a_aszCmd)
+        {
+            int iMilliseconds;
+
+            // Get the milliseconds...
+            if ((a_aszCmd == null) || (a_aszCmd.Length < 2) || !int.TryParse(a_aszCmd[1], out iMilliseconds))
+            {
+                iMilliseconds = 0;
+            }
+            if (iMilliseconds < 0)
+            {
+                iMilliseconds = 0;
+            }
+
+            // Wait...
+            Thread.Sleep(iMilliseconds);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Status of the program...
         /// </summary>
         /// <param name="a_aszCmd">tokenized command</param>
@@ -704,32 +758,14 @@ namespace TwainDirect.Certification
             ApiCmd a_apicmd
         )
         {
-            // Display what we sent...
-            Console.Out.WriteLine("REQURI: " + a_apicmd.GetUriFull());
-            string[] aszRequestHeaders = a_apicmd.GetRequestHeaders();
-            if (aszRequestHeaders != null)
+            ApiCmd.Transaction transaction = new ApiCmd.Transaction(a_apicmd);
+            List<string> lszTransation = transaction.GetAll();
+            if (lszTransation != null)
             {
-                foreach (string sz in aszRequestHeaders)
+                foreach (string sz in lszTransation)
                 {
-                    Console.Out.WriteLine("REQHDR: " + sz);
+                    Console.Out.WriteLine(sz);
                 }
-            }
-            Console.Out.WriteLine("REQDAT: " + a_apicmd.GetSendCommand());
-
-            // Report the result...
-            Console.Out.WriteLine("RSPSTS: " + a_apicmd.HttpStatus());
-            string[] aszResponseHeaders = a_apicmd.GetResponseHeaders();
-            if (aszResponseHeaders != null)
-            {
-                foreach (string sz in aszResponseHeaders)
-                {
-                    Console.Out.WriteLine("RSPHDR: " + sz);
-                }
-            }
-            string szResponseData = a_apicmd.GetResponseData();
-            if (!string.IsNullOrEmpty(szResponseData))
-            {
-                Console.Out.WriteLine("RSPDAT: " + szResponseData);
             }
         }
 

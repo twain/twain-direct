@@ -34,12 +34,12 @@
 
 // Helpers...
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.Net;
 using System.Net.Mime;
 using System.Text;
-using System.Threading;
 
 namespace TwainDirect.Support
 {
@@ -143,6 +143,16 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Get a transaction object for this http request/response...
+        /// </summary>
+        /// <returns></returns>
+        public Transaction GetTransaction()
+        {
+            Transaction transaction = new Transaction(this);
+            return (transaction);
+        }
+
+        /// <summary>
         /// Return the full URI for this command...
         /// </summary>
         /// <returns>method + uri</returns>
@@ -239,8 +249,16 @@ namespace TwainDirect.Support
             return (m_szEventName);
         }
 
+        /// <summary>
+        /// The state of the session, as of this command...
+        /// </summary>
+        /// <returns>the session state as a string</returns>
         public string GetSessionState()
         {
+            if (string.IsNullOrEmpty(m_szSessionState))
+            {
+                return ("noSession");
+            }
             return (m_szSessionState);
         }
 
@@ -504,8 +522,9 @@ namespace TwainDirect.Support
             {
                 szUri = "http://" + a_dnssddeviceinfo.szIpv4 + ":" + a_dnssddeviceinfo.lPort + a_szUri;
             }
-            m_szUriFull = a_szMethod + " " + szUri;
-            Log.Info("http>>> " + m_szUriFull);
+            m_szMethod = a_szMethod + " " + szUri;
+            m_szUriFull = szUri;
+            Log.Info("http>>> " + m_szMethod + " " + m_szUriFull);
             httpwebrequest = (HttpWebRequest)WebRequest.Create(szUri);
             httpwebrequest.AllowWriteStreamBuffering = true;
             httpwebrequest.KeepAlive = true;
@@ -1301,6 +1320,103 @@ namespace TwainDirect.Support
             Event
         }
 
+        /// <summary>
+        /// A class that captures the request/response information for one
+        /// HTTP transaction...
+        /// </summary>
+        public class Transaction
+        {
+            /// <summary>
+            /// Squirrel away the transaction data...
+            /// </summary>
+            /// <param name="a_apicmd"></param>
+            public Transaction(ApiCmd a_apicmd)
+            {
+                m_szUriMethod = a_apicmd.m_szMethod;
+                m_szUriFull = a_apicmd.m_szUriFull;
+                m_aszRequestHeaders = a_apicmd.GetRequestHeaders();
+                m_szRequestData = a_apicmd.GetSendCommand();
+                m_szResponseStatus = a_apicmd.HttpStatus().ToString();
+                m_aszResponseHeaders = a_apicmd.GetResponseHeaders();
+                m_szResponseData = a_apicmd.GetResponseData();
+            }
+
+            /// <summary>
+            /// Get the transaction data in a form suitable for display...
+            /// </summary>
+            /// <returns></returns>
+            public List<string> GetAll()
+            {
+                List<string> lszTransation = new List<string>();
+
+                // The request...
+                lszTransation.Add("REQURI: " + m_szUriMethod + " " + m_szUriFull);
+                if (m_aszRequestHeaders != null)
+                {
+                    foreach (string sz in m_aszRequestHeaders)
+                    {
+                        lszTransation.Add("REQHDR: " + sz);
+                    }
+                }
+                if (!string.IsNullOrEmpty(m_szRequestData))
+                {
+                    lszTransation.Add("REQDAT: " + m_szRequestData);
+                }
+
+                // The response...
+                lszTransation.Add("RSPSTS: " + m_szResponseStatus);
+                if (m_aszResponseHeaders != null)
+                {
+                    foreach (string sz in m_aszResponseHeaders)
+                    {
+                        lszTransation.Add("RSPHDR: " + sz);
+                    }
+                }
+                if (!string.IsNullOrEmpty(m_szResponseData))
+                {
+                    lszTransation.Add("RSPDAT: " + m_szResponseData);
+                }
+
+                // Return the result...
+                return (lszTransation);
+            }
+
+            /// <summary>
+            /// The method: GET, POST, etc...
+            /// </summary>
+            private string m_szUriMethod;
+
+            /// <summary>
+            ///  The full URI that we used...
+            /// </summary>
+            private string m_szUriFull;
+
+            /// <summary>
+            /// Request headers, or null...
+            /// </summary>
+            private string[] m_aszRequestHeaders;
+
+            /// <summary>
+            /// Reqeust data or null...
+            /// </summary>
+            private string m_szRequestData;
+
+            /// <summary>
+            /// Response status...
+            /// </summary>
+            private string m_szResponseStatus;
+
+            /// <summary>
+            /// Response headers, or null...
+            /// </summary>
+            private string[] m_aszResponseHeaders;
+
+            /// <summary>
+            /// Response data, or null...
+            /// </summary>
+            private string m_szResponseData;
+        }
+
         #endregion
 
 
@@ -1623,6 +1739,7 @@ namespace TwainDirect.Support
         /// <summary>
         /// The URI used to call us...
         /// </summary>
+        private string m_szMethod;
         private string m_szUri;
         private string m_szUriFull;
 

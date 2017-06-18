@@ -473,18 +473,18 @@ namespace TwainDirect.OnTwain
                 else
                 { // if uncompressed, need to remove BMP EOL conditions
                     UInt32 rowWidthInBytesNotBMP = 0;
-                    switch(rasterpixelformat)
+                    switch (rasterpixelformat)
                     {
-                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL : rowWidthInBytesNotBMP = (a_u32Width + 7) / 8; break;
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL: rowWidthInBytesNotBMP = (a_u32Width + 7) / 8; break;
                         case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE: rowWidthInBytesNotBMP = a_u32Width; break;
                         case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB: rowWidthInBytesNotBMP = a_u32Width * 3; break;
                     }
-                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3)/4)*4;
-                    byte[] abImageNotBMP = new byte [rowWidthInBytesNotBMP * a_u32Height];
+                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3) / 4) * 4;
+                    byte[] abImageNotBMP = new byte[rowWidthInBytesNotBMP * a_u32Height];
 
                     UInt32 srcOffset = (UInt32)a_iImageOffset;
                     UInt32 dstOffset = 0;
-                    for (UInt32 i=0; i<a_u32Height; ++i)
+                    for (UInt32 i = 0; i < a_u32Height; ++i)
                     {
                         Array.Copy(a_abImage, srcOffset, abImageNotBMP, dstOffset, rowWidthInBytesNotBMP);
                         srcOffset += rowWidthInBytesOfBMP;
@@ -499,9 +499,9 @@ namespace TwainDirect.OnTwain
 
                 // clean up
                 pdfRasWr.encoder_destroy(enc);
-           }
-           catch (Exception exception)
-           {
+            }
+            catch (Exception exception)
+            {
                 TWAINWorkingGroup.Log.Error("unable to open " + a_szPdfRasterFile + " for writing");
                 TWAINWorkingGroup.Log.Error(exception.Message);
                 blSuccess = false;
@@ -536,7 +536,7 @@ namespace TwainDirect.OnTwain
             // All done...
             return (a_lLength);
         }
-        
+
         #endregion
 
 
@@ -957,6 +957,8 @@ namespace TwainDirect.OnTwain
         private TwainLocalScanner.ApiStatus DeviceScannerCloseSession(out string a_szSession)
         {
             string szStatus;
+            string szPendingxfers;
+            string szUserinterface;
 
             // Init stuff...
             a_szSession = "";
@@ -971,12 +973,42 @@ namespace TwainDirect.OnTwain
             // the image block info, if there is any)...
             DeviceScannerGetSession(out a_szSession);
 
-            // Close the driver...
-            szStatus = "";
-            m_twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_CLOSEDS", ref m_szTwainDriverIdentity, ref szStatus);
-            m_twaincstoolkit.Cleanup();
-            m_twaincstoolkit = null;
-            m_szTwainDriverIdentity = null;
+            // If we're out of images, then bail...
+            if (m_blImageBlocksDrained)
+            {
+                // Close the driver...
+                szStatus = "";
+                m_twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_CLOSEDS", ref m_szTwainDriverIdentity, ref szStatus);
+                m_twaincstoolkit.Cleanup();
+                m_twaincstoolkit = null;
+                m_szTwainDriverIdentity = null;
+                return (TwainLocalScanner.ApiStatus.success);
+            }
+
+            // Otherwise, just make sure we've stopped scanning...
+            switch (this.m_twaincstoolkit.GetState())
+            {
+                // DG_CONTROL / DAT_PENDINGXFERS / MSG_ENDXFER...
+                case 7:
+                    szStatus = "";
+                    szPendingxfers = "0,0";
+                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXGERS", "MSG_ENDXFER", ref szPendingxfers, ref szStatus);
+                    break;
+
+                // DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET...
+                case 6:
+                    szStatus = "";
+                    szPendingxfers = "0,0";
+                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXGERS", "MSG_RESET", ref szPendingxfers, ref szStatus);
+                    break;
+
+                // DG_CONTROL / DAT_USERINTERFACE / MSG_DISABLEDS, but only if we have no images...
+                case 5:
+                    szStatus = "";
+                    szUserinterface = "0,0";
+                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_DISABLEDS", ref szUserinterface, ref szStatus);
+                    break;
+            }
 
             // All done...
             return (TwainLocalScanner.ApiStatus.success);
@@ -1059,7 +1091,7 @@ namespace TwainDirect.OnTwain
             // Make sure the images folder is empty...
             if (Directory.Exists(m_szImagesFolder))
             {
-                Directory.Delete(m_szImagesFolder,true);
+                Directory.Delete(m_szImagesFolder, true);
             }
             Directory.CreateDirectory(m_szImagesFolder);
 
@@ -1260,7 +1292,7 @@ namespace TwainDirect.OnTwain
                     bitmap = new Bitmap(imageThumbnail);
 
                     // Convert it from 32bit rgb to 24bit rgb...
-                    bitmapdata = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height),ImageLockMode.ReadOnly,bitmap.PixelFormat);
+                    bitmapdata = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
                     byte[] abImageBgr = new byte[bitmapdata.Stride * bitmap.Height];
                     System.Runtime.InteropServices.Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
                     int iNewStride = (bitmapdata.Stride - (bitmapdata.Stride / 4)); // lose the A from BGRA
@@ -1299,17 +1331,22 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
-        /// Return the requested file...
+        /// Release image blocks.  Compare what the user asks to release
+        /// to what we really have, or we could be here for a while...
         /// </summary>
-        /// <param name="a_jsonlookup">data for the open</param>
+        /// <param name="a_jsonlookup">data for the command</param>
         /// <param name="a_szSession">the session data</param>
         /// <returns>a twain local status</returns>
         private TwainLocalScanner.ApiStatus DeviceScannerReleaseImageBlocks(JsonLookup a_jsonlookup, out string a_szSession)
         {
-            string szFile;
             int ii;
             int iImageBlockNum;
             int iLastImageBlockNum;
+            int iImageBlockNumFile;
+            int iLastImageBlockNumFile;
+            string szFile;
+            string szNumber;
+            string[] aszFiles;
 
             // Init stuff...
             a_szSession = "";
@@ -1317,6 +1354,43 @@ namespace TwainDirect.OnTwain
             // Get the endpoints (inclusive)...
             iImageBlockNum = int.Parse(a_jsonlookup.Get("imageBlockNum"));
             iLastImageBlockNum = int.Parse(a_jsonlookup.Get("lastImageBlockNum"));
+
+            // Get the files...
+            aszFiles = Directory.GetFiles(m_szImagesFolder, "img*.pdf");
+
+            // If we have no files, build the reply and return...
+            if ((aszFiles == null) || (aszFiles.Length == 0))
+            {
+                DeviceScannerGetSession(out a_szSession);
+                return (TwainLocalScanner.ApiStatus.success);
+            }
+
+            // Make sure the list is sorted...
+            Array.Sort(aszFiles);
+
+            // Get the number for the first file we found...
+            szNumber = aszFiles[0].Substring(Path.Combine(m_szImagesFolder, "img").Length, 6);
+            if (!int.TryParse(szNumber, out iImageBlockNumFile))
+            {
+                iImageBlockNumFile = iImageBlockNum;
+            }
+
+            // Get the number for the last file we found...
+            szNumber = aszFiles[aszFiles.Length - 1].Substring(Path.Combine(m_szImagesFolder, "img").Length, 6);
+            if (!int.TryParse(szNumber, out iLastImageBlockNumFile))
+            {
+                iLastImageBlockNumFile = iLastImageBlockNum;
+            }
+
+            // Pin the caller's numbers to what we really have...
+            if (iImageBlockNum < iImageBlockNumFile)
+            {
+                iImageBlockNum = iImageBlockNumFile;
+            }
+            if (iLastImageBlockNum > iLastImageBlockNumFile)
+            {
+                iLastImageBlockNum = iLastImageBlockNumFile;
+            }
 
             // Loopy...
             for (ii = iImageBlockNum; ii <= iLastImageBlockNum; ii++)
@@ -1494,6 +1568,7 @@ namespace TwainDirect.OnTwain
         {
             string szStatus;
             string szUserinterface;
+            string szPendingxfers;
             TWAINCSToolkit.STS sts;
 
             // Init stuff...
@@ -1505,8 +1580,23 @@ namespace TwainDirect.OnTwain
                 return (TwainLocalScanner.ApiStatus.invalidSessionId);
             }
 
+            // It looks like we're done, so declare success and scoot...
+            if (m_twaincstoolkit.GetState() <= 4)
+            {
+                sts = TWAINCSToolkit.STS.SUCCESS;
+            }
+
+            // We never got to state 6, this can happen if the request to
+            // stopCapturing comes in before we're processed MSG_XFERREADY...
+            else if (m_twaincstoolkit.GetState() == 5)
+            {
+                szStatus = "";
+                szUserinterface = "0,0";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_DISABLEDS", ref szUserinterface, ref szStatus);
+            }
+
             // We're done scanning, so bail...
-            if (m_blImageBlocksDrained)
+            else if (m_blImageBlocksDrained)
             {
                 sts = TWAINCSToolkit.STS.SUCCESS;
                 if (m_twaincstoolkit.GetState() == 5)
@@ -1521,8 +1611,16 @@ namespace TwainDirect.OnTwain
             else
             {
                 szStatus = "";
-                szUserinterface = "0,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_STOPFEEDER", ref szUserinterface, ref szStatus);
+                szPendingxfers = "0,0";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingxfers, ref szStatus);
+
+                // That didn't go well, then end abruptly...
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    szStatus = "";
+                    szPendingxfers = "0,0";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingxfers, ref szStatus);
+                }
             }
 
             // Build the reply...
