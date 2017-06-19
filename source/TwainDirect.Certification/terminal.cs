@@ -6,7 +6,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
-//  M.McLaughlin    21-Oct-2014     Initial Release
+//  M.McLaughlin    01-Jun-2017     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Copyright (C) 2014-2017 Kodak Alaris Inc.
 //
@@ -84,24 +84,26 @@ namespace TwainDirect.Certification
             m_ldispatchtable = new List<Interpreter.DispatchTable>();
 
             // Api commands...
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,          new string[] { "close", "closesession", "closeSession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,         new string[] { "create", "createsession", "createSession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,            new string[] { "get", "getsession", "getSession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                new string[] { "info", "infoex" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,    new string[] { "release", "releaseimageblocks", "releaseImageBlocks" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiSendtask,              new string[] { "send", "sendtask", "sendTask" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,        new string[] { "start", "startcapturing", "startCapturing" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,         new string[] { "stop", "stopcapturing", "stopCapturing" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,         new string[] { "wait", "waitforevents", "waitForEvents" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,              new string[] { "close", "closesession", "closeSession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,             new string[] { "create", "createsession", "createSession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,                new string[] { "get", "getsession", "getSession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                    new string[] { "info", "infoex" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReadimageblockmetadata,    new string[] { "readimageblockmetadata", "readImageBlockMetadata" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReadimageblock,            new string[] { "readimageblock", "readImageBlock" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,        new string[] { "release", "releaseimageblocks", "releaseImageBlocks" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiSendtask,                  new string[] { "send", "sendtask", "sendTask" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,            new string[] { "start", "startcapturing", "startCapturing" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,             new string[] { "stop", "stopcapturing", "stopCapturing" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,             new string[] { "wait", "waitforevents", "waitForEvents" }));
 
             // Other stuff...
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                     new string[] { "h", "help", "?" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                     new string[] { "l", "list" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                     new string[] { "ex", "exit", "q", "quit" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                      new string[] { "r", "run" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                   new string[] { "s", "select" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                    new string[] { "sleep" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                   new string[] { "status" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                         new string[] { "h", "help", "?" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                         new string[] { "l", "list" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                         new string[] { "ex", "exit", "q", "quit" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "r", "run" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                       new string[] { "s", "select" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                        new string[] { "sleep" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                       new string[] { "status" }));
 
             // Say hi...
             Assembly assembly = typeof(Terminal).Assembly;
@@ -267,6 +269,98 @@ namespace TwainDirect.Certification
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Read an image data block's metadata and thumbnail...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiReadimageblockmetadata(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+            long lImageBlock;
+            bool blGetThumbnail;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+            if (a_aszCmd.Length < 3)
+            {
+                Console.Out.WriteLine("please specify image block to read and thumbnail flag...");
+                return (false);
+            }
+
+            // Get the image block number...
+            if (!long.TryParse(a_aszCmd[1], out lImageBlock))
+            {
+                Console.Out.WriteLine("image block must be a number...");
+                return (false);
+            }
+            if (!bool.TryParse(a_aszCmd[2], out blGetThumbnail))
+            {
+                Console.Out.WriteLine("thumbnail flag must be true or false...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerReadImageBlockMetadata(lImageBlock, blGetThumbnail, null, ref apicmd);
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Read an image data block and it's metadata...
+        /// </summary>
+        /// <param name="a_aszCmd">tokenized command</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiReadimageblock(string[] a_aszCmd)
+        {
+            ApiCmd apicmd;
+            long lImageBlock;
+            bool blGetMetadataWithImage;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Console.Out.WriteLine("must first select a scanner...");
+                return (false);
+            }
+            if (a_aszCmd.Length < 3)
+            {
+                Console.Out.WriteLine("please specify image block to read and thumbnail flag...");
+                return (false);
+            }
+
+            // Get the image block number...
+            if (!long.TryParse(a_aszCmd[1], out lImageBlock))
+            {
+                Console.Out.WriteLine("image block must be a number...");
+                return (false);
+            }
+            if (!bool.TryParse(a_aszCmd[2], out blGetMetadataWithImage))
+            {
+                Console.Out.WriteLine("getmetdata flag must be true or false...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerReadImageBlock(lImageBlock, blGetMetadataWithImage, null, ref apicmd);
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -494,24 +588,207 @@ namespace TwainDirect.Certification
         /// <returns>true to quit</returns>
         private bool CmdHelp(string[] a_aszCmd)
         {
-            Console.Out.WriteLine("Discovery and Selection");
-            Console.Out.WriteLine("help                               - this text");
-            Console.Out.WriteLine("list                               - list scanners");
-            Console.Out.WriteLine("quit                               - exit the program");
-            Console.Out.WriteLine("run [script]                       - run a script");
-            Console.Out.WriteLine("select {pattern}                   - select a scanner");
-            Console.Out.WriteLine("status                             - status of the program");
-            Console.Out.WriteLine("");
-            Console.Out.WriteLine("Image Capture (in order of use)");
-            Console.Out.WriteLine("infoex                             - get information about the scanner");
-            Console.Out.WriteLine("createSession                      - create a new session");
-            Console.Out.WriteLine("getSession                         - show the current session object");
-            Console.Out.WriteLine("waitForEvents                      - wait for events, like session object changes");
-            Console.Out.WriteLine("sendTask {task|file}               - send task");
-            Console.Out.WriteLine("startCapturing                     - start capturing new images");
-            Console.Out.WriteLine("releaseImageBlocks {first} {last}  - release images blocks in the scanner");
-            Console.Out.WriteLine("stopCapturing                      - stop capturing new images");
-            Console.Out.WriteLine("closeSession                       - close the current session");
+            string szCommand;
+
+            // Summary...
+            if ((a_aszCmd == null) || (a_aszCmd.Length < 2) || (a_aszCmd[1] == null))
+            {
+                Console.Out.WriteLine("Discovery and Selection");
+                Console.Out.WriteLine("help.........................................this text");
+                Console.Out.WriteLine("list.........................................list scanners");
+                Console.Out.WriteLine("quit.........................................exit the program");
+                Console.Out.WriteLine("run [script].................................run a script");
+                Console.Out.WriteLine("select {pattern}.............................select a scanner");
+                Console.Out.WriteLine("status.......................................status of the program");
+                Console.Out.WriteLine("");
+                Console.Out.WriteLine("Image Capture APIs (in order of use)");
+                Console.Out.WriteLine("infoex.......................................get information about the scanner");
+                Console.Out.WriteLine("createSession................................create a new session");
+                Console.Out.WriteLine("getSession...................................show the current session object");
+                Console.Out.WriteLine("waitForEvents................................wait for events, like session object changes");
+                Console.Out.WriteLine("sendTask {task|file}.........................send task");
+                Console.Out.WriteLine("startCapturing...............................start capturing new images");
+                Console.Out.WriteLine("readImageBlockMetadata {block} {thumbnail}...read metadata for a block");
+                Console.Out.WriteLine("readImageBlock {block} {metadata}............read image data block");
+                Console.Out.WriteLine("releaseImageBlocks {first} {last}............release images blocks in the scanner");
+                Console.Out.WriteLine("stopCapturing................................stop capturing new images");
+                Console.Out.WriteLine("closeSession.................................close the current session");
+                return (false);
+            }
+
+            // Get the command...
+            szCommand = a_aszCmd[1].ToLower();
+
+            // Discovery and Selection
+            #region Discovery and Selection
+
+            // Help...
+            if ((szCommand == "help"))
+            {
+                Console.Out.WriteLine("HELP [COMMAND]");
+                Console.Out.WriteLine("Provides assistence with command and their arguments.  It does not");
+                Console.Out.WriteLine("go into detail on TWAIN Direct.  Please read the Specifications for");
+                Console.Out.WriteLine("more information.");
+                Console.Out.WriteLine("");
+                Console.Out.WriteLine("Curly brackets {} indicate mandatory arguments to a command.  Square");
+                Console.Out.WriteLine("brackets [] indicate optional arguments.");
+                return (false);
+            }
+
+            // List...
+            if ((szCommand == "list"))
+            {
+                Console.Out.WriteLine("LIST");
+                Console.Out.WriteLine("List the scanners that are advertising themselves.  Note that the");
+                Console.Out.WriteLine("same scanner make be seen multiple times, if it's being advertised");
+                Console.Out.WriteLine("on more than one network.");
+                return (false);
+            }
+
+            // Quit...
+            if ((szCommand == "quit"))
+            {
+                Console.Out.WriteLine("QUIT");
+                Console.Out.WriteLine("Exit from this program.");
+                return (false);
+            }
+
+            // Run...
+            if ((szCommand == "run"))
+            {
+                Console.Out.WriteLine("RUN [SCRIPT]");
+                Console.Out.WriteLine("Runs the specified script.  SCRIPT is the full path to the script");
+                Console.Out.WriteLine("to be run.  If a SCRIPT is not specified, the scripts in the");
+                Console.Out.WriteLine("current folder are listed.");
+                return (false);
+            }
+
+            // Select...
+            if ((szCommand == "select"))
+            {
+                Console.Out.WriteLine("SELECT {PATTERN}");
+                Console.Out.WriteLine("Selects one of the scanners shown in the list command, which is");
+                Console.Out.WriteLine("the scanner that will be accessed by the API commands.  The pattern");
+                Console.Out.WriteLine("must match some or all of the name, the IP address, or the note.");
+                return (false);
+            }
+
+            // Status...
+            if ((szCommand == "status"))
+            {
+                Console.Out.WriteLine("STATUS");
+                Console.Out.WriteLine("General information about the current operation of the program.");
+                return (false);
+            }
+
+            #endregion
+
+            // Image Capture APIs (in order of use)
+            #region Image Capture APIs (in order of use)
+
+            // infoex...
+            if ((szCommand == "infoex"))
+            {
+                Console.Out.WriteLine("INFOEX");
+                Console.Out.WriteLine("Issues an infoex command to the scanner that picked out using");
+                Console.Out.WriteLine("the SELECT command.  The command must be issued before making");
+                Console.Out.WriteLine("a call to CREATESESSION.");
+                return (false);
+            }
+
+            // createSession...
+            if ((szCommand == "createsession"))
+            {
+                Console.Out.WriteLine("CREATESESSION");
+                Console.Out.WriteLine("Creates a session for the scanner picked out using the SELECT");
+                Console.Out.WriteLine("command.  To end the session use CLOSESESSION.");
+                return (false);
+            }
+
+            // getSession...
+            if ((szCommand == "getsession"))
+            {
+                Console.Out.WriteLine("GETSESSION");
+                Console.Out.WriteLine("Gets infornation about the current session.");
+                return (false);
+            }
+
+            // waitForEvents...
+            if ((szCommand == "waitforevents"))
+            {
+                Console.Out.WriteLine("WAITFOREVENTS");
+                Console.Out.WriteLine("TWAIN Direct is event driven.  The command creates the event");
+                Console.Out.WriteLine("monitor used to detect updates to the session object.  It");
+                Console.Out.WriteLine("should be called once after CREATESESSION.");
+                return (false);
+            }
+
+            // sendTask...
+            if ((szCommand == "sendtask"))
+            {
+                Console.Out.WriteLine("SENDTASK {TASK|FILE}");
+                Console.Out.WriteLine("Sends a TWAIN Direct task.  The argument can either be the");
+                Console.Out.WriteLine("task itself, or a file containing the task.");
+                return (false);
+            }
+
+            // startCapturing...
+            if ((szCommand == "startcapturing"))
+            {
+                Console.Out.WriteLine("STARTCAPTURING");
+                Console.Out.WriteLine("Start capturing images from the scanner.");
+                return (false);
+            }
+
+            // readImageBlockMetadata...
+            if ((szCommand == "readimageblockmetadata"))
+            {
+                Console.Out.WriteLine("READIMAGEBLOCKMETADATA {BLOCK} {INCLUDETHUMBNAIL}");
+                Console.Out.WriteLine("Reads the metadata for the specified image BLOCK, and");
+                Console.Out.WriteLine("optionally includes a thumbnail for that image.");
+                return (false);
+            }
+
+            // readImageBlock...
+            if ((szCommand == "readimageblock"))
+            {
+                Console.Out.WriteLine("READIMAGEBLOCK {BLOCK} {INCLUDEMETADATA}");
+                Console.Out.WriteLine("Reads the image data for the specified image BLOCK, and");
+                Console.Out.WriteLine("optionally includes the metadata for that image.");
+                return (false);
+            }
+
+            // releaseImageBlocks...
+            if ((szCommand == "releaseimageblocks"))
+            {
+                Console.Out.WriteLine("RELEASEIMAGEBLOCKS {FIRST} {LAST}");
+                Console.Out.WriteLine("Releases the image blocks from FIRST to LAST inclusive.");
+                return (false);
+            }
+
+            // stopCapturing...
+            if ((szCommand == "stopCapturing"))
+            {
+                Console.Out.WriteLine("STOPCAPTURING");
+                Console.Out.WriteLine("Stop capturing images from the scanner.");
+                return (false);
+            }
+
+            // closeSession...
+            if ((szCommand == "closeSession"))
+            {
+                Console.Out.WriteLine("CLOSESESSION");
+                Console.Out.WriteLine("Close the session, which unlocks the scanner.  The user");
+                Console.Out.WriteLine("is responsible for releasing any remaining images.");
+                return (false);
+            }
+
+            #endregion
+
+            // Well, this ain't good...
+            Console.Out.WriteLine("unrecognized command: " + a_aszCmd[1]);
+
+            // All done...
             return (false);
         }
 
