@@ -1382,6 +1382,16 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the response data for this transaction, this should
+            /// usually be JSON, or include JSON data...
+            /// </summary>
+            /// <returns></returns>
+            public string GetResponseData()
+            {
+                return (m_szResponseData);
+            }
+
+            /// <summary>
             /// The method: GET, POST, etc...
             /// </summary>
             private string m_szUriMethod;

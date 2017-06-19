@@ -125,8 +125,15 @@ namespace TwainDirect.Support
                 return (aszTokens);
             }
 
-            // Handle comments and whitespace...
+            // Handle comments...
             if (a_szCmd[0] == ';')
+            {
+                aszTokens[tt] = "";
+                return (aszTokens);
+            }
+
+            // Skip over goto labels...
+            if (a_szCmd[0] == ':')
             {
                 aszTokens[tt] = "";
                 return (aszTokens);
@@ -221,34 +228,34 @@ namespace TwainDirect.Support
         /// <summary>
         /// Dispatch a command...
         /// </summary>
-        /// <param name="a_szCmd">tokenized command</param>
+        /// <param name="a_functionarguments">the arguments to the command</param>
         /// <param name="a_dispatchtable">dispatch table</param>
         /// <returns>true if the program should exit</returns>
-        public bool Dispatch(string[] a_aszCmd, List<DispatchTable> a_ldispatchtable)
+        public bool Dispatch(ref FunctionArguments a_functionarguments, List<DispatchTable> a_ldispatchtable)
         {
             string szCmd;
 
             // Apparently we got nothing, it's a noop...
-            if ((a_aszCmd == null) || (a_aszCmd.Length == 0) || string.IsNullOrEmpty(a_aszCmd[0]))
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length == 0) || string.IsNullOrEmpty(a_functionarguments.aszCmd[0]))
             {
                 return (false);
             }
 
             // Find the command...
-            szCmd = a_aszCmd[0].ToLowerInvariant();
+            szCmd = a_functionarguments.aszCmd[0].ToLowerInvariant();
             foreach (DispatchTable dispatchtable in a_ldispatchtable)
             {
                 foreach (string sz in dispatchtable.m_aszCmd)
                 {
                     if (sz == szCmd)
                     {
-                        return (dispatchtable.m_function(a_aszCmd));
+                        return (dispatchtable.m_function(ref a_functionarguments));
                     }
                 }
             }
 
             // No joy...
-            Console.Out.WriteLine("command not found: " + a_aszCmd[0]);
+            Console.Out.WriteLine("command not found: " + a_functionarguments.aszCmd[0]);
             return (false);
         }
 
@@ -258,12 +265,34 @@ namespace TwainDirect.Support
         // Public Definitions
         #region Public Definitions
 
+        public struct FunctionArguments
+        {
+            /// <summary>
+            /// The tokenized command...
+            /// </summary>
+            public string[] aszCmd;
+
+            /// <summary>
+            /// The script we're running or null, used for
+            /// commands like "goto"...
+            /// </summary>
+            public string[] aszScript;
+
+            /// <summary>
+            /// True if we've been asked to jump to a label,
+            /// which includes the index to go to...
+            /// </summary>
+            public bool blGotoLabel;
+            public int iLabelLine;
+        }
+
         /// <summary>
         /// Function to call from the Dispatcher...
         /// </summary>
         /// <param name="a_aszCmd">arguments</param>
+        /// <param name="a_aszScript">script or null</param>
         /// <returns>true if the program should exit</returns>
-        public delegate bool Function(string[] a_aszCmd);
+        public delegate bool Function(ref FunctionArguments a_functionarguments);
 
         /// <summary>
         /// Map commands to functions...

@@ -97,7 +97,9 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,             new string[] { "wait", "waitforevents", "waitForEvents" }));
 
             // Other stuff...
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                         new string[] { "h", "help", "?" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                         new string[] { "l", "list" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                         new string[] { "ex", "exit", "q", "quit" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "r", "run" }));
@@ -137,7 +139,9 @@ namespace TwainDirect.Certification
                 aszCmd = interpreter.Tokenize(szCmd);
 
                 // Dispatch...
-                blDone = interpreter.Dispatch(aszCmd, m_ldispatchtable);
+                Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
+                functionarguments.aszCmd = aszCmd;
+                blDone = interpreter.Dispatch(ref functionarguments, m_ldispatchtable);
                 if (blDone)
                 {
                     return;
@@ -172,9 +176,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Close a session...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiClosesession(string[] a_aszCmd)
+        private bool CmdApiClosesession(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
 
@@ -189,6 +193,9 @@ namespace TwainDirect.Certification
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerCloseSession(ref apicmd);
 
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
+
             // Display what we send...
             DisplayApicmd(apicmd);
 
@@ -199,9 +206,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Create a session...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiCreatesession(string[] a_aszCmd)
+        private bool CmdApiCreatesession(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
 
@@ -216,6 +223,9 @@ namespace TwainDirect.Certification
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerCreateSession(m_dnssddeviceinfoSelected, ref apicmd);
 
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
+
             // Display what we send...
             DisplayApicmd(apicmd);
 
@@ -226,9 +236,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Get the current session object
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiGetsession(string[] a_aszCmd)
+        private bool CmdApiGetsession(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
 
@@ -243,6 +253,9 @@ namespace TwainDirect.Certification
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerGetSession(ref apicmd);
 
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
+
             // Display what we send...
             DisplayApicmd(apicmd);
 
@@ -253,9 +266,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Send an infoex command to the selected scanner...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiInfoex(string[] a_aszCmd)
+        private bool CmdApiInfoex(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
 
@@ -270,6 +283,9 @@ namespace TwainDirect.Certification
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd);
 
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
+
             // Display what we send...
             DisplayApicmd(apicmd);
 
@@ -280,9 +296,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Read an image data block's metadata and thumbnail...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiReadimageblockmetadata(string[] a_aszCmd)
+        private bool CmdApiReadimageblockmetadata(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
             long lImageBlock;
@@ -294,19 +310,19 @@ namespace TwainDirect.Certification
                 Console.Out.WriteLine("must first select a scanner...");
                 return (false);
             }
-            if (a_aszCmd.Length < 3)
+            if (a_functionarguments.aszCmd.Length < 3)
             {
                 Console.Out.WriteLine("please specify image block to read and thumbnail flag...");
                 return (false);
             }
 
             // Get the image block number...
-            if (!long.TryParse(a_aszCmd[1], out lImageBlock))
+            if (!long.TryParse(a_functionarguments.aszCmd[1], out lImageBlock))
             {
                 Console.Out.WriteLine("image block must be a number...");
                 return (false);
             }
-            if (!bool.TryParse(a_aszCmd[2], out blGetThumbnail))
+            if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetThumbnail))
             {
                 Console.Out.WriteLine("thumbnail flag must be true or false...");
                 return (false);
@@ -315,6 +331,9 @@ namespace TwainDirect.Certification
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerReadImageBlockMetadata(lImageBlock, blGetThumbnail, null, ref apicmd);
+
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -326,9 +345,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Read an image data block and it's metadata...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiReadimageblock(string[] a_aszCmd)
+        private bool CmdApiReadimageblock(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
             long lImageBlock;
@@ -340,19 +359,19 @@ namespace TwainDirect.Certification
                 Console.Out.WriteLine("must first select a scanner...");
                 return (false);
             }
-            if (a_aszCmd.Length < 3)
+            if (a_functionarguments.aszCmd.Length < 3)
             {
                 Console.Out.WriteLine("please specify image block to read and thumbnail flag...");
                 return (false);
             }
 
             // Get the image block number...
-            if (!long.TryParse(a_aszCmd[1], out lImageBlock))
+            if (!long.TryParse(a_functionarguments.aszCmd[1], out lImageBlock))
             {
                 Console.Out.WriteLine("image block must be a number...");
                 return (false);
             }
-            if (!bool.TryParse(a_aszCmd[2], out blGetMetadataWithImage))
+            if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetMetadataWithImage))
             {
                 Console.Out.WriteLine("getmetdata flag must be true or false...");
                 return (false);
@@ -361,6 +380,9 @@ namespace TwainDirect.Certification
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerReadImageBlock(lImageBlock, blGetMetadataWithImage, null, ref apicmd);
+
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -372,9 +394,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Release or or more image blocks, or all image blocks...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiReleaseimageblocks(string[] a_aszCmd)
+        private bool CmdApiReleaseimageblocks(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
             long lFirstImageBlock;
@@ -386,19 +408,19 @@ namespace TwainDirect.Certification
                 Console.Out.WriteLine("must first select a scanner...");
                 return (false);
             }
-            if (a_aszCmd.Length < 3)
+            if (a_functionarguments.aszCmd.Length < 3)
             {
                 Console.Out.WriteLine("please specify the first and last image block to release...");
                 return (false);
             }
 
             // Get the values...
-            if (!long.TryParse(a_aszCmd[1], out lFirstImageBlock))
+            if (!long.TryParse(a_functionarguments.aszCmd[1], out lFirstImageBlock))
             {
                 Console.Out.WriteLine("first image block must be a number...");
                 return (false);
             }
-            if (!long.TryParse(a_aszCmd[2], out lLastImageBlock))
+            if (!long.TryParse(a_functionarguments.aszCmd[2], out lLastImageBlock))
             {
                 Console.Out.WriteLine("last image block must be a number...");
                 return (false);
@@ -410,6 +432,9 @@ namespace TwainDirect.Certification
                 // Make the call...
                 apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
                 m_twainlocalscanner.ClientScannerReleaseImageBlocks(lFirstImageBlock, lLastImageBlock, ref apicmd);
+
+                // Squirrel away the transaction...
+                m_ltransations.Add(apicmd.GetTransaction());
 
                 // Scoot...
                 if ((lFirstImageBlock != 1) || (lLastImageBlock != int.MaxValue))
@@ -444,9 +469,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Send task...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiSendtask(string[] a_aszCmd)
+        private bool CmdApiSendtask(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
             string szTask;
@@ -459,33 +484,36 @@ namespace TwainDirect.Certification
             }
 
             // Must supply a task...
-            if ((a_aszCmd.Length < 2) || (a_aszCmd[1] == null))
+            if ((a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
                 Console.Out.WriteLine("must supply a task...");
                 return (false);
             }
 
             // Is the argument a file?
-            if (File.Exists(a_aszCmd[1]))
+            if (File.Exists(a_functionarguments.aszCmd[1]))
             {
                 try
                 {
-                    szTask = File.ReadAllText(a_aszCmd[1]);
+                    szTask = File.ReadAllText(a_functionarguments.aszCmd[1]);
                 }
                 catch (Exception exception)
                 {
-                    Console.Out.WriteLine("failed to open file...<" + a_aszCmd[1] + "> - " + exception.Message);
+                    Console.Out.WriteLine("failed to open file...<" + a_functionarguments.aszCmd[1] + "> - " + exception.Message);
                     return (false);
                 }
             }
             else
             {
-                szTask = a_aszCmd[1];
+                szTask = a_functionarguments.aszCmd[1];
             }
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerSendTask(szTask, ref apicmd);
+
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -497,9 +525,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Start capturing...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiStartcapturing(string[] a_aszCmd)
+        private bool CmdApiStartcapturing(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
 
@@ -514,6 +542,9 @@ namespace TwainDirect.Certification
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd);
 
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
+
             // Display what we send...
             DisplayApicmd(apicmd);
 
@@ -524,9 +555,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Stop capturing...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiStopcapturing(string[] a_aszCmd)
+        private bool CmdApiStopcapturing(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
 
@@ -541,6 +572,9 @@ namespace TwainDirect.Certification
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
 
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
+
             // Display what we send...
             DisplayApicmd(apicmd);
 
@@ -551,9 +585,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Wait for events, like changes to the session object...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdApiWaitforevents(string[] a_aszCmd)
+        private bool CmdApiWaitforevents(ref Interpreter.FunctionArguments a_functionarguments)
         {
             ApiCmd apicmd;
 
@@ -567,6 +601,9 @@ namespace TwainDirect.Certification
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
+
+            // Squirrel away the transaction...
+            m_ltransations.Add(apicmd.GetTransaction());
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -582,22 +619,59 @@ namespace TwainDirect.Certification
         #region Private Methods (commands)
 
         /// <summary>
+        /// Goto the user...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdGoto(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int iLine;
+            string szLabel;
+
+            // Validate...
+            if (    (a_functionarguments.aszScript == null)
+                ||  (a_functionarguments.aszScript.Length < 2)
+                ||  (a_functionarguments.aszScript[0] == null)
+                ||  (a_functionarguments.aszCmd == null)
+                ||  (a_functionarguments.aszCmd.Length < 2)
+                ||  (a_functionarguments.aszCmd[1] == null))
+            {
+                return (false);
+            }
+
+            // Search for a match...
+            szLabel = ":" + a_functionarguments.aszCmd[1];
+            for (iLine = 0; iLine < a_functionarguments.aszScript.Length; iLine++)
+            {
+                if (a_functionarguments.aszScript[iLine] == szLabel)
+                {
+                    a_functionarguments.blGotoLabel = true;
+                    a_functionarguments.iLabelLine = iLine;
+                    return (false);
+                }
+            }
+
+            // Ugh...
+            Console.Out.WriteLine("goto label not found: <" + szLabel + ">");
+            return (false);
+        }
+
+        /// <summary>
         /// Help the user...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdHelp(string[] a_aszCmd)
+        private bool CmdHelp(ref Interpreter.FunctionArguments a_functionarguments)
         {
             string szCommand;
 
             // Summary...
-            if ((a_aszCmd == null) || (a_aszCmd.Length < 2) || (a_aszCmd[1] == null))
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
                 Console.Out.WriteLine("Discovery and Selection");
                 Console.Out.WriteLine("help.........................................this text");
                 Console.Out.WriteLine("list.........................................list scanners");
                 Console.Out.WriteLine("quit.........................................exit the program");
-                Console.Out.WriteLine("run [script].................................run a script");
                 Console.Out.WriteLine("select {pattern}.............................select a scanner");
                 Console.Out.WriteLine("status.......................................status of the program");
                 Console.Out.WriteLine("");
@@ -613,11 +687,15 @@ namespace TwainDirect.Certification
                 Console.Out.WriteLine("releaseImageBlocks {first} {last}............release images blocks in the scanner");
                 Console.Out.WriteLine("stopCapturing................................stop capturing new images");
                 Console.Out.WriteLine("closeSession.................................close the current session");
+                Console.Out.WriteLine("");
+                Console.Out.WriteLine("Scripting");
+                Console.Out.WriteLine("if {item1} {operator} {item2} goto {label}...if statement");
+                Console.Out.WriteLine("run [script].................................run a script");
                 return (false);
             }
 
             // Get the command...
-            szCommand = a_aszCmd[1].ToLower();
+            szCommand = a_functionarguments.aszCmd[1].ToLower();
 
             // Discovery and Selection
             #region Discovery and Selection
@@ -650,16 +728,6 @@ namespace TwainDirect.Certification
             {
                 Console.Out.WriteLine("QUIT");
                 Console.Out.WriteLine("Exit from this program.");
-                return (false);
-            }
-
-            // Run...
-            if ((szCommand == "run"))
-            {
-                Console.Out.WriteLine("RUN [SCRIPT]");
-                Console.Out.WriteLine("Runs the specified script.  SCRIPT is the full path to the script");
-                Console.Out.WriteLine("to be run.  If a SCRIPT is not specified, the scripts in the");
-                Console.Out.WriteLine("current folder are listed.");
                 return (false);
             }
 
@@ -785,8 +853,198 @@ namespace TwainDirect.Certification
 
             #endregion
 
+            // Scripting
+            #region Scripting
+
+            // if...
+            if ((szCommand == "if"))
+            {
+                Console.Out.WriteLine("IF {ITEM1} {OPERATOR} {ITEM2} GOTO {LABEL}");
+                Console.Out.WriteLine("If the operator for ITEM1 and ITEM2 is true, then goto the");
+                Console.Out.WriteLine("label.  For the best experience get in the habit of putting");
+                Console.Out.WriteLine("either single or double quotes around the items.");
+                Console.Out.WriteLine("");
+                Console.Out.WriteLine("Operators");
+                Console.Out.WriteLine("==....values are equal (case sensitive)");
+                Console.Out.WriteLine("~~....values are equal (case insensitive)");
+                Console.Out.WriteLine("!=....values are not equal (case sensitive)");
+                Console.Out.WriteLine("!~....values are not equal (case insensitive)");
+                Console.Out.WriteLine("");
+                Console.Out.WriteLine("Items");
+                Console.Out.WriteLine("Items prefixed with 'rj:' indicate that the item is a JSON");
+                Console.Out.WriteLine("key in the last command's response payload.  For instance:");
+                Console.Out.WriteLine("  if 'rj:results.success' != 'true' goto FAIL");
+                return (false);
+            }
+
+            // Run...
+            if ((szCommand == "run"))
+            {
+                Console.Out.WriteLine("RUN [SCRIPT]");
+                Console.Out.WriteLine("Runs the specified script.  SCRIPT is the full path to the script");
+                Console.Out.WriteLine("to be run.  If a SCRIPT is not specified, the scripts in the");
+                Console.Out.WriteLine("current folder are listed.");
+                return (false);
+            }
+
+            #endregion
+
             // Well, this ain't good...
-            Console.Out.WriteLine("unrecognized command: " + a_aszCmd[1]);
+            Console.Out.WriteLine("unrecognized command: " + a_functionarguments.aszCmd[1]);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Process an if-statement...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdIf(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            bool blDoAction = false;
+            string szItem1;
+            string szItem2;
+            string szOperator;
+            string szAction;
+
+            // Validate...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 4) || (a_functionarguments.aszCmd[1] == null))
+            {
+                Console.Out.WriteLine("badly formed if-statement...");
+                return (false);
+            }
+
+            // Get all of the stuff...
+            szItem1 = a_functionarguments.aszCmd[1];
+            szOperator = a_functionarguments.aszCmd[2];
+            szItem2 = a_functionarguments.aszCmd[3];
+            szAction = a_functionarguments.aszCmd[4];
+
+            // Use item1 as a JSON key to get data from the response data...
+            if (szItem1.StartsWith("rj:"))
+            {
+                if (m_ltransations.Count > 0)
+                {
+                    string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
+                    if (!string.IsNullOrEmpty(szResponseData))
+                    {
+                        bool blSuccess;
+                        long lJsonErrorIndex;
+                        JsonLookup jsonlookup = new JsonLookup();
+                        blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                        if (blSuccess)
+                        {
+                            szItem1 = jsonlookup.Get(szItem1.Substring(3));
+                        }
+                    }
+                }
+            }
+
+            // Use item2 as a JSON key to get data from the response data...
+            if (szItem2.StartsWith("rj:"))
+            {
+                if (m_ltransations.Count > 0)
+                {
+                    string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
+                    if (!string.IsNullOrEmpty(szResponseData))
+                    {
+                        bool blSuccess;
+                        long lJsonErrorIndex;
+                        JsonLookup jsonlookup = new JsonLookup();
+                        blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                        if (blSuccess)
+                        {
+                            szItem1 = jsonlookup.Get(szItem2.Substring(3));
+                        }
+                    }
+                }
+            }
+
+            // Items must match (case sensitive)...
+            if (szOperator == "==")
+            {
+                if (szItem1 == szItem2)
+                {
+                    blDoAction = true;
+                }
+            }
+
+            // Items must match (case insensitive)...
+            else if (szOperator == "~~")
+            {
+                if (szItem1.ToLowerInvariant() == szItem2.ToLowerInvariant())
+                {
+                    blDoAction = true;
+                }
+            }
+
+            // Items must not match (case sensitive)...
+            else if (szOperator == "!=")
+            {
+                if (szItem1 != szItem2)
+                {
+                    blDoAction = true;
+                }
+            }
+
+            // Items must not match (case insensitive)...
+            else if (szOperator == "!~")
+            {
+                if (szItem1.ToLowerInvariant() != szItem2.ToLowerInvariant())
+                {
+                    blDoAction = true;
+                }
+            }
+
+            // Unrecognized operator...
+            else
+            {
+                Console.Out.WriteLine("unrecognized operator: <" + szOperator + ">");
+                return (false);
+            }
+
+            // We've been told to do the action...
+            if (blDoAction)
+            {
+                // We're doing a goto...
+                if (szAction.ToLowerInvariant() == "goto")
+                {
+                    int iLine;
+                    string szLabel;
+
+                    // Validate...
+                    if ((a_functionarguments.aszCmd.Length < 5) || string.IsNullOrEmpty(a_functionarguments.aszCmd[4]))
+                    {
+                        Console.Out.WriteLine("goto label is missing...");
+                        return (false);
+                    }
+
+                    // Find the label...
+                    szLabel = ":" + a_functionarguments.aszCmd[5];
+                    for (iLine = 0; iLine < a_functionarguments.aszScript.Length; iLine++)
+                    {
+                        if (a_functionarguments.aszScript[iLine] == szLabel)
+                        {
+                            a_functionarguments.blGotoLabel = true;
+                            a_functionarguments.iLabelLine = iLine;
+                            return (false);
+                        }
+                    }
+
+                    // Ugh...
+                    Console.Out.WriteLine("goto label not found: <" + szLabel + ">");
+                    return (false);
+                }
+
+                // We have no idea what we're doing...
+                else
+                {
+                    Console.Out.WriteLine("unrecognized action: <" + szAction + ">");
+                    return (false);
+                }
+            }
 
             // All done...
             return (false);
@@ -796,9 +1054,9 @@ namespace TwainDirect.Certification
         /// List scanners, both ones on the LAN and ones that are
         /// available in the cloud (when we get that far)...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdList(string[] a_aszCmd)
+        private bool CmdList(ref Interpreter.FunctionArguments a_functionarguments)
         {
             bool blUpdated;
 
@@ -828,9 +1086,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Quit...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdQuit(string[] a_aszCmd)
+        private bool CmdQuit(ref Interpreter.FunctionArguments a_functionarguments)
         {
             return (true);
         }
@@ -839,9 +1097,9 @@ namespace TwainDirect.Certification
         /// With no arguments, list the scripts.  With an argument,
         /// run the specified script.
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdRun(string[] a_aszCmd)
+        private bool CmdRun(ref Interpreter.FunctionArguments a_functionarguments)
         {
             string szPrompt = "tdc>>> ";
             string[] aszScript;
@@ -849,7 +1107,7 @@ namespace TwainDirect.Certification
             Interpreter interpreter;
 
             // List...
-            if ((a_aszCmd == null) || (a_aszCmd.Length < 2) || (a_aszCmd[1] == null))
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
                 // Get the script files...
                 string[] aszScriptFiles = Directory.GetFiles(".", "*.tdc");
@@ -870,10 +1128,10 @@ namespace TwainDirect.Certification
             }
 
             // Make sure the file exists...
-            szScriptFile = a_aszCmd[1];
+            szScriptFile = a_functionarguments.aszCmd[1];
             if (!File.Exists(szScriptFile))
             {
-                szScriptFile = a_aszCmd[1] + ".tdc";
+                szScriptFile = a_functionarguments.aszCmd[1] + ".tdc";
                 if (!File.Exists(szScriptFile))
                 {
                     Console.Out.WriteLine("script not found");
@@ -896,10 +1154,15 @@ namespace TwainDirect.Certification
             interpreter = new Interpreter("");
 
             // Run each line in the script...
-            foreach (string szLine in aszScript)
+            int iLine = 0;
+            while (iLine < aszScript.Length)
             {
                 bool blDone;
+                string szLine;
                 string[] aszCmd;
+
+                // Grab our line...
+                szLine = aszScript[iLine];
 
                 // Show the command...
                 Console.Out.WriteLine(szPrompt + szLine.Trim());
@@ -908,10 +1171,24 @@ namespace TwainDirect.Certification
                 aszCmd = interpreter.Tokenize(szLine.Trim());
 
                 // Dispatch...
-                blDone = interpreter.Dispatch(aszCmd, m_ldispatchtable);
+                Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
+                functionarguments.aszCmd = aszCmd;
+                functionarguments.aszScript = aszScript;
+                blDone = interpreter.Dispatch(ref functionarguments, m_ldispatchtable);
                 if (blDone)
                 {
                     break;
+                }
+
+                // Handle gotos...
+                if (functionarguments.blGotoLabel)
+                {
+                    iLine = functionarguments.iLabelLine;
+                }
+                // Otherwise, just increment...
+                else
+                {
+                    iLine += 1;
                 }
 
                 // Update the prompt with state information...
@@ -941,11 +1218,14 @@ namespace TwainDirect.Certification
         /// Select a scanner, do a snapshot, if needed, if no selection
         /// is offered, then pick the first scanner found...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdSelect(string[] a_aszCmd)
+        private bool CmdSelect(ref Interpreter.FunctionArguments a_functionarguments)
         {
             bool blSilent;
+
+            // Clear the transactions...
+            m_ltransations = new List<ApiCmd.Transaction>();
 
             // Clear the last selected scanner...
             m_dnssddeviceinfoSelected = null;
@@ -960,7 +1240,8 @@ namespace TwainDirect.Certification
             {
                 blSilent = m_blSilent;
                 m_blSilent = true;
-                CmdList(null);
+                Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
+                CmdList(ref functionarguments);
                 m_blSilent = blSilent;
             }
 
@@ -972,7 +1253,7 @@ namespace TwainDirect.Certification
             }
 
             // We didn't get a selection, so grab the first item...
-            if ((a_aszCmd == null) || (a_aszCmd.Length < 2) || string.IsNullOrEmpty(a_aszCmd[1]))
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
             {
                 m_dnssddeviceinfoSelected = m_adnssddeviceinfoSnapshot[0];
                 return (false);
@@ -982,21 +1263,21 @@ namespace TwainDirect.Certification
             foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
             {
                 // Check the name...
-                if (!string.IsNullOrEmpty(dnssddeviceinfo.szLinkLocal) && dnssddeviceinfo.szLinkLocal.Contains(a_aszCmd[1]))
+                if (!string.IsNullOrEmpty(dnssddeviceinfo.szLinkLocal) && dnssddeviceinfo.szLinkLocal.Contains(a_functionarguments.aszCmd[1]))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
                 }
 
                 // Check the IPv4...
-                else if (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) && dnssddeviceinfo.szIpv4.Contains(a_aszCmd[1]))
+                else if (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) && dnssddeviceinfo.szIpv4.Contains(a_functionarguments.aszCmd[1]))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
                 }
 
                 // Check the note...
-                else if (!string.IsNullOrEmpty(dnssddeviceinfo.szTxtNote) && dnssddeviceinfo.szTxtNote.Contains(a_aszCmd[1]))
+                else if (!string.IsNullOrEmpty(dnssddeviceinfo.szTxtNote) && dnssddeviceinfo.szTxtNote.Contains(a_functionarguments.aszCmd[1]))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
@@ -1021,14 +1302,14 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Sleep some number of milliseconds...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdSleep(string[] a_aszCmd)
+        private bool CmdSleep(ref Interpreter.FunctionArguments a_functionarguments)
         {
             int iMilliseconds;
 
             // Get the milliseconds...
-            if ((a_aszCmd == null) || (a_aszCmd.Length < 2) || !int.TryParse(a_aszCmd[1], out iMilliseconds))
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || !int.TryParse(a_functionarguments.aszCmd[1], out iMilliseconds))
             {
                 iMilliseconds = 0;
             }
@@ -1047,9 +1328,9 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Status of the program...
         /// </summary>
-        /// <param name="a_aszCmd">tokenized command</param>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
-        private bool CmdStatus(string[] a_aszCmd)
+        private bool CmdStatus(ref Interpreter.FunctionArguments a_functionarguments)
         {
             // Current scanner...
             Console.Out.WriteLine("SELECTED SCANNER");
@@ -1559,8 +1840,15 @@ namespace TwainDirect.Certification
         /// </summary>
         private Dnssd m_dnssd;
 
-        // No output...
+        /// <summary>
+        /// No output when this is true...
+        /// </summary>
         private bool m_blSilent;
+
+        /// <summary>
+        /// A record of RESTful transactions with the scanner...
+        /// </summary>
+        private List<ApiCmd.Transaction> m_ltransations;
 
         #endregion
     }
