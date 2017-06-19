@@ -167,19 +167,31 @@ namespace TwainDirect.Certification
                         }
                     }
 
-                    // Use value as a GET key to get a value...
+                    // Use value as a GET key to get a value, we don't allow a null in this
+                    // case, it has to be an empty string...
                     else if (szValue.StartsWith("get:"))
                     {
-                        if (m_lkeyvalue.Count > 0)
+                        if (m_lkeyvalue.Count == 0)
                         {
+                            aszCmd[iCmd] = "";
+                        }
+                        else
+                        {
+                            bool blFound = false;
                             string szKey = szValue.Substring(4);
                             foreach (KeyValue keyvalue in m_lkeyvalue)
                             {
                                 if (keyvalue.szKey == szKey)
                                 {
-                                    aszCmd[iCmd] = keyvalue.szValue;
+                                    aszCmd[iCmd] = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
+                                    blFound = true;
                                     break;
                                 }
+                            }
+                            if (!blFound)
+                            {
+                                aszCmd[iCmd] = "";
+
                             }
                         }
                     }
@@ -690,7 +702,7 @@ namespace TwainDirect.Certification
             szLabel = ":" + a_functionarguments.aszCmd[1];
             for (iLine = 0; iLine < a_functionarguments.aszScript.Length; iLine++)
             {
-                if (a_functionarguments.aszScript[iLine] == szLabel)
+                if (a_functionarguments.aszScript[iLine].Trim() == szLabel)
                 {
                     a_functionarguments.blGotoLabel = true;
                     a_functionarguments.iLabelLine = iLine;
@@ -1049,7 +1061,7 @@ namespace TwainDirect.Certification
                     szLabel = ":" + a_functionarguments.aszCmd[5];
                     for (iLine = 0; iLine < a_functionarguments.aszScript.Length; iLine++)
                     {
-                        if (a_functionarguments.aszScript[iLine] == szLabel)
+                        if (a_functionarguments.aszScript[iLine].Trim() == szLabel)
                         {
                             a_functionarguments.blGotoLabel = true;
                             a_functionarguments.iLabelLine = iLine;
@@ -1222,16 +1234,26 @@ namespace TwainDirect.Certification
                     // Use value as a GET key to get a value...
                     else if (szValue.StartsWith("get:"))
                     {
-                        if (m_lkeyvalue.Count > 0)
+                        if (m_lkeyvalue.Count == 0)
                         {
+                            aszCmd[iCmd] = "";
+                        }
+                        else
+                        {
+                            bool blFound = false;
                             string szKey = szValue.Substring(4);
                             foreach (KeyValue keyvalue in m_lkeyvalue)
                             {
                                 if (keyvalue.szKey == szKey)
                                 {
-                                    aszCmd[iCmd] = keyvalue.szValue;
+                                    aszCmd[iCmd] = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
+                                    blFound = true;
                                     break;
                                 }
+                            }
+                            if (!blFound)
+                            {
+                                aszCmd[iCmd] = "";
                             }
                         }
                     }
