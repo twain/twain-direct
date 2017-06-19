@@ -75,6 +75,7 @@ namespace TwainDirect.Certification
             m_adnssddeviceinfoSnapshot = null;
             m_dnssddeviceinfoSelected = null;
             m_twainlocalscanner = null;
+            m_lkeyvalue = new List<KeyValue>();
 
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
@@ -82,6 +83,15 @@ namespace TwainDirect.Certification
 
             // Build our command table...
             m_ldispatchtable = new List<Interpreter.DispatchTable>();
+
+            // Discovery and Selection...
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                         new string[] { "help", "?" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                         new string[] { "list" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                         new string[] { "ex", "exit", "q", "quit" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                       new string[] { "select" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                        new string[] { "sleep" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                       new string[] { "status" }));
 
             // Api commands...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,              new string[] { "close", "closesession", "closeSession" }));
@@ -96,16 +106,10 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,             new string[] { "stop", "stopcapturing", "stopCapturing" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,             new string[] { "wait", "waitforevents", "waitForEvents" }));
 
-            // Other stuff...
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                         new string[] { "h", "help", "?" }));
+            // Scripting...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                         new string[] { "l", "list" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                         new string[] { "ex", "exit", "q", "quit" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "r", "run" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                       new string[] { "s", "select" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                        new string[] { "sleep" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                       new string[] { "status" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSet,                          new string[] { "set" }));
 
             // Say hi...
             Assembly assembly = typeof(Terminal).Assembly;
@@ -128,6 +132,7 @@ namespace TwainDirect.Certification
             // Run until told to stop...
             while (true)
             {
+                int iCmd;
                 bool blDone;
                 string szCmd;
                 string[] aszCmd;
@@ -137,6 +142,48 @@ namespace TwainDirect.Certification
 
                 // Tokenize...
                 aszCmd = interpreter.Tokenize(szCmd);
+
+                // Expansion...
+                for (iCmd = 0; iCmd < aszCmd.Length; iCmd++)
+                {
+                    // Use the value as a JSON key to get data from the response data...
+                    string szValue = aszCmd[iCmd];
+                    if (szValue.StartsWith("rj:"))
+                    {
+                        if (m_ltransations.Count > 0)
+                        {
+                            string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
+                            if (!string.IsNullOrEmpty(szResponseData))
+                            {
+                                bool blSuccess;
+                                long lJsonErrorIndex;
+                                JsonLookup jsonlookup = new JsonLookup();
+                                blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                                if (blSuccess)
+                                {
+                                    aszCmd[iCmd] = jsonlookup.Get(szValue.Substring(3));
+                                }
+                            }
+                        }
+                    }
+
+                    // Use value as a GET key to get a value...
+                    else if (szValue.StartsWith("get:"))
+                    {
+                        if (m_lkeyvalue.Count > 0)
+                        {
+                            string szKey = szValue.Substring(4);
+                            foreach (KeyValue keyvalue in m_lkeyvalue)
+                            {
+                                if (keyvalue.szKey == szKey)
+                                {
+                                    aszCmd[iCmd] = keyvalue.szValue;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Dispatch...
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
@@ -874,6 +921,9 @@ namespace TwainDirect.Certification
                 Console.Out.WriteLine("Items prefixed with 'rj:' indicate that the item is a JSON");
                 Console.Out.WriteLine("key in the last command's response payload.  For instance:");
                 Console.Out.WriteLine("  if 'rj:results.success' != 'true' goto FAIL");
+                Console.Out.WriteLine("Items prefixed with 'get:' indicate that the item is the");
+                Console.Out.WriteLine("result of a prior set command.");
+                Console.Out.WriteLine("  if 'get:lastsuccess' != 'true' goto FAIL");
                 return (false);
             }
 
@@ -884,6 +934,20 @@ namespace TwainDirect.Certification
                 Console.Out.WriteLine("Runs the specified script.  SCRIPT is the full path to the script");
                 Console.Out.WriteLine("to be run.  If a SCRIPT is not specified, the scripts in the");
                 Console.Out.WriteLine("current folder are listed.");
+                return (false);
+            }
+
+            // Set...
+            if ((szCommand == "set"))
+            {
+                Console.Out.WriteLine("SET {KEY} {VALUE}");
+                Console.Out.WriteLine("Set a key to the specified value.  If a KEY is not specified");
+                Console.Out.WriteLine("all of the current keys are listed with their values.");
+                Console.Out.WriteLine("");
+                Console.Out.WriteLine("Values");
+                Console.Out.WriteLine("Values prefixed with 'rj:' indicate that the item is a JSON");
+                Console.Out.WriteLine("key in the last command's response payload.  For instance:");
+                Console.Out.WriteLine("  set success 'rj:results.success'");
                 return (false);
             }
 
@@ -921,46 +985,6 @@ namespace TwainDirect.Certification
             szOperator = a_functionarguments.aszCmd[2];
             szItem2 = a_functionarguments.aszCmd[3];
             szAction = a_functionarguments.aszCmd[4];
-
-            // Use item1 as a JSON key to get data from the response data...
-            if (szItem1.StartsWith("rj:"))
-            {
-                if (m_ltransations.Count > 0)
-                {
-                    string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
-                    if (!string.IsNullOrEmpty(szResponseData))
-                    {
-                        bool blSuccess;
-                        long lJsonErrorIndex;
-                        JsonLookup jsonlookup = new JsonLookup();
-                        blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
-                        if (blSuccess)
-                        {
-                            szItem1 = jsonlookup.Get(szItem1.Substring(3));
-                        }
-                    }
-                }
-            }
-
-            // Use item2 as a JSON key to get data from the response data...
-            if (szItem2.StartsWith("rj:"))
-            {
-                if (m_ltransations.Count > 0)
-                {
-                    string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
-                    if (!string.IsNullOrEmpty(szResponseData))
-                    {
-                        bool blSuccess;
-                        long lJsonErrorIndex;
-                        JsonLookup jsonlookup = new JsonLookup();
-                        blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
-                        if (blSuccess)
-                        {
-                            szItem1 = jsonlookup.Get(szItem2.Substring(3));
-                        }
-                    }
-                }
-            }
 
             // Items must match (case sensitive)...
             if (szOperator == "==")
@@ -1157,6 +1181,7 @@ namespace TwainDirect.Certification
             int iLine = 0;
             while (iLine < aszScript.Length)
             {
+                int iCmd;
                 bool blDone;
                 string szLine;
                 string[] aszCmd;
@@ -1169,6 +1194,48 @@ namespace TwainDirect.Certification
 
                 // Tokenize...
                 aszCmd = interpreter.Tokenize(szLine.Trim());
+
+                // Expansion...
+                for (iCmd = 0; iCmd < aszCmd.Length; iCmd++)
+                {
+                    // Use the value as a JSON key to get data from the response data...
+                    string szValue = aszCmd[iCmd];
+                    if (szValue.StartsWith("rj:"))
+                    {
+                        if (m_ltransations.Count > 0)
+                        {
+                            string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
+                            if (!string.IsNullOrEmpty(szResponseData))
+                            {
+                                bool blSuccess;
+                                long lJsonErrorIndex;
+                                JsonLookup jsonlookup = new JsonLookup();
+                                blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                                if (blSuccess)
+                                {
+                                    aszCmd[iCmd] = jsonlookup.Get(szValue.Substring(3));
+                                }
+                            }
+                        }
+                    }
+
+                    // Use value as a GET key to get a value...
+                    else if (szValue.StartsWith("get:"))
+                    {
+                        if (m_lkeyvalue.Count > 0)
+                        {
+                            string szKey = szValue.Substring(4);
+                            foreach (KeyValue keyvalue in m_lkeyvalue)
+                            {
+                                if (keyvalue.szKey == szKey)
+                                {
+                                    aszCmd[iCmd] = keyvalue.szValue;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Dispatch...
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
@@ -1297,6 +1364,87 @@ namespace TwainDirect.Certification
 
             // All done...
             return (false);
+        }
+
+        /// <summary>
+        /// With no arguments, list the keys with their values.  With an argument,
+        /// set the specified value.
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdSet(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int iKey;
+
+            // If we don't have any arguments, list what we have...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            {
+                if (m_lkeyvalue.Count == 0)
+                {
+                    Console.Out.WriteLine("no keys to list...");
+                    return (false);
+                }
+
+                // Loopy...
+                Console.Out.WriteLine("KEY/VALUE PAIRS");
+                foreach (KeyValue keyvalue in m_lkeyvalue)
+                {
+                    Console.Out.WriteLine(keyvalue.szKey + "=" + keyvalue.szValue);
+                }
+
+                // All done...
+                return (false);
+            }
+
+            // Find the value for this key...
+            for (iKey = 0; iKey < m_lkeyvalue.Count; iKey++)
+            {
+                if (m_lkeyvalue[iKey].szKey == a_functionarguments.aszCmd[1])
+                {
+                    break;
+                }
+            }
+
+            // If we have no value to set, then delete this item...
+            if ((a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[2] == null))
+            {
+                if (iKey < m_lkeyvalue.Count)
+                {
+                    m_lkeyvalue.Remove(m_lkeyvalue[iKey]);
+                }
+                return (false);
+            }
+
+            // Create a new keyvalue...
+            KeyValue keyvalueNew = new KeyValue();
+            keyvalueNew.szKey = a_functionarguments.aszCmd[1];
+            keyvalueNew.szValue = a_functionarguments.aszCmd[2];
+
+            // If the key already exists, update it's value...
+            if (iKey < m_lkeyvalue.Count)
+            {
+                m_lkeyvalue[iKey] = keyvalueNew;
+                return (false);
+            }
+
+            // Otherwise, add it, and sort...
+            m_lkeyvalue.Add(keyvalueNew);
+            m_lkeyvalue.Sort(SortByKeyAscending);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// A comparison operator for sorting keys in CmdSet...
+        /// </summary>
+        /// <param name="name1"></param>
+        /// <param name="name2"></param>
+        /// <returns></returns>
+        private int SortByKeyAscending(KeyValue a_keyvalue1, KeyValue a_keyvalue2)
+        {
+
+            return (a_keyvalue1.szKey.CompareTo(a_keyvalue2.szKey));
         }
 
         /// <summary>
@@ -1812,6 +1960,28 @@ namespace TwainDirect.Certification
         #endregion
 
 
+        // Private Definitions
+        #region Private Definitions
+
+        /// <summary>
+        /// A key/value pair...
+        /// </summary>
+        private struct KeyValue
+        {
+            /// <summary>
+            /// Our key...
+            /// </summary>
+            public string szKey;
+
+            /// <summary>
+            /// The key's value...
+            /// </summary>
+            public string szValue;
+        }
+
+        #endregion
+
+
         // Private Attributes
         #region Private Attributes
 
@@ -1849,6 +2019,11 @@ namespace TwainDirect.Certification
         /// A record of RESTful transactions with the scanner...
         /// </summary>
         private List<ApiCmd.Transaction> m_ltransations;
+
+        /// <summary>
+        /// The list of key/value pairs created by the SET command...
+        /// </summary>
+        private List<KeyValue> m_lkeyvalue;
 
         #endregion
     }
