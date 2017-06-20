@@ -76,6 +76,7 @@ namespace TwainDirect.Certification
             m_dnssddeviceinfoSelected = null;
             m_twainlocalscanner = null;
             m_lkeyvalue = new List<KeyValue>();
+            m_transactionLast = null;
 
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
@@ -85,7 +86,6 @@ namespace TwainDirect.Certification
             m_ldispatchtable = new List<Interpreter.DispatchTable>();
 
             // Discovery and Selection...
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                         new string[] { "help", "?" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                         new string[] { "list" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                         new string[] { "ex", "exit", "q", "quit" }));
@@ -107,8 +107,11 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,             new string[] { "wait", "waitforevents", "waitForEvents" }));
 
             // Scripting...
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRunv,                         new string[] { "runv" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSet,                          new string[] { "set" }));
 
             // Say hi...
@@ -117,8 +120,8 @@ namespace TwainDirect.Certification
             Version version = assemblyname.Version;
             DateTime datetime = new DateTime(2000, 1, 1).AddDays(version.Build).AddSeconds(version.MinorRevision * 2);
 
-            Console.Out.WriteLine("TWAIN Direct Certification v" + version.Major + "." + version.Minor + " " + datetime.ToShortDateString() + " " + ((IntPtr.Size == 4) ? " (32-bit)" : " (64-bit)"));
-            Console.Out.WriteLine("Enter \"help\" for more info.");
+            Display("TWAIN Direct Certification v" + version.Major + "." + version.Minor + " " + datetime.ToShortDateString() + " " + ((IntPtr.Size == 4) ? " (32-bit)" : " (64-bit)"));
+            Display("Enter \"help\" for more info.");
         }
 
         /// <summary>
@@ -150,9 +153,9 @@ namespace TwainDirect.Certification
                     string szValue = aszCmd[iCmd];
                     if (szValue.StartsWith("rj:"))
                     {
-                        if (m_ltransations.Count > 0)
+                        if (m_transactionLast != null)
                         {
-                            string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
+                            string szResponseData = m_transactionLast.GetResponseData();
                             if (!string.IsNullOrEmpty(szResponseData))
                             {
                                 bool blSuccess;
@@ -200,11 +203,13 @@ namespace TwainDirect.Certification
                 // Dispatch...
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
                 functionarguments.aszCmd = aszCmd;
+                functionarguments.transaction = m_transactionLast;
                 blDone = interpreter.Dispatch(ref functionarguments, m_ldispatchtable);
                 if (blDone)
                 {
                     return;
                 }
+                m_transactionLast = functionarguments.transaction;
 
                 // Update the prompt with state information...
                 if (m_twainlocalscanner == null)
@@ -244,7 +249,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
@@ -253,7 +258,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerCloseSession(ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -274,7 +279,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
@@ -283,7 +288,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerCreateSession(m_dnssddeviceinfoSelected, ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -304,7 +309,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
@@ -313,7 +318,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerGetSession(ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -334,7 +339,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
@@ -343,7 +348,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -366,24 +371,24 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
             if (a_functionarguments.aszCmd.Length < 3)
             {
-                Console.Out.WriteLine("please specify image block to read and thumbnail flag...");
+                Display("please specify image block to read and thumbnail flag...");
                 return (false);
             }
 
             // Get the image block number...
             if (!long.TryParse(a_functionarguments.aszCmd[1], out lImageBlock))
             {
-                Console.Out.WriteLine("image block must be a number...");
+                Display("image block must be a number...");
                 return (false);
             }
             if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetThumbnail))
             {
-                Console.Out.WriteLine("thumbnail flag must be true or false...");
+                Display("thumbnail flag must be true or false...");
                 return (false);
             }
 
@@ -392,7 +397,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerReadImageBlockMetadata(lImageBlock, blGetThumbnail, null, ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -415,24 +420,24 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
             if (a_functionarguments.aszCmd.Length < 3)
             {
-                Console.Out.WriteLine("please specify image block to read and thumbnail flag...");
+                Display("please specify image block to read and thumbnail flag...");
                 return (false);
             }
 
             // Get the image block number...
             if (!long.TryParse(a_functionarguments.aszCmd[1], out lImageBlock))
             {
-                Console.Out.WriteLine("image block must be a number...");
+                Display("image block must be a number...");
                 return (false);
             }
             if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetMetadataWithImage))
             {
-                Console.Out.WriteLine("getmetdata flag must be true or false...");
+                Display("getmetdata flag must be true or false...");
                 return (false);
             }
 
@@ -441,7 +446,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerReadImageBlock(lImageBlock, blGetMetadataWithImage, null, ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -464,24 +469,24 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
             if (a_functionarguments.aszCmd.Length < 3)
             {
-                Console.Out.WriteLine("please specify the first and last image block to release...");
+                Display("please specify the first and last image block to release...");
                 return (false);
             }
 
             // Get the values...
             if (!long.TryParse(a_functionarguments.aszCmd[1], out lFirstImageBlock))
             {
-                Console.Out.WriteLine("first image block must be a number...");
+                Display("first image block must be a number...");
                 return (false);
             }
             if (!long.TryParse(a_functionarguments.aszCmd[2], out lLastImageBlock))
             {
-                Console.Out.WriteLine("last image block must be a number...");
+                Display("last image block must be a number...");
                 return (false);
             }
 
@@ -493,7 +498,7 @@ namespace TwainDirect.Certification
                 m_twainlocalscanner.ClientScannerReleaseImageBlocks(lFirstImageBlock, lLastImageBlock, ref apicmd);
 
                 // Squirrel away the transaction...
-                m_ltransations.Add(apicmd.GetTransaction());
+                a_functionarguments.transaction = apicmd.GetTransaction();
 
                 // Scoot...
                 if ((lFirstImageBlock != 1) || (lLastImageBlock != int.MaxValue))
@@ -538,14 +543,14 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
             // Must supply a task...
             if ((a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
-                Console.Out.WriteLine("must supply a task...");
+                Display("must supply a task...");
                 return (false);
             }
 
@@ -558,7 +563,7 @@ namespace TwainDirect.Certification
                 }
                 catch (Exception exception)
                 {
-                    Console.Out.WriteLine("failed to open file...<" + a_functionarguments.aszCmd[1] + "> - " + exception.Message);
+                    Display("failed to open file...<" + a_functionarguments.aszCmd[1] + "> - " + exception.Message);
                     return (false);
                 }
             }
@@ -572,7 +577,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerSendTask(szTask, ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -593,7 +598,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
@@ -602,7 +607,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -623,7 +628,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
@@ -632,7 +637,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -653,7 +658,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Console.Out.WriteLine("must first select a scanner...");
+                Display("must first select a scanner...");
                 return (false);
             }
 
@@ -662,7 +667,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
 
             // Squirrel away the transaction...
-            m_ltransations.Add(apicmd.GetTransaction());
+            a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
             DisplayApicmd(apicmd);
@@ -676,6 +681,34 @@ namespace TwainDirect.Certification
 
         // Private Methods (commands)
         #region Private Methods (commands)
+
+        /// <summary>
+        /// Echo text...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdEcho(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int ii;
+            string szLine = "";
+
+            // No data...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[0] == null))
+            {
+                Display("", true);
+                return (false);
+            }
+
+            // Turn it into a line, and spit it out...
+            for (ii = 1; ii < a_functionarguments.aszCmd.Length; ii++)
+            {
+                szLine += ((szLine == "") ? "" : " ") + a_functionarguments.aszCmd[ii];
+            }
+            Display(szLine, true);
+
+            // All done...
+            return (false);
+        }
 
         /// <summary>
         /// Goto the user...
@@ -711,7 +744,7 @@ namespace TwainDirect.Certification
             }
 
             // Ugh...
-            Console.Out.WriteLine("goto label not found: <" + szLabel + ">");
+            Display("goto label not found: <" + szLabel + ">");
             return (false);
         }
 
@@ -727,29 +760,32 @@ namespace TwainDirect.Certification
             // Summary...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
-                Console.Out.WriteLine("Discovery and Selection");
-                Console.Out.WriteLine("help.........................................this text");
-                Console.Out.WriteLine("list.........................................list scanners");
-                Console.Out.WriteLine("quit.........................................exit the program");
-                Console.Out.WriteLine("select {pattern}.............................select a scanner");
-                Console.Out.WriteLine("status.......................................status of the program");
-                Console.Out.WriteLine("");
-                Console.Out.WriteLine("Image Capture APIs (in order of use)");
-                Console.Out.WriteLine("infoex.......................................get information about the scanner");
-                Console.Out.WriteLine("createSession................................create a new session");
-                Console.Out.WriteLine("getSession...................................show the current session object");
-                Console.Out.WriteLine("waitForEvents................................wait for events, like session object changes");
-                Console.Out.WriteLine("sendTask {task|file}.........................send task");
-                Console.Out.WriteLine("startCapturing...............................start capturing new images");
-                Console.Out.WriteLine("readImageBlockMetadata {block} {thumbnail}...read metadata for a block");
-                Console.Out.WriteLine("readImageBlock {block} {metadata}............read image data block");
-                Console.Out.WriteLine("releaseImageBlocks {first} {last}............release images blocks in the scanner");
-                Console.Out.WriteLine("stopCapturing................................stop capturing new images");
-                Console.Out.WriteLine("closeSession.................................close the current session");
-                Console.Out.WriteLine("");
-                Console.Out.WriteLine("Scripting");
-                Console.Out.WriteLine("if {item1} {operator} {item2} goto {label}...if statement");
-                Console.Out.WriteLine("run [script].................................run a script");
+                Display("Discovery and Selection");
+                Display("help.........................................this text");
+                Display("list.........................................list scanners");
+                Display("quit.........................................exit the program");
+                Display("select {pattern}.............................select a scanner");
+                Display("status.......................................status of the program");
+                Display("");
+                Display("Image Capture APIs (in order of use)");
+                Display("infoex.......................................get information about the scanner");
+                Display("createSession................................create a new session");
+                Display("getSession...................................show the current session object");
+                Display("waitForEvents................................wait for events, like session object changes");
+                Display("sendTask {task|file}.........................send task");
+                Display("startCapturing...............................start capturing new images");
+                Display("readImageBlockMetadata {block} {thumbnail}...read metadata for a block");
+                Display("readImageBlock {block} {metadata}............read image data block");
+                Display("releaseImageBlocks {first} {last}............release images blocks in the scanner");
+                Display("stopCapturing................................stop capturing new images");
+                Display("closeSession.................................close the current session");
+                Display("");
+                Display("Scripting");
+                Display("echo [text]..................................echo text");
+                Display("if {item1} {operator} {item2} goto {label}...if statement");
+                Display("run [script].................................run a script");
+                Display("runv [script]................................run a script verbosely");
+                Display("set [key [value]]............................show, set, or delete keys");
                 return (false);
             }
 
@@ -762,49 +798,49 @@ namespace TwainDirect.Certification
             // Help...
             if ((szCommand == "help"))
             {
-                Console.Out.WriteLine("HELP [COMMAND]");
-                Console.Out.WriteLine("Provides assistence with command and their arguments.  It does not");
-                Console.Out.WriteLine("go into detail on TWAIN Direct.  Please read the Specifications for");
-                Console.Out.WriteLine("more information.");
-                Console.Out.WriteLine("");
-                Console.Out.WriteLine("Curly brackets {} indicate mandatory arguments to a command.  Square");
-                Console.Out.WriteLine("brackets [] indicate optional arguments.");
+                Display("HELP [COMMAND]");
+                Display("Provides assistence with command and their arguments.  It does not");
+                Display("go into detail on TWAIN Direct.  Please read the Specifications for");
+                Display("more information.");
+                Display("");
+                Display("Curly brackets {} indicate mandatory arguments to a command.  Square");
+                Display("brackets [] indicate optional arguments.");
                 return (false);
             }
 
             // List...
             if ((szCommand == "list"))
             {
-                Console.Out.WriteLine("LIST");
-                Console.Out.WriteLine("List the scanners that are advertising themselves.  Note that the");
-                Console.Out.WriteLine("same scanner make be seen multiple times, if it's being advertised");
-                Console.Out.WriteLine("on more than one network.");
+                Display("LIST");
+                Display("List the scanners that are advertising themselves.  Note that the");
+                Display("same scanner make be seen multiple times, if it's being advertised");
+                Display("on more than one network.");
                 return (false);
             }
 
             // Quit...
             if ((szCommand == "quit"))
             {
-                Console.Out.WriteLine("QUIT");
-                Console.Out.WriteLine("Exit from this program.");
+                Display("QUIT");
+                Display("Exit from this program.");
                 return (false);
             }
 
             // Select...
             if ((szCommand == "select"))
             {
-                Console.Out.WriteLine("SELECT {PATTERN}");
-                Console.Out.WriteLine("Selects one of the scanners shown in the list command, which is");
-                Console.Out.WriteLine("the scanner that will be accessed by the API commands.  The pattern");
-                Console.Out.WriteLine("must match some or all of the name, the IP address, or the note.");
+                Display("SELECT {PATTERN}");
+                Display("Selects one of the scanners shown in the list command, which is");
+                Display("the scanner that will be accessed by the API commands.  The pattern");
+                Display("must match some or all of the name, the IP address, or the note.");
                 return (false);
             }
 
             // Status...
             if ((szCommand == "status"))
             {
-                Console.Out.WriteLine("STATUS");
-                Console.Out.WriteLine("General information about the current operation of the program.");
+                Display("STATUS");
+                Display("General information about the current operation of the program.");
                 return (false);
             }
 
@@ -816,97 +852,97 @@ namespace TwainDirect.Certification
             // infoex...
             if ((szCommand == "infoex"))
             {
-                Console.Out.WriteLine("INFOEX");
-                Console.Out.WriteLine("Issues an infoex command to the scanner that picked out using");
-                Console.Out.WriteLine("the SELECT command.  The command must be issued before making");
-                Console.Out.WriteLine("a call to CREATESESSION.");
+                Display("INFOEX");
+                Display("Issues an infoex command to the scanner that picked out using");
+                Display("the SELECT command.  The command must be issued before making");
+                Display("a call to CREATESESSION.");
                 return (false);
             }
 
             // createSession...
             if ((szCommand == "createsession"))
             {
-                Console.Out.WriteLine("CREATESESSION");
-                Console.Out.WriteLine("Creates a session for the scanner picked out using the SELECT");
-                Console.Out.WriteLine("command.  To end the session use CLOSESESSION.");
+                Display("CREATESESSION");
+                Display("Creates a session for the scanner picked out using the SELECT");
+                Display("command.  To end the session use CLOSESESSION.");
                 return (false);
             }
 
             // getSession...
             if ((szCommand == "getsession"))
             {
-                Console.Out.WriteLine("GETSESSION");
-                Console.Out.WriteLine("Gets infornation about the current session.");
+                Display("GETSESSION");
+                Display("Gets infornation about the current session.");
                 return (false);
             }
 
             // waitForEvents...
             if ((szCommand == "waitforevents"))
             {
-                Console.Out.WriteLine("WAITFOREVENTS");
-                Console.Out.WriteLine("TWAIN Direct is event driven.  The command creates the event");
-                Console.Out.WriteLine("monitor used to detect updates to the session object.  It");
-                Console.Out.WriteLine("should be called once after CREATESESSION.");
+                Display("WAITFOREVENTS");
+                Display("TWAIN Direct is event driven.  The command creates the event");
+                Display("monitor used to detect updates to the session object.  It");
+                Display("should be called once after CREATESESSION.");
                 return (false);
             }
 
             // sendTask...
             if ((szCommand == "sendtask"))
             {
-                Console.Out.WriteLine("SENDTASK {TASK|FILE}");
-                Console.Out.WriteLine("Sends a TWAIN Direct task.  The argument can either be the");
-                Console.Out.WriteLine("task itself, or a file containing the task.");
+                Display("SENDTASK {TASK|FILE}");
+                Display("Sends a TWAIN Direct task.  The argument can either be the");
+                Display("task itself, or a file containing the task.");
                 return (false);
             }
 
             // startCapturing...
             if ((szCommand == "startcapturing"))
             {
-                Console.Out.WriteLine("STARTCAPTURING");
-                Console.Out.WriteLine("Start capturing images from the scanner.");
+                Display("STARTCAPTURING");
+                Display("Start capturing images from the scanner.");
                 return (false);
             }
 
             // readImageBlockMetadata...
             if ((szCommand == "readimageblockmetadata"))
             {
-                Console.Out.WriteLine("READIMAGEBLOCKMETADATA {BLOCK} {INCLUDETHUMBNAIL}");
-                Console.Out.WriteLine("Reads the metadata for the specified image BLOCK, and");
-                Console.Out.WriteLine("optionally includes a thumbnail for that image.");
+                Display("READIMAGEBLOCKMETADATA {BLOCK} {INCLUDETHUMBNAIL}");
+                Display("Reads the metadata for the specified image BLOCK, and");
+                Display("optionally includes a thumbnail for that image.");
                 return (false);
             }
 
             // readImageBlock...
             if ((szCommand == "readimageblock"))
             {
-                Console.Out.WriteLine("READIMAGEBLOCK {BLOCK} {INCLUDEMETADATA}");
-                Console.Out.WriteLine("Reads the image data for the specified image BLOCK, and");
-                Console.Out.WriteLine("optionally includes the metadata for that image.");
+                Display("READIMAGEBLOCK {BLOCK} {INCLUDEMETADATA}");
+                Display("Reads the image data for the specified image BLOCK, and");
+                Display("optionally includes the metadata for that image.");
                 return (false);
             }
 
             // releaseImageBlocks...
             if ((szCommand == "releaseimageblocks"))
             {
-                Console.Out.WriteLine("RELEASEIMAGEBLOCKS {FIRST} {LAST}");
-                Console.Out.WriteLine("Releases the image blocks from FIRST to LAST inclusive.");
+                Display("RELEASEIMAGEBLOCKS {FIRST} {LAST}");
+                Display("Releases the image blocks from FIRST to LAST inclusive.");
                 return (false);
             }
 
             // stopCapturing...
             if ((szCommand == "stopCapturing"))
             {
-                Console.Out.WriteLine("STOPCAPTURING");
-                Console.Out.WriteLine("Stop capturing images from the scanner.");
+                Display("STOPCAPTURING");
+                Display("Stop capturing images from the scanner.");
                 return (false);
             }
 
             // closeSession...
             if ((szCommand == "closeSession"))
             {
-                Console.Out.WriteLine("CLOSESESSION");
-                Console.Out.WriteLine("Close the session, which unlocks the scanner.  The user");
-                Console.Out.WriteLine("is responsible for releasing any remaining images.");
+                Display("CLOSESESSION");
+                Display("Close the session, which unlocks the scanner.  The user");
+                Display("is responsible for releasing any remaining images.");
                 return (false);
             }
 
@@ -915,58 +951,76 @@ namespace TwainDirect.Certification
             // Scripting
             #region Scripting
 
+            // Echo...
+            if ((szCommand == "echo"))
+            {
+                Display("ECHO [TEXT]");
+                Display("Echos the text.  If there is no text an empty line is echoed.");
+                return (false);
+            }
+
             // if...
             if ((szCommand == "if"))
             {
-                Console.Out.WriteLine("IF {ITEM1} {OPERATOR} {ITEM2} GOTO {LABEL}");
-                Console.Out.WriteLine("If the operator for ITEM1 and ITEM2 is true, then goto the");
-                Console.Out.WriteLine("label.  For the best experience get in the habit of putting");
-                Console.Out.WriteLine("either single or double quotes around the items.");
-                Console.Out.WriteLine("");
-                Console.Out.WriteLine("Operators");
-                Console.Out.WriteLine("==....values are equal (case sensitive)");
-                Console.Out.WriteLine("~~....values are equal (case insensitive)");
-                Console.Out.WriteLine("!=....values are not equal (case sensitive)");
-                Console.Out.WriteLine("!~....values are not equal (case insensitive)");
-                Console.Out.WriteLine("");
-                Console.Out.WriteLine("Items");
-                Console.Out.WriteLine("Items prefixed with 'rj:' indicate that the item is a JSON");
-                Console.Out.WriteLine("key in the last command's response payload.  For instance:");
-                Console.Out.WriteLine("  if 'rj:results.success' != 'true' goto FAIL");
-                Console.Out.WriteLine("Items prefixed with 'get:' indicate that the item is the");
-                Console.Out.WriteLine("result of a prior set command.");
-                Console.Out.WriteLine("  if 'get:lastsuccess' != 'true' goto FAIL");
+                Display("IF {ITEM1} {OPERATOR} {ITEM2} GOTO {LABEL}");
+                Display("If the operator for ITEM1 and ITEM2 is true, then goto the");
+                Display("label.  For the best experience get in the habit of putting");
+                Display("either single or double quotes around the items.");
+                Display("");
+                Display("Operators");
+                Display("==....values are equal (case sensitive)");
+                Display("~~....values are equal (case insensitive)");
+                Display("!=....values are not equal (case sensitive)");
+                Display("!~....values are not equal (case insensitive)");
+                Display("");
+                Display("Items");
+                Display("Items prefixed with 'rj:' indicate that the item is a JSON");
+                Display("key in the last command's response payload.  For instance:");
+                Display("  if 'rj:results.success' != 'true' goto FAIL");
+                Display("Items prefixed with 'get:' indicate that the item is the");
+                Display("result of a prior set command.");
+                Display("  if 'get:lastsuccess' != 'true' goto FAIL");
                 return (false);
             }
 
             // Run...
             if ((szCommand == "run"))
             {
-                Console.Out.WriteLine("RUN [SCRIPT]");
-                Console.Out.WriteLine("Runs the specified script.  SCRIPT is the full path to the script");
-                Console.Out.WriteLine("to be run.  If a SCRIPT is not specified, the scripts in the");
-                Console.Out.WriteLine("current folder are listed.");
+                Display("RUN [SCRIPT]");
+                Display("Runs the specified script.  SCRIPT is the full path to the script");
+                Display("to be run.  If a SCRIPT is not specified, the scripts in the");
+                Display("current folder are listed.");
+                return (false);
+            }
+
+            // Run...
+            if ((szCommand == "runv"))
+            {
+                Display("RUNV [SCRIPT]");
+                Display("Runs the specified script.  SCRIPT is the full path to the script");
+                Display("to be run.  If a SCRIPT is not specified, the scripts in the");
+                Display("current folder are listed.  The script commands are displayed.");
                 return (false);
             }
 
             // Set...
             if ((szCommand == "set"))
             {
-                Console.Out.WriteLine("SET {KEY} {VALUE}");
-                Console.Out.WriteLine("Set a key to the specified value.  If a KEY is not specified");
-                Console.Out.WriteLine("all of the current keys are listed with their values.");
-                Console.Out.WriteLine("");
-                Console.Out.WriteLine("Values");
-                Console.Out.WriteLine("Values prefixed with 'rj:' indicate that the item is a JSON");
-                Console.Out.WriteLine("key in the last command's response payload.  For instance:");
-                Console.Out.WriteLine("  set success 'rj:results.success'");
+                Display("SET {KEY} {VALUE}");
+                Display("Set a key to the specified value.  If a KEY is not specified");
+                Display("all of the current keys are listed with their values.");
+                Display("");
+                Display("Values");
+                Display("Values prefixed with 'rj:' indicate that the item is a JSON");
+                Display("key in the last command's response payload.  For instance:");
+                Display("  set success 'rj:results.success'");
                 return (false);
             }
 
             #endregion
 
             // Well, this ain't good...
-            Console.Out.WriteLine("unrecognized command: " + a_functionarguments.aszCmd[1]);
+            Display("unrecognized command: " + a_functionarguments.aszCmd[1]);
 
             // All done...
             return (false);
@@ -988,7 +1042,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 4) || (a_functionarguments.aszCmd[1] == null))
             {
-                Console.Out.WriteLine("badly formed if-statement...");
+                Display("badly formed if-statement...");
                 return (false);
             }
 
@@ -1037,7 +1091,7 @@ namespace TwainDirect.Certification
             // Unrecognized operator...
             else
             {
-                Console.Out.WriteLine("unrecognized operator: <" + szOperator + ">");
+                Display("unrecognized operator: <" + szOperator + ">");
                 return (false);
             }
 
@@ -1053,7 +1107,7 @@ namespace TwainDirect.Certification
                     // Validate...
                     if ((a_functionarguments.aszCmd.Length < 5) || string.IsNullOrEmpty(a_functionarguments.aszCmd[4]))
                     {
-                        Console.Out.WriteLine("goto label is missing...");
+                        Display("goto label is missing...");
                         return (false);
                     }
 
@@ -1070,14 +1124,14 @@ namespace TwainDirect.Certification
                     }
 
                     // Ugh...
-                    Console.Out.WriteLine("goto label not found: <" + szLabel + ">");
+                    Display("goto label not found: <" + szLabel + ">");
                     return (false);
                 }
 
                 // We have no idea what we're doing...
                 else
                 {
-                    Console.Out.WriteLine("unrecognized action: <" + szAction + ">");
+                    Display("unrecognized action: <" + szAction + ">");
                     return (false);
                 }
             }
@@ -1104,13 +1158,13 @@ namespace TwainDirect.Certification
             {
                 if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
                 {
-                    Console.Out.WriteLine("*** no TWAIN Local scanners ***");
+                    Display("*** no TWAIN Local scanners ***");
                 }
                 else
                 {
                     foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
                     {
-                        Console.Out.WriteLine(dnssddeviceinfo.szLinkLocal + " " + (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) ? dnssddeviceinfo.szIpv4 : dnssddeviceinfo.szIpv6) + " " + dnssddeviceinfo.szTxtNote);
+                        Display(dnssddeviceinfo.szLinkLocal + " " + (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) ? dnssddeviceinfo.szIpv4 : dnssddeviceinfo.szIpv6) + " " + dnssddeviceinfo.szTxtNote);
                     }
                 }
             }
@@ -1131,11 +1185,27 @@ namespace TwainDirect.Certification
 
         /// <summary>
         /// With no arguments, list the scripts.  With an argument,
-        /// run the specified script.
+        /// run the specified script.  This one runs silent.
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>
         private bool CmdRun(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            bool blSuccess;
+            bool blSilent = m_blSilent;
+            m_blSilent = true;
+            blSuccess = CmdRunv(ref a_functionarguments);
+            m_blSilent = blSilent;
+            return (blSuccess);
+        }
+
+        /// <summary>
+        /// With no arguments, list the scripts.  With an argument,
+        /// run the specified script.  The one runs verbose.
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdRunv(ref Interpreter.FunctionArguments a_functionarguments)
         {
             string szPrompt = "tdc>>> ";
             string[] aszScript;
@@ -1149,14 +1219,14 @@ namespace TwainDirect.Certification
                 string[] aszScriptFiles = Directory.GetFiles(".", "*.tdc");
                 if ((aszScriptFiles == null) || (aszScriptFiles.Length == 0))
                 {
-                    Console.Out.WriteLine("no script files found");
+                    Display("no script files found");
                 }
 
                 // List what we found...
-                Console.Out.WriteLine("SCRIPT FILES");
+                Display("SCRIPT FILES");
                 foreach (string sz in aszScriptFiles)
                 {
-                    Console.Out.WriteLine(sz.Replace(".tdc",""));
+                    Display(sz.Replace(".tdc", ""));
                 }
 
                 // All done...
@@ -1170,7 +1240,7 @@ namespace TwainDirect.Certification
                 szScriptFile = a_functionarguments.aszCmd[1] + ".tdc";
                 if (!File.Exists(szScriptFile))
                 {
-                    Console.Out.WriteLine("script not found");
+                    Display("script not found");
                     return (false);
                 }
             }
@@ -1182,7 +1252,7 @@ namespace TwainDirect.Certification
             }
             catch (Exception exception)
             {
-                Console.Out.WriteLine("failed to read script: " + exception.Message);
+                Display("failed to read script: " + exception.Message);
                 return (false);
             }
 
@@ -1202,7 +1272,10 @@ namespace TwainDirect.Certification
                 szLine = aszScript[iLine];
 
                 // Show the command...
-                Console.Out.WriteLine(szPrompt + szLine.Trim());
+                if (!m_blSilent)
+                {
+                    Display(szPrompt + szLine.Trim());
+                }
 
                 // Tokenize...
                 aszCmd = interpreter.Tokenize(szLine.Trim());
@@ -1214,9 +1287,9 @@ namespace TwainDirect.Certification
                     string szValue = aszCmd[iCmd];
                     if (szValue.StartsWith("rj:"))
                     {
-                        if (m_ltransations.Count > 0)
+                        if (m_transactionLast != null)
                         {
-                            string szResponseData = m_ltransations[m_ltransations.Count - 1].GetResponseData();
+                            string szResponseData = m_transactionLast.GetResponseData();
                             if (!string.IsNullOrEmpty(szResponseData))
                             {
                                 bool blSuccess;
@@ -1263,11 +1336,13 @@ namespace TwainDirect.Certification
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
                 functionarguments.aszCmd = aszCmd;
                 functionarguments.aszScript = aszScript;
+                functionarguments.transaction = m_transactionLast;
                 blDone = interpreter.Dispatch(ref functionarguments, m_ldispatchtable);
                 if (blDone)
                 {
                     break;
                 }
+                m_transactionLast = functionarguments.transaction;
 
                 // Handle gotos...
                 if (functionarguments.blGotoLabel)
@@ -1313,9 +1388,6 @@ namespace TwainDirect.Certification
         {
             bool blSilent;
 
-            // Clear the transactions...
-            m_ltransations = new List<ApiCmd.Transaction>();
-
             // Clear the last selected scanner...
             m_dnssddeviceinfoSelected = null;
             if (m_twainlocalscanner != null)
@@ -1337,7 +1409,7 @@ namespace TwainDirect.Certification
             // No joy...
             if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
             {
-                Console.Out.WriteLine("*** no TWAIN Local scanners ***");
+                Display("*** no TWAIN Local scanners ***");
                 return (false);
             }
 
@@ -1376,12 +1448,12 @@ namespace TwainDirect.Certification
             // Report the result...
             if (m_dnssddeviceinfoSelected != null)
             {
-                Console.Out.WriteLine(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
+                Display(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
                 m_twainlocalscanner = new TwainLocalScanner(null, 1, null, null, null);
             }
             else
             {
-                Console.Out.WriteLine("*** no selection matches ***");
+                Display("*** no selection matches ***");
             }
 
             // All done...
@@ -1403,15 +1475,15 @@ namespace TwainDirect.Certification
             {
                 if (m_lkeyvalue.Count == 0)
                 {
-                    Console.Out.WriteLine("no keys to list...");
+                    Display("no keys to list...");
                     return (false);
                 }
 
                 // Loopy...
-                Console.Out.WriteLine("KEY/VALUE PAIRS");
+                Display("KEY/VALUE PAIRS");
                 foreach (KeyValue keyvalue in m_lkeyvalue)
                 {
-                    Console.Out.WriteLine(keyvalue.szKey + "=" + keyvalue.szValue);
+                    Display(keyvalue.szKey + "=" + keyvalue.szValue);
                 }
 
                 // All done...
@@ -1503,33 +1575,45 @@ namespace TwainDirect.Certification
         private bool CmdStatus(ref Interpreter.FunctionArguments a_functionarguments)
         {
             // Current scanner...
-            Console.Out.WriteLine("SELECTED SCANNER");
+            Display("SELECTED SCANNER");
             if (m_dnssddeviceinfoSelected == null)
             {
-                Console.Out.WriteLine("*** no selected scanner ***");
+                Display("*** no selected scanner ***");
             }
             else
             {
-                Console.Out.WriteLine(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
+                Display(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
             }
 
             // Current snapshot of scanners...
-            Console.Out.WriteLine("");
-            Console.Out.WriteLine("LAST SCANNER LIST SNAPSHOT");
+            Display("");
+            Display("LAST SCANNER LIST SNAPSHOT");
             if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
             {
-                Console.Out.WriteLine("*** no TWAIN Local scanners ***");
+                Display("*** no TWAIN Local scanners ***");
             }
             else
             {
                 foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
                 {
-                    Console.Out.WriteLine(dnssddeviceinfo.szLinkLocal + " " + (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) ? dnssddeviceinfo.szIpv4 : dnssddeviceinfo.szIpv6) + " " + dnssddeviceinfo.szTxtNote);
+                    Display(dnssddeviceinfo.szLinkLocal + " " + (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) ? dnssddeviceinfo.szIpv4 : dnssddeviceinfo.szIpv6) + " " + dnssddeviceinfo.szTxtNote);
                 }
             }
 
             // All done...
             return (false);
+        }
+
+        /// <summary>
+        /// Display text (if allowed)...
+        /// </summary>
+        /// <param name="a_szText">the text to display</param>
+        private void Display(string a_szText, bool a_blForce = false)
+        {
+            if (!m_blSilent || a_blForce)
+            {
+                Console.Out.WriteLine(a_szText);
+            }
         }
 
         /// <summary>
@@ -1541,13 +1625,20 @@ namespace TwainDirect.Certification
             ApiCmd a_apicmd
         )
         {
+            // Nope...
+            if (m_blSilent)
+            {
+                return;
+            }
+
+            // Do it...
             ApiCmd.Transaction transaction = new ApiCmd.Transaction(a_apicmd);
             List<string> lszTransation = transaction.GetAll();
             if (lszTransation != null)
             {
                 foreach (string sz in lszTransation)
                 {
-                    Console.Out.WriteLine(sz);
+                    Display(sz);
                 }
             }
         }
@@ -1587,7 +1678,7 @@ namespace TwainDirect.Certification
             // Whoops...nothing to work with...
             if (!Directory.Exists(szCertificationFolder))
             {
-                Console.Out.WriteLine("Cannot find certification folder:\n" + szCertificationFolder);
+                Display("Cannot find certification folder:\n" + szCertificationFolder);
                 return;
             }
 
@@ -1595,7 +1686,7 @@ namespace TwainDirect.Certification
             aszCategories = Directory.GetDirectories(szCertificationFolder);
             if (aszCategories == null)
             {
-                Console.Out.WriteLine("Cannot find any certification categories:\n" + szCertificationFolder);
+                Display("Cannot find any certification categories:\n" + szCertificationFolder);
                 return;
             }
 
@@ -2038,9 +2129,10 @@ namespace TwainDirect.Certification
         private bool m_blSilent;
 
         /// <summary>
-        /// A record of RESTful transactions with the scanner...
+        /// A record of the last transaction on the API, this
+        /// doesn't include events...
         /// </summary>
-        private List<ApiCmd.Transaction> m_ltransations;
+        private ApiCmd.Transaction m_transactionLast;
 
         /// <summary>
         /// The list of key/value pairs created by the SET command...
