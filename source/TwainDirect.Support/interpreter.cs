@@ -289,6 +289,11 @@ namespace TwainDirect.Support
             public int iLabelLine;
 
             /// <summary>
+            /// The current line in the script...
+            /// </summary>
+            public int iCurrentLine;
+
+            /// <summary>
             /// Clears or records the last API transaction...
             /// </summary>
             public ApiCmd.Transaction transaction;

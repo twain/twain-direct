@@ -77,6 +77,7 @@ namespace TwainDirect.Certification
             m_twainlocalscanner = null;
             m_lkeyvalue = new List<KeyValue>();
             m_transactionLast = null;
+            m_lcallstack = new List<CallStack>();
 
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
@@ -107,9 +108,12 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,             new string[] { "wait", "waitforevents", "waitForEvents" }));
 
             // Scripting...
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCall,                         new string[] { "call" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdReturn,                       new string[] { "return" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRunv,                         new string[] { "runv" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSet,                          new string[] { "set" }));
@@ -195,6 +199,31 @@ namespace TwainDirect.Certification
                             {
                                 aszCmd[iCmd] = "";
 
+                            }
+                        }
+                    }
+
+                    // Get data from the top of the call stack...
+                    else if (szValue.StartsWith("arg:"))
+                    {
+                        if ((m_lcallstack == null) || (m_lcallstack.Count == 0))
+                        {
+                            aszCmd[iCmd] = "";
+                        }
+                        else
+                        {
+                            int iIndex;
+                            if (int.TryParse(szValue.Substring(4), out iIndex))
+                            {
+                                CallStack callstack = m_lcallstack[m_lcallstack.Count - 1];
+                                if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                                {
+                                    aszCmd[iCmd] = callstack.functionarguments.aszCmd[iIndex + 1];
+                                }
+                                else
+                                {
+                                    aszCmd[iCmd] = "";
+                                }
                             }
                         }
                     }
@@ -683,6 +712,50 @@ namespace TwainDirect.Certification
         #region Private Methods (commands)
 
         /// <summary>
+        /// Call a function...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdCall(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int iLine;
+            string szLabel;
+
+            // Validate...
+            if (    (a_functionarguments.aszScript == null)
+                ||  (a_functionarguments.aszScript.Length < 2)
+                ||  (a_functionarguments.aszScript[0] == null)
+                ||  (a_functionarguments.aszCmd == null)
+                ||  (a_functionarguments.aszCmd.Length < 2)
+                ||  (a_functionarguments.aszCmd[1] == null))
+            {
+                return (false);
+            }
+
+            // Search for a match...
+            szLabel = ":" + a_functionarguments.aszCmd[1];
+            for (iLine = 0; iLine < a_functionarguments.aszScript.Length; iLine++)
+            {
+                if (a_functionarguments.aszScript[iLine].Trim() == szLabel)
+                {
+                    // We need this to go to the function...
+                    a_functionarguments.blGotoLabel = true;
+                    a_functionarguments.iLabelLine = iLine;
+
+                    // We need this to get back...
+                    CallStack callstack = default(CallStack);
+                    callstack.functionarguments = a_functionarguments;
+                    m_lcallstack.Add(callstack);
+                    return (false);
+                }
+            }
+
+            // Ugh...
+            Display("function label not found: <" + szLabel + ">");
+            return (false);
+        }
+
+        /// <summary>
         /// Echo text...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -704,6 +777,42 @@ namespace TwainDirect.Certification
             {
                 szLine += ((szLine == "") ? "" : " ") + a_functionarguments.aszCmd[ii];
             }
+            Display(szLine, true);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Display a pass/fail message...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdEchopassfail(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            string szLine;
+            string szDots = "..........................................................................................................";
+
+            // No data...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[0] == null))
+            {
+                Display("echopassfail needs two arguments...", true);
+                return (false);
+            }
+
+            // Build the string...
+            szLine = a_functionarguments.aszCmd[1];
+            if ((szDots.Length - szLine.Length) > 0)
+            {
+                szLine += szDots.Substring(0, szDots.Length - szLine.Length);
+            }
+            else
+            {
+                szLine += "...";
+            }
+            szLine += a_functionarguments.aszCmd[2];
+
+            // Spit it out...
             Display(szLine, true);
 
             // All done...
@@ -781,8 +890,10 @@ namespace TwainDirect.Certification
                 Display("closeSession.................................close the current session");
                 Display("");
                 Display("Scripting");
+                Display("call {label}.................................call function");
                 Display("echo [text]..................................echo text");
                 Display("if {item1} {operator} {item2} goto {label}...if statement");
+                Display("return [status]..............................return from call function");
                 Display("run [script].................................run a script");
                 Display("runv [script]................................run a script verbosely");
                 Display("set [key [value]]............................show, set, or delete keys");
@@ -951,11 +1062,19 @@ namespace TwainDirect.Certification
             // Scripting
             #region Scripting
 
+            // Call...
+            if ((szCommand == "call"))
+            {
+                Display("CALL {FUNCTION}");
+                Display("Call the function.");
+                return (false);
+            }
+
             // Echo...
             if ((szCommand == "echo"))
             {
                 Display("ECHO [TEXT]");
-                Display("Echos the text.  If there is no text an empty line is echoed.");
+                Display("Echoes the text.  If there is no text an empty line is echoed.");
                 return (false);
             }
 
@@ -983,6 +1102,14 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
+            // Return...
+            if ((szCommand == "return"))
+            {
+                Display("RETURN [STATUS]");
+                Display("Return from a call function.");
+                return (false);
+            }
+
             // Run...
             if ((szCommand == "run"))
             {
@@ -993,7 +1120,7 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
-            // Run...
+            // Run verbose...
             if ((szCommand == "runv"))
             {
                 Display("RUNV [SCRIPT]");
@@ -1180,7 +1307,37 @@ namespace TwainDirect.Certification
         /// <returns>true to quit</returns>
         private bool CmdQuit(ref Interpreter.FunctionArguments a_functionarguments)
         {
+            // Bye-bye...
             return (true);
+        }
+
+        /// <summary>
+        /// Return from the current function...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdReturn(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            CallStack callstack;
+
+            // If we don't have anything on the stack, then scoot...
+            if ((m_lcallstack == null) || (m_lcallstack.Count == 0))
+            {
+                return (false);
+            }
+
+            // Grab the last item...
+            callstack = m_lcallstack[m_lcallstack.Count - 1];
+
+            // Remove the last item...
+            m_lcallstack.RemoveAt(m_lcallstack.Count - 1);
+
+            // Set the line we want to jump back to...
+            a_functionarguments.blGotoLabel = true;
+            a_functionarguments.iLabelLine = callstack.functionarguments.iCurrentLine + 1;
+
+            // All done...
+            return (false);
         }
 
         /// <summary>
@@ -1330,12 +1487,38 @@ namespace TwainDirect.Certification
                             }
                         }
                     }
+
+                    // Get data from the top of the call stack...
+                    else if (szValue.StartsWith("arg:"))
+                    {
+                        if ((m_lcallstack == null) || (m_lcallstack.Count == 0))
+                        {
+                            aszCmd[iCmd] = "";
+                        }
+                        else
+                        {
+                            int iIndex;
+                            if (int.TryParse(szValue.Substring(4), out iIndex))
+                            {
+                                CallStack callstack = m_lcallstack[m_lcallstack.Count - 1];
+                                if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                                {
+                                    aszCmd[iCmd] = callstack.functionarguments.aszCmd[iIndex + 1];
+                                }
+                                else
+                                {
+                                    aszCmd[iCmd] = "";
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Dispatch...
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
                 functionarguments.aszCmd = aszCmd;
                 functionarguments.aszScript = aszScript;
+                functionarguments.iCurrentLine = iLine;
                 functionarguments.transaction = m_transactionLast;
                 blDone = interpreter.Dispatch(ref functionarguments, m_ldispatchtable);
                 if (blDone)
@@ -2092,6 +2275,17 @@ namespace TwainDirect.Certification
             public string szValue;
         }
 
+        /// <summary>
+        /// Call stack info...
+        /// </summary>
+        private struct CallStack
+        {
+            /// <summary>
+            /// The arguments to this call...
+            /// </summary>
+            public Interpreter.FunctionArguments functionarguments;
+        }
+
         #endregion
 
 
@@ -2138,6 +2332,11 @@ namespace TwainDirect.Certification
         /// The list of key/value pairs created by the SET command...
         /// </summary>
         private List<KeyValue> m_lkeyvalue;
+
+        /// <summary>
+        /// A last in first off stack of function calls...
+        /// </summary>
+        private List<CallStack> m_lcallstack;
 
         #endregion
     }
