@@ -75,11 +75,11 @@
   <ItemGroup>
     <Reference Include="pdfras_reader_managed, Version=1.0.6368.26161, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\pdfraster\$(Configuration)\pdfras_reader_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_reader_managed.dll</HintPath>
     </Reference>
     <Reference Include="pdfras_writer_managed, Version=0.14.6368.26165, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\pdfraster\$(Configuration)\pdfras_writer_managed.dll</HintPath>
+      <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_writer_managed.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
