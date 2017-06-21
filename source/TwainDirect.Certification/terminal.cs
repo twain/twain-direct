@@ -1385,14 +1385,14 @@ namespace TwainDirect.Certification
                 string[] aszScriptFiles = Directory.GetFiles(".", "*.tdc");
                 if ((aszScriptFiles == null) || (aszScriptFiles.Length == 0))
                 {
-                    Display("no script files found");
+                    Display("no script files found", true);
                 }
 
                 // List what we found...
                 Display("SCRIPT FILES");
                 foreach (string sz in aszScriptFiles)
                 {
-                    Display(sz.Replace(".tdc", ""));
+                    Display(Path.GetFileNameWithoutExtension(sz), true);
                 }
 
                 // All done...
@@ -1406,7 +1406,7 @@ namespace TwainDirect.Certification
                 szScriptFile = a_functionarguments.aszCmd[1] + ".tdc";
                 if (!File.Exists(szScriptFile))
                 {
-                    Display("script not found");
+                    Display("script not found", true);
                     return (false);
                 }
             }
@@ -1418,7 +1418,7 @@ namespace TwainDirect.Certification
             }
             catch (Exception exception)
             {
-                Display("failed to read script: " + exception.Message);
+                Display("failed to read script: " + exception.Message, true);
                 return (false);
             }
 
