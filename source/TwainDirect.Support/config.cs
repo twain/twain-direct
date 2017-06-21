@@ -166,6 +166,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return the command line passed into us...
+        /// </summary>
+        /// <returns>the command line</returns>
+        public static string[] GetCommandLine()
+        {
+            return (ms_aszCommandLine);
+        }
+
+        /// <summary>
         /// Load the configuration object.  We want to read in the
         /// configuaration data (in JSON format) and a list of the
         /// command line arguments.

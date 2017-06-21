@@ -65,6 +65,13 @@ namespace TwainDirect.Certification
             m_transactionLast = null;
             m_lcallstack = new List<CallStack>();
 
+            // Set up the base stack with the program arguments, we know
+            // this is the base stack for two reasons: first, it has no
+            // script, and second, it's first... :)
+            CallStack callstack = default(CallStack);
+            callstack.functionarguments.aszCmd = Config.GetCommandLine();
+            m_lcallstack.Add(callstack);
+
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
             m_dnssd.MonitorStart(null, IntPtr.Zero);
@@ -1312,7 +1319,13 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
-            // Grab the last item...
+            // If this is the base of the stack, then return is a noop...
+            if (m_lcallstack.Count == 1)
+            {
+                return (false);
+            }
+
+            // Make a copy of the last item (which we're about to delete)...
             callstack = m_lcallstack[m_lcallstack.Count - 1];
 
             // Remove the last item...
@@ -1321,6 +1334,14 @@ namespace TwainDirect.Certification
             // Set the line we want to jump back to...
             a_functionarguments.blGotoLabel = true;
             a_functionarguments.iLabelLine = callstack.functionarguments.iCurrentLine + 1;
+
+            // Make a note of the return value for "ret:"...
+            if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 1))
+            {
+                callstack = m_lcallstack[m_lcallstack.Count - 1];
+                callstack.functionarguments.szReturnValue = a_functionarguments.aszCmd[1];
+                m_lcallstack[m_lcallstack.Count - 1] = callstack;
+            }
 
             // All done...
             return (false);
@@ -1353,6 +1374,8 @@ namespace TwainDirect.Certification
             string szPrompt = "tdc>>> ";
             string[] aszScript;
             string szScriptFile;
+            int iCallStackCount;
+            CallStack callstack;
             Interpreter interpreter;
 
             // List...
@@ -1401,6 +1424,17 @@ namespace TwainDirect.Certification
 
             // Give ourselves an interpreter...
             interpreter = new Interpreter("");
+
+            // Bump ourself up on the call stack, because we're really
+            // working like a call.  At this point we'll be running with
+            // at least 2 items on the stack.  If we drop down to 1 item
+            // that's a hint that the return command was used to get out
+            // of the script...
+            callstack = default(CallStack);
+            callstack.functionarguments = a_functionarguments;
+            callstack.functionarguments.aszScript = aszScript;
+            m_lcallstack.Add(callstack);
+            iCallStackCount = m_lcallstack.Count;
 
             // Run each line in the script...
             int iLine = 0;
@@ -1486,7 +1520,7 @@ namespace TwainDirect.Certification
                             int iIndex;
                             if (int.TryParse(szValue.Substring(4), out iIndex))
                             {
-                                CallStack callstack = m_lcallstack[m_lcallstack.Count - 1];
+                                callstack = m_lcallstack[m_lcallstack.Count - 1];
                                 if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
                                 {
                                     aszCmd[iCmd] = callstack.functionarguments.aszCmd[iIndex + 1];
@@ -1496,6 +1530,20 @@ namespace TwainDirect.Certification
                                     aszCmd[iCmd] = "";
                                 }
                             }
+                        }
+                    }
+
+                    // Get data from the return value...
+                    else if (szValue.StartsWith("ret:"))
+                    {
+                        callstack = m_lcallstack[m_lcallstack.Count - 1];
+                        if (callstack.functionarguments.szReturnValue != null)
+                        {
+                            aszCmd[iCmd] = callstack.functionarguments.szReturnValue;
+                        }
+                        else
+                        {
+                            aszCmd[iCmd] = "";
                         }
                     }
                 }
@@ -1541,6 +1589,26 @@ namespace TwainDirect.Certification
                         case "closed": szPrompt = "tdc.cls>>> "; break;
                     }
                 }
+
+                // If the count dropped, that's a sign we need to bail...
+                if (m_lcallstack.Count < iCallStackCount)
+                {
+                    break;
+                }
+            }
+
+            // Pop this item, and pass along the return value...
+            if (m_lcallstack.Count > 1)
+            {
+                string szReturnValue = m_lcallstack[m_lcallstack.Count - 1].functionarguments.szReturnValue;
+                if (szReturnValue == null)
+                {
+                    szReturnValue = "";
+                }
+                m_lcallstack.RemoveAt(m_lcallstack.Count - 1);
+                callstack = m_lcallstack[m_lcallstack.Count - 1];
+                callstack.functionarguments.szReturnValue = szReturnValue;
+                m_lcallstack[m_lcallstack.Count - 1] = callstack;
             }
 
             // All done...
@@ -1579,6 +1647,7 @@ namespace TwainDirect.Certification
             if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
             {
                 Display("*** no TWAIN Local scanners ***");
+                SetReturnValue("false");
                 return (false);
             }
 
@@ -1586,6 +1655,7 @@ namespace TwainDirect.Certification
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
             {
                 m_dnssddeviceinfoSelected = m_adnssddeviceinfoSnapshot[0];
+                SetReturnValue("true");
                 return (false);
             }
 
@@ -1619,14 +1689,29 @@ namespace TwainDirect.Certification
             {
                 Display(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
                 m_twainlocalscanner = new TwainLocalScanner(null, 1, null, null, null);
+                SetReturnValue("true");
             }
             else
             {
                 Display("*** no selection matches ***");
+                SetReturnValue("false");
             }
 
             // All done...
             return (false);
+        }
+
+        /// <summary>
+        /// Set the return value on the top callstack item...
+        /// </summary>
+        /// <param name="a_szReturn"></param>
+        /// <returns></returns>
+        private void SetReturnValue(string a_szReturnValue)
+        {
+            if (m_lcallstack.Count < 1) return;
+            CallStack callstack = m_lcallstack[m_lcallstack.Count - 1];
+            callstack.functionarguments.szReturnValue = a_szReturnValue;
+            m_lcallstack[m_lcallstack.Count - 1] = callstack;
         }
 
         /// <summary>

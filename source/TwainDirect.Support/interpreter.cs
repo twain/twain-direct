@@ -330,6 +330,11 @@ namespace TwainDirect.Support
             public int iLabelLine;
 
             /// <summary>
+            /// The function value when returning from a call...
+            /// </summary>
+            public string szReturnValue;
+
+            /// <summary>
             /// The current line in the script...
             /// </summary>
             public int iCurrentLine;
