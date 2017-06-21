@@ -132,7 +132,6 @@ namespace TwainDirect.Certification
             // Run until told to stop...
             while (true)
             {
-                int iCmd;
                 bool blDone;
                 string szCmd;
                 string[] aszCmd;
@@ -143,84 +142,8 @@ namespace TwainDirect.Certification
                 // Tokenize...
                 aszCmd = interpreter.Tokenize(szCmd);
 
-                // Expansion...
-                for (iCmd = 0; iCmd < aszCmd.Length; iCmd++)
-                {
-                    // Use the value as a JSON key to get data from the response data...
-                    string szValue = aszCmd[iCmd];
-                    if (szValue.StartsWith("rj:"))
-                    {
-                        if (m_transactionLast != null)
-                        {
-                            string szResponseData = m_transactionLast.GetResponseData();
-                            if (!string.IsNullOrEmpty(szResponseData))
-                            {
-                                bool blSuccess;
-                                long lJsonErrorIndex;
-                                JsonLookup jsonlookup = new JsonLookup();
-                                blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
-                                if (blSuccess)
-                                {
-                                    aszCmd[iCmd] = jsonlookup.Get(szValue.Substring(3));
-                                }
-                            }
-                        }
-                    }
-
-                    // Use value as a GET key to get a value, we don't allow a null in this
-                    // case, it has to be an empty string...
-                    else if (szValue.StartsWith("get:"))
-                    {
-                        if (m_lkeyvalue.Count == 0)
-                        {
-                            aszCmd[iCmd] = "";
-                        }
-                        else
-                        {
-                            bool blFound = false;
-                            string szKey = szValue.Substring(4);
-                            foreach (KeyValue keyvalue in m_lkeyvalue)
-                            {
-                                if (keyvalue.szKey == szKey)
-                                {
-                                    aszCmd[iCmd] = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
-                                    blFound = true;
-                                    break;
-                                }
-                            }
-                            if (!blFound)
-                            {
-                                aszCmd[iCmd] = "";
-
-                            }
-                        }
-                    }
-
-                    // Get data from the top of the call stack...
-                    else if (szValue.StartsWith("arg:"))
-                    {
-                        if ((m_lcallstack == null) || (m_lcallstack.Count == 0))
-                        {
-                            aszCmd[iCmd] = "";
-                        }
-                        else
-                        {
-                            int iIndex;
-                            if (int.TryParse(szValue.Substring(4), out iIndex))
-                            {
-                                CallStack callstack = m_lcallstack[m_lcallstack.Count - 1];
-                                if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
-                                {
-                                    aszCmd[iCmd] = callstack.functionarguments.aszCmd[iIndex + 1];
-                                }
-                                else
-                                {
-                                    aszCmd[iCmd] = "";
-                                }
-                            }
-                        }
-                    }
-                }
+                // Expansion of symbols...
+                Expansion(ref aszCmd);
 
                 // Dispatch...
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
@@ -757,6 +680,7 @@ namespace TwainDirect.Certification
         {
             int ii;
             string szLine = "";
+            string[] aszCmd;
 
             // No data...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[0] == null))
@@ -765,10 +689,17 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
+            // Copy the array...
+            aszCmd = new string[a_functionarguments.aszCmd.Length];
+            Array.Copy(a_functionarguments.aszCmd, aszCmd, a_functionarguments.aszCmd.Length);
+
+            // Expand the symbols...
+            Expansion(ref aszCmd);
+
             // Turn it into a line, and spit it out...
-            for (ii = 1; ii < a_functionarguments.aszCmd.Length; ii++)
+            for (ii = 1; ii < aszCmd.Length; ii++)
             {
-                szLine += ((szLine == "") ? "" : " ") + a_functionarguments.aszCmd[ii];
+                szLine += ((szLine == "") ? "" : " ") + aszCmd[ii];
             }
             Display(szLine, true);
 
@@ -1440,7 +1371,6 @@ namespace TwainDirect.Certification
             int iLine = 0;
             while (iLine < aszScript.Length)
             {
-                int iCmd;
                 bool blDone;
                 string szLine;
                 string[] aszCmd;
@@ -1457,96 +1387,8 @@ namespace TwainDirect.Certification
                 // Tokenize...
                 aszCmd = interpreter.Tokenize(szLine.Trim());
 
-                // Expansion...
-                for (iCmd = 0; iCmd < aszCmd.Length; iCmd++)
-                {
-                    // Use the value as a JSON key to get data from the response data...
-                    string szValue = aszCmd[iCmd];
-                    if (szValue.StartsWith("rj:"))
-                    {
-                        if (m_transactionLast != null)
-                        {
-                            string szResponseData = m_transactionLast.GetResponseData();
-                            if (!string.IsNullOrEmpty(szResponseData))
-                            {
-                                bool blSuccess;
-                                long lJsonErrorIndex;
-                                JsonLookup jsonlookup = new JsonLookup();
-                                blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
-                                if (blSuccess)
-                                {
-                                    aszCmd[iCmd] = jsonlookup.Get(szValue.Substring(3));
-                                }
-                            }
-                        }
-                    }
-
-                    // Use value as a GET key to get a value...
-                    else if (szValue.StartsWith("get:"))
-                    {
-                        if (m_lkeyvalue.Count == 0)
-                        {
-                            aszCmd[iCmd] = "";
-                        }
-                        else
-                        {
-                            bool blFound = false;
-                            string szKey = szValue.Substring(4);
-                            foreach (KeyValue keyvalue in m_lkeyvalue)
-                            {
-                                if (keyvalue.szKey == szKey)
-                                {
-                                    aszCmd[iCmd] = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
-                                    blFound = true;
-                                    break;
-                                }
-                            }
-                            if (!blFound)
-                            {
-                                aszCmd[iCmd] = "";
-                            }
-                        }
-                    }
-
-                    // Get data from the top of the call stack...
-                    else if (szValue.StartsWith("arg:"))
-                    {
-                        if ((m_lcallstack == null) || (m_lcallstack.Count == 0))
-                        {
-                            aszCmd[iCmd] = "";
-                        }
-                        else
-                        {
-                            int iIndex;
-                            if (int.TryParse(szValue.Substring(4), out iIndex))
-                            {
-                                callstack = m_lcallstack[m_lcallstack.Count - 1];
-                                if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
-                                {
-                                    aszCmd[iCmd] = callstack.functionarguments.aszCmd[iIndex + 1];
-                                }
-                                else
-                                {
-                                    aszCmd[iCmd] = "";
-                                }
-                            }
-                        }
-                    }
-
-                    // Get data from the return value...
-                    else if (szValue.StartsWith("ret:"))
-                    {
-                        callstack = m_lcallstack[m_lcallstack.Count - 1];
-                        if (callstack.functionarguments.szReturnValue != null)
-                        {
-                            aszCmd[iCmd] = callstack.functionarguments.szReturnValue;
-                        }
-                        else
-                        {
-                            aszCmd[iCmd] = "";
-                        }
-                    }
-                }
+                // Expansion of symbols...
+                Expansion(ref aszCmd);
 
                 // Dispatch...
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
@@ -1893,6 +1735,109 @@ namespace TwainDirect.Certification
                 foreach (string sz in lszTransation)
                 {
                     Display(sz);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Expand symbols that we find in the tokenized strings...
+        /// </summary>
+        /// <param name="a_aszCmd">tokeninzed string array to expand</param>
+        private void Expansion(ref string[] a_aszCmd)
+        {
+            int iCmd;
+            CallStack callstack;
+
+            // Expansion...
+            for (iCmd = 0; iCmd < a_aszCmd.Length; iCmd++)
+            {
+                // Use the value as a JSON key to get data from the response data...
+                string szValue = a_aszCmd[iCmd];
+                if (szValue.StartsWith("rj:"))
+                {
+                    if (m_transactionLast != null)
+                    {
+                        string szResponseData = m_transactionLast.GetResponseData();
+                        if (!string.IsNullOrEmpty(szResponseData))
+                        {
+                            bool blSuccess;
+                            long lJsonErrorIndex;
+                            JsonLookup jsonlookup = new JsonLookup();
+                            blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                            if (blSuccess)
+                            {
+                                a_aszCmd[iCmd] = jsonlookup.Get(szValue.Substring(3));
+                            }
+                        }
+                    }
+                }
+
+                // Use value as a GET key to get a value, we don't allow a null in this
+                // case, it has to be an empty string...
+                else if (szValue.StartsWith("get:"))
+                {
+                    if (m_lkeyvalue.Count == 0)
+                    {
+                        a_aszCmd[iCmd] = "";
+                    }
+                    else
+                    {
+                        bool blFound = false;
+                        string szKey = szValue.Substring(4);
+                        foreach (KeyValue keyvalue in m_lkeyvalue)
+                        {
+                            if (keyvalue.szKey == szKey)
+                            {
+                                a_aszCmd[iCmd] = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
+                                blFound = true;
+                                break;
+                            }
+                        }
+                        if (!blFound)
+                        {
+                            a_aszCmd[iCmd] = "";
+
+                        }
+                    }
+                }
+
+                // Get data from the top of the call stack...
+                else if (szValue.StartsWith("arg:"))
+                {
+                    if ((m_lcallstack == null) || (m_lcallstack.Count == 0))
+                    {
+                        a_aszCmd[iCmd] = "";
+                    }
+                    else
+                    {
+                        int iIndex;
+                        if (int.TryParse(szValue.Substring(4), out iIndex))
+                        {
+                            callstack = m_lcallstack[m_lcallstack.Count - 1];
+                            if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                            {
+                                a_aszCmd[iCmd] = callstack.functionarguments.aszCmd[iIndex + 1];
+                            }
+                            else
+                            {
+                                a_aszCmd[iCmd] = "";
+                            }
+                        }
+                    }
+                }
+
+                // Get data from the return value...
+                else if (szValue.StartsWith("ret:"))
+                {
+                    callstack = m_lcallstack[m_lcallstack.Count - 1];
+                    if (callstack.functionarguments.szReturnValue != null)
+                    {
+                        a_aszCmd[iCmd] = callstack.functionarguments.szReturnValue;
+                    }
+                    else
+                    {
+                        a_aszCmd[iCmd] = "";
+                    }
                 }
             }
         }
