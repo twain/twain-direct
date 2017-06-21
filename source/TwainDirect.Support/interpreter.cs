@@ -31,7 +31,10 @@
 
 // Helpers...
 using System;
+using System.IO;
+using System.Text;
 using System.Collections.Generic;
+using Microsoft.Win32.SafeHandles;
 
 namespace TwainDirect.Support
 {
@@ -53,6 +56,44 @@ namespace TwainDirect.Support
         {
             // Our prompt...
             m_szPrompt = (string.IsNullOrEmpty(a_szPrompt) ? ">>>" : a_szPrompt);
+        }
+
+        /// <summary>
+        /// Create a console on Windows...
+        /// </summary>
+        public static void CreateConsole()
+        {
+            // Make sure we have a console...
+            if (TwainLocalScanner.GetPlatform() == TwainLocalScanner.Platform.WINDOWS)
+            {
+                NativeMethods.AllocConsole();
+                // We have to do some additional work to get out text in the console instead
+                // of having it redirected to Visual Studio's output window...
+                IntPtr stdHandle = NativeMethods.GetStdHandle(NativeMethods.STD_OUTPUT_HANDLE);
+                SafeFileHandle safefilehandle = new SafeFileHandle(stdHandle, true);
+                FileStream fileStream = new FileStream(safefilehandle, FileAccess.Write);
+                Encoding encoding = System.Text.Encoding.GetEncoding(Encoding.Default.CodePage);
+                StreamWriter streamwriterStdout = new StreamWriter(fileStream, encoding);
+                streamwriterStdout.AutoFlush = true;
+                Console.SetOut(streamwriterStdout);
+            }
+        }
+
+        /// <summary>
+        /// Get the desktop windows for Windows systems...
+        /// </summary>
+        /// <returns></returns>
+        public static IntPtr GetDesktopWindow()
+        {
+            // Get an hwnd...
+            if (TwainLocalScanner.GetPlatform() == TwainLocalScanner.Platform.WINDOWS)
+            {
+                return (NativeMethods.GetDesktopWindow());
+            }
+            else
+            {
+                return (IntPtr.Zero);
+            }
         }
 
         /// <summary>

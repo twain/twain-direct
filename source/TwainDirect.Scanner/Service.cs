@@ -36,7 +36,7 @@ using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
 {
-    public sealed class Service : ServiceBase
+    internal sealed class Service : ServiceBase
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...

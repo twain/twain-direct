@@ -34,10 +34,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using TwainDirect.Support;
-using Microsoft.Win32.SafeHandles;
 
 namespace TwainDirect.Certification
 {
@@ -56,19 +54,7 @@ namespace TwainDirect.Certification
         public Terminal()
         {
             // Make sure we have a console...
-            if (TwainLocalScanner.GetPlatform() == TwainLocalScanner.Platform.WINDOWS)
-            {
-                NativeMethods.AllocConsole();
-                // We have to do some additional work to get out text in the console instead
-                // of having it redirected to Visual Studio's output window...
-                IntPtr stdHandle = NativeMethods.GetStdHandle(NativeMethods.STD_OUTPUT_HANDLE);
-                SafeFileHandle safefilehandle = new SafeFileHandle(stdHandle, true);
-                FileStream fileStream = new FileStream(safefilehandle, FileAccess.Write);
-                Encoding encoding = System.Text.Encoding.GetEncoding(Encoding.Default.CodePage);
-                StreamWriter streamwriterStdout = new StreamWriter(fileStream, encoding);
-                streamwriterStdout.AutoFlush = true;
-                Console.SetOut(streamwriterStdout);
-            }
+            Interpreter.CreateConsole();
 
             // Init stuff...
             m_blSilent = false;

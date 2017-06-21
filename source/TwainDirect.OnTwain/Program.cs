@@ -273,7 +273,7 @@ namespace TwainDirect.OnTwain
                     int ii;
                     int jj;
                     Dnssd dnssd;
-                    NativeMethods.AllocConsole();
+                    Interpreter.CreateConsole();
                     Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
                     dnssd = new Dnssd(Dnssd.Reason.Monitor);
                     dnssd.MonitorStart(null, IntPtr.Zero);
@@ -304,7 +304,7 @@ namespace TwainDirect.OnTwain
                 else if (szTestDnssd == "register")
                 {
                     Dnssd dnssd;
-                    NativeMethods.AllocConsole();
+                    Interpreter.CreateConsole();
                     dnssd = new Dnssd(Dnssd.Reason.Register);
                     dnssd.RegisterStart("Instance", 55556, "Ty", "Note");
                     Thread.Sleep(60000);

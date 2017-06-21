@@ -63,7 +63,7 @@ namespace TwainDirect.Scanner
                 case Mode.TERMINAL:
                     if (TwainLocalScanner.GetPlatform() == TwainLocalScanner.Platform.WINDOWS)
                     {
-                        NativeMethods.AllocConsole();
+                        Interpreter.CreateConsole();
                     }
                     Terminal terminal = new TwainDirect.Scanner.Terminal();
                     switch (szCommand.ToLower())

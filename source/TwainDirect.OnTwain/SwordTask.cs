@@ -46,7 +46,6 @@ using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 using TwainDirect.Support;
 using TWAINWorkingGroup;
 using TWAINWorkingGroupToolkit;
@@ -61,7 +60,7 @@ namespace TwainDirect.OnTwain
     /// <summary>
     /// This SWORD object wraps all of the JSON content...
     /// </summary>
-    public sealed class ProcessSwordTask
+    internal sealed class ProcessSwordTask
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...
@@ -949,14 +948,7 @@ namespace TwainDirect.OnTwain
             TWAINCSToolkit.STS sts;
 
             // Get an hwnd...
-            if (TWAIN.GetPlatform() == TWAIN.Platform.WINDOWS)
-            {
-                intptrHwnd = NativeMethods.GetDesktopWindow();
-            }
-            else
-            {
-                intptrHwnd = IntPtr.Zero;
-            }
+            intptrHwnd = Interpreter.GetDesktopWindow();
 
             // Create the toolkit...
             try

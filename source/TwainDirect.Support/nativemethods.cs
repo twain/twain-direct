@@ -37,9 +37,12 @@ using System.Runtime.InteropServices;
 namespace TwainDirect.Support
 {
     /// <summary>
-    /// P/Invokes
+    /// P/Invokes, note that these are designed to be only accessible to classes in
+    /// the TwainDirect.Support namespace.  So if you need this functions in other
+    /// namespaces, they have to be wrapped in a function somewhere in one of the
+    /// TwainDirect.Support classes that have public access (not this one)...
     /// </summary>
-    public sealed class NativeMethods
+    internal sealed class NativeMethods
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Windows

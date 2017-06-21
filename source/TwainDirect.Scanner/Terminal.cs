@@ -35,7 +35,7 @@ using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
 {
-    public sealed class Terminal : IDisposable
+    internal sealed class Terminal : IDisposable
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...

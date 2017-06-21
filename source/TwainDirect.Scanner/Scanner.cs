@@ -40,7 +40,7 @@ using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
 {
-    public sealed class Scanner : IDisposable
+    internal sealed class Scanner : IDisposable
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...

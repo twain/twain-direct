@@ -47,7 +47,7 @@ namespace TwainDirect.OnTwain
     /// that we have knowledge of our caller at this level, so there will be
     /// some replication if we add support for another communication manager...
     /// </summary>
-    public sealed class TwainLocalOnTwain
+    internal sealed class TwainLocalOnTwain
     {
         // Public Methods: Run
         #region Public Methods: Run
