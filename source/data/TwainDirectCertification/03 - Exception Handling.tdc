@@ -1,0 +1,329 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Exception Handling v1.0 22-Jun-2017
+; arg:1 - scanner to test
+; returns: pass or fail
+;
+; These tests exercise the ability of the scanner to detect and correctly report on problems found in
+; the TWAIN Direct task sent to it by the application.  Specifically ones relating to the operation of
+; the exception property.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Initialize...
+;
+call INITIALIZE 'Exception Handling v1.0 22-Jun-2017' '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.ERROR
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.01.001 Exception Handling - fail, action
+; Demonstrate a failure in an action.
+;
+set name    'EH.01.001 Task Topology - fail, action'
+set test    '{"actions":[{"action":"someWeirdAction","exception":"fail","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidValue'
+set key     'actions[0].action'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.01.002 Exception Handling - fail, attribute
+; Demonstrate a failure in an attribute.
+;
+set name    'EH.01.002 Task Topology - fail, attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"exception":"fail","attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidValue'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[1].attribute'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.01.003 Exception Handling - fail, pixelFormat
+; Demonstrate a failure in a pixelFormat.
+;
+set name    'EH.01.003 Task Topology - fail, pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"exception":"fail","pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidValue'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].pixelFormat'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.01.004 Exception Handling - fail, source
+; Demonstrate a failure in a source.
+;
+set name    'EH.01.004 Task Topology - fail, source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"exception":"fail","source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidValue'
+set key     'actions[0].streams[0].sources[0].source'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.01.005 Exception Handling - fail, stream
+; Demonstrate a failure in a stream (the actual failure is detected in the source).
+;
+set name    'EH.01.005 Task Topology - fail, stream'
+set test    '{"actions":[{"action":"configure","streams":[{"exception":"fail","sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidValue'
+set key     'actions[0].streams[0].sources[0].source'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.01.006 Exception Handling - fail, value
+; Demonstrate a failure in a value.
+;
+set name    'EH.01.006 Task Topology - fail, value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"exception":"fail","value":-200}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidValue'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[1].values[0].value'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.02.001 Exception Handling - nextAction, attribute
+; Demonstrate nextAction in an attribute.
+;
+set name     'EH.02.001 Task Topology - nextAction, attribute'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","exception":"nextAction","values":[{"value":200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success0 'false'
+set code0    'invalidValue'
+set key0     'actions[0].action'
+set success1 'true'
+call CHECKNEXTACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.03.001 Exception Handling - nextStream, attribute
+; Demonstrate nextStream in an attribute (this is implicit in any stream save the last, so we don't have
+; to have an exception property for it to work).  Note that rgb24 in the first stream could trigger the
+; jump to the nextStream, while the second rgb24 must be ignored if it's not supported.
+;
+set name    'EH.03.001 Task Topology - nextStream, attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].name'
+set value   'stream1'
+call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.03.002 Exception Handling - nextStream, pixelFormat
+; Demonstrate nextStream in a pixelFormat (this is implicit an any stream save the last, so we don't have
+; to have an exception property for it to work).
+;
+set name    'EH.03.002 Task Topology - nextStream, pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].name'
+set value   'stream1'
+call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.03.003 Exception Handling - nextStream, source
+; Demonstrate nextStream in a source (this is implicit an any stream save the last, so we don't have to
+; have an exception property for it to work).
+;
+set name    'EH.03.003 Task Topology - nextStream, source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].name'
+set value   'stream1'
+call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EH.03.004 Exception Handling - nextStream, value
+; Demonstrate nextStream in a value (this is implicit an any stream save the last, so we don't have to
+; have an exception property for it to work).  Note that rgb24 in the first stream could trigger the
+; jump to the nextStream, while the second rgb24 must be ignored if it's not supported.
+;
+set name    'EH.03.004 Task Topology - nextStream, value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":-200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].name'
+set value   'stream1'
+call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summary and cleanup...
+;
+; Did we pass?
+echopassfail 'SUMMARY' '${get:localresult}'
+;
+; Close the session...
+echo
+echo 'CMD: closeSession'
+closeSession
+;
+; All done with the good code path...
+echo 'Done...'
+return '${get:localresult}'
+;
+; Ruh-roh...
+:MAIN.ERROR
+echopassfail 'SUMMARY' 'error'
+echo 'Done with unexpected error, check the logs...'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Initialize
+; arg:1 - name of this test suite
+; arg:2 - scanner to test
+; returns: true or false
+;
+:INITIALIZE
+;
+echo
+echo '${arg:1}'
+;
+; Pick a scanner, default to the first scanner if we
+; don't get one...
+select '${arg:2}'
+if '${ret:}' != 'true' goto INITIALIZE.ERROR
+;
+; Get the scanner info, including its x-privet-token...
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto INITIALIZE.ERROR
+echo 'SCANNER:' '${rj:description}' / '${rj:name}' / '${rj:url}'
+;
+; Create a new session...
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto INITIALIZE.ERROR
+if '${rj:results.session.state}' != 'ready' goto INITIALIZE.ERROR
+;
+; Wait for events (we won't get a response)...
+echo 'CMD: waitForEvents'
+waitForEvents
+;
+; Set our pass flag, and give us a blank line...
+set localresult pass
+echo
+return true
+;
+; Ruh-roh...
+:INITIALIZE.ERROR
+echo 'check that the scanner is available with the list command, and that the name for it is correct.'
+return false
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - expected value of results.success
+; arg:4 - expected value of results.code
+; arg:5 - expected value of results.jsonKey
+; returns: pass or fail
+;
+:CHECK
+;
+sendtask '${arg:2}'
+;
+if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECK.FAIL
+if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECK.FAIL
+if '${rj:results.session.task.actions[0].results.code}' != '${arg:4}' goto CHECK.FAIL
+if '${rj:results.session.task.actions[0].results.jsonKey}' != '${arg:5}' goto CHECK.FAIL
+;
+set result pass
+echopassfail '${arg:1}' '${get:result}'
+return '${get:result}'
+;
+:CHECK.FAIL
+set result fail
+set localresult fail
+echopassfail '${arg:1}' '${get:result}'
+;
+return '${get:result}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check Next Action
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - action[0] expected value of results.success
+; arg:4 - action[0] expected code
+; arg:5 - action[0] expected jsonKey
+; arg:6 - action[1] expected value of results.success
+; returns: pass or fail
+;
+:CHECKNEXTACTION
+;
+sendtask '${arg:2}'
+;
+if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECKNEXTACTION.FAIL
+if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECKNEXTACTION.FAIL
+if '${rj:results.session.task.actions[0].results.code}' != '${arg:4}' goto CHECKNEXTACTION.FAIL
+if '${rj:results.session.task.actions[0].results.jsonKey}' != '${arg:5}' goto CHECKNEXTACTION.FAIL
+if '${rj:results.session.task.actions[1].results.success}' == '' goto CHECKNEXTACTION.FAIL
+if '${rj:results.session.task.actions[1].results.success}' != '${arg:6}' goto CHECKNEXTACTION.FAIL
+;
+set result pass
+echopassfail '${arg:1}' '${get:result}'
+return '${get:result}'
+;
+:CHECKNEXTACTION.FAIL
+set result fail
+set localresult fail
+echopassfail '${arg:1}' '${get:result}'
+;
+return '${get:result}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check Next Stream
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - expected value of results.success
+; arg:4 - key to check
+; arg:5 - value key must have
+; returns: pass or fail
+;
+:CHECKNEXTSTREAM
+;
+sendtask '${arg:2}'
+;
+if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECKNEXTSTREAM.FAIL
+if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECKNEXTSTREAM.FAIL
+if '${rj:${arg:4}}' != '${arg:5}' goto CHECKNEXTSTREAM.FAIL
+;
+set result pass
+echopassfail '${arg:1}' '${get:result}'
+return '${get:result}'
+;
+:CHECKNEXTSTREAM.FAIL
+set result fail
+set localresult fail
+echopassfail '${arg:1}' '${get:result}'
+;
+return '${get:result}'

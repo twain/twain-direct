@@ -1,0 +1,493 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JSON Syntax v1.0 22-Jun-2017
+; arg:1 - scanner to test
+; returns: pass or fail
+;
+; These tests exercise the ability of the scanner to detect and correctly report on problems found in
+; the TWAIN Direct task sent to it by the application.  Specifically ones relating to the construction
+; of a JSON string.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Initialize...
+;
+call INITIALIZE 'JSON Syntax v1.0 22-Jun-2017' '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.ERROR
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.001 JSON Syntax - array, bad boolean
+; A JSON array can only support the naked values true, false and null.
+; characterOffset is 167 + 21 = 188
+;
+set name    'JS.01.001 JSON Syntax - array, bad boolean'
+set test    '["boolean error", trudy]'
+set success 'false'
+set code    'invalidJson'
+set offset  '188'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.002 JSON Syntax - array, comma after closing square bracket
+; A JSON array cannot have a comma (or any other textual data) after the closing square bracket.
+; characterOffset is 167 + 40 = 207
+;
+set name    'JS.01.002 JSON Syntax - array, comma after closing square bracket'
+set test    '["trailing stuff outside of the array"],'
+set success 'false'
+set code    'invalidJson'
+set offset  '207'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.003 JSON Syntax - array, comma seen instead of data
+; A JSON array cannot include a comma as data, one solution is to put the second comma inside of quotes.
+; characterOffset is 167 + 30 = 197
+;
+set name    'JS.01.003 JSON Syntax - array, comma seen instead of data'
+set test    '["we have consecutive commas",,]'
+set success 'false'
+set code    'invalidJson'
+set offset  '197'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.004 JSON Syntax - array, leading comma
+; A JSON array must have valid data between the opening square bracket and the first comma.
+; characterOffset is 167 + 3 = 170
+;
+set name    'JS.01.004 JSON Syntax - array, leading comma'
+set test    '[  , "we have a leading comma"]'
+set success 'false'
+set code    'invalidJson'
+set offset  '170'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.005 JSON Syntax - array, separate items with comma not colon
+; A JSON array must have valid data between the opening square bracket and the first comma.
+; characterOffset is 167 + 39 = 206
+;
+set name    'JS.01.005 JSON Syntax - array, separate items with comma not colon'
+set test    '["separate items with comma, not colon": false]'
+set success 'false'
+set code    'invalidJson'
+set offset  '206'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.006 JSON Syntax - array, square bracket after closing square bracket
+; A JSON array cannot have a square bracket (or any other textual data) after the closing square bracket.
+; characterOffset is 167 + 28 = 195
+;
+set name    'JS.01.006 JSON Syntax - array, square bracket after closing square bracket'
+set test    '["too much of a good thing"]]'
+set success 'false'
+set code    'invalidJson'
+set offset  '195'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.007 JSON Syntax - array, trailing comma
+; A JSON array cannot have a square bracket (or any other textual data) after the closing square bracket.
+; characterOffset is 167 + 18 = 185
+;
+set name    'JS.01.007 JSON Syntax - array, trailing comma'
+set test    '["we have a tail",]'
+set success 'false'
+set code    'invalidJson'
+set offset  '185'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.01.008 JSON Syntax - array, unterminated
+; A JSON array must have both and open and a close square bracket [].
+; characterOffset is 167 + 25 = 192
+;
+set name    'JS.01.008 JSON Syntax - array, unterminated'
+set test    '["missing square bracket"'
+set success 'false'
+set code    'invalidJson'
+set offset  '192'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.02.001 JSON Syntax - misc, must find array or object
+; A JSON string must have an outermost type that is an array [] or an object {}.
+; characterOffset is 167 + 0 = 167
+;
+set name    'JS.02.001 JSON Syntax - misc, must find array or object'
+set test    '"this is not an object or an array"'
+set success 'false'
+set code    'invalidJson'
+set offset  '167'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.02.002 JSON Syntax - misc, must terminate with matching bracket
+; A JSON array or object must terminate with the right kind of matching bracket.
+; characterOffset is 167 + 11 = 178
+;
+set name    'JS.02.002 JSON Syntax - misc, must terminate with matching bracket'
+set test    '["mismatch"}'
+set success 'false'
+set code    'invalidJson'
+set offset  '178'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.03.001 JSON Syntax - number, e notation missing exponent
+; A JSON e notation numbers must include a coefficient and an exponent.
+; characterOffset is 167 + 4 = 171
+;
+set name    'JS.03.001 JSON Syntax - number, e notation missing exponent'
+set test    '[0e+]'
+set success 'false'
+set code    'invalidJson'
+set offset  '171'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.03.002 JSON Syntax - number, e notation sign error on exponent
+; A JSON e notation numbers may include a single + or a single - after the e and before the exponent.
+; characterOffset is 167 + 4 = 171
+;
+set name    'JS.03.002 JSON Syntax - number, e notation sign error on exponent'
+set test    '[0e+-1]'
+set success 'false'
+set code    'invalidJson'
+set offset  '171'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.03.003 JSON Syntax - number, e notation truncated
+; A JSON e notation numbers must include a coefficient and an exponent.
+; characterOffset is 167 + 3 = 170
+;
+set name    'JS.03.003 JSON Syntax - number, e notation truncated'
+set test    '[0e]'
+set success 'false'
+set code    'invalidJson'
+set offset  '170'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.03.004 JSON Syntax - number, no hexadecimal
+; A JSON integer cannot be in a radix other than base 10.
+; characterOffset is 167 + 19 = 186
+;
+set name    'JS.03.004 JSON Syntax - number, no hexadecimal'
+set test    '{"no hex please": 0x1}'
+set success 'false'
+set code    'invalidJson'
+set offset  '186'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.03.005 JSON Syntax - number, no leading zeros
+; A JSON integer value cannot have a leading zero.
+; characterOffset is 167 + 33 = 200
+;
+set name    'JS.03.005 JSON Syntax - number, no leading zeros'
+set test    '{"no padding please, or octal": 01}'
+set success 'false'
+set code    'invalidJson'
+set offset  '200'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.04.001 JSON Syntax - object, comma instead of closing curly bracket
+; A JSON object must close with a curly bracket.
+; characterOffset is 167 + 27 = 194
+;
+set name    'JS.04.001 JSON Syntax - object, comma instead of closing curly bracket'
+set test    '{"we are incomplete": true,'
+set success 'false'
+set code    'invalidJson'
+set offset  '194'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.04.002 JSON Syntax - object, string after closing curly bracket
+; A JSON object cannot have a string (or any other textual data) after the closing curly bracket.
+; characterOffset is 167 + 28 = 195
+;
+set name    'JS.04.002 JSON Syntax - object, string after closing curly bracket'
+set test    '{"this part is okay": true} "this bit is not"'
+set success 'false'
+set code    'invalidJson'
+set offset  '195'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.04.003 JSON Syntax - object, trailing comma
+; A JSON object must have valid data between the last comma and the closing curly bracket.
+; characterOffset is 167 + 24 = 191
+;
+set name    'JS.04.003 JSON Syntax - object, trailing comma'
+set test    '{"we have a tail": true,}'
+set success 'false'
+set code    'invalidJson'
+set offset  '191'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.04.004 JSON Syntax - object, unterminated
+; A JSON object must have both and open and a close curly bracket {}.
+; characterOffset is 167 + 33 = 200
+;
+set name    'JS.04.004 JSON Syntax - object, unterminated'
+set test    '{"we are missing a curly bracket"'
+set success 'false'
+set code    'invalidJson'
+set offset  '200'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.05.001 JSON Syntax - property, extra colon
+; A JSON key must separated from its value by a single colon.
+; characterOffset is 167 + 15 = 182
+;
+set name    'JS.05.001 JSON Syntax - property, extra colon'
+set test    '{"extra colon":: null}'
+set success 'false'
+set code    'invalidJson'
+set offset  '182'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.05.002 JSON Syntax - property, missing colon
+; A JSON key must separated from its value by a single colon.
+; characterOffset is 167 + 17 = 184
+;
+set name    'JS.05.002 JSON Syntax - property, missing colon'
+set test    '{"missing colon" null}'
+set success 'false'
+set code    'invalidJson'
+set offset  '184'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.05.003 JSON Syntax - property, not a colon
+; A JSON key must separated from its value by a single colon.
+; characterOffset is 167 + 20 = 187
+;
+set name    'JS.05.003 JSON Syntax - property, not a colon'
+set test    '{"we expect a colon", null}'
+set success 'false'
+set code    'invalidJson'
+set offset  '187'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.05.004 JSON Syntax - property, value must be quoted
+; A JSON value must appear in quotes.
+; characterOffset is 167 + 30 = 197
+;
+set name    'JS.05.004 JSON Syntax - property, value must be quoted'
+set test    '{"we are not a calculator": 1 + 2}'
+set success 'false'
+set code    'invalidJson'
+set offset  '197'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.06.001 JSON Syntax - string, badly formed escape character
+; A JSON string uses backslash-#### or a small set of recognized escape characters.
+; characterOffset is 167 + 44 = 211
+;
+set name    'JS.06.001 JSON Syntax - string, badly formed escape character'
+set test    '["illegal escape, return to the game grid: \x15"]'
+set success 'false'
+set code    'invalidJson'
+set offset  '211'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.06.002 JSON Syntax - string, escaped characters must be in strings
+; A JSON escaped character can only be used in a string.
+; characterOffset is 167 + 1 = 168
+;
+set name    'JS.06.002 JSON Syntax - string, escaped characters must be in strings'
+set test    '[\naked]'
+set success 'false'
+set code    'invalidJson'
+set offset  '168'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.06.003 JSON Syntax - string, incomplete escape character
+; A JSON escape character that uses hexadecimal must have four hexits and start with 'u' (ex: (backslash)uABCD).
+; characterOffset is 167 + 29 = 196
+;
+set name    'JS.06.003 JSON Syntax - string, incomplete escape character'
+set test    '["Illegal backslash escape: \017"]'
+set success 'false'
+set code    'invalidJson'
+set offset  '196'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; JS.06.004 JSON Syntax - string, no tab characters allowed
+; A JSON string must consist of printable characters and escape characters.
+; characterOffset is 167 + 2 = 169
+;
+set name    'JS.06.004 JSON Syntax - string, no tab characters allowed'
+set test    '["	tab	character	in	string	"]'
+set success 'false'
+set code    'invalidJson'
+set offset  '169'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:offset}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summary and cleanup...
+;
+; Did we pass?
+echopassfail 'SUMMARY' '${get:localresult}'
+;
+; Close the session...
+echo
+echo 'CMD: closeSession'
+closeSession
+;
+; All done with the good code path...
+echo 'Done...'
+return '${get:localresult}'
+;
+; Ruh-roh...
+:MAIN.ERROR
+echopassfail 'SUMMARY' 'error'
+echo 'Done with unexpected error, check the logs...'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Initialize
+; arg:1 - name of this test suite
+; arg:2 - scanner to test
+; returns: true or false
+;
+:INITIALIZE
+;
+echo
+echo '${arg:1}'
+;
+; Pick a scanner, default to the first scanner if we
+; don't get one...
+select '${arg:2}'
+if '${ret:}' != 'true' goto INITIALIZE.ERROR
+;
+; Get the scanner info, including its x-privet-token...
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto INITIALIZE.ERROR
+echo 'SCANNER:' '${rj:description}' / '${rj:name}' / '${rj:url}'
+;
+; Create a new session...
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto INITIALIZE.ERROR
+if '${rj:results.session.state}' != 'ready' goto INITIALIZE.ERROR
+;
+; Wait for events (we won't get a response)...
+echo 'CMD: waitForEvents'
+waitForEvents
+;
+; Set our pass flag, and give us a blank line...
+set localresult pass
+echo
+return true
+;
+; Ruh-roh...
+:INITIALIZE.ERROR
+echo 'check that the scanner is available with the list command, and that the name for it is correct.'
+return false
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - expected value of results.success
+; arg:4 - expected value of results.code
+; arg:5 - expected value of results.characterOffset
+; returns: pass or fail
+;
+:CHECK
+;
+sendtask '${arg:2}'
+;
+if '${rj:results.success}' == '' goto CHECK.FAIL
+if '${rj:results.success}' != '${arg:3}' goto CHECK.FAIL
+if '${rj:results.code}' != '${arg:4}' goto CHECK.FAIL
+if '${rj:results.characterOffset}' != '${arg:5}' goto CHECK.FAIL
+;
+set result pass
+echopassfail '${arg:1}' '${get:result}'
+return '${get:result}'
+;
+:CHECK.FAIL
+set result fail
+set localresult fail
+echopassfail '${arg:1}' '${get:result}'
+;
+return '${get:result}'

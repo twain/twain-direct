@@ -1,0 +1,1064 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Task Topology v1.0 22-Jun-2017
+; arg:1 - scanner to test
+; returns: pass or fail
+;
+; These tests exercise the ability of the scanner to detect and correctly report on problems found in
+; the TWAIN Direct task sent to it by the application.  Specifically ones relating to the heirarchy of
+; the configure action.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Initialize...
+;
+call INITIALIZE 'Task Topology v1.0 22-Jun-2017' '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.ERROR
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.001 Task Topology - action with actions
+; Detect the presence of an actions array in an action object.
+;
+set name    'TT.01.001 Task Topology - action with actions'
+set test    '{"actions":[{"action":"configure","actions":[]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.002 Task Topology - action with attribute
+; Detect the presence of an attribute property in an action object.
+;
+set name    'TT.01.002 Task Topology - action with attribute'
+set test    '{"actions":[{"action":"configure","attribute":"resolution"}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].attribute'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.003 Task Topology - action with attributes
+; Detect the presence of an attributes array in an action object.
+;
+set name    'TT.01.003 Task Topology - action with attributes'
+set test    '{"actions":[{"action":"configure","attributes":[]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].attributes'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.004 Task Topology - action with pixelFormat
+; Detect the presence of a pixelFormat property in an action object.
+;
+set name    'TT.01.004 Task Topology - action with pixelFormat'
+set test    '{"actions":[{"action":"configure","pixelFormat":"rgb24"}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].pixelFormat'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.005 Task Topology - action with pixelFormats
+; Detect the presence of a pixelFormats array in an action object.
+;
+set name    'TT.01.005 Task Topology - action with pixelFormats'
+set test    '{"actions":[{"action":"configure","pixelFormats":[]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].pixelFormats'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.006 Task Topology - action with source
+; Detect the presence of a source property in an action object.
+;
+set name    'TT.01.006 Task Topology - action with source'
+set test    '{"actions":[{"action":"configure","source":"any"}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].source'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.007 Task Topology - action with sources
+; Detect the presence of a sources array in an action object.
+;
+set name    'TT.01.007 Task Topology - action with sources'
+set test    '{"actions":[{"action":"configure","sources":[]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].sources'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.008 Task Topology - action with stream
+; Detect the presence of a stream property in an action object.
+;
+set name    'TT.01.008 Task Topology - action with stream'
+set test    '{"actions":[{"action":"configure","stream":"stream0"}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].stream'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.009 Task Topology - action with value
+; Detect the presence of a value property in an action object.
+;
+set name    'TT.01.009 Task Topology - action with value'
+set test    '{"actions":[{"action":"configure","value":200}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].value'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.010 Task Topology - action with values
+; Detect the presence of a values array in an action object.
+;
+set name    'TT.01.010 Task Topology - action with values'
+set test    '{"actions":[{"action":"configure","values":[]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].values'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.011 Task Topology - actions is object
+; Detect if actions is not an array.
+;
+set name    'TT.01.011 Task Topology - actions is object'
+set test    '{"actions":{}}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.01.012 Task Topology - actions is string
+; Detect if actions is not an array.
+;
+set name    'TT.01.012 Task Topology - actions is string'
+set test    '{"actions":"string"}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.001 Task Topology - attribute with action
+; Detect the presence of an action property in an attribute object.
+;
+set name    'TT.02.001 Task Topology - attribute with action'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"action":"configure"}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].action'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.002 Task Topology - attributes with actions
+; Detect the presence of an actions array in an attribute object.
+;
+set name    'TT.02.002 Task Topology - attributes with actions'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"actions":[]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.003 Task Topology - attribute with attributes
+; Detect the presence of a attributes array in an attribute object.
+;
+set name    'TT.02.003 Task Topology - attribute with attributes'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"attributes":[]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].attributes'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.004 Task Topology - attribute with pixelFormat
+; Detect the presence of a attribute property in an attribute object.
+;
+set name    'TT.02.004 Task Topology - attribute with pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"pixelFormat":"rgb24"}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].pixelFormat'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.005 Task Topology - attribute with pixelFormats
+; Detect the presence of a pixelFormats array in an attribute object.
+;
+set name    'TT.02.005 Task Topology - attribute with pixelFormats'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"pixelFormats":[]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].pixelFormats'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.006 Task Topology - attribute with source
+; Detect the presence of a pixelFormats array in an attribute object.
+;
+set name    'TT.02.006 Task Topology - attribute with source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"source":"any"}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].source'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.007 Task Topology - attribute with sources
+; Detect the presence of a sources array in an attribute object.
+;
+set name    'TT.02.007 Task Topology - attribute with sources'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"sources":[]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].sources'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.008 Task Topology - attribute with stream
+; Detect the presence of a stream property in an attribute object.
+;
+set name    'TT.02.008 Task Topology - attribute with stream'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"stream":"stream0"}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].stream'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.009 Task Topology - attribute with streams
+; Detect the presence of a streams array in an attribute object.
+;
+set name    'TT.02.009 Task Topology - attribute with streams'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"streams":[]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].streams'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.010 Task Topology - attribute with value
+; Detect the presence of a value property in an attribute object.
+;
+set name    'TT.02.010 Task Topology - attribute with value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"value":"200"}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].value'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.011 Task Topology - attributes is object
+; Detect if attributes is not an array.
+;
+set name    'TT.02.011 Task Topology - attributes is object'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":{}}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.02.012 Task Topology - attributes is string
+; Detect if attributes is not an array.
+;
+set name    'TT.02.012 Task Topology - attributes is string'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":"string"}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.001 Task Topology - pixelFormat with action
+; Detect the presence of an action property in a pixelFormat object.
+;
+set name    'TT.03.001 Task Topology - pixelFormat with action'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"action":"configure"}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].action'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.002 Task Topology - pixelFormat with actions
+; Detect the presence of an actions array in a pixelFormat object.
+;
+set name    'TT.03.002 Task Topology - pixelFormat with actions'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"actions":[]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.003 Task Topology - pixelFormat with attribute
+; Detect the presence of a attribute property in a pixelFormat object.
+;
+set name    'TT.03.003 Task Topology - pixelFormat with attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attribute":"resolution"}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attribute'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.004 Task Topology - pixelFormat with pixelFormats
+; Detect the presence of a pixelFormats array in a pixelFormat object.
+;
+set name    'TT.03.004 Task Topology - pixelFormat with pixelFormats'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"pixelFormats":[]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].pixelFormats'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.005 Task Topology - pixelFormat with source
+; Detect the presence of a source property in a pixelFormat object.
+;
+set name    'TT.03.005 Task Topology - pixelFormat with source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"source":"any"}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].source'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.006 Task Topology - pixelFormat with sources
+; Detect the presence of a sources array in a pixelFormat object.
+;
+set name    'TT.03.006 Task Topology - pixelFormat with sources'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"sources":[]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].sources'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.007 Task Topology - pixelFormat with stream
+; Detect the presence of a stream property in a pixelFormat object.
+;
+set name    'TT.03.007 Task Topology - pixelFormat with stream'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"stream":"stream0"}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].stream'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.008 Task Topology - pixelFormat with streams
+; Detect the presence of a streams array in a pixelFormat object.
+;
+set name    'TT.03.008 Task Topology - pixelFormat with streams'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"streams":[]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].streams'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.009 Task Topology - pixelFormat with value
+; Detect the presence of a value property in a pixelFormat object.
+;
+set name    'TT.03.009 Task Topology - pixelFormat with value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"value":"200"}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].value'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.010 Task Topology - pixelFormat with values
+; Detect the presence of a values array in a pixelFormat object.
+;
+set name    'TT.03.010 Task Topology - pixelFormat with values'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"values":[]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].values'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.011 Task Topology - pixelFormats is object
+; Detect if pixelFormats is not an array.
+;
+set name    'TT.03.011 Task Topology - pixelFormats is object'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":{}}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.03.012 Task Topology - pixelFormats is string
+; Detect if pixelFormats is not an array.
+;
+set name    'TT.03.012 Task Topology - pixelFormats is string'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":"string"}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.001 Task Topology - source with action
+; Detect the presence of an action property in a source object.
+;
+set name    'TT.04.001 Task Topology - source with action'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"action":"configure"}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].action'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.002 Task Topology - source with actions
+; Detect the presence of an actions array in a source object.
+;
+set name    'TT.04.002 Task Topology - source with actions'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"actions":[]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.003 Task Topology - source with attribute
+; Detect the presence of a attribute property in a source object.
+;
+set name    'TT.04.003 Task Topology - source with attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"attribute":"resolution"}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].attribute'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.004 Task Topology - source with attributes
+; Detect the presence of an attributes array in a source object.
+;
+set name    'TT.04.004 Task Topology - source with attributes'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"attributes":[]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].attributes'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.005 Task Topology - source with pixelFormat
+; Detect the presence of a pixelFormat property in a source object.
+;
+set name    'TT.04.005 Task Topology - source with pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormat":"rgb24"}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormat'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.006 Task Topology - source with sources
+; Detect the presence of a sources array in a source object.
+;
+set name    'TT.04.006 Task Topology - source with sources'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"sources":[]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].sources'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.007 Task Topology - source with stream
+; Detect the presence of a stream property in a source object.
+;
+set name    'TT.04.007 Task Topology - source with stream'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"stream":"stream0"}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].stream'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.008 Task Topology - source with streams
+; Detect the presence of a streams array in a source object.
+;
+set name    'TT.04.008 Task Topology - source with streams'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"streams":[]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].streams'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.009 Task Topology - source with value
+; Detect the presence of a value property in a source object.
+;
+set name    'TT.04.009 Task Topology - source with value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"value":"200"}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].value'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.010 Task Topology - source with values
+; Detect the presence of a values array in a source object.
+;
+set name    'TT.04.010 Task Topology - source with values'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"values":[]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].values'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.011 Task Topology - sources is string
+; Detect if sources is not an array.
+;
+set name    'TT.04.011 Task Topology - sources is string'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":{}}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.04.012 Task Topology - sources is object
+; Detect if sources is not an array.
+;
+set name    'TT.04.012 Task Topology - sources is object'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":"string"}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.001 Task Topology - stream with action
+; Detect the presence of an action property in a stream object.
+;
+set name    'TT.05.001 Task Topology - stream with action'
+set test    '{"actions":[{"action":"configure","streams":[{"action":"configure"}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].action'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.002 Task Topology - stream with actions
+; Detect the presence of an actions array in a stream object.
+;
+set name    'TT.05.002 Task Topology - stream with actions'
+set test    '{"actions":[{"action":"configure","streams":[{"actions":[]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.003 Task Topology - stream with attribute
+; Detect the presence of a attribute property in a stream object.
+;
+set name    'TT.05.003 Task Topology - stream with attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"attribute":"resolution"}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].attribute'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.004 Task Topology - stream with attributes
+; Detect the presence of an attributes array in a stream object.
+;
+set name    'TT.05.004 Task Topology - stream with attributes'
+set test    '{"actions":[{"action":"configure","streams":[{"attributes":[]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].attributes'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.005 Task Topology - stream with pixelFormat
+; Detect the presence of a pixelFormat property in a stream object.
+;
+set name    'TT.05.005 Task Topology - stream with pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"pixelFormat":"rgb24"}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].pixelFormat'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.006 Task Topology - stream with pixelFormats
+; Detect the presence of a pixelFormats array in a stream object.
+;
+set name    'TT.05.006 Task Topology - stream with pixelFormats'
+set test    '{"actions":[{"action":"configure","streams":[{"pixelFormats":[]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].pixelFormats'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.007 Task Topology - stream with source
+; Detect the presence of a source property in a stream object.
+;
+set name    'TT.05.007 Task Topology - stream with source'
+set test    '{"actions":[{"action":"configure","streams":[{"source":"any"}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].source'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.008 Task Topology - stream with streams
+; Detect the presence of a streams array in a stream object.
+;
+set name    'TT.05.008 Task Topology - stream with streams'
+set test    '{"actions":[{"action":"configure","streams":[{"streams":[]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].streams'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.009 Task Topology - stream with value
+; Detect the presence of a value property in a stream object.
+;
+set name    'TT.05.009 Task Topology - stream with value'
+set test    '{"actions":[{"action":"configure","streams":[{"value":"200"}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].value'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.010 Task Topology - stream with values
+; Detect the presence of a values array in a stream object.
+;
+set name    'TT.05.010 Task Topology - stream with values'
+set test    '{"actions":[{"action":"configure","streams":[{"values":[]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].values'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.011 Task Topology - streams is object
+; Detect if streams is not an array.
+;
+set name    'TT.05.011 Task Topology - streams is object'
+set test    '{"actions":[{"action":"configure","streams":{}}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.05.012 Task Topology - streams is string
+; Detect if streams is not an array.
+;
+set name    'TT.05.012 Task Topology - streams is string'
+set test    '{"actions":[{"action":"configure","streams":"string"}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.001 Task Topology - value with action
+; Detect the presence of an action property in a value object.
+;
+set name    'TT.06.001 Task Topology - value with action'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"action":"configure"}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].action'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.002 Task Topology - value with actions
+; Detect the presence of an actions array in a value object.
+;
+set name    'TT.06.002 Task Topology - value with actions'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"actions":[]}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].actions'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.003 Task Topology - value with attribute
+; Detect the presence of a attribute property in a value object.
+;
+set name    'TT.06.003 Task Topology - value with attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"attribute":"resolution"}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].attribute'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.004 Task Topology - value with attributes
+; Detect the presence of a attributes array in a value object.
+;
+set name    'TT.06.004 Task Topology - value with attributes'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"attributes":[]}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].attributes'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.005 Task Topology - value with pixelFormat
+; Detect the presence of a pixelFormat property in a value object.
+;
+set name    'TT.06.005 Task Topology - value with pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"pixelFormat":"rgb24"}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].pixelFormat'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.006 Task Topology - value with pixelFormats
+; Detect the presence of a pixelFormats array in a value object.
+;
+set name    'TT.06.006 Task Topology - value with pixelFormats'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"pixelFormats":[]}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].pixelFormats'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.007 Task Topology - value with source
+; Detect the presence of a source property in a value object.
+;
+set name    'TT.06.007 Task Topology - value with source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"source":"any"}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].source'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.008 Task Topology - value with sources
+; Detect the presence of a sources array in a value object.
+;
+set name    'TT.06.008 Task Topology - value with sources'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"sources":[]}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].sources'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.009 Task Topology - value with stream
+; Detect the presence of a stream property in a value object.
+;
+set name    'TT.06.009 Task Topology - value with stream'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"stream":"stream0"}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].stream'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.010 Task Topology - value with streams
+; Detect the presence of a streams array in a value object.
+;
+set name    'TT.06.010 Task Topology - value with streams'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"streams":[]}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].streams'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.011 Task Topology - value with values
+; Detect the presence of a values array in a value object.
+;
+set name    'TT.06.011 Task Topology - value with values'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"values":[]}]}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].values'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.012 Task Topology - values is object
+; Detect if values is not an array.
+;
+set name    'TT.06.012 Task Topology - values is object'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":{}}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TT.06.013 Task Topology - values is string
+; Detect if values is not an array.
+;
+set name    'TT.06.013 Task Topology - values is string'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":"string"}]}]}]}]}]}'
+set success 'false'
+set code    'invalidTask'
+set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values'
+call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summary and cleanup...
+;
+; Did we pass?
+echopassfail 'SUMMARY' '${get:localresult}'
+;
+; Close the session...
+echo
+echo 'CMD: closeSession'
+closeSession
+;
+; All done with the good code path...
+echo 'Done...'
+return '${get:localresult}'
+;
+; Ruh-roh...
+:MAIN.ERROR
+echopassfail 'SUMMARY' 'error'
+echo 'Done with unexpected error, check the logs...'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Initialize
+; arg:1 - name of this test suite
+; arg:2 - scanner to test
+; returns: true or false
+;
+:INITIALIZE
+;
+echo
+echo '${arg:1}'
+;
+; Pick a scanner, default to the first scanner if we
+; don't get one...
+select '${arg:2}'
+if '${ret:}' != 'true' goto INITIALIZE.ERROR
+;
+; Get the scanner info, including its x-privet-token...
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto INITIALIZE.ERROR
+echo 'SCANNER:' '${rj:description}' / '${rj:name}' / '${rj:url}'
+;
+; Create a new session...
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto INITIALIZE.ERROR
+if '${rj:results.session.state}' != 'ready' goto INITIALIZE.ERROR
+;
+; Wait for events (we won't get a response)...
+echo 'CMD: waitForEvents'
+waitForEvents
+;
+; Set our pass flag, and give us a blank line...
+set localresult pass
+echo
+return true
+;
+; Ruh-roh...
+:INITIALIZE.ERROR
+echo 'check that the scanner is available with the list command, and that the name for it is correct.'
+return false
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - expected value of results.success
+; arg:4 - expected value of results.code
+; arg:5 - expected value of results.jsonKey
+; returns: pass or fail
+;
+:CHECK
+;
+sendtask '${arg:2}'
+;
+if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECK.FAIL
+if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECK.FAIL
+if '${rj:results.session.task.actions[0].results.code}' != '${arg:4}' goto CHECK.FAIL
+if '${rj:results.session.task.actions[0].results.jsonKey}' != '${arg:5}' goto CHECK.FAIL
+;
+set result pass
+echopassfail '${arg:1}' '${get:result}'
+return '${get:result}'
+;
+:CHECK.FAIL
+set result fail
+set localresult fail
+echopassfail '${arg:1}' '${get:result}'
+;
+return '${get:result}'

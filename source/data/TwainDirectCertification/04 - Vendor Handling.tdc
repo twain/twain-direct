@@ -1,0 +1,187 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Vendor Handling v1.0 22-Jun-2017
+; arg:1 - scanner to test
+; returns: pass or fail
+;
+; These tests exercise the ability of the scanner to detect and correctly report on problems found in
+; the TWAIN Direct task sent to it by the application.  Specifically ones relating to properly handling
+; vendor specific content.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Initialize...
+;
+call INITIALIZE 'Vendor Handling v1.0 22-Jun-2017' '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.ERROR
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; VH.01.001 Vendor Handling - action
+; Set up a failure condition in a non-existent vendor action.  The scanner must skip this action, and
+; since the default exception is to ignore, the task succeeds.   However, this results in a null task,
+; so no change is made to the scanner.  The task reply reports back a null task.
+;
+set name    'VH.01.001 Vendor Handling - action'
+set test    '{"actions":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","action":"someWeirdAction","streams":[{"sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
+set success 'true'
+call CHECK '${get:name}' '${get:test}' '${get:success}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; VH.01.002 Vendor Handling - attribute
+; Set up a failure condition in a non-existent vendor attribute.  The scanner must skip this attribute,
+; and since the default exception is to ignore, the task succeeds.  The task reply reports back the
+; action, source, and pixelFormat.
+;
+set name    'VH.01.002 Vendor Handling - attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
+set success 'true'
+call CHECK '${get:name}' '${get:test}' '${get:success}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; VH.01.003 Vendor Handling - pixelFormat
+; Set up a failure condition in a non-existent vendor pixelFormat.  The scanner must skip this pixelFormat,
+; and since the default exception is to ignore, the task succeeds.  The task reply reports back the action
+; and the source.
+;
+set name    'VH.01.003 Vendor Handling - pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
+set success 'true'
+call CHECK '${get:name}' '${get:test}' '${get:success}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; VH.01.004 Vendor Handling - source
+; Set up a failure condition in a non-existent vendor source.  The scanner must skip this source, and since
+; the default exception is to ignore, the task succeeds.  The task reply reports back the action.
+;
+set name    'VH.01.004 Vendor Handling - source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","source":"someWeirdSource","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
+set success 'true'
+call CHECK '${get:name}' '${get:test}' '${get:success}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; VH.01.005 Vendor Handling - stream
+; Set up a failure condition in a non-existent vendor stream.  The scanner must skip this stream, and
+; since the default exception is to ignore, the task succeeds.  The task reply reports back the action.
+;
+set name    'VH.01.005 Vendor Handling - stream'
+set test    '{"actions":[{"action":"configure","streams":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
+set success 'true'
+call CHECK '${get:name}' '${get:test}' '${get:success}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; VH.01.006 Vendor Handling - value
+; Set up a failure condition in a non-existent vendor value.  The scanner must skip this value and
+; select the next one, and since the default exception is to ignore, the task succeeds.  The task reply
+; reports back the action, source, pixelFormat and resolution.
+;
+set name    'VH.01.006 Vendor Handling - value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","value":-200},{"value":200}]}]}]}]}]}]}'
+set success 'true'
+call CHECK '${get:name}' '${get:test}' '${get:success}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summary and cleanup...
+;
+; Did we pass?
+echopassfail 'SUMMARY' '${get:localresult}'
+;
+; Close the session...
+echo
+echo 'CMD: closeSession'
+closeSession
+;
+; All done with the good code path...
+echo 'Done...'
+return '${get:localresult}'
+;
+; Ruh-roh...
+:MAIN.ERROR
+echopassfail 'SUMMARY' 'error'
+echo 'Done with unexpected error, check the logs...'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Initialize
+; arg:1 - name of this test suite
+; arg:2 - scanner to test
+; returns: true or false
+;
+:INITIALIZE
+;
+echo
+echo '${arg:1}'
+;
+; Pick a scanner, default to the first scanner if we
+; don't get one...
+select '${arg:2}'
+if '${ret:}' != 'true' goto INITIALIZE.ERROR
+;
+; Get the scanner info, including its x-privet-token...
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto INITIALIZE.ERROR
+echo 'SCANNER:' '${rj:description}' / '${rj:name}' / '${rj:url}'
+;
+; Create a new session...
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto INITIALIZE.ERROR
+if '${rj:results.session.state}' != 'ready' goto INITIALIZE.ERROR
+;
+; Wait for events (we won't get a response)...
+echo 'CMD: waitForEvents'
+waitForEvents
+;
+; Set our pass flag, and give us a blank line...
+set localresult pass
+echo
+return true
+;
+; Ruh-roh...
+:INITIALIZE.ERROR
+echo 'check that the scanner is available with the list command, and that the name for it is correct.'
+return false
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - expected value of results.success
+; returns: pass or fail
+;
+:CHECK
+;
+sendtask '${arg:2}'
+;
+if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECK.FAIL
+if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECK.FAIL
+;
+set result pass
+echopassfail '${arg:1}' '${get:result}'
+return '${get:result}'
+;
+:CHECK.FAIL
+set result fail
+set localresult fail
+echopassfail '${arg:1}' '${get:result}'
+;
+return '${get:result}'

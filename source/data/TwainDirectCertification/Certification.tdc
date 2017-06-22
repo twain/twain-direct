@@ -1,0 +1,58 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TWAIN Direct Certification v1.0 22-Jun-2017
+; arg:1 - scanner to test
+; returns: pass or fail
+;
+; This runa all of the tests needed to pass certification for TWAIN Direct.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Run all of our tests, start by assuming success...
+;
+echo 'TWAIN Direct Certification v1.0 22-Jun-2017'
+echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+echo
+set certifyresult pass
+call CERTIFY '01 - JSON Syntax' '${arg:1}'
+call CERTIFY '02 - Task Topology' '${arg:1}'
+call CERTIFY '03 - Exception Handling' '${arg:1}'
+call CERTIFY '04 - Vendor Handling' '${arg:1}'
+call CERTIFY '05 - Exercises' '${arg:1}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; How did we do?
+;
+if '${get:certifyresult}' != 'pass' goto MAIN.ERROR
+echo
+echo '*****************************************'
+echo 'Scanner passed TWAIN Direct Certification'
+echo '*****************************************'
+return 'pass'
+;
+:MAIN.ERROR
+echo
+echo '***************************************************'
+echo 'The scanner did not pass TWAIN Direct Certification'
+echo '***************************************************'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Certify
+; arg:1 - script to run
+; arg:2 - scanner to test
+; returns: pass or fail
+;
+:CERTIFY
+;
+run '${arg:1}' '${arg:2}'
+if '${ret:}' != 'pass' goto CERTIFY.ERROR
+return 'pass'
+:CERTIFY.ERROR
+set certifyresult fail
+return 'fail'

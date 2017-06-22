@@ -518,7 +518,7 @@ namespace TwainDirect.OnTwain
                     string szStreamVendor = jsonlookup.Get(szSwordStream + ".vendor",false);
                     if (string.IsNullOrEmpty(szStreamException)) szStreamException = swordaction.GetException();
                     if (string.IsNullOrEmpty(szStreamVendor)) szStreamVendor = swordaction.GetVendor();
-                    swordstream = swordaction.AppendStream(szSwordStream, jsonlookup.Get(szSwordAction + ".name",false), szStreamException, szStreamVendor);
+                    swordstream = swordaction.AppendStream(szSwordStream, jsonlookup.Get(szSwordStream + ".name",false), szStreamException, szStreamVendor);
                     if (swordstream == null)
                     {
                         continue;
@@ -2548,6 +2548,10 @@ namespace TwainDirect.OnTwain
                                         swordstatus = SwordStatus.Fail;
                                         TWAINWorkingGroup.Log.Error("Set error: " + szCapabilityFail + szStatus);
                                         m_swordtaskresponse.SetError("fail", swordvalue.GetJsonKey() + ".value", "invalidValue", -1);
+                                        break;
+                                    case "nextAction":
+                                        // We're out of here...
+                                        swordstatus = SwordStatus.NextAction;
                                         break;
                                     case "nextStream":
                                         // We're out of here...
@@ -5375,17 +5379,21 @@ namespace TwainDirect.OnTwain
                     default:
                         switch (m_szException)
                         {
-                            // Keep going...
                             default:
                             case "ignore":
+                                // Keep going...
                                 break;
-
-                            // Bail...
                             case "fail":
+                                // Whoops, time to empty the pool...
                                 m_swordstatus = SwordStatus.Fail;
                                 m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
                                 return (m_swordstatus);
+                            case "nextAction":
+                                // We're out of here...
+                                m_swordstatus = SwordStatus.NextAction;
+                                return (m_swordstatus);
                             case "nextStream":
+                                // We're out of here...
                                 m_swordstatus = SwordStatus.NextStream;
                                 return (m_swordstatus);
                         }
@@ -6020,17 +6028,21 @@ namespace TwainDirect.OnTwain
                     default:
                         switch (m_szException)
                         {
-                            // Keep going...
                             default:
                             case "ignore":
+                                // Keep going...
                                 break;
-
-                            // Bail...
                             case "fail":
+                                // Whoops, time to empty the pool...
                                 m_swordstatus = SwordStatus.Fail;
                                 m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
                                 return (m_swordstatus);
+                            case "nextAction":
+                                // We're out of here...
+                                m_swordstatus = SwordStatus.NextAction;
+                                return (m_swordstatus);
                             case "nextStream":
+                                // We're out of here...
                                 m_swordstatus = SwordStatus.NextStream;
                                 return (m_swordstatus);
                         }
@@ -6562,17 +6574,21 @@ namespace TwainDirect.OnTwain
                     default:
                         switch (m_szException)
                         {
-                            // Keep going...
                             default:
                             case "ignore":
+                                // Keep going...
                                 break;
-
-                            // Bail...
                             case "fail":
+                                // Whoops, time to empty the pool...
                                 m_swordstatus = SwordStatus.Fail;
                                 m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".attribute", "invalidValue", -1);
                                 return (m_swordstatus);
+                            case "nextAction":
+                                // We're out of here...
+                                m_swordstatus = SwordStatus.NextAction;
+                                return (m_swordstatus);
                             case "nextStream":
+                                // We're out of here...
                                 m_swordstatus = SwordStatus.NextStream;
                                 return (m_swordstatus);
                         }
@@ -6854,17 +6870,21 @@ namespace TwainDirect.OnTwain
 			            default:
                             switch (m_szException)
                             {
-                                // Keep going...
                                 default:
                                 case "ignore":
+                                    // Keep going...
                                     break;
-
-                                // Bail...
                                 case "fail":
+                                    // Whoops, time to empty the pool...
                                     m_swordstatus = SwordStatus.Fail;
                                     m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
                                     return (m_swordstatus);
+                                case "nextAction":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextAction;
+                                    return (m_swordstatus);
                                 case "nextStream":
+                                    // We're out of here...
                                     m_swordstatus = SwordStatus.NextStream;
                                     return (m_swordstatus);
                             }
@@ -7978,6 +7998,10 @@ namespace TwainDirect.OnTwain
                         {
                             a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), szTwainValue, -1);
                         }
+                        return (m_acapabilityvalue[iTryValue].GetException());
+
+                    // Pass the item up...
+                    case "nextAction":
                         return (m_acapabilityvalue[iTryValue].GetException());
 
                     // Pass the item up...

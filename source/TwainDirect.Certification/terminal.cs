@@ -1369,6 +1369,7 @@ namespace TwainDirect.Certification
 
             // Run each line in the script...
             int iLine = 0;
+            bool blReturn = false;
             while (iLine < aszScript.Length)
             {
                 bool blDone;
@@ -1435,12 +1436,15 @@ namespace TwainDirect.Certification
                 // If the count dropped, that's a sign we need to bail...
                 if (m_lcallstack.Count < iCallStackCount)
                 {
+                    blReturn = true;
                     break;
                 }
             }
 
-            // Pop this item, and pass along the return value...
-            if (m_lcallstack.Count > 1)
+            // Pop this item, and pass along the return value, but don't do it
+            // if we detect that a return call was made in the script, because
+            // it will have already poped the stack for us...
+            if (!blReturn && (m_lcallstack.Count > 1))
             {
                 string szReturnValue = m_lcallstack[m_lcallstack.Count - 1].functionarguments.szReturnValue;
                 if (szReturnValue == null)
@@ -1740,104 +1744,175 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
-        /// Expand symbols that we find in the tokenized strings...
+        /// Expand symbols that we find in the tokenized strings.  Symbols take the form
+        /// ${source:key} where source can be one of the following:
+        ///     - the JSON text from the response to the last API command
+        ///     - the list maintains by the set command
+        ///     - the return value from the last run/runv or call in a script
+        ///     - the arguments to the program, run/runv or call in a script
+        /// 
+        /// Symbols can be nests, for instance, if the first argument to a call
+        /// is a JSON key, it can be expanded as:
+        ///     - ${rj:${arg:1}}
         /// </summary>
-        /// <param name="a_aszCmd">tokeninzed string array to expand</param>
+        /// <param name="a_aszCmd">tokenized string array to expand</param>
         private void Expansion(ref string[] a_aszCmd)
         {
+            int ii;
+            int iReferenceCount;
             int iCmd;
+            int iIndexLeft;
+            int iIndexRight;
             CallStack callstack;
 
             // Expansion...
             for (iCmd = 0; iCmd < a_aszCmd.Length; iCmd++)
             {
-                // Use the value as a JSON key to get data from the response data...
-                string szValue = a_aszCmd[iCmd];
-                if (szValue.StartsWith("rj:"))
+                // If we don't find an occurrance of ${ in the string, then we're done...
+                if (!a_aszCmd[iCmd].Contains("${"))
                 {
-                    if (m_transactionLast != null)
-                    {
-                        string szResponseData = m_transactionLast.GetResponseData();
-                        if (!string.IsNullOrEmpty(szResponseData))
-                        {
-                            bool blSuccess;
-                            long lJsonErrorIndex;
-                            JsonLookup jsonlookup = new JsonLookup();
-                            blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
-                            if (blSuccess)
-                            {
-                                a_aszCmd[iCmd] = jsonlookup.Get(szValue.Substring(3));
-                            }
-                        }
-                    }
+                    continue;
                 }
 
-                // Use value as a GET key to get a value, we don't allow a null in this
-                // case, it has to be an empty string...
-                else if (szValue.StartsWith("get:"))
+                // Find each outermost ${ in the string, meaning that if we have the
+                // following ${rj:${arg:1}}${get:y} we only want to find the rj and
+                // the get, the arg will be handled inside of the rj, so that means
+                // we have to properly count our way to the closing } for rj...
+                for (iIndexLeft = a_aszCmd[iCmd].IndexOf("${");
+                     iIndexLeft >= 0;
+                     iIndexLeft = a_aszCmd[iCmd].IndexOf("${"))
                 {
-                    if (m_lkeyvalue.Count == 0)
+                    string szSymbol;
+                    string szValue;
+                    string szKey = a_aszCmd[iCmd];
+
+                    // Find the corresponding }...
+                    iIndexRight = -1;
+                    iReferenceCount = 0;
+                    for (ii = iIndexLeft + 2; ii < szKey.Length; ii++)
                     {
-                        a_aszCmd[iCmd] = "";
-                    }
-                    else
-                    {
-                        bool blFound = false;
-                        string szKey = szValue.Substring(4);
-                        foreach (KeyValue keyvalue in m_lkeyvalue)
+                        // Either exit or decrement our reference count...
+                        if (szKey[ii] == '}')
                         {
-                            if (keyvalue.szKey == szKey)
+                            if (iReferenceCount == 0)
                             {
-                                a_aszCmd[iCmd] = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
-                                blFound = true;
+                                iIndexRight = ii;
                                 break;
                             }
+                            iReferenceCount -= 1;
                         }
-                        if (!blFound)
+
+                        // Bump up the reference count...
+                        if ((szKey[ii] == '$') && ((ii + 1) < szKey.Length) && (szKey[ii + 1] == '{'))
                         {
-                            a_aszCmd[iCmd] = "";
-
+                            iReferenceCount += 1;
                         }
                     }
-                }
 
-                // Get data from the top of the call stack...
-                else if (szValue.StartsWith("arg:"))
-                {
-                    if ((m_lcallstack == null) || (m_lcallstack.Count == 0))
+                    // If we didn't find a closing }, we're done...
+                    if (iIndexRight == -1)
                     {
-                        a_aszCmd[iCmd] = "";
+                        break;
                     }
-                    else
+
+                    // This is our symbol...
+                    // 0123456789
+                    // aa${rj:x}a
+                    // left index is 2, right index is 8, size is 7, so (r - l) + 1
+                    szSymbol = szKey.Substring(iIndexLeft, (iIndexRight - iIndexLeft) + 1);
+
+                    // Expand the stuff to the right of the source, so if we have
+                    // ${rj:x} we'll get x back, but if we have ${rj:${arg:1}}, we'll
+                    // get the value of ${arg:1} back...
+                    if (    szSymbol.StartsWith("${rj:")
+                        ||  szSymbol.StartsWith("${get:")
+                        ||  szSymbol.StartsWith("${arg:")
+                        ||  szSymbol.StartsWith("${ret:"))
                     {
-                        int iIndex;
-                        if (int.TryParse(szValue.Substring(4), out iIndex))
+                        int iSymbolIndexLeft = szSymbol.IndexOf(":") + 1;
+                        int iSymbolIndexLength;
+                        string[] asz = new string[1];
+                        asz[0] = szSymbol.Substring(0, szSymbol.Length - 1).Substring(iSymbolIndexLeft);
+                        iSymbolIndexLength = asz[0].Length;
+                        Expansion(ref asz);
+                        szSymbol = szSymbol.Remove(iSymbolIndexLeft, iSymbolIndexLength);
+                        szSymbol = szSymbol.Insert(iSymbolIndexLeft, asz[0]);
+                    }
+
+                    // Assume the worse...
+                    szValue = "";
+
+                    // Use the value as a JSON key to get data from the response data...
+                    if (szSymbol.StartsWith("${rj:"))
+                    {
+                        if (m_transactionLast != null)
                         {
-                            callstack = m_lcallstack[m_lcallstack.Count - 1];
-                            if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                            string szResponseData = m_transactionLast.GetResponseData();
+                            if (!string.IsNullOrEmpty(szResponseData))
                             {
-                                a_aszCmd[iCmd] = callstack.functionarguments.aszCmd[iIndex + 1];
-                            }
-                            else
-                            {
-                                a_aszCmd[iCmd] = "";
+                                bool blSuccess;
+                                long lJsonErrorIndex;
+                                JsonLookup jsonlookup = new JsonLookup();
+                                blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                                if (blSuccess)
+                                {
+                                    szValue = jsonlookup.Get(szSymbol.Substring(0, szSymbol.Length - 1).Substring(5));
+                                }
                             }
                         }
                     }
-                }
 
-                // Get data from the return value...
-                else if (szValue.StartsWith("ret:"))
-                {
-                    callstack = m_lcallstack[m_lcallstack.Count - 1];
-                    if (callstack.functionarguments.szReturnValue != null)
+                    // Use value as a GET key to get a value, we don't allow a null in this
+                    // case, it has to be an empty string...
+                    else if (szSymbol.StartsWith("${get:"))
                     {
-                        a_aszCmd[iCmd] = callstack.functionarguments.szReturnValue;
+                        if (m_lkeyvalue.Count >= 0)
+                        {
+                            string szGet = szSymbol.Substring(0, szSymbol.Length - 1).Substring(6);
+                            foreach (KeyValue keyvalue in m_lkeyvalue)
+                            {
+                                if (keyvalue.szKey == szGet)
+                                {
+                                    szValue = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
+                                    break;
+                                }
+                            }
+                        }
                     }
-                    else
+
+                    // Get data from the top of the call stack...
+                    else if (szSymbol.StartsWith("${arg:"))
                     {
-                        a_aszCmd[iCmd] = "";
+                        if ((m_lcallstack != null) && (m_lcallstack.Count > 0))
+                        {
+                            int iIndex;
+                            if (int.TryParse(szSymbol.Substring(0, szSymbol.Length - 1).Substring(6), out iIndex))
+                            {
+                                callstack = m_lcallstack[m_lcallstack.Count - 1];
+                                if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                                {
+                                    szValue = callstack.functionarguments.aszCmd[iIndex + 1];
+                                }
+                            }
+                        }
                     }
+
+                    // Get data from the return value...
+                    else if (szSymbol.StartsWith("${ret:"))
+                    {
+                        callstack = m_lcallstack[m_lcallstack.Count - 1];
+                        if (callstack.functionarguments.szReturnValue != null)
+                        {
+                            szValue = callstack.functionarguments.szReturnValue;
+                        }
+                    }
+
+                    // Replace the current contents with the expanded value...
+                    if (szValue == null)
+                    {
+                        szValue = "";
+                    }
+                    a_aszCmd[iCmd] = a_aszCmd[iCmd].Remove(iIndexLeft, (iIndexRight - iIndexLeft) + 1).Insert(iIndexLeft, szValue);
                 }
             }
         }
