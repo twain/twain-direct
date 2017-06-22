@@ -1,0 +1,157 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check Values v1.0 22-Jun-2017
+; arg:1 - scanner to test
+; returns: pass or fail
+;
+; Try various configurations to see if we can confirm that the scanner is capable of responding with
+; a resolution in the reply task.  We assume fail unless we get a successful response.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Initialize...
+;
+call INITIALIZE 'Check Values v1.0 22-Jun-2017' '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.ERROR
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CV.01.001 Check Value - any, bw1, 200
+; Check resolution
+;
+set name    'CV.01.001 Check Values - any, bw1, 200'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"bw1","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
+set value   '200'
+call CHECKVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CV.01.002 Check Values - any, gray8, 200
+; Check resolution
+;
+set name    'CV.01.002 Check Values - any, gray8, 200'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"gray8","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
+set value   '200'
+call CHECKVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CV.01.003 Check Values - any, rgb24, 200
+; Check resolution
+;
+set name    'CV.01.003 Check Values - any, rgb24, 200'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
+set value   '200'
+call CHECKVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summary and cleanup...
+;
+; Did we pass?
+echopassfail 'SUMMARY' '${get:localresult}'
+;
+; Close the session...
+echo
+echo 'CMD: closeSession'
+closeSession
+;
+; All done with the good code path...
+echo 'Done...'
+return '${get:localresult}'
+;
+; Ruh-roh...
+:MAIN.ERROR
+echopassfail 'SUMMARY' 'error'
+echo 'Done with unexpected error, check the logs...'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Initialize
+; arg:1 - name of this test suite
+; arg:2 - scanner to test
+; returns: true or false
+;
+:INITIALIZE
+;
+echo
+echo '${arg:1}'
+;
+; Pick a scanner, default to the first scanner if we
+; don't get one...
+select '${arg:2}'
+if '${ret:}' != 'true' goto INITIALIZE.ERROR
+;
+; Get the scanner info, including its x-privet-token...
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto INITIALIZE.ERROR
+echo 'SCANNER:' '${rj:description}' / '${rj:name}' / '${rj:url}'
+;
+; Create a new session...
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto INITIALIZE.ERROR
+if '${rj:results.session.state}' != 'ready' goto INITIALIZE.ERROR
+;
+; Wait for events (we won't get a response)...
+echo 'CMD: waitForEvents'
+waitForEvents
+;
+; Set our pass flag, and give us a blank line...
+set localresult skip
+echo
+return true
+;
+; Ruh-roh...
+:INITIALIZE.ERROR
+echo 'check that the scanner is available with the list command, and that the name for it is correct.'
+return false
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check Value
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - expected value of results.success
+; arg:4 - key to check
+; arg:5 - value key must have
+; returns: pass or fail
+;
+:CHECKVALUE
+;
+sendtask '${arg:2}'
+;
+if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECKVALUE.FAIL
+if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECKVALUE.FAIL
+if '${rj:${arg:4}}' == '' goto CHECKVALUE.SKIP
+if '${rj:${arg:4}}' != '${arg:5}' goto CHECKVALUE.FAIL
+;
+if '${get:localresult}' == 'fail' goto CHECKVALUE.DONTPASS
+set localresult pass
+:CHECKVALUE.DONTPASS
+echopassfail '${arg:1}' 'pass'
+return 'pass'
+;
+:CHECKVALUE.SKIP
+echopassfail '${arg:1}' 'skip'
+return 'skip'
+;
+:CHECKVALUE.FAIL
+set localresult fail
+echopassfail '${arg:1}' 'fail'
+return 'fail'

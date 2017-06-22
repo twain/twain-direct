@@ -20,6 +20,7 @@ call CERTIFY '02 - Task Topology' '${arg:1}'
 call CERTIFY '03 - Exception Handling' '${arg:1}'
 call CERTIFY '04 - Vendor Handling' '${arg:1}'
 call CERTIFY '05 - Exercises' '${arg:1}'
+call CERTIFY '06 - Check Values' '${arg:1}'
 
 
 
