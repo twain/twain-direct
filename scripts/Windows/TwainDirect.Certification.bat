@@ -2,8 +2,8 @@
 :: Debug...
 ::
 if exist %~dp0\..\..\source\TwainDirect.Certification\bin\x86\Debug\TwainDirect.Certification.exe (
-	cd "%~dp0\..\..\source\TwainDirect.Certification\bin\x86\Debug"
-	start TwainDirect.Certification.exe scale=1
+	cd "%~dp0\..\..\source\TwainDirect.Certification\data"
+	start %~dp0\..\..\source\TwainDirect.Certification\bin\x86\Debug\TwainDirect.Certification.exe
 	exit
 )
 
@@ -11,7 +11,7 @@ if exist %~dp0\..\..\source\TwainDirect.Certification\bin\x86\Debug\TwainDirect.
 :: Release...
 ::
 if exist %~dp0\..\..\source\TwainDirect.Certification\bin\x86\Release\TwainDirect.Certification.exe (
-	cd "%~dp0\..\..\source\TwainDirect.Certification\bin\x86\Release"
-	start TwainDirect.Certification.exe scale=1
+	cd "%~dp0\..\..\source\TwainDirect.Certification\data"
+	start %~dp0\..\..\source\TwainDirect.Certification\bin\x86\Release\TwainDirect.Certification.exe
 	exit
 )

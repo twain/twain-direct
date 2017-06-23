@@ -211,7 +211,7 @@ if '${ret:}' != 'true' goto INITIALIZE.ERROR
 echo 'CMD: infoex'
 infoex
 if '${rj:x-privet-token}' == '' goto INITIALIZE.ERROR
-echo 'SCANNER:' '${rj:description}' / '${rj:name}' / '${rj:url}'
+echo 'SCANNER:' '${rj:description}' / '${rj:name}'
 ;
 ; Create a new session...
 echo 'CMD: createSession'

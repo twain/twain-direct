@@ -3,7 +3,7 @@
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
-; This runa all of the tests needed to pass certification for TWAIN Direct.
+; This runs all of the tests needed to pass certification for TWAIN Direct.
 ;
 
 
