@@ -306,7 +306,7 @@ namespace TwainDirect.OnTwain
                     Dnssd dnssd;
                     Interpreter.CreateConsole();
                     dnssd = new Dnssd(Dnssd.Reason.Register);
-                    dnssd.RegisterStart("Instance", 55556, "Ty", "Note");
+                    dnssd.RegisterStart("Instance", 55556, "Ty", "", "Note");
                     Thread.Sleep(60000);
                     dnssd.RegisterStop();
                     dnssd.Dispose();

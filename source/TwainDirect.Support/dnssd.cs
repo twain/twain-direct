@@ -345,6 +345,7 @@ namespace TwainDirect.Support
         /// <param name="a_szInstanceName">the instance name: xxx._twaindirect._sub._privet._tcp.local</param>
         /// <param name="a_iPort">socket port number</param>
         /// <param name="a_szTy">the friendly name for the device, not forced to be unique</param>
+        /// <param name="a_szUrl">url of cloud server or empty string</param>
         /// <param name="a_szNote">a helpful note about the device (optional)</param>
         /// <returns>true on success</returns>
         public bool RegisterStart
@@ -352,12 +353,14 @@ namespace TwainDirect.Support
             string a_szInstanceName,
             int a_iPort,
             string a_szTy,
+            string a_szUrl,
             string a_szNote
         )
         {
             // Text...
             // txtvers=1
             // ty=a_szTy
+            // url=
             // type=twaindirect
             // id=
             // cs=offline
@@ -387,6 +390,7 @@ namespace TwainDirect.Support
             string szTxt =
                 "\t" + "txtvers=1" +
                 "\t" + "ty=" + a_szTy +
+                "\t" + "url=" + a_szUrl +
                 "\t" + "type=twaindirect" +
                 "\t" + "id=" +
                 "\t" + "cs=offline" +
@@ -405,13 +409,14 @@ namespace TwainDirect.Support
                 switch (tt)
                 {
                     default:
-                    case 0: abTxt[ii] = 9; break;
-                    case 1: abTxt[ii] = (byte)(3 + Encoding.UTF8.GetBytes(a_szTy).Length); break;
-                    case 2: abTxt[ii] = 16; break;
-                    case 3: abTxt[ii] = 3; break;
-                    case 4: abTxt[ii] = 10; break;
-                    case 5: abTxt[ii] = 7; break;
-                    case 6: abTxt[ii] = (byte)(5 + Encoding.UTF8.GetBytes(a_szNote).Length); break;
+                    case 0: abTxt[ii] = 9; break; // txtvers
+                    case 1: abTxt[ii] = (byte)(3 + Encoding.UTF8.GetBytes(a_szTy).Length); break; // ty
+                    case 2: abTxt[ii] = (byte)(4 + Encoding.UTF8.GetBytes(a_szUrl).Length); break; // url
+                    case 3: abTxt[ii] = 16; break; // type
+                    case 4: abTxt[ii] = 3; break; // id
+                    case 5: abTxt[ii] = 10; break; // cs
+                    case 6: abTxt[ii] = 7; break; // https
+                    case 7: abTxt[ii] = (byte)(5 + Encoding.UTF8.GetBytes(a_szNote).Length); break; // note
                 }
 
                 // Next item...

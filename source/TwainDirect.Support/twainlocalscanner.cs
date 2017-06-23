@@ -360,10 +360,17 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_dnssddeviceinfo">info about the device</param>
         /// <param name="a_apicmd">info about the command</param>
+        /// <param name="a_szOverride">used for certification testing</param>
         /// <returns>true on success</returns>
-        public bool ClientInfo(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, ref ApiCmd a_apicmd)
+        public bool ClientInfo
+        (
+            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
+            ref ApiCmd a_apicmd,
+            string a_szOverride = null
+        )
         {
             bool blSuccess;
+            string szCommand;
             string szFunction = "ClientInfo";
 
             // This command can be issued at any time, so we don't check state, we also
@@ -372,6 +379,16 @@ namespace TwainDirect.Support
             // Squirrel this away...
             m_dnssddeviceinfo = a_dnssddeviceinfo;
 
+            // Figure out what command we're sending...
+            if (a_szOverride != null)
+            {
+                szCommand = "/privet/" + a_szOverride;
+            }
+            else
+            {
+                szCommand = (Config.Get("useInfoex", "yes") == "yes") ? "/privet/infoex" : "/privet/info";
+            }
+
             // Send the RESTful API command, we'll support using either
             // privet/info or /privet/infoex, but we'll default to infoex...
             blSuccess = ClientHttpRequest
@@ -379,7 +396,7 @@ namespace TwainDirect.Support
                 szFunction,
                 m_dnssddeviceinfo,
                 ref a_apicmd,
-                (Config.Get("useInfoex", "yes") == "yes") ? "/privet/infoex" : "/privet/info",
+                szCommand,
                 "GET",
                 new string[] {
                     "X-Privet-Token: \"\""
@@ -1686,6 +1703,7 @@ namespace TwainDirect.Support
                 m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
                 iPort,
                 m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
+                "",
                 m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
             );
             if (!blSuccess)
@@ -2817,7 +2835,7 @@ namespace TwainDirect.Support
                     "\"version\":\"1.0\"," +
                     "\"name\":\"" + dnssddeviceinfo.szTxtTy + "\"," +
                     "\"description\":\"" + dnssddeviceinfo.szTxtNote + "\"," +
-                    "\"url\":\"" + ((Config.Get("useHttps", "yes") == "no") ? "http://" : "https://") + Dns.GetHostName() + ".local:" + m_httpserver.GetPort() + "/privet/twaindirect" + "\"," +
+                    "\"url\":\"\"," +
                     "\"type\":\"" + dnssddeviceinfo.szTxtType + "\"," +
                     "\"id\":\"\"," +
                     "\"device_state\": \"" + szDeviceState + "\"," +

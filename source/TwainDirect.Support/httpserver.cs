@@ -82,6 +82,7 @@ namespace TwainDirect.Support
         /// <param name="a_szInstanceName">the instance name: xxx._twaindirect._sub._privet._tcp.local</param>
         /// <param name="a_iPort">socket port number (can be 0 to auto select)</param>
         /// <param name="a_szTy">the friendly name for the device, not forced to be unique</param>
+        /// <param name="a_szUrl">url of cloud server or empty string</param>
         /// <param name="a_szNote">a helpful note about the device (optional)</param>
         /// <returns>true on success</returns>
         public bool ServerStart
@@ -90,6 +91,7 @@ namespace TwainDirect.Support
             string a_szInstanceName,
             int a_iPort,
             string a_szTy,
+            string a_szUrl,
             string a_szNote
         )
         {
@@ -153,7 +155,7 @@ namespace TwainDirect.Support
 
             // Register our new device...
             m_dnssd = new Dnssd(Dnssd.Reason.Register);
-            m_dnssd.RegisterStart(a_szInstanceName,m_iPort,a_szTy,a_szNote);
+            m_dnssd.RegisterStart(a_szInstanceName, m_iPort, a_szTy, a_szUrl, a_szNote);
 
             // All done...
             return (true);

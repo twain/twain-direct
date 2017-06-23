@@ -91,7 +91,8 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,              new string[] { "close", "closesession", "closeSession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,             new string[] { "create", "createsession", "createSession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,                new string[] { "get", "getsession", "getSession" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                    new string[] { "info", "infoex" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfo,                      new string[] { "info" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                    new string[] { "infoex" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReadimageblockmetadata,    new string[] { "readimageblockmetadata", "readImageBlockMetadata" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReadimageblock,            new string[] { "readimageblock", "readImageBlock" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,        new string[] { "release", "releaseimageblocks", "releaseImageBlocks" }));
@@ -106,6 +107,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIncrement,                    new string[] { "increment" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdReturn,                       new string[] { "return" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRunv,                         new string[] { "runv" }));
@@ -290,6 +292,36 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Send an info command to the selected scanner...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiInfo(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            ApiCmd apicmd;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                Display("must first select a scanner...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd, "info");
+
+            // Squirrel away the transaction...
+            a_functionarguments.transaction = apicmd.GetTransaction();
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Send an infoex command to the selected scanner...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -307,7 +339,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd);
+            m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd, "infoex");
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -818,7 +850,8 @@ namespace TwainDirect.Certification
                 Display("status.......................................status of the program");
                 Display("");
                 Display("Image Capture APIs (in order of use)");
-                Display("infoex.......................................get information about the scanner");
+                Display("info.........................................get baseline information about the scanner");
+                Display("infoex.......................................get extended information about the scanner");
                 Display("createSession................................create a new session");
                 Display("getSession...................................show the current session object");
                 Display("waitForEvents................................wait for events, like session object changes");
@@ -834,6 +867,7 @@ namespace TwainDirect.Certification
                 Display("call {label}.................................call function");
                 Display("echo [text]..................................echo text");
                 Display("if {item1} {operator} {item2} goto {label}...if statement");
+                Display("increment {dst} {src} [step].................increment src by step and store in dst");
                 Display("return [status]..............................return from call function");
                 Display("run [script].................................run a script");
                 Display("runv [script]................................run a script verbosely");
@@ -900,6 +934,16 @@ namespace TwainDirect.Certification
 
             // Image Capture APIs (in order of use)
             #region Image Capture APIs (in order of use)
+
+            // infoex...
+            if ((szCommand == "info"))
+            {
+                Display("INFO");
+                Display("Issues an info command to the scanner that picked out using");
+                Display("the SELECT command.  The command must be issued before making");
+                Display("a call to CREATESESSION.");
+                return (false);
+            }
 
             // infoex...
             if ((szCommand == "infoex"))
@@ -1019,7 +1063,7 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
-            // if...
+            // If...
             if ((szCommand == "if"))
             {
                 Display("IF {ITEM1} {OPERATOR} {ITEM2} GOTO {LABEL}");
@@ -1036,10 +1080,18 @@ namespace TwainDirect.Certification
                 Display("Items");
                 Display("Items prefixed with 'rj:' indicate that the item is a JSON");
                 Display("key in the last command's response payload.  For instance:");
-                Display("  if 'rj:results.success' != 'true' goto FAIL");
+                Display("  if '${rj:results.success}' != 'true' goto FAIL");
                 Display("Items prefixed with 'get:' indicate that the item is the");
                 Display("result of a prior set command.");
-                Display("  if 'get:lastsuccess' != 'true' goto FAIL");
+                Display("  if '${get:value}' != 'true' goto FAIL");
+                return (false);
+            }
+
+            // Increment...
+            if ((szCommand == "increment"))
+            {
+                Display("INCREMENT {DST} {SRC} [STEP]");
+                Display("Increments SRC by STEP and stores in DST.  STEP defaults to 1.");
                 return (false);
             }
 
@@ -1081,7 +1133,7 @@ namespace TwainDirect.Certification
                 Display("Values");
                 Display("Values prefixed with 'rj:' indicate that the item is a JSON");
                 Display("key in the last command's response payload.  For instance:");
-                Display("  set success 'rj:results.success'");
+                Display("  set success '${rj:results.success}'");
                 return (false);
             }
 
@@ -1108,7 +1160,7 @@ namespace TwainDirect.Certification
             string szAction;
 
             // Validate...
-            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 4) || (a_functionarguments.aszCmd[1] == null))
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 5) || (a_functionarguments.aszCmd[1] == null))
             {
                 Display("badly formed if-statement...");
                 return (false);
@@ -1151,6 +1203,24 @@ namespace TwainDirect.Certification
             else if (szOperator == "!~")
             {
                 if (szItem1.ToLowerInvariant() != szItem2.ToLowerInvariant())
+                {
+                    blDoAction = true;
+                }
+            }
+
+            // Item1 must contain items2 (case sensitive)...
+            else if (szOperator == "contains")
+            {
+                if (szItem1.Contains(szItem2))
+                {
+                    blDoAction = true;
+                }
+            }
+
+            // Item1 must not contain items2 (case sensitive)...
+            else if (szOperator == "!contains")
+            {
+                if (!szItem1.Contains(szItem2))
                 {
                     blDoAction = true;
                 }
@@ -1203,6 +1273,56 @@ namespace TwainDirect.Certification
                     return (false);
                 }
             }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Return from the current function...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdIncrement(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int iSrc;
+            int iDst;
+            int iStep = 1;
+
+            // Validate...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[1] == null))
+            {
+                Display("badly formed increment...");
+                return (false);
+            }
+
+            // Turn the source into a number...
+            if (!int.TryParse(a_functionarguments.aszCmd[2], out iSrc))
+            {
+                Display("source is not a number...");
+                return (false);
+            }
+
+            // Get the step...
+            if ((a_functionarguments.aszCmd.Length >= 4) || (a_functionarguments.aszCmd[3] != null))
+            {
+                if (!int.TryParse(a_functionarguments.aszCmd[3], out iStep))
+                {
+                    Display("step is not a number...");
+                    return (false);
+                }
+            }
+
+            // Increment the value...
+            iDst = iSrc + iStep;
+
+            // Store the value...
+            Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
+            functionarguments.aszCmd = new string[3];
+            functionarguments.aszCmd[0] = "set";
+            functionarguments.aszCmd[1] = a_functionarguments.aszCmd[1];
+            functionarguments.aszCmd[2] = iDst.ToString();
+            CmdSet(ref functionarguments);
 
             // All done...
             return (false);
@@ -1668,18 +1788,31 @@ namespace TwainDirect.Certification
         {
             // Current scanner...
             Display("SELECTED SCANNER");
+            Display("~~~~~~~~~~~~~~~~");
             if (m_dnssddeviceinfoSelected == null)
             {
                 Display("*** no selected scanner ***");
             }
             else
             {
-                Display(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
+                Display("Hostname...." + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szLinkLocal) ? m_dnssddeviceinfoSelected.szLinkLocal : "(none)"));
+                Display("Service....."  + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szServiceName) ? m_dnssddeviceinfoSelected.szServiceName : "(none)"));
+                Display("Interface..." + m_dnssddeviceinfoSelected.lInterface);
+                Display("IPv4........" + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : "(none)"));
+                Display("IPv6........" + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv6) ? m_dnssddeviceinfoSelected.szIpv6 : "(none)"));
+                Display("Port........" + m_dnssddeviceinfoSelected.lPort);
+                Display("TTL........." + m_dnssddeviceinfoSelected.lTtl);
+                Display("TXT Fields");
+                foreach (string sz in m_dnssddeviceinfoSelected.aszText)
+                {
+                    Display("  " + sz);
+                }
             }
 
             // Current snapshot of scanners...
             Display("");
             Display("LAST SCANNER LIST SNAPSHOT");
+            Display("~~~~~~~~~~~~~~~~~~~~~~~~~~");
             if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
             {
                 Display("*** no TWAIN Local scanners ***");
@@ -2271,10 +2404,13 @@ namespace TwainDirect.Certification
                     // Expand the stuff to the right of the source, so if we have
                     // ${rj:x} we'll get x back, but if we have ${rj:${arg:1}}, we'll
                     // get the value of ${arg:1} back...
-                    if (szSymbol.StartsWith("${rj:")
-                        || szSymbol.StartsWith("${get:")
-                        || szSymbol.StartsWith("${arg:")
-                        || szSymbol.StartsWith("${ret:"))
+                    if (    szSymbol.StartsWith("${rj:")
+                        ||  szSymbol.StartsWith("${rjx:")
+                        ||  szSymbol.StartsWith("${get:")
+                        ||  szSymbol.StartsWith("${arg:")
+                        ||  szSymbol.StartsWith("${ret:")
+                        ||  szSymbol.StartsWith("${txt:")
+                        ||  szSymbol.StartsWith("${txtx:"))
                     {
                         int iSymbolIndexLeft = szSymbol.IndexOf(":") + 1;
                         int iSymbolIndexLength;
@@ -2289,7 +2425,9 @@ namespace TwainDirect.Certification
                     // Assume the worse...
                     szValue = "";
 
-                    // Use the value as a JSON key to get data from the response data...
+                    // Use the value as a JSON key to get data from the response data, if we
+                    // don't find the value treat it as an empty string.  In most cases this
+                    // will be good enough for testing purposes...
                     if (szSymbol.StartsWith("${rj:"))
                     {
                         if (m_transactionLast != null)
@@ -2304,6 +2442,36 @@ namespace TwainDirect.Certification
                                 if (blSuccess)
                                 {
                                     szValue = jsonlookup.Get(szSymbol.Substring(0, szSymbol.Length - 1).Substring(5));
+                                    if (szValue == null)
+                                    {
+                                        szValue = "";
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Use the value as a JSON key to get data from the response data, add
+                    // an existance check, and if we don't find data, return '(null)'...
+                    else if (szSymbol.StartsWith("${rjx:"))
+                    {
+                        szValue = "(null)";
+                        if (m_transactionLast != null)
+                        {
+                            string szResponseData = m_transactionLast.GetResponseData();
+                            if (!string.IsNullOrEmpty(szResponseData))
+                            {
+                                bool blSuccess;
+                                long lJsonErrorIndex;
+                                JsonLookup jsonlookup = new JsonLookup();
+                                blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                                if (blSuccess)
+                                {
+                                    szValue = jsonlookup.Get(szSymbol.Substring(0, szSymbol.Length - 1).Substring(6));
+                                    if (szValue == null)
+                                    {
+                                        szValue = "(null)";
+                                    }
                                 }
                             }
                         }
@@ -2354,11 +2522,48 @@ namespace TwainDirect.Certification
                         }
                     }
 
-                    // Replace the current contents with the expanded value...
+                    // Check the mDNS text fields for the currently selected scanner...
+                    else if (szSymbol.StartsWith("${txt:"))
+                    {
+                        if ((m_dnssddeviceinfoSelected.aszText != null) && (m_dnssddeviceinfoSelected.aszText.Length > 0))
+                        {
+                            string szTxt = szSymbol.Substring(0, szSymbol.Length - 1).Substring(6) + "=";
+                            foreach (string sz in m_dnssddeviceinfoSelected.aszText)
+                            {
+                                if (sz.StartsWith(szTxt))
+                                {
+                                    szValue = sz.Substring(szTxt.Length);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Check the mDNS text fields for the currently selected scanner...
+                    else if (szSymbol.StartsWith("${txtx:"))
+                    {
+                        szValue = "(null)";
+                        if ((m_dnssddeviceinfoSelected.aszText != null) && (m_dnssddeviceinfoSelected.aszText.Length > 0))
+                        {
+                            string szTxt = szSymbol.Substring(0, szSymbol.Length - 1).Substring(7) + "=";
+                            foreach (string sz in m_dnssddeviceinfoSelected.aszText)
+                            {
+                                if (sz.StartsWith(szTxt))
+                                {
+                                    szValue = sz.Substring(szTxt.Length);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Failsafe (we should catch all of these up above)...
                     if (szValue == null)
                     {
                         szValue = "";
                     }
+
+                    // Replace the current contents with the expanded value...
                     a_aszCmd[iCmd] = a_aszCmd[iCmd].Remove(iIndexLeft, (iIndexRight - iIndexLeft) + 1).Insert(iIndexLeft, szValue);
                 }
             }
