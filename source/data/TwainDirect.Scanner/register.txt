@@ -1,7 +1,0 @@
-{
-    "scanner": {
-        "twainLocalTy": "KODAK Scanner: i5000",
-        "twainLocalSerialNumber": "12345678",
-        "twainLocalNote": "Mark's Scanner"
-    }
-}
