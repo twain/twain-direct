@@ -213,7 +213,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -243,7 +243,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -273,7 +273,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -303,7 +303,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -333,7 +333,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -365,24 +365,24 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
             if (a_functionarguments.aszCmd.Length < 3)
             {
-                Display("please specify image block to read and thumbnail flag...");
+                DisplayError("please specify image block to read and thumbnail flag...");
                 return (false);
             }
 
             // Get the image block number...
             if (!long.TryParse(a_functionarguments.aszCmd[1], out lImageBlock))
             {
-                Display("image block must be a number...");
+                DisplayError("image block must be a number...");
                 return (false);
             }
             if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetThumbnail))
             {
-                Display("thumbnail flag must be true or false...");
+                DisplayError("thumbnail flag must be true or false...");
                 return (false);
             }
 
@@ -414,24 +414,24 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
             if (a_functionarguments.aszCmd.Length < 3)
             {
-                Display("please specify image block to read and thumbnail flag...");
+                DisplayError("please specify image block to read and thumbnail flag...");
                 return (false);
             }
 
             // Get the image block number...
             if (!long.TryParse(a_functionarguments.aszCmd[1], out lImageBlock))
             {
-                Display("image block must be a number...");
+                DisplayError("image block must be a number...");
                 return (false);
             }
             if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetMetadataWithImage))
             {
-                Display("getmetdata flag must be true or false...");
+                DisplayError("getmetdata flag must be true or false...");
                 return (false);
             }
 
@@ -463,24 +463,24 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
             if (a_functionarguments.aszCmd.Length < 3)
             {
-                Display("please specify the first and last image block to release...");
+                DisplayError("please specify the first and last image block to release...");
                 return (false);
             }
 
             // Get the values...
             if (!long.TryParse(a_functionarguments.aszCmd[1], out lFirstImageBlock))
             {
-                Display("first image block must be a number...");
+                DisplayError("first image block must be a number...");
                 return (false);
             }
             if (!long.TryParse(a_functionarguments.aszCmd[2], out lLastImageBlock))
             {
-                Display("last image block must be a number...");
+                DisplayError("last image block must be a number...");
                 return (false);
             }
 
@@ -537,14 +537,14 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
             // Must supply a task...
             if ((a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
-                Display("must supply a task...");
+                DisplayError("must supply a task...");
                 return (false);
             }
 
@@ -557,7 +557,7 @@ namespace TwainDirect.Certification
                 }
                 catch (Exception exception)
                 {
-                    Display("failed to open file...<" + a_functionarguments.aszCmd[1] + "> - " + exception.Message);
+                    DisplayError("failed to open file...<" + a_functionarguments.aszCmd[1] + "> - " + exception.Message);
                     return (false);
                 }
             }
@@ -592,7 +592,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -622,7 +622,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -652,7 +652,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
             {
-                Display("must first select a scanner...");
+                DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -716,7 +716,7 @@ namespace TwainDirect.Certification
             }
 
             // Ugh...
-            Display("function label not found: <" + szLabel + ">");
+            DisplayError("function label not found: <" + szLabel + ">");
             return (false);
         }
 
@@ -769,7 +769,7 @@ namespace TwainDirect.Certification
             // No data...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[0] == null))
             {
-                Display("echopassfail needs two arguments...", true);
+                DisplayError("echopassfail needs two arguments...");
                 return (false);
             }
 
@@ -826,7 +826,7 @@ namespace TwainDirect.Certification
             }
 
             // Ugh...
-            Display("goto label not found: <" + szLabel + ">");
+            DisplayError("goto label not found: <" + szLabel + ">");
             return (false);
         }
 
@@ -1140,7 +1140,7 @@ namespace TwainDirect.Certification
             #endregion
 
             // Well, this ain't good...
-            Display("unrecognized command: " + a_functionarguments.aszCmd[1]);
+            DisplayError("unrecognized command: " + a_functionarguments.aszCmd[1]);
 
             // All done...
             return (false);
@@ -1162,7 +1162,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 5) || (a_functionarguments.aszCmd[1] == null))
             {
-                Display("badly formed if-statement...");
+                DisplayError("badly formed if-statement...");
                 return (false);
             }
 
@@ -1229,7 +1229,7 @@ namespace TwainDirect.Certification
             // Unrecognized operator...
             else
             {
-                Display("unrecognized operator: <" + szOperator + ">");
+                DisplayError("unrecognized operator: <" + szOperator + ">");
                 return (false);
             }
 
@@ -1245,7 +1245,7 @@ namespace TwainDirect.Certification
                     // Validate...
                     if ((a_functionarguments.aszCmd.Length < 5) || string.IsNullOrEmpty(a_functionarguments.aszCmd[4]))
                     {
-                        Display("goto label is missing...");
+                        DisplayError("goto label is missing...");
                         return (false);
                     }
 
@@ -1262,14 +1262,14 @@ namespace TwainDirect.Certification
                     }
 
                     // Ugh...
-                    Display("goto label not found: <" + szLabel + ">");
+                    DisplayError("goto label not found: <" + szLabel + ">");
                     return (false);
                 }
 
                 // We have no idea what we're doing...
                 else
                 {
-                    Display("unrecognized action: <" + szAction + ">");
+                    DisplayError("unrecognized action: <" + szAction + ">");
                     return (false);
                 }
             }
@@ -1292,14 +1292,14 @@ namespace TwainDirect.Certification
             // Validate...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[1] == null))
             {
-                Display("badly formed increment...");
+                DisplayError("badly formed increment...");
                 return (false);
             }
 
             // Turn the source into a number...
             if (!int.TryParse(a_functionarguments.aszCmd[2], out iSrc))
             {
-                Display("source is not a number...");
+                DisplayError("source is not a number...");
                 return (false);
             }
 
@@ -1308,7 +1308,7 @@ namespace TwainDirect.Certification
             {
                 if (!int.TryParse(a_functionarguments.aszCmd[3], out iStep))
                 {
-                    Display("step is not a number...");
+                    DisplayError("step is not a number...");
                     return (false);
                 }
             }
@@ -1346,7 +1346,7 @@ namespace TwainDirect.Certification
             {
                 if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
                 {
-                    Display("*** no TWAIN Local scanners ***");
+                    DisplayError("no TWAIN Local scanners");
                 }
                 else
                 {
@@ -1453,7 +1453,7 @@ namespace TwainDirect.Certification
                 string[] aszScriptFiles = Directory.GetFiles(".", "*.tdc");
                 if ((aszScriptFiles == null) || (aszScriptFiles.Length == 0))
                 {
-                    Display("no script files found", true);
+                    DisplayError("no script files found");
                 }
 
                 // List what we found...
@@ -1474,7 +1474,7 @@ namespace TwainDirect.Certification
                 szScriptFile = a_functionarguments.aszCmd[1] + ".tdc";
                 if (!File.Exists(szScriptFile))
                 {
-                    Display("script not found", true);
+                    DisplayError("script not found...<" + szScriptFile + ">");
                     return (false);
                 }
             }
@@ -1486,7 +1486,7 @@ namespace TwainDirect.Certification
             }
             catch (Exception exception)
             {
-                Display("failed to read script: " + exception.Message, true);
+                DisplayError("failed to read script...<" + szScriptFile + ">" + exception.Message);
                 return (false);
             }
 
@@ -1629,7 +1629,7 @@ namespace TwainDirect.Certification
             // No joy...
             if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
             {
-                Display("*** no TWAIN Local scanners ***");
+                DisplayError("no TWAIN Local scanners");
                 SetReturnValue("false");
                 return (false);
             }
@@ -1676,7 +1676,7 @@ namespace TwainDirect.Certification
             }
             else
             {
-                Display("*** no selection matches ***");
+                DisplayError("no selection matches...<" + a_functionarguments.aszCmd[1] + ">");
                 SetReturnValue("false");
             }
 
@@ -1699,7 +1699,7 @@ namespace TwainDirect.Certification
             {
                 if (m_lkeyvalue.Count == 0)
                 {
-                    Display("no keys to list...");
+                    DisplayError("no keys to list...");
                     return (false);
                 }
 
@@ -1791,7 +1791,7 @@ namespace TwainDirect.Certification
             Display("~~~~~~~~~~~~~~~~");
             if (m_dnssddeviceinfoSelected == null)
             {
-                Display("*** no selected scanner ***");
+                DisplayError("no selected scanner");
             }
             else
             {
@@ -1815,7 +1815,7 @@ namespace TwainDirect.Certification
             Display("~~~~~~~~~~~~~~~~~~~~~~~~~~");
             if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
             {
-                Display("*** no TWAIN Local scanners ***");
+                DisplayError("no TWAIN Local scanners");
             }
             else
             {
@@ -1864,7 +1864,7 @@ namespace TwainDirect.Certification
             // Whoops...nothing to work with...
             if (!Directory.Exists(szCertificationFolder))
             {
-                Display("Cannot find certification folder:\n" + szCertificationFolder);
+                DisplayError("cannot find certification folder:\n" + szCertificationFolder);
                 return;
             }
 
@@ -1872,7 +1872,7 @@ namespace TwainDirect.Certification
             aszCategories = Directory.GetDirectories(szCertificationFolder);
             if (aszCategories == null)
             {
-                Display("Cannot find any certification categories:\n" + szCertificationFolder);
+                DisplayError("cannot find any certification categories:\n" + szCertificationFolder);
                 return;
             }
 
@@ -2272,6 +2272,15 @@ namespace TwainDirect.Certification
             {
                 Console.Out.WriteLine(a_szText);
             }
+        }
+
+        /// <summary>
+        /// Display an error message...
+        /// </summary>
+        /// <param name="a_szText">the text to display</param>
+        private void DisplayError(string a_szText)
+        {
+            Console.Out.WriteLine("ERROR: " + a_szText);
         }
 
         /// <summary>
