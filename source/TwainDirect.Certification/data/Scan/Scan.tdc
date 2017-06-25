@@ -1,0 +1,154 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TWAIN Direct Scan v1.0 22-Jun-2017
+; arg:1 - scanner to use
+; arg:2 - task (optional)
+; returns: pass or fail
+;
+; Scan using TWAIN Direct...
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pick a scanner, default to the first scanner if we
+; don't get one...
+;
+select '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Confirm that all commands correctly return 404 invalid_x_privet_token if called before info or infoex...
+;
+run 'test x-privet-token error'
+if '${ret:}' != 'true' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check that info and infoex are supported, and their values match the mDNS TXT fields...
+;
+run 'test info and infoex' true
+if '${ret:}' != 'pass' goto MAIN.FAIL
+echo 'SCANNER:' '${rj:description}' / '${rj:name}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Create a new session...
+;
+run 'test createsession'
+if '${ret:}' != 'pass' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Wait for events (we won't get a response)...
+;
+echo 'CMD: waitForEvents'
+waitForEvents
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Send a task...
+;
+set task '${arg:2}'
+if '${get:task}' != '' goto MAIN.SENDTASK
+set task '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"attributes":[{"attribute":"numberOfSheets","values":[{"value":1}]}]}]}]}]}]}'
+:MAIN.SENDTASK
+echo 'CMD: sendTask'
+sendTask '${get:task}'
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Start capturing images...
+;
+echo 'CMD: startCapturing'
+startCapturing
+if '${rj:results.success}' != 'true' goto ERROR
+if '${rj:results.session.state}' != 'capturing' goto ERROR
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Scan until the scanner stops giving us images...
+;
+:MAIN.WAIT
+	echo
+
+; Loop here until we see an image, or scanning ends...
+:MAIN.WAITNEXT
+
+	; Get the session object...
+	echo 'CMD: getSession'
+	getSession
+	set firstimageblock '${rj:results.session.imageBlocks[0]}'
+	if '${rj:results.success}' != 'true' goto MAIN.FAIL
+	if '${rj:results.session.imageBlocksDrained}' == 'true' goto MAIN.DONE
+	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
+	if '${get:firstimageblock}' != '' goto MAIN.GETIMAGE
+	sleep 1000
+
+goto MAIN.WAITNEXT
+
+; Keep getting images as long as we have some...
+:MAIN.GETIMAGE
+
+	; Get the metadata for the first image block, no thumbnail...
+	echo
+	echo 'CMD: readImageBlockMetadata' '${get:firstimageblock}'
+	readImageBlockMetadata '${get:firstimageblock}' 'false'
+	if '${rj:results.success}' != 'true' goto MAIN.FAIL
+	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
+
+	; release the first image block...
+	echo 'CMD: releaseImageBlocks' '${get:firstimageblock}'
+	releaseImageBlocks '${get:firstimageblock}' '${get:firstimageblock}'
+	set firstimageblock '${rj:results.session.imageBlocks[0]}'
+	if '${rj:results.success}' != 'true' goto MAIN.FAIL
+	if '${rj:results.session.imageBlocksDrained}' == 'true' goto MAIN.DONE
+	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
+	if '${get:firstimageblock}' == '' goto MAIN.WAIT
+
+goto MAIN.GETIMAGE
+:MAIN.DONE
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Stop capturing images...
+;
+echo
+echo 'CMD: stopCapturing'
+stopCapturing
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Close the session...
+;
+echo 'CMD: closeSession'
+closeSession
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bye-bye...
+;
+echo 'Done...'
+return pass
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAIL
+;
+:MAIN.FAIL
+stopCapturing
+closeSession
+echo 'script failed...'
+return 'fail'

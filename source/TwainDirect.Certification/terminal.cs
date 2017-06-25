@@ -84,7 +84,6 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                         new string[] { "list" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                         new string[] { "ex", "exit", "q", "quit" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                       new string[] { "select" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                        new string[] { "sleep" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                       new string[] { "status" }));
 
             // Api commands...
@@ -93,6 +92,8 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,                new string[] { "get", "getsession", "getSession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfo,                      new string[] { "info" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInfoex,                    new string[] { "infoex" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInvalidcommand,            new string[] { "invalidcommand", "invalidCommand" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInvaliduri,                new string[] { "invaliduri", "invalidUri" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReadimageblockmetadata,    new string[] { "readimageblockmetadata", "readImageBlockMetadata" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReadimageblock,            new string[] { "readimageblock", "readImageBlock" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiReleaseimageblocks,        new string[] { "release", "releaseimageblocks", "releaseImageBlocks" }));
@@ -112,6 +113,8 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRunv,                         new string[] { "runv" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSet,                          new string[] { "set" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep, new string[] { "sleep" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdTwainlocalsession,            new string[] { "twainlocalsession" }));
 
             // Say hi...
             Assembly assembly = typeof(Terminal).Assembly;
@@ -340,6 +343,66 @@ namespace TwainDirect.Certification
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd, "infoex");
+
+            // Squirrel away the transaction...
+            a_functionarguments.transaction = apicmd.GetTransaction();
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Send an invalid command to the selected scanner...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiInvalidcommand(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            ApiCmd apicmd;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                DisplayError("must first select a scanner...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerInvalidCommand(ref apicmd);
+
+            // Squirrel away the transaction...
+            a_functionarguments.transaction = apicmd.GetTransaction();
+
+            // Display what we send...
+            DisplayApicmd(apicmd);
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Send an invalid uri to the selected scanner...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiInvaliduri(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            ApiCmd apicmd;
+
+            // Validate...
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            {
+                DisplayError("must first select a scanner...");
+                return (false);
+            }
+
+            // Make the call...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            m_twainlocalscanner.ClientScannerInvalidUri(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -852,6 +915,8 @@ namespace TwainDirect.Certification
                 Display("Image Capture APIs (in order of use)");
                 Display("info.........................................get baseline information about the scanner");
                 Display("infoex.......................................get extended information about the scanner");
+                Display("invalidCommand...............................see how scanner handles an invalid command");
+                Display("invalidUri...................................see how scanner handles an invalid uri");
                 Display("createSession................................create a new session");
                 Display("getSession...................................show the current session object");
                 Display("waitForEvents................................wait for events, like session object changes");
@@ -952,6 +1017,22 @@ namespace TwainDirect.Certification
                 Display("Issues an infoex command to the scanner that picked out using");
                 Display("the SELECT command.  The command must be issued before making");
                 Display("a call to CREATESESSION.");
+                return (false);
+            }
+
+            // invalidCommand...
+            if ((szCommand == "invalidcommand"))
+            {
+                Display("INVALIDCOMMAND");
+                Display("See how the scanner handles an invalid command.");
+                return (false);
+            }
+
+            // invalidUri...
+            if ((szCommand == "invaliduri"))
+            {
+                Display("INVALIDURI");
+                Display("See how the scanner handles an invalid uri.");
                 return (false);
             }
 
@@ -1829,6 +1910,40 @@ namespace TwainDirect.Certification
             return (false);
         }
 
+        /// <summary>
+        /// Creste the TwainLocalSession object without going through createSession, we need
+        /// this to do some of the certification tests...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdTwainlocalsession(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            // Validate...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
+            {
+                DisplayError("specify create or destroy");
+                return (false);
+            }
+
+            // Create a session...
+            if (a_functionarguments.aszCmd[1] == "create")
+            {
+                m_twainlocalscanner.ClientCertificationTwainLocalSessionCreate();
+                return (false);
+            }
+
+            // Destroy a session...
+            if (a_functionarguments.aszCmd[1] == "destroy")
+            {
+                m_twainlocalscanner.ClientCertificationTwainLocalSessionDestroy();
+                return (false);
+            }
+
+            // All done...
+            DisplayError("specify create or destroy");
+            return (false);
+        }
+
         #endregion
 
 
@@ -2415,6 +2530,7 @@ namespace TwainDirect.Certification
                     // get the value of ${arg:1} back...
                     if (    szSymbol.StartsWith("${rj:")
                         ||  szSymbol.StartsWith("${rjx:")
+                        ||  szSymbol.StartsWith("${rsts:")
                         ||  szSymbol.StartsWith("${get:")
                         ||  szSymbol.StartsWith("${arg:")
                         ||  szSymbol.StartsWith("${ret:")
@@ -2483,6 +2599,16 @@ namespace TwainDirect.Certification
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // We're getting the HTTP response status, which is an integer...
+                    else if (szSymbol.StartsWith("${rsts:"))
+                    {
+                        szValue = "(null)";
+                        if (m_transactionLast != null)
+                        {
+                            szValue = m_transactionLast.GetResponseStatus().ToString();
                         }
                     }
 

@@ -1,0 +1,60 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test info and infoex v1.0 24-Jun-2017
+; arg:1 - true to display the banner
+; returns: pass or fail
+;
+; Issue info and infoex commands.  We expect these to work in all states where the scanner is online.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner?
+;
+if '${arg:1}' != 'true' goto MAIN.SKIPBANNER
+echo
+echo 'Test info and infoex v1.0 24-Jun-2017'
+echo
+:MAIN.SKIPBANNER
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Send the scanner info command...
+;
+info
+if '${rj:x-privet-token}' == '' goto MAIN.FAILINFO
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Send the scanner infoex command...
+;
+infoex
+if '${rj:x-privet-token}' == '' goto MAIN.FAILINFOX
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bye-bye...
+;
+echopassfail 'Request info and infoex' 'pass'
+return 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAILINFO
+;
+:MAIN.FAILINFO
+echopassfail 'Request info and infoex' 'fail (info)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAILINFOEX
+;
+:MAIN.FAILINFOEX
+echopassfail 'Request info and infoex' 'fail (infoex)'
+return 'fail'

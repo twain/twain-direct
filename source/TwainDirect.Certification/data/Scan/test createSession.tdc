@@ -1,0 +1,140 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test createSession v1.0 24-Jun-2017
+; returns: pass or fail
+;
+; Exercise the createSession command.  We're going to do the following:
+;
+; - confirm that commands report invalidSession when called before createSession
+;
+; - confirm that createSession succeeds, and contains all required properties
+;
+; - confirm that createSession reports invalidState now
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Make sure that commands prior to a successful createSession return invalidSessionId.  We don't do
+; waitForEvents here, because any complaint has to come back asynchronously...
+;
+set creatsessionresult 'pass'
+call CHECKINVALIDSESSIONID 'getSession'
+call CHECKINVALIDSESSIONID 'sendTask' '{}'
+call CHECKINVALIDSESSIONID 'startCapturing'
+call CHECKINVALIDSESSIONID 'readImageBlockMetadata' '1' 'false'
+call CHECKINVALIDSESSIONID 'readImageBlock' '1' 'false'
+call CHECKINVALIDSESSIONID 'releaseImageBlocks' '1' '1'
+call CHECKINVALIDSESSIONID 'stopCapturing'
+call CHECKINVALIDSESSIONID 'closeSession'
+call CHECKINVALIDSESSIONID 'invalidCommand'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Call createSession, and check the return properties...
+;
+call CREATESESSION
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Make sure createSession returns busy if called now...
+;
+call CHECKCODE 'createSession' 'busy'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bye-bye...
+;
+echopassfail 'createSession' '${get:creatsessionresult}'
+return '${get:creatsessionresult}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECKINVALIDSESSIONID
+; arg:1 - command to run
+; returns pass or fail
+;
+:CHECKINVALIDSESSIONID
+;
+; Send the command...
+twainlocalsession 'create'
+'${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
+twainlocalsession 'destroy'
+;
+; Check the result...
+if '${rj:results.success}' != 'false' goto CHECKINVALIDSESSIONID.FAILSTATUS
+if '${rj:results.code}' != 'invalidSessionId' goto CHECKINVALIDSESSIONID.FAILCODE
+;
+; We're good...
+echopassfail 'check invalidSessionId: ${arg:1}' 'pass'
+return 'pass'
+;
+:CHECKINVALIDSESSIONID.FAILSTATUS
+echopassfail 'check invalidSessionId: ${arg:1}' 'fail (success not false)'
+set creatsessionresult 'fail'
+return 'fail'
+;
+:CHECKINVALIDSESSIONID.FAILCODE
+echopassfail 'check invalidSessionId: ${arg:1}' 'fail (coded not invalidSessionId)'
+set creatsessionresult 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CREATESESSION
+; returns pass or fail
+;
+:CREATESESSION
+;
+; Send the command...
+createSession
+;
+; Check the result...
+if '${rj:results.success}' != 'true' goto CREATESESSION.FAILSTATUS
+;
+; We're good...
+echopassfail 'send createSession' 'pass'
+return 'pass'
+;
+:CREATESESSION.FAILSTATUS
+echopassfail 'send createSession' 'fail (success not true)'
+set creatsessionresult 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECKCODE
+; arg:1 - command to run
+; arg:2 - code to check for
+; arg:3 - argument for command, if needed
+; arg:4 - argument for command, if needed
+; arg:5 - argument for command, if needed
+; returns pass or fail
+;
+:CHECKCODE
+;
+; Send the command...
+'${arg:1}' '${arg:3}' '${arg:4}' '${arg:5}'
+;
+; Check the result...
+if '${rj:results.success}' != 'false' goto CHECKCODE.FAILSTATUS
+if '${rj:results.code}' != '${arg:2}' goto CHECKCODE.FAILCODE
+;
+; We're good...
+echopassfail 'check ${arg:2}: ${arg:1}' 'pass'
+return 'pass'
+;
+:CHECKCODE.FAILSTATUS
+echopassfail 'check ${arg:2}: ${arg:1}' 'fail (success not false)'
+set creatsessionresult 'fail'
+return 'fail'
+;
+:CHECKCODE.FAILCODE
+echopassfail 'check ${arg:2}: ${arg:1}' 'fail (code not ${arg:2})'
+set creatsessionresult 'fail'
+return 'fail'

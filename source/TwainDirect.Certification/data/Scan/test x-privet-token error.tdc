@@ -1,0 +1,72 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test x-privet-token error v1.0 24-Jun-2017
+; returns: pass or fail
+;
+; Issue each of the valid RESTful commands and one invalid command before we have a valid x-privet-token,
+; in each case the scanner must respond with an HTTP error of 400, and a payload of the following form:
+; {"error":"invalid_x_privet_token","description":"X-Privet-Token missing or invalid..."}
+;
+; This script is not standalone, it must be issued after a scanner has been selected, but before a call
+; to info or infoex.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Send each of the commands.  We don't do waitForEvents here, because any complaint has to come back
+; asynchronously, so we'll have to detect it in the events...
+;
+echo
+echo 'Test x-privet-token error v1.0 24-Jun-2017'
+echo
+set localresult 'pass'
+call SENDCOMMAND 'createSession'
+call SENDCOMMAND 'getSession'
+call SENDCOMMAND 'sendTask' 'x'
+call SENDCOMMAND 'startCapturing'
+call SENDCOMMAND 'readImageBlockMetadata' '1' 'false'
+call SENDCOMMAND 'readImageBlock' '1' 'false'
+call SENDCOMMAND 'releaseImageBlocks' '1' '1'
+call SENDCOMMAND 'stopCapturing'
+call SENDCOMMAND 'closeSession'
+call SENDCOMMAND 'invalidCommand'
+echopassfail 'SUMMARY' '${get:localresult}'
+return '${get:localresult}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SENDCOMMAND
+; arg:1 - command to run
+; returns pass or fail
+;
+:SENDCOMMAND
+;
+; Send the command...
+'${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
+;
+; Check the result...
+if '${rsts:}' != '400' goto SENDCOMMAND.FAILSTS
+if '${rj:error}' != 'invalid_x_privet_token' goto SENDCOMMAND.FAILERROR
+if '${rj:description}' !contains 'X-Privet-Token' goto SENDCOMMAND.FAILDESCRIPTION
+if '${rj:description}' !contains 'missing' goto SENDCOMMAND.FAILDESCRIPTION
+if '${rj:description}' !contains 'invalid' goto SENDCOMMAND.FAILDESCRIPTION
+;
+; We're good...
+echopassfail 'x-privet-token test: ${arg:1}' 'pass'
+return 'pass'
+;
+:SENDCOMMAND.FAILSTS
+echopassfail 'x-privet-token test: ${arg:1}' 'fail (http status not 400)'
+set localresult 'fail'
+return 'fail'
+;
+:SENDCOMMAND.FAILERROR
+echopassfail 'x-privet-token test: ${arg:1}' 'fail (error not invalid_x_privet_token)'
+set localresult 'fail'
+return 'fail'
+;
+:SENDCOMMAND.FAILDESCRIPTION
+echopassfail 'x-privet-token test: ${arg:1}' 'fail (error bad description)'
+set localresult 'fail'
+return 'fail'

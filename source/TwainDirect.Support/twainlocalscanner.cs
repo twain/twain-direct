@@ -409,6 +409,7 @@ namespace TwainDirect.Support
             );
             if (!blSuccess)
             {
+                ClientReturnError(a_apicmd, false, "", 0, "");
                 return (false);
             }
 
@@ -601,12 +602,8 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Skip the command if we've no session state or if we're already closed.
-                // But return true anyway, because one should never fail when trying to
-                // shut something down...
-                if (    (m_twainlocalsession == null)
-                    ||  (m_twainlocalsession.GetSessionState() == SessionState.noSession)
-                    ||  (m_twainlocalsession.GetSessionState() == SessionState.closed))
+                // Validate...
+                if (m_twainlocalsession == null)
                 {
                     Log.Error(szFunction + ": already closed");
                     ClientReturnError(a_apicmd, true, null, -1, null);
@@ -640,6 +637,7 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
 
@@ -683,42 +681,38 @@ namespace TwainDirect.Support
                     m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
                 }
 
-                // Check our incoming state...
-                if (m_twainlocalsession.GetSessionState() != SessionState.noSession)
-                {
-                    ClientReturnError(a_apicmd, false, "busy", -1, szFunction + " busy: " + m_twainlocalsession.GetSessionState());
-                    return (false);
-                }
-
                 // Squirrel this away, do the useHttps check in such a way that
                 // one must precisely specify "no" to get it, otherwise we're
                 // going to use HTTPS...
-                m_dnssddeviceinfo = a_dnssddeviceinfo;
-                if (m_dnssddeviceinfo.szIpv4 != null)
+                if (m_dnssddeviceinfo == null)
                 {
-                    if (Config.Get("useHttps", "yes") == "no")
+                    m_dnssddeviceinfo = a_dnssddeviceinfo;
+                    if (m_dnssddeviceinfo.szIpv4 != null)
                     {
-                        m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv4;
+                        if (Config.Get("useHttps", "yes") == "no")
+                        {
+                            m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv4;
+                        }
+                        else
+                        {
+                            m_szHttpServer = "https://" + m_dnssddeviceinfo.szIpv4;
+                        }
+                    }
+                    else if (m_dnssddeviceinfo.szIpv6 != null)
+                    {
+                        if (Config.Get("useHttps", "yes") == "no")
+                        {
+                            m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv6;
+                        }
+                        else
+                        {
+                            m_szHttpServer = "https://" + m_dnssddeviceinfo.szIpv6;
+                        }
                     }
                     else
                     {
-                        m_szHttpServer = "https://" + m_dnssddeviceinfo.szIpv4;
+                        m_szHttpServer = "http://***noipaddress***";
                     }
-                }
-                else if (m_dnssddeviceinfo.szIpv6 != null)
-                {
-                    if (Config.Get("useHttps", "yes") == "no")
-                    {
-                        m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv6;
-                    }
-                    else
-                    {
-                        m_szHttpServer = "https://" + m_dnssddeviceinfo.szIpv6;
-                    }
-                }
-                else
-                {
-                    m_szHttpServer = "http://***noipaddress***";
                 }
 
                 // Send the RESTful API command...
@@ -745,6 +739,7 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
 
@@ -776,13 +771,6 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Check our state...
-                if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
-                    return (false);
-                }
-
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -810,6 +798,96 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// This is an invalid command, it's only used to test certification, please
+        /// don't go around adding this to your applications... >.<
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerInvalidCommand(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerInvalidCommand";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    m_dnssddeviceinfo,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    new string[] {
+                        "Content-Type: application/json; charset=UTF-8",
+                        "X-Privet-Token: " + m_szXPrivetToken
+                    },
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + Guid.NewGuid().ToString() + "\"," +
+                    "\"method\":\"invalidCommand\"" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReply
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// This is an invalid uri, it's only used to test certification, please
+        /// don't go around adding this to your applications... >.<
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerInvalidUri(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerInvalidUri";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    m_dnssddeviceinfo,
+                    ref a_apicmd,
+                    "/privet/twaindirect/invaliduri",
+                    "GET",
+                    new string[] {
+                        "X-Privet-Token: " + m_szXPrivetToken
+                    },
+                    null,
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReply
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
             }
@@ -846,14 +924,6 @@ namespace TwainDirect.Support
                 if (m_twainlocalsession == null)
                 {
                     ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
-                    return (false);
-                }
-
-                // Check our state...
-                if ((m_twainlocalsession.GetSessionState() != SessionState.capturing)
-                    && (m_twainlocalsession.GetSessionState() != SessionState.closed))
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
                     return (false);
                 }
 
@@ -903,6 +973,7 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
 
@@ -969,14 +1040,6 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Check our state...
-                if ((m_twainlocalsession.GetSessionState() != SessionState.capturing)
-                    && (m_twainlocalsession.GetSessionState() != SessionState.closed))
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
-                    return (false);
-                }
-
                 // We're asking for a thumbnail...
                 szThumbnail = null;
                 if (a_blGetThumbnail)
@@ -1026,11 +1089,9 @@ namespace TwainDirect.Support
                     m_iHttpTimeoutCommand,
                     ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
                 );
-
-                // How'd we do?
                 if (!blSuccess)
                 {
-                    // That bad, eh?
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
 
@@ -1093,15 +1154,6 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Check our state...
-                if (    (m_twainlocalsession.GetSessionState() != SessionState.capturing)
-                    &&  (m_twainlocalsession.GetSessionState() != SessionState.draining)
-                    &&  (m_twainlocalsession.GetSessionState() != SessionState.closed))
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
-                    return (false);
-                }
-
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -1131,6 +1183,7 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
 
@@ -1179,13 +1232,6 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Check our state...
-                if (m_twainlocalsession.GetSessionState() != SessionState.ready)
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
-                    return (false);
-                }
-
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -1214,6 +1260,7 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
             }
@@ -1239,13 +1286,6 @@ namespace TwainDirect.Support
                 if (m_twainlocalsession == null)
                 {
                     ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
-                    return (false);
-                }
-
-                // Check our state...
-                if (m_twainlocalsession.GetSessionState() != SessionState.ready)
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
                     return (false);
                 }
 
@@ -1276,6 +1316,7 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
             }
@@ -1301,13 +1342,6 @@ namespace TwainDirect.Support
                 if (m_twainlocalsession == null)
                 {
                     ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
-                    return (false);
-                }
-
-                // Check our state...
-                if (m_twainlocalsession.GetSessionState() != SessionState.capturing)
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
                     return (false);
                 }
 
@@ -1338,6 +1372,7 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
             }
@@ -1363,13 +1398,6 @@ namespace TwainDirect.Support
                 if (m_twainlocalsession == null)
                 {
                     ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
-                    return (false);
-                }
-
-                // Check our state...
-                if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
-                {
-                    ClientReturnError(a_apicmd, false, "invalidState", -1, szFunction + ": invalid state - " + m_twainlocalsession.GetSessionState());
                     return (false);
                 }
 
@@ -1403,12 +1431,36 @@ namespace TwainDirect.Support
                 );
                 if (!blSuccess)
                 {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
             }
 
             // All done...
             return (true);
+        }
+
+        /// <summary>
+        /// Create a TWAIN Local Session object
+        /// </summary>
+        public void ClientCertificationTwainLocalSessionCreate()
+        {
+            if (m_twainlocalsession == null)
+            {
+                m_twainlocalsession = new TwainLocalSession(string.IsNullOrEmpty(m_szXPrivetToken) ? "no-token" : m_szXPrivetToken);
+            }
+        }
+
+        /// <summary>
+        /// Destroy a TWAIN Local Session object
+        /// </summary>
+        public void ClientCertificationTwainLocalSessionDestroy()
+        {
+            if (m_twainlocalsession != null)
+            {
+                m_twainlocalsession.Dispose();
+                m_twainlocalsession = null;
+            }
         }
 
         #endregion
@@ -1445,7 +1497,7 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // Every command has to have X-Privet-Token in the header...
+            // Every command must have X-Privet-Token in the header...
             for (ii = 0; ii < a_httplistenercontext.Request.Headers.Count; ii++)
             {
                 if (a_httplistenercontext.Request.Headers.GetKey(ii) == "X-Privet-Token")
@@ -1453,8 +1505,6 @@ namespace TwainDirect.Support
                     break;
                 }
             }
-
-            // We didn't find the X-Privet-Token...
             if (ii >= a_httplistenercontext.Request.Headers.Count)
             {
                 apicmd = new ApiCmd(m_dnssddeviceinfo, null, ref a_httplistenercontext);
@@ -1462,7 +1512,7 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // We found it, squirrel away the value, remove any double quotes...
+            // We found X-Privet-Token, squirrel away the value, remove any double quotes...
             szXPrivetToken = a_httplistenercontext.Request.Headers.Get(ii).Replace("\"","");
 
             // Handle the /privet/info and /privet/infoex commands...
@@ -1521,12 +1571,12 @@ namespace TwainDirect.Support
             // Init stuff...
             apicmd = new ApiCmd(m_dnssddeviceinfo, jsonlookup, ref a_httplistenercontext);
 
-            // If we are running a session, make sure that the command's id matches
-            // the session's id...
+            // If we are running a session, make sure that the command's session id matches
+            // our session's id...
             lock (m_objectLock)
             {
                 // If we have no session, and we're not processing "createSession" then
-                // we have a problem.  We can get here is the session timeout was hit...
+                // we have a problem.  We can get here if the session timeout was hit...
                 if ((m_twainlocalsession == null) && (jsonlookup.Get("method") != "createSession"))
                 {
                     Log.Error(szFunction + ": sessionId error: <" + jsonlookup.Get("params.sessionId") + "> <(no session)>");
@@ -1534,7 +1584,16 @@ namespace TwainDirect.Support
                     return;
                 }
 
-                // If we have a session, the called must match our sessionId...
+                // If we have a session, and the command is "createSession", then we're
+                // busy, so bug off...
+                if ((m_twainlocalsession != null) && (jsonlookup.Get("method") == "createSession"))
+                {
+                    Log.Error(szFunction + ": busy, we're already running a session");
+                    DeviceReturnError(szFunction, apicmd, "busy", null, -1);
+                    return;
+                }
+
+                // If we have a session, the call must match our sessionId...
                 if ((m_twainlocalsession != null) && !string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
                 {
                     if (jsonlookup.Get("params.sessionId") != m_twainlocalsession.GetSessionId())
@@ -2016,10 +2075,36 @@ namespace TwainDirect.Support
         /// <param name="a_szResponseText">extra info about the error</param>
         private void ClientReturnError(ApiCmd a_apicmd, bool a_blSuccess, string a_szResponseCode, long a_lResponseCharacterOffset, string a_szResponseText)
         {
+            long lJsonErrorIndex;
+
             // Only log something if we have something...
             if (!string.IsNullOrEmpty(a_szResponseText))
             {
                 Log.Error(a_szResponseText);
+            }
+
+            // Handle protocol errors...
+            if (a_apicmd.GetResponseStatus() != 200)
+            {
+                string szResponseText = a_apicmd.GetResponseText();
+                if (string.IsNullOrEmpty(szResponseText))
+                {
+                    a_apicmd.DeviceResponseSetStatus(false, "protocolError", 0, "unrecognized protocol error, sorry.");
+                }
+                else
+                {
+                    JsonLookup jsonlookup = new JsonLookup();
+                    jsonlookup.Load(szResponseText, out lJsonErrorIndex);
+                    string szError = jsonlookup.Get("error");
+                    if (string.IsNullOrEmpty(szError))
+                    {
+                        szError = "protocolError";
+                    }
+                    a_apicmd.DeviceResponseSetStatus(false, szError, 0, szResponseText);
+                }
+
+                // All done...
+                return;
             }
 
             // Set the command's error return...

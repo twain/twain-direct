@@ -95,6 +95,10 @@ namespace TwainDirect.Support
         /// <param name="a_szResponseText">free form text about the problem</param>
         public void DeviceResponseSetStatus(bool a_blSuccess, string a_szResponseCode, long a_lResponseCharacterOffset, string a_szResponseText)
         {
+            if (m_iResponseHttpStatus != 200)
+            {
+                m_szResponseData = a_szResponseText;
+            }
             m_blResponseSuccess = a_blSuccess;
             m_szResponseCode = a_szResponseCode;
             m_lResponseCharacterOffset = a_lResponseCharacterOffset;
@@ -122,6 +126,24 @@ namespace TwainDirect.Support
         public string GetResponseData()
         {
             return (m_szResponseData);
+        }
+
+        /// <summary>
+        /// Return the HTTP response status...
+        /// </summary>
+        /// <returns>the HTTP response status</returns>
+        public int GetResponseStatus()
+        {
+            return (m_iResponseHttpStatus);
+        }
+
+        /// <summary>
+        /// Return the response text...
+        /// </summary>
+        /// <returns>the HTTP text</returns>
+        public string GetResponseText()
+        {
+            return (m_szResponseText);
         }
 
         /// <summary>
@@ -499,13 +521,13 @@ namespace TwainDirect.Support
                 Log.Error(a_szReason + ": a_szUri is null");
                 return (false);
             }
-            if (    (a_szUri != "/privet/info")
-                &&  (a_szUri != "/privet/infoex")
-                &&  (a_szUri != "/privet/twaindirect/session"))
-            {
-                Log.Error(a_szReason + ": bad a_szUri '" + a_szUri + "'");
-                return (false);
-            }
+            //if (    (a_szUri != "/privet/info")
+            //    &&  (a_szUri != "/privet/infoex")
+            //    &&  (a_szUri != "/privet/twaindirect/session"))
+            //{
+            //    Log.Error(a_szReason + ": bad a_szUri '" + a_szUri + "'");
+            //    return (false);
+            //}
 
             // For HTTPS we need a certificate for the DNS domain, I have no idea if
             // this can be done with a numeric IP, but I know it can be done with a
@@ -522,7 +544,7 @@ namespace TwainDirect.Support
             {
                 szUri = "http://" + a_dnssddeviceinfo.szIpv4 + ":" + a_dnssddeviceinfo.lPort + a_szUri;
             }
-            m_szMethod = a_szMethod + " " + szUri;
+            m_szMethod = a_szMethod;
             m_szUriFull = szUri;
             Log.Info("http>>> " + m_szMethod + " " + m_szUriFull);
             httpwebrequest = (HttpWebRequest)WebRequest.Create(szUri);
@@ -657,7 +679,8 @@ namespace TwainDirect.Support
             }
 
             // Dump the status...
-            Log.Info("http>>> recvsts " + (int)(HttpStatusCode)httpwebresponse.StatusCode + " (" + httpwebresponse.StatusCode + ")");
+            m_iResponseHttpStatus = (int)(HttpStatusCode)httpwebresponse.StatusCode;
+            Log.Info("http>>> recvsts " + m_iResponseHttpStatus + " (" + httpwebresponse.StatusCode + ")");
 
             // Get the response headers, if any...
             m_aszResponseHeaders = null;
@@ -765,14 +788,7 @@ namespace TwainDirect.Support
                     {
                         byte[] abReply = new byte[iXfer];
                         Buffer.BlockCopy(abBuffer, 0, abReply, 0, iXfer);
-                        if (a_szOutputFile == null)
-                        {
-                            szReply = Encoding.UTF8.GetString(abReply, 0, iXfer);
-                        }
-                        else
-                        {
-                            File.WriteAllBytes(a_szOutputFile, abReply);
-                        }
+                        szReply = Encoding.UTF8.GetString(abReply, 0, iXfer);
                     }
                 }
 
@@ -961,7 +977,8 @@ namespace TwainDirect.Support
             FileStream filestreamImage = null;
             string szBoundary = "WaFfLeSaReTaStY";
 
-            // Handle a bad X-Privet-Token...
+            // Handle a bad X-Privet-Token, we must do this before we do
+            // anything else...
             if (a_szCode == "invalid_x_privet_token")
             {
                 // Log it...
@@ -977,9 +994,14 @@ namespace TwainDirect.Support
 
                 // Set the status code...
                 m_httplistenerresponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                m_httplistenerresponse.StatusDescription = "Missing X-Privet-Token header.";
+
+                // Set the headers...
+                m_httplistenerresponse.Headers.Clear();
+                m_httplistenerresponse.Headers.Add(HttpResponseHeader.ContentType, "application/json; charset=UTF-8");
+                m_httplistenerresponse.ContentLength64 = abError.Length;
 
                 // Get a response stream and write the response to it...
-                m_httplistenerresponse.ContentLength64 = abError.Length;
                 streamResponse = m_httplistenerresponse.OutputStream;
                 streamResponse.Write(abError, 0, abError.Length);
                 streamResponse.Close();
@@ -1337,8 +1359,10 @@ namespace TwainDirect.Support
                 m_aszRequestHeaders = a_apicmd.GetRequestHeaders();
                 m_szRequestData = a_apicmd.GetSendCommand();
                 m_szResponseStatus = a_apicmd.HttpStatus().ToString();
+                m_iResponseStatus = a_apicmd.GetResponseStatus();
                 m_aszResponseHeaders = a_apicmd.GetResponseHeaders();
                 m_szResponseData = a_apicmd.GetResponseData();
+                m_szResponseText = a_apicmd.GetResponseText();
             }
 
             /// <summary>
@@ -1364,7 +1388,7 @@ namespace TwainDirect.Support
                 }
 
                 // The response...
-                lszTransation.Add("RSPSTS: " + m_szResponseStatus);
+                lszTransation.Add("RSPSTS: " + m_iResponseStatus);
                 if (m_aszResponseHeaders != null)
                 {
                     foreach (string sz in m_aszResponseHeaders)
@@ -1392,6 +1416,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the HTTP response status for this transaction...
+            /// </summary>
+            /// <returns></returns>
+            public int GetResponseStatus()
+            {
+                return (m_iResponseStatus);
+            }
+
+            /// <summary>
             /// The method: GET, POST, etc...
             /// </summary>
             private string m_szUriMethod;
@@ -1407,7 +1440,7 @@ namespace TwainDirect.Support
             private string[] m_aszRequestHeaders;
 
             /// <summary>
-            /// Reqeust data or null...
+            /// Request data or null...
             /// </summary>
             private string m_szRequestData;
 
@@ -1415,6 +1448,7 @@ namespace TwainDirect.Support
             /// Response status...
             /// </summary>
             private string m_szResponseStatus;
+            private int m_iResponseStatus;
 
             /// <summary>
             /// Response headers, or null...
@@ -1425,6 +1459,11 @@ namespace TwainDirect.Support
             /// Response data, or null...
             /// </summary>
             private string m_szResponseData;
+
+            /// <summary>
+            /// Response text or null...
+            /// </summary>
+            private string m_szResponseText;
         }
 
         #endregion
@@ -1456,6 +1495,7 @@ namespace TwainDirect.Support
             // Handle it...
             m_blResponseSuccess = false;
             m_szResponseHttpStatus = ApiCmd.c_szNonHttpError;
+            m_iResponseHttpStatus = int.Parse(ApiCmd.c_szNonHttpError);
             m_szResponseCode = "communicationError";
             m_szResponseText = a_exception.Message;
             return (false);
@@ -1471,7 +1511,6 @@ namespace TwainDirect.Support
         {
             HttpWebResponse httpwebresponse;
             string szStatusData = "";
-            int iStatuscode;
             string szHttpStatusDescription;
 
             // Validate...
@@ -1533,7 +1572,7 @@ namespace TwainDirect.Support
             }
 
             // Get the status information...
-            iStatuscode = (int)((HttpWebResponse)a_webexception.Response).StatusCode;
+            m_iResponseHttpStatus = (int)((HttpWebResponse)a_webexception.Response).StatusCode;
             szHttpStatusDescription = ((HttpWebResponse)a_webexception.Response).StatusDescription;
 
             // Collect data about the problem...
@@ -1544,14 +1583,14 @@ namespace TwainDirect.Support
             }
 
             // Log it...
-            Log.Error("http>>> sts " + iStatuscode + " (" + szHttpStatusDescription + ")");
+            Log.Error("http>>> sts " + m_iResponseHttpStatus + " (" + szHttpStatusDescription + ")");
             Log.Error("http>>> stsreason " + a_szReason + " (" + a_webexception.Message + ")");
             Log.Error("http>>> stsdata " + szStatusData);
 
             // Return it...
             m_blResponseSuccess = false;
             m_webexceptionstatus = a_webexception.Status;
-            m_szResponseHttpStatus = iStatuscode.ToString();
+            m_szResponseHttpStatus = m_iResponseHttpStatus.ToString();
             m_szResponseCode = "critical";
             m_szResponseText = szStatusData;
             return (false);
@@ -1804,6 +1843,7 @@ namespace TwainDirect.Support
         /// The HTTP status that comes with the reply...
         /// </summary>
         private string m_szResponseHttpStatus;
+        private int m_iResponseHttpStatus;
 
         /// <summary>
         /// Data that goes with the reply...
