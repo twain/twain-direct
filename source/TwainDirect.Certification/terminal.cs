@@ -465,7 +465,7 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
-        /// Read an image data block and it's metadata...
+        /// Read an image data block and its metadata...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
         /// <returns>true to quit</returns>

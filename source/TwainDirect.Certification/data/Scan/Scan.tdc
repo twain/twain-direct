@@ -2,6 +2,8 @@
 ; TWAIN Direct Scan v1.0 22-Jun-2017
 ; arg:1 - scanner to use
 ; arg:2 - task (optional)
+; arg:3 - get thumbnail with readImageBlockMetadata (default false)
+; arg:4 - get metadata with readImageBlock (default false)
 ; returns: pass or fail
 ;
 ; Scan using TWAIN Direct, exercise and test as must of the system as possible...
@@ -10,8 +12,24 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Pick a scanner, default to the first scanner if we
-; don't get one...
+; Work out values for getThumbnail and getMetadata...
+;
+; Work out a value for getThumbnail...
+set getThumbnail '${arg:3}'
+if '${get:getThumbnail}' != '' goto MAIN.SKIPTHUMBNAILDEFAULT
+set getThumbnail 'false'
+:MAIN.SKIPTHUMBNAILDEFAULT
+;
+; Work out a value for getMetadata...
+set getMetadata '${arg:4}'
+if '${get:getMetadata}' != '' goto MAIN.SKIPMETADATADEFAULT
+set getMetadata 'false'
+:MAIN.SKIPMETADATADEFAULT
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pick a scanner, default to the first scanner if we don't get one...
 ;
 select '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.FAIL
@@ -53,7 +71,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test sendTask...
 ;
-run 'test sendtask'
+run 'test sendtask' '${arg:2}'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -76,7 +94,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 :MAIN.WAITNEXT
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	; Test sendTask...
+	; Test getSession...
 	;
 	run 'test getsession' 'capturing' 'outDone' 'outNextimageblock'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
@@ -91,9 +109,17 @@ goto MAIN.WAITNEXT
 :MAIN.GETIMAGE
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	; Test readImageBlockMetadata...
+	; Test readImageBlockMetadata, unless we're told to skip it...
 	;
-	run 'test readImageBlockMetadata' '${get:outNextimageblock}' false
+	if '${get:getMetadata}' == 'true' goto MAIN.SKIPREADBLOCKMETADATA
+	run 'test readImageBlockMetadata' '${get:outNextimageblock}' '${get:getThumbnail}'
+	if '${ret:}' != 'pass' goto MAIN.FAIL
+	:MAIN.SKIPREADBLOCKMETADATA
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Test readImageBlock...
+	;
+	run 'test readImageBlock' '${get:outNextimageblock}' '${get:getMetadata}'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

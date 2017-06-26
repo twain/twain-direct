@@ -1,12 +1,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test readImageBlockMetadata v1.0 24-Jun-2017
+; Test readImageBlock v1.0 24-Jun-2017
 ; arg:1 - image block to read
-; arg:2 - thumbnail flag (true/false)
+; arg:2 - metadata flag (true/false)
 ; returns: pass or fail
 ;
-; Exercise the readImageBlockMetadata command.  We're going to do the following:
+; Exercise the readImageBlock command.  We're going to do the following:
 ;
-; - confirm that readImageBlockMetadata succeeds, and contains all required properties
+; - confirm that readImageBlock succeeds, and contains all required properties
 ;
 
 
@@ -15,59 +15,67 @@
 ; Display the banner...
 ;
 echo
-echo 'Test readImageBlockMetadata v1.0 24-Jun-2017'
-set readimageblockmetadataresult 'pass'
+echo 'Test readImageBlock v1.0 24-Jun-2017'
+set readimageblockresult 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Call readImageBlockMetadata, and check the return properties...
+; Call readImageBlock, and check the return properties...
 ;
-call READIMAGEBLOCKMETADATA '${arg:1}' '${arg:2}'
+call READIMAGEBLOCK '${arg:1}' '${arg:2}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Bye-bye...
 ;
-echopassfail 'SUMMARY' '${get:readimageblockmetadataresult}'
-return '${get:readimageblockmetadataresult}'
+echopassfail 'SUMMARY' '${get:readimageblockresult}'
+return '${get:readimageblockresult}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; READIMAGEBLOCKMETADATA
+; READIMAGEBLOCK
 ; returns pass or fail
 ;
-:READIMAGEBLOCKMETADATA
+:READIMAGEBLOCK
 ;
 ; Send the command...
-readImageBlockMetadata '${arg:1}' '${arg:2}'
+readImageBlock '${arg:1}' '${arg:2}'
 ;
 ; Check the mandatory properties...
 call CHECK 'kind'
 call CHECK 'commandId'
-call CHECK 'method' '==' 'readImageBlockMetadata'
+call CHECK 'method' '==' 'readImageBlock'
 call CHECK 'results'
 call CHECK 'results.success' '==' 'true'
 call CHECK 'results.session'
 call CHECK 'results.session.sessionId' '!=' ''
 call CHECK 'results.session.revision' '!=' ''
 call CHECK 'results.session.state' '==' 'capturing'
+;
+; If we didn't ask for metadata, there'd better not be any...
+if '${arg:2}' == 'true' goto READIMAGEBLOCK.CHECKMETADATA
+if '${rg:results.metadata}' != '' goto READIMAGEBLOCK.FAIL
+goto READIMAGEBLOCK.PASS
+;
+; We asked for metadata, so check it out...
+:READIMAGEBLOCK.CHECKMETADATA
 call CHECK 'results.metadata'
 call CHECK 'results.metadata.status'
 call CHECK 'results.metadata.status.success' == 'true'
 call CHECK 'results.metadata.address'
-if '${arg:1}' > '1' goto READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
+if '${arg:1}' > '1' goto READIMAGEBLOCK.CHECKOTHERIMAGEBLOCKS
 	call CHECK 'results.metadata.address.imageNumber' '==' '1'
 	call CHECK 'results.metadata.address.imagePart' '==' '1'
 	call CHECK 'results.metadata.address.sheetNumber' '==' '1'
-goto READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
-:READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
+goto READIMAGEBLOCK.SKIPOTHERIMAGEBLOCKS
+:READIMAGEBLOCK.CHECKOTHERIMAGEBLOCKS
 	call CHECK 'results.metadata.address.imageNumber' '!=' ''
 	call CHECK 'results.metadata.address.imagePart' '!=' ''
 	call CHECK 'results.metadata.address.sheetNumber' '!=' ''
-:READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
+:READIMAGEBLOCK.SKIPOTHERIMAGEBLOCKS
 call CHECK 'results.metadata.address.moreParts' '==' 'false' 'true'
 call CHECK 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
 call CHECK 'results.metadata.address.streamName' '==' 'stream0'
@@ -82,13 +90,14 @@ call CHECK 'results.metadata.image.pixelOffsetY' != ''
 call CHECK 'results.metadata.image.pixelWidth' != ''
 call CHECK 'results.metadata.image.resolution' != ''
 call CHECK 'results.metadata.image.size' != ''
-if '${get:readimageblockmetadataresult}' != 'pass' goto READIMAGEBLOCKMETADATA.FAIL
+if '${get:readimageblockresult}' != 'pass' goto READIMAGEBLOCK.FAIL
 ;
 ; We're good...
+:READIMAGEBLOCK.PASS
 return 'pass'
 ;
-:READIMAGEBLOCKMETADATA.FAIL
-set readimageblockmetadataresult 'fail'
+:READIMAGEBLOCK.FAIL
+set readimageblockresult 'fail'
 return 'fail'
 
 
@@ -123,13 +132,13 @@ goto CHECK.NEXTIF
 ; An if-statement failed...
 :CHECK.FAILEDIF
 echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:${get:ifindex}}>')'
-set readimageblockmetadataresult 'fail'
+set readimageblockresult 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
 echopassfail 'check ${arg:1}' 'fail (${arg1:} missing)'
-set readimageblockmetadataresult 'fail'
+set readimageblockresult 'fail'
 return 'fail'
 ;
 ; We're good...

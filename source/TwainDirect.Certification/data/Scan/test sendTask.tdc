@@ -1,5 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test sendTask v1.0 24-Jun-2017
+; arg:1 - test task (optional)
 ; returns: pass or fail
 ;
 ; Exercise the sendTask command.  We're going to do the following:
