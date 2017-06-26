@@ -14,7 +14,6 @@
 if '${arg:1}' != 'true' goto MAIN.SKIPBANNER
 echo
 echo 'Test info and infoex v1.0 24-Jun-2017'
-echo
 :MAIN.SKIPBANNER
 
 
@@ -24,6 +23,7 @@ echo
 ;
 info
 if '${rj:x-privet-token}' == '' goto MAIN.FAILINFO
+echopassfail 'test info' 'pass'
 
 
 
@@ -32,13 +32,14 @@ if '${rj:x-privet-token}' == '' goto MAIN.FAILINFO
 ;
 infoex
 if '${rj:x-privet-token}' == '' goto MAIN.FAILINFOX
+echopassfail 'test infoex' 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Bye-bye...
 ;
-echopassfail 'Request info and infoex' 'pass'
+echopassfail 'SUMMARY' 'pass'
 return 'pass'
 
 
@@ -47,7 +48,7 @@ return 'pass'
 ; MAIN.FAILINFO
 ;
 :MAIN.FAILINFO
-echopassfail 'Request info and infoex' 'fail (info)'
+echopassfail 'test info' 'fail (info)'
 return 'fail'
 
 
@@ -56,5 +57,5 @@ return 'fail'
 ; MAIN.FAILINFOEX
 ;
 :MAIN.FAILINFOEX
-echopassfail 'Request info and infoex' 'fail (infoex)'
+echopassfail 'test infoex' 'fail (infoex)'
 return 'fail'

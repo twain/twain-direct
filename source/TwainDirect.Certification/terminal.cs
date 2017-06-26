@@ -104,6 +104,7 @@ namespace TwainDirect.Certification
 
             // Scripting...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCall,                         new string[] { "call" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCd,                           new string[] { "cd" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
@@ -784,6 +785,34 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Show or set the current directory...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdCd(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            // No data...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            {
+                Display(Directory.GetCurrentDirectory(), true);
+                return (false);
+            }
+
+            // Set the current directory...
+            try
+            {
+                Directory.SetCurrentDirectory(a_functionarguments.aszCmd[1]);
+            }
+            catch (Exception exception)
+            {
+                DisplayError("cd failed - " + exception.Message);
+            }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Echo text...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -930,6 +959,7 @@ namespace TwainDirect.Certification
                 Display("");
                 Display("Scripting");
                 Display("call {label}.................................call function");
+                Display("cd [path]....................................shows or sets the current directory");
                 Display("echo [text]..................................echo text");
                 Display("if {item1} {operator} {item2} goto {label}...if statement");
                 Display("increment {dst} {src} [step].................increment src by step and store in dst");
@@ -1133,6 +1163,14 @@ namespace TwainDirect.Certification
             {
                 Display("CALL {FUNCTION}");
                 Display("Call the function.");
+                return (false);
+            }
+
+            // Cd...
+            if ((szCommand == "cd"))
+            {
+                Display("CD [PATH]");
+                Display("Show the current directory.  If a path is specified, change to that path.");
                 return (false);
             }
 

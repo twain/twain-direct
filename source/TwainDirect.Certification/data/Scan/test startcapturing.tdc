@@ -1,14 +1,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test createSession v1.0 24-Jun-2017
+; Test startCapturing v1.0 24-Jun-2017
 ; returns: pass or fail
 ;
-; Exercise the createSession command.  We're going to do the following:
+; Exercise the startCapturing command.  We're going to do the following:
 ;
-; - confirm that commands report invalidSession when called before createSession
+; - confirm that startCapturing, and contains all required properties
 ;
-; - confirm that createSession succeeds, and contains all required properties
-;
-; - confirm that createSession reports busy now, and others report invalidState
+; - confirm that startCapturing reports invalidState now
 ;
 
 
@@ -17,31 +15,8 @@
 ; Display the banner...
 ;
 echo
-echo 'Test createSession v1.0 24-Jun-2017'
-set createsessionresult 'pass'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Make sure that commands prior to a successful createSession return invalidSessionId.  We don't do
-; waitForEvents here, because any complaint has to come back asynchronously...
-;
-call CHECKINVALIDSESSIONID 'getSession'
-call CHECKINVALIDSESSIONID 'sendTask' '{}'
-call CHECKINVALIDSESSIONID 'startCapturing'
-call CHECKINVALIDSESSIONID 'readImageBlockMetadata' '1' 'false'
-call CHECKINVALIDSESSIONID 'readImageBlock' '1' 'false'
-call CHECKINVALIDSESSIONID 'releaseImageBlocks' '1' '1'
-call CHECKINVALIDSESSIONID 'stopCapturing'
-call CHECKINVALIDSESSIONID 'closeSession'
-call CHECKINVALIDSESSIONID 'invalidCommand'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Call createSession, and check the return properties...
-;
-call CREATESESSION
+echo 'Test startCapturing v1.0 24-Jun-2017'
+set startcapturingresult 'pass'
 
 
 
@@ -57,71 +32,53 @@ call CHECKCODE 'stopCapturing' 'invalidState'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Call startCapturing, and check the return properties...
+;
+call STARTCAPTURING
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check the codes, we're looking for commands that must return busy and invalidState
+;
+call CHECKCODE 'createSession' 'busy'
+call CHECKCODE 'startCapturing' 'invalidState'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Bye-bye...
 ;
-echopassfail 'SUMMARY' '${get:createsessionresult}'
-return '${get:createsessionresult}'
+echopassfail 'SUMMARY' '${get:startcapturingresult}'
+return '${get:startcapturingresult}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECKINVALIDSESSIONID
-; arg:1 - command to run
+; STARTCAPTURING
 ; returns pass or fail
 ;
-:CHECKINVALIDSESSIONID
+:STARTCAPTURING
 ;
 ; Send the command...
-twainlocalsession 'create'
-'${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
-twainlocalsession 'destroy'
-;
-; Check the result...
-if '${rj:results.success}' != 'false' goto CHECKINVALIDSESSIONID.FAILSTATUS
-if '${rj:results.code}' != 'invalidSessionId' goto CHECKINVALIDSESSIONID.FAILCODE
-;
-; We're good...
-echopassfail 'check invalidSessionId: ${arg:1}' 'pass'
-return 'pass'
-;
-:CHECKINVALIDSESSIONID.FAILSTATUS
-echopassfail 'check invalidSessionId: ${arg:1}' 'fail (success not false)'
-set createsessionresult 'fail'
-return 'fail'
-;
-:CHECKINVALIDSESSIONID.FAILCODE
-echopassfail 'check invalidSessionId: ${arg:1}' 'fail (coded not invalidSessionId)'
-set createsessionresult 'fail'
-return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CREATESESSION
-; returns pass or fail
-;
-:CREATESESSION
-;
-; Send the command...
-createSession
+startCapturing
 ;
 ; Check the mandatory properties...
 call CHECK 'kind'
 call CHECK 'commandId'
-call CHECK 'method' '==' 'createSession'
+call CHECK 'method' '==' 'startCapturing'
 call CHECK 'results'
 call CHECK 'results.success' '==' 'true'
 call CHECK 'results.session'
 call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '==' '1'
-call CHECK 'results.session.state' '==' 'ready'
-if '${get:createsessionresult}' != 'pass' goto CREATESESSION.FAIL
+call CHECK 'results.session.revision' '!=' ''
+call CHECK 'results.session.state' '==' 'capturing'
+if '${get:startcapturingresult}' != 'pass' goto STARTCAPTURING.FAIL
 ;
 ; We're good...
 return 'pass'
 ;
-:CREATESESSION.FAIL
-set createsessionresult 'fail'
+:STARTCAPTURING.FAIL
 return 'fail'
 
 
@@ -146,13 +103,13 @@ if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
 ;
 ; The if-statement failed...
 echopassfail 'check ${arg:1}' 'fail (if '${arg:1}' '${arg:2}' '${arg:3}')'
-set createsessionresult 'fail'
+set startcapturingresult 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
 echopassfail 'check ${arg:1}' 'fail (${arg1:} missing)'
-set createsessionresult 'fail'
+set startcapturingresult 'fail'
 return 'fail'
 ;
 ; We're good...
@@ -186,10 +143,10 @@ return 'pass'
 ;
 :CHECKCODE.FAILSTATUS
 echopassfail 'check ${arg:2}: ${arg:1}' 'fail (success not false)'
-set createsessionresult 'fail'
+set startcapturingresult 'fail'
 return 'fail'
 ;
 :CHECKCODE.FAILCODE
 echopassfail 'check ${arg:2}: ${arg:1}' 'fail (code not ${arg:2})'
-set createsessionresult 'fail'
+set startcapturingresult 'fail'
 return 'fail'

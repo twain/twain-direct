@@ -1,0 +1,110 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test sendTask v1.0 24-Jun-2017
+; returns: pass or fail
+;
+; Exercise the sendTask command.  We're going to do the following:
+;
+; - confirm that sendTask succeeds, and contains all required properties
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'Test sendTask v1.0 24-Jun-2017'
+set sendtaskresult 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Call sendTask, and check the return properties...
+;
+call SENDTASK
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bye-bye...
+;
+echopassfail 'SUMMARY' '${get:sendtaskresult}'
+return '${get:sendtaskresult}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SENDTASK
+; returns pass or fail
+;
+:SENDTASK
+;
+; Send the command...
+sendTask '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any"}]}]}]}'
+;
+; Check the mandatory properties...
+call CHECK 'kind'
+call CHECK 'commandId'
+call CHECK 'method' '==' 'sendTask'
+call CHECK 'results'
+call CHECK 'results.success' '==' 'true'
+call CHECK 'results.session'
+call CHECK 'results.session.sessionId' '!=' ''
+call CHECK 'results.session.revision' '!=' ''
+call CHECK 'results.session.state' '==' 'ready'
+call CHECK 'results.session.task'
+call CHECK 'results.session.task.actions[0]'
+call CHECK 'results.session.task.actions[0].action' '==' 'configure'
+call CHECK 'results.session.task.actions[0].results'
+call CHECK 'results.session.task.actions[0].results.success' '==' 'true'
+call CHECK 'results.session.task.actions[0].streams'
+call CHECK 'results.session.task.actions[0].streams[0]'
+call CHECK 'results.session.task.actions[0].streams[0].name' '==' 'stream0'
+call CHECK 'results.session.task.actions[0].streams[0].sources'
+call CHECK 'results.session.task.actions[0].streams[0].sources[0]'
+call CHECK 'results.session.task.actions[0].streams[0].sources[0].source' '==' 'any'
+call CHECK 'results.session.task.actions[0].streams[0].sources[0].name' '==' 'source0'
+if '${get:sendtaskresult}' != 'pass' goto SENDTASK.FAIL
+;
+; We're good...
+return 'pass'
+;
+:SENDTASK.FAIL
+set sendtaskresult 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECK
+; arg1 - property
+; arg2 - if-statement operator (optional)
+; arg3 - value to check for if arg2 is specified
+; returns pass or fail
+;
+:CHECK
+;
+; Make sure the property exists...
+if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
+;
+; If we have no operator, we're done...
+if '${arg:2}' == '' goto CHECK.PASS
+;
+; Do the if-statement...
+if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
+;
+; The if-statement failed...
+echopassfail 'check ${arg:1}' 'fail (if '${arg:1}' '${arg:2}' '${arg:3}')'
+set sendtaskresult 'fail'
+return 'fail'
+;
+; The property is missing...
+:CHECK.MISSING
+echopassfail 'check ${arg:1}' 'fail (${arg1:} missing)'
+set sendtaskresult 'fail'
+return 'fail'
+;
+; We're good...
+:CHECK.PASS
+echopassfail 'check ${arg:1}' 'pass'
+return 'PASS'

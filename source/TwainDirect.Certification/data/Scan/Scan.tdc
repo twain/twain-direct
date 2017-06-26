@@ -4,7 +4,7 @@
 ; arg:2 - task (optional)
 ; returns: pass or fail
 ;
-; Scan using TWAIN Direct...
+; Scan using TWAIN Direct, exercise and test as must of the system as possible...
 ;
 
 
@@ -22,7 +22,7 @@ if '${ret:}' != 'true' goto MAIN.FAIL
 ; Confirm that all commands correctly return 404 invalid_x_privet_token if called before info or infoex...
 ;
 run 'test x-privet-token error'
-if '${ret:}' != 'true' goto MAIN.FAIL
+if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
 
@@ -31,12 +31,11 @@ if '${ret:}' != 'true' goto MAIN.FAIL
 ;
 run 'test info and infoex' true
 if '${ret:}' != 'pass' goto MAIN.FAIL
-echo 'SCANNER:' '${rj:description}' / '${rj:name}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Create a new session...
+; Test createSession...
 ;
 run 'test createsession'
 if '${ret:}' != 'pass' goto MAIN.FAIL
@@ -44,33 +43,27 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Wait for events (we won't get a response)...
+; Test getSession...
 ;
-echo 'CMD: waitForEvents'
-waitForEvents
+run 'test getsession'
+if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Send a task...
+; Test sendTask...
 ;
-set task '${arg:2}'
-if '${get:task}' != '' goto MAIN.SENDTASK
-set task '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"attributes":[{"attribute":"numberOfSheets","values":[{"value":1}]}]}]}]}]}]}'
-:MAIN.SENDTASK
-echo 'CMD: sendTask'
-sendTask '${get:task}'
-if '${rj:results.success}' != 'true' goto MAIN.FAIL
+run 'test sendtask'
+if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Start capturing images...
+; Test startCapturing...
 ;
-echo 'CMD: startCapturing'
-startCapturing
-if '${rj:results.success}' != 'true' goto ERROR
-if '${rj:results.session.state}' != 'capturing' goto ERROR
+run 'test startcapturing'
+if '${ret:}' != 'pass' goto MAIN.FAIL
+goto DONE
 
 
 
@@ -84,7 +77,7 @@ if '${rj:results.session.state}' != 'capturing' goto ERROR
 :MAIN.WAITNEXT
 
 	; Get the session object...
-	echo 'CMD: getSession'
+	echo 'getSession'
 	getSession
 	set firstimageblock '${rj:results.session.imageBlocks[0]}'
 	if '${rj:results.success}' != 'true' goto MAIN.FAIL
@@ -120,26 +113,27 @@ goto MAIN.GETIMAGE
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Stop capturing images...
+; Test stopCapturing...
 ;
-echo
-echo 'CMD: stopCapturing'
-stopCapturing
+run 'test stopcapturing'
+if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Close the session...
+; Test closeSession...
 ;
-echo 'CMD: closeSession'
-closeSession
+run 'test closeSession'
+if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Bye-bye...
 ;
-echo 'Done...'
+:DONE
+echo
+echopassfail 'FINAL SUMMARY' 'pass'
 return pass
 
 
@@ -150,5 +144,6 @@ return pass
 :MAIN.FAIL
 stopCapturing
 closeSession
-echo 'script failed...'
+echo
+echopassfail 'FINAL SUMMARY' 'fail'
 return 'fail'

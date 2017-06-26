@@ -1,0 +1,98 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test getSession v1.0 24-Jun-2017
+; returns: pass or fail
+;
+; Exercise the getSession command.  We're going to do the following:
+;
+; - confirm that getSession succeeds, and contains all required properties
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'Test getSession v1.0 24-Jun-2017'
+set getsessionresult 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Call getSession, and check the return properties...
+;
+call GETSESSION
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bye-bye...
+;
+echopassfail 'SUMMARY' '${get:getsessionresult}'
+return '${get:getsessionresult}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; GETSESSION
+; returns pass or fail
+;
+:GETSESSION
+;
+; Send the command...
+getSession
+;
+; Check the mandatory properties...
+call CHECK 'kind'
+call CHECK 'commandId'
+call CHECK 'method' '==' 'getSession'
+call CHECK 'results'
+call CHECK 'results.success' '==' 'true'
+call CHECK 'results.session'
+call CHECK 'results.session.sessionId' '!=' ''
+call CHECK 'results.session.revision' '!=' ''
+call CHECK 'results.session.state' '==' 'ready'
+if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
+;
+; We're good...
+return 'pass'
+;
+:GETSESSION.FAIL
+set getsessionresult 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECK
+; arg1 - property
+; arg2 - if-statement operator (optional)
+; arg3 - value to check for if arg2 is specified
+; returns pass or fail
+;
+:CHECK
+;
+; Make sure the property exists...
+if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
+;
+; If we have no operator, we're done...
+if '${arg:2}' == '' goto CHECK.PASS
+;
+; Do the if-statement...
+if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
+;
+; The if-statement failed...
+echopassfail 'check ${arg:1}' 'fail (if '${arg:1}' '${arg:2}' '${arg:3}')'
+set getsessionresult 'fail'
+return 'fail'
+;
+; The property is missing...
+:CHECK.MISSING
+echopassfail 'check ${arg:1}' 'fail (${arg1:} missing)'
+set getsessionresult 'fail'
+return 'fail'
+;
+; We're good...
+:CHECK.PASS
+echopassfail 'check ${arg:1}' 'pass'
+return 'PASS'
