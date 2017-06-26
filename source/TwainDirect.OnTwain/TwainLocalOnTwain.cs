@@ -773,7 +773,18 @@ namespace TwainDirect.OnTwain
                 }
             }
 
-            // Create the TWAIN Diect metadata...
+            // Try to sort out a lookup...
+            ProcessSwordTask.ConfigureNameLookup configurenamelookup = null;
+            if (m_configurenamelookup != null)
+            {
+                configurenamelookup = m_configurenamelookup.Find(szSource, szPixelFormat);
+            }
+            else
+            {
+                ProcessSwordTask.ConfigureNameLookup.Add(ref configurenamelookup, "stream0", "source0", "pixelFormat0", "", "");
+            }
+
+            // Create the TWAIN Direct metadata...
             string szMeta = "";
 
             // TWAIN Direct metadata.address begin...
@@ -798,13 +809,13 @@ namespace TwainDirect.OnTwain
             szMeta += "\"source\":\"" + szSource + "\",";
 
             // Name of this stream...
-            szMeta += "\"streamName\":\"" + "" + "\",";
+            szMeta += "\"streamName\":\"" + configurenamelookup.GetStreamName() + "\",";
 
             // Name of this source...
-            szMeta += "\"sourceName\":\"" + "" + "\",";
+            szMeta += "\"sourceName\":\"" + configurenamelookup.GetSourceName() + "\",";
 
             // Name of this pixelFormat...
-            szMeta += "\"pixelFormatName\":\"" + "" + "\"";
+            szMeta += "\"pixelFormatName\":\"" + configurenamelookup.GetPixelFormatName() + "\"";
 
             // TWAIN Direct metadata.address end...
             szMeta += "},";
@@ -1465,7 +1476,7 @@ namespace TwainDirect.OnTwain
             }
 
             // Process our task...
-            blSuccess = a_processswordtask.ProcessAndRun();
+            blSuccess = a_processswordtask.ProcessAndRun(out m_configurenamelookup);
             if (!blSuccess)
             {
                 return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
@@ -1718,6 +1729,12 @@ namespace TwainDirect.OnTwain
         private TWAINCSToolkit.RunInUiThreadDelegate m_runinuithreaddelegate;
         private object m_objectRunInUiThread;
         private IntPtr m_intptrHwnd;
+
+        /// <summary>
+        /// We'll use this to get the stream, source, and pixelFormat names for the
+        /// metadata...
+        /// </summary>
+        ProcessSwordTask.ConfigureNameLookup m_configurenamelookup;
 
         #endregion
     }

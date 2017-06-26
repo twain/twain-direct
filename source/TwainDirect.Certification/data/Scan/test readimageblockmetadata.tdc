@@ -23,7 +23,7 @@ set readimageblockmetadataresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call readImageBlockMetadata, and check the return properties...
 ;
-call READIMAGEBLOCKMETADATA
+call READIMAGEBLOCKMETADATA '${arg:1}' '${arg:2}'
 
 
 
@@ -47,13 +47,41 @@ readImageBlockMetadata '${arg:1}' '${arg:2}'
 ; Check the mandatory properties...
 call CHECK 'kind'
 call CHECK 'commandId'
-call CHECK 'method' '==' 'getSession'
+call CHECK 'method' '==' 'readImageBlockMetadata'
 call CHECK 'results'
 call CHECK 'results.success' '==' 'true'
 call CHECK 'results.session'
 call CHECK 'results.session.sessionId' '!=' ''
 call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' 'ready'
+call CHECK 'results.session.state' '==' 'capturing'
+call CHECK 'results.metadata'
+call CHECK 'results.metadata.status'
+call CHECK 'results.metadata.status.success' == 'true'
+call CHECK 'results.metadata.address'
+if '${arg:1}' > '1' goto CHECK.OTHERIMAGEBLOCKS
+	call CHECK 'results.metadata.address.imageNumber' '==' '1'
+	call CHECK 'results.metadata.address.imagePart' '==' '1'
+	call CHECK 'results.metadata.address.sheetNumber' '==' '1'
+goto CHECK.SKIPOTHERIMAGEBLOCKS
+:CHECK.OTHERIMAGEBLOCKS
+	call CHECK 'results.metadata.address.imageNumber' '!=' ''
+	call CHECK 'results.metadata.address.imagePart' '!=' ''
+	call CHECK 'results.metadata.address.sheetNumber' '!=' ''
+:CHECK.SKIPOTHERIMAGEBLOCKS
+call CHECK 'results.metadata.address.moreParts' '==' 'false' 'true'
+call CHECK 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
+call CHECK 'results.metadata.address.streamName' '==' 'stream0'
+call CHECK 'results.metadata.address.sourceName' '==' 'source0'
+call CHECK 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
+call CHECK 'results.metadata.image'
+call CHECK 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
+call CHECK 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
+call CHECK 'results.metadata.image.pixelHeight' != ''
+call CHECK 'results.metadata.image.pixelOffsetX' != ''
+call CHECK 'results.metadata.image.pixelOffsetY' != ''
+call CHECK 'results.metadata.image.pixelWidth' != ''
+call CHECK 'results.metadata.image.resolution' != ''
+call CHECK 'results.metadata.image.size' != ''
 if '${get:readimageblockmetadataresult}' != 'pass' goto READIMAGEBLOCKMETADATA.FAIL
 ;
 ; We're good...
@@ -70,6 +98,8 @@ return 'fail'
 ; arg1 - property
 ; arg2 - if-statement operator (optional)
 ; arg3 - value to check for if arg2 is specified
+; arg4 - value to check for if arg2 is specified
+; arg5 - ...
 ; returns pass or fail
 ;
 :CHECK
@@ -77,14 +107,22 @@ return 'fail'
 ; Make sure the property exists...
 if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
 ;
-; If we have no operator, we're done...
+; if we have no operator, we're done...
 if '${arg:2}' == '' goto CHECK.PASS
 ;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
+; Do the if-statement (init at 2, we'll start at 3), we are
+; successful if we find an item, unsuccessful if we exhaust
+; the list without finding a match...
+set ifindex 2
+:CHECK.NEXTIF
+increment ifindex ${get:ifindex} 1
+if '${get:ifindex}' > '${arg:#}' goto CHECK.FAILEDIF
+if '${rj:${arg:1}}' '${arg:2}' '${arg:${get:ifindex}}' goto CHECK.PASS
+goto CHECK.NEXTIF
 ;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '${arg:1}' '${arg:2}' '${arg:3}')'
+; An if-statement failed...
+:CHECK.FAILEDIF
+echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:${get:ifindex}}>')'
 set readimageblockmetadataresult 'fail'
 return 'fail'
 ;

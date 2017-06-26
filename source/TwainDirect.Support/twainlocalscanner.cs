@@ -343,7 +343,7 @@ namespace TwainDirect.Support
         /// <returns>true if the scanner has no more images</returns>
         public bool ClientGetImageBlocksDrained()
         {
-            return (m_twainlocalsession.m_blSessionImageBlocksDrained);
+            return (m_twainlocalsession.GetSessionImageBlocksDrained());
         }
 
         /// <summary>
@@ -1289,6 +1289,9 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
+                // Assume that this is going to work...
+                m_twainlocalsession.SetSessionImageBlocksDrained(false);
+
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -1317,6 +1320,10 @@ namespace TwainDirect.Support
                 if (!blSuccess)
                 {
                     ClientReturnError(a_apicmd, false, "", 0, "");
+                    if (m_twainlocalsession != null)
+                    {
+                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                    }
                     return (false);
                 }
             }
@@ -2332,7 +2339,7 @@ namespace TwainDirect.Support
                                     }
 
                                     // Get the image blocks...
-                                    m_twainlocalsession.m_blSessionImageBlocksDrained = (jsonlookup.Get(szEvent + ".session.imageBlocksDrained", false) == "true");
+                                    m_twainlocalsession.SetSessionImageBlocksDrained((jsonlookup.Get(szEvent + ".session.imageBlocksDrained", false) == "true"));
                                     m_twainlocalsession.m_alSessionImageBlocks = null;
                                     szImageBlocks = jsonlookup.Get(szEvent + ".session.imageBlocks", false);
                                     if (!string.IsNullOrEmpty(szImageBlocks))
@@ -2373,7 +2380,6 @@ namespace TwainDirect.Support
             // Init stuff...
             m_twainlocalsession.SetSessionId(jsonlookup.Get("results.session.sessionId"));
             m_twainlocalsession.m_alSessionImageBlocks = null;
-            m_twainlocalsession.m_blSessionImageBlocksDrained = false;
 
             // Set the metadata, if we have any, we don't care if we
             // succeed, the caller will worry about that...
@@ -2407,7 +2413,7 @@ namespace TwainDirect.Support
             try
             {
                 // Collect the image blocks data...
-                m_twainlocalsession.m_blSessionImageBlocksDrained = (jsonlookup.Get("results.session.imageBlocksDrained", false) == "true");
+                m_twainlocalsession.SetSessionImageBlocksDrained((jsonlookup.Get("results.session.imageBlocksDrained", false) == "true"));
                 m_twainlocalsession.m_alSessionImageBlocks = null;
                 szImageBlocks = jsonlookup.Get("results.session.imageBlocks", false);
                 if (!string.IsNullOrEmpty(szImageBlocks))
@@ -2468,7 +2474,7 @@ namespace TwainDirect.Support
                 m_twainlocalsession.SetSessionId(null);
                 m_twainlocalsession.SetCallersHostName(null);
                 m_twainlocalsession.m_alSessionImageBlocks = null;
-                m_twainlocalsession.m_blSessionImageBlocksDrained = true;
+                m_twainlocalsession.SetSessionImageBlocksDrained(true);
                 a_szCode = "critical";
                 return (false);
             }
@@ -2973,11 +2979,26 @@ namespace TwainDirect.Support
                 szSessionObjects = "";
                 if (a_esessionstate != SessionState.noSession)
                 {
+                    SessionState esessionstate;
+
+                    // If the state we're being asked for is closed, but we're drained
+                    // and can't get any more images, then jump to noSession...
+                    if ((a_esessionstate == SessionState.closed) && ((m_twainlocalsession == null) || m_twainlocalsession.GetSessionImageBlocksDrained()))
+                    {
+                        esessionstate = SessionState.noSession;
+                    }
+                    // Otherwise, just use what was passed to us...
+                    else
+                    {
+                        esessionstate = a_esessionstate;
+                    }
+
+                    // Start building the session object...
                     szSessionObjects =
                         "\"session\":{" +
                         "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                         "\"revision\":" + m_twainlocalsession.GetSessionRevision() + "," +
-                        "\"state\":\"" + a_esessionstate.ToString() + "\"," +
+                        "\"state\":\"" + esessionstate.ToString() + "\"," +
                         a_apicmd.GetImageBlocksJson(sessionstatePrevious.ToString());
 
                     // Add the TWAIN Direct options, if any...
@@ -3288,7 +3309,8 @@ namespace TwainDirect.Support
                     "}"
                 );
 
-                // Reply to the command with a session object...
+                // Reply to the command with a session object, our real state depends on
+                // whether or not we have more image blocks coming...
                 blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.closed, -1, null);
                 if (!blSuccess)
                 {
@@ -3298,7 +3320,7 @@ namespace TwainDirect.Support
 
                 // If we're out of imageBlocks, and can't get anymore,
                 // then transition to nosession...
-                if (string.IsNullOrEmpty(a_apicmd.GetImageBlocks()))
+                if ((m_twainlocalsession == null) || m_twainlocalsession.GetSessionImageBlocksDrained())
                 {
                     SetSessionState(SessionState.noSession);
                 }
@@ -4627,7 +4649,7 @@ namespace TwainDirect.Support
                 m_lWaitForEventsSessionRevision = 0;
                 m_szSessionSnapshot = "";
                 m_alSessionImageBlocks = null;
-                m_blSessionImageBlocksDrained = false;
+                m_blSessionImageBlocksDrained = true; // we start empty and ready to scoot
                 m_szXPrivetToken = a_szXPrivetToken;
 
                 // Metadata...
@@ -4822,6 +4844,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the session image blocks drained flag...
+            /// </summary>
+            /// <returns>true if we're drained</returns>
+            public bool GetSessionImageBlocksDrained()
+            {
+                return (m_blSessionImageBlocksDrained);
+            }
+
+            /// <summary>
             /// Get the session revision number...
             /// </summary>
             /// <returns>the session revision number</returns>
@@ -4940,6 +4971,15 @@ namespace TwainDirect.Support
             public void SetSessionId(string a_szSessionId)
             {
                 m_szSessionId = a_szSessionId;
+            }
+
+            /// <summary>
+            /// Set the session image blocks drained flag...
+            /// </summary>
+            /// <param name="a_blSessionImageBlocksDrained">true if drained</param>
+            public void SetSessionImageBlocksDrained(bool a_blSessionImageBlocksDrained)
+            {
+                m_blSessionImageBlocksDrained = a_blSessionImageBlocksDrained;
             }
 
             /// <summary>
@@ -5111,7 +5151,7 @@ namespace TwainDirect.Support
             /// <summary>
             /// true if imageBlocksDrained has been set to true...
             /// </summary>
-            public bool m_blSessionImageBlocksDrained;
+            private bool m_blSessionImageBlocksDrained;
 
             /// <summary>
             /// JSON OUT:  results.metadata

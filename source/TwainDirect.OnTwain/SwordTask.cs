@@ -328,7 +328,7 @@ namespace TwainDirect.OnTwain
                 blSuccess = Deserialize(szTask, "211a1e90-11e1-11e5-9493-1697f925ec7b");
                 if (blSuccess)
                 {
-                    blSuccess = ProcessAndRun();
+                    blSuccess = ProcessAndRun(out m_configurenamelookup);
                 }
                 //blStatus = Process(a_szScanner, ref a_blSetAppCapabilities);
             }
@@ -800,12 +800,16 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// Process, run and return the result from this task...
         /// </summary>
+        /// <param name="m_configurenamelookup">info for stream, source, and pixelFormat names</param>
         /// <returns>true on success</returns>
-        public bool ProcessAndRun()
+        public bool ProcessAndRun(out ConfigureNameLookup a_configurenamelookup)
         {
             bool blSuccess;
             SwordStatus swordstatus;
             SwordAction swordaction;
+
+            // Init stuff...
+            a_configurenamelookup = null;
 
             // If we don't have a task or an action, we're done, we return true
             // because this is a null task...
@@ -1786,6 +1790,157 @@ namespace TwainDirect.OnTwain
             Unknown         // everybody else
         }
 
+        // List of names we can use to resolve the stream, source,
+        // and pixelFormat names we got from a configure task...
+        public class ConfigureNameLookup
+        {
+            /// <summary>
+            /// Add a new entry...
+            /// </summary>
+            /// <param name="a_configurenamelookupRoot">root of the list</param>
+            /// <param name="a_szStreamName">name for this stream, if any</param>
+            /// <param name="a_szSourceName">name for this source, if any</param>
+            /// <param name="a_szPixelFormatName">name for this pixelFormat, if any</param>
+            /// <param name="a_szSource">what to match, if any</param>
+            /// <param name="a_szPixelFormat">what to match, if any</param>
+            public static void Add
+            (
+                ref ConfigureNameLookup a_configurenamelookupRoot,
+                string a_szStreamName,
+                string a_szSourceName,
+                string a_szPixelFormatName,
+                string a_szSource,
+                string a_szPixelFormat
+            )
+            {
+                // Figure out where we're pointing this thing...
+                if (a_configurenamelookupRoot == null)
+                {
+                    a_configurenamelookupRoot = new ConfigureNameLookup(a_szStreamName, a_szSourceName, a_szPixelFormatName, a_szSource, a_szPixelFormat);
+                }
+                else
+                {
+                    ConfigureNameLookup configurenamelookup;
+                    for (configurenamelookup = a_configurenamelookupRoot;
+                         configurenamelookup.m_configurenamelookupNext != null;
+                         configurenamelookup = configurenamelookup.m_configurenamelookupNext)
+                    {
+                        // Nothing needed here...
+                    }
+                    configurenamelookup.m_configurenamelookupNext = new ConfigureNameLookup(a_szStreamName, a_szSourceName, a_szPixelFormatName, a_szSource, a_szPixelFormat);
+                }
+            }
+
+            /// <summary>
+            /// Find the best match, this is always done using the root...
+            /// </summary>
+            /// <param name="a_szSource"></param>
+            /// <param name="a_szPixelFormat"></param>
+            /// <returns></returns>
+            public ConfigureNameLookup Find
+            (
+                string a_szSource,
+                string a_szPixelFormat
+            )
+            {
+                string szStreamName;
+                string szSourceName;
+                string szPixelFormatName;
+                ConfigureNameLookup configurenamelookup;
+
+                // Loopy...
+                for (configurenamelookup = this;
+                     configurenamelookup.m_configurenamelookupNext != null;
+                     configurenamelookup = configurenamelookup.m_configurenamelookupNext)
+                {
+                    // What's the verdict?
+                    if (    ((string.IsNullOrEmpty(configurenamelookup.m_szSource) || (a_szSource == configurenamelookup.m_szSource))
+                        &&  ((string.IsNullOrEmpty(configurenamelookup.m_szPixelFormat) || (a_szPixelFormat == configurenamelookup.m_szPixelFormat)))))
+                    {
+                        return (configurenamelookup);
+                    }
+                }
+
+                // Ruh-roh, get what we can...
+                szStreamName = configurenamelookup.m_szStreamName;
+                if (string.IsNullOrEmpty(szStreamName))
+                {
+                    szStreamName = "stream0";
+                }
+                szSourceName = configurenamelookup.m_szSourceName;
+                if (string.IsNullOrEmpty(szSourceName))
+                {
+                    szSourceName = "source0";
+                }
+                szPixelFormatName = configurenamelookup.m_szPixelFormatName;
+                if (string.IsNullOrEmpty(szPixelFormatName))
+                {
+                    szPixelFormatName = "pixelFormat0";
+                }
+
+                // Not ideal, but our best guess...
+                return (new ConfigureNameLookup(szStreamName, szSourceName, szPixelFormatName, a_szSource, a_szPixelFormat));
+            }
+
+            /// <summary>
+            /// The name of this stream...
+            /// </summary>
+            /// <returns>the name of this stream</returns>
+            public string GetStreamName()
+            {
+                return (m_szStreamName);
+            }
+
+            /// <summary>
+            /// The name of this source...
+            /// </summary>
+            /// <returns>the name of this source</returns>
+            public string GetSourceName()
+            {
+                return (m_szSourceName);
+            }
+
+            /// <summary>
+            /// The name of this pixelFormat...
+            /// </summary>
+            /// <returns>the name of this pixelFormat</returns>
+            public string GetPixelFormatName()
+            {
+                return (m_szPixelFormatName);
+            }
+
+            /// <summary>
+            /// This is just for us...
+            /// </summary>
+            private ConfigureNameLookup
+            (
+                string a_szStreamName,
+                string a_szSourceName,
+                string a_szPixelFormatName,
+                string a_szSource,
+                string a_szPixelFormat
+            )
+            {
+                m_szStreamName = a_szStreamName;
+                m_szSourceName = a_szSourceName;
+                m_szPixelFormatName = a_szPixelFormatName;
+                m_szSource = a_szSource;
+                m_szPixelFormat = a_szPixelFormat;
+            }
+
+            // The names for this entry...
+            private string m_szStreamName;
+            private string m_szSourceName;
+            private string m_szPixelFormatName;
+
+            // The source and pixelFormat needed for a match...
+            private string m_szSource;
+            private string m_szPixelFormat;
+
+            // Next entry or null...
+            private ConfigureNameLookup m_configurenamelookupNext;
+        }
+
         #endregion
 
 
@@ -2197,6 +2352,9 @@ namespace TwainDirect.OnTwain
             // power-on defaults.  So let's do that first...
             #region Reset all
 
+                // Clear the configure name lookup list, we'll built this on the fly...
+                m_configurenamelookup = null;
+
                 // Reset the scanner.  This won't necessarily work for every device.
                 // We're not going to treat it as a failure, though, because the user
                 // should be able to get a factory default experience from their driver
@@ -2344,6 +2502,9 @@ namespace TwainDirect.OnTwain
 	        SwordValue swordvalue;
             SwordStatus swordstatus;
 
+            // Always start with a clean slate for the name lookup...
+            m_configurenamelookup = null;
+
 	        // An empty stream always passes...
 	        if (a_swordstream == null)
 	        {
@@ -2371,6 +2532,12 @@ namespace TwainDirect.OnTwain
 
             // Assume success...
             swordstatus = SwordStatus.Success;
+
+            // If we don't have a source, make do with what we have...
+            if (a_swordstream.GetFirstSource() == null)
+            {
+                ConfigureNameLookup.Add(ref m_configurenamelookup, a_swordstream.GetName(), "", "", "", "");
+            }
 
             // For each source...
             for (swordsourceFirst = swordsource = a_swordstream.GetFirstSource();
@@ -2434,6 +2601,12 @@ namespace TwainDirect.OnTwain
                     }
                 }
 
+                // If we don't have a pixelformat, make do with what we have...
+                if (swordsource.GetFirstPixelFormat() == null)
+                {
+                    ConfigureNameLookup.Add(ref m_configurenamelookup, a_swordstream.GetName(), swordsource.GetName(), "", swordsource.GetSource(), "");
+                }
+
                 // For each pixelformat...
                 for (swordpixelformatFirst = swordpixelformat = swordsource.GetFirstPixelFormat();
                      swordpixelformat != null;
@@ -2447,6 +2620,9 @@ namespace TwainDirect.OnTwain
                     {
                         continue;
                     }
+
+                    // Record this...
+                    ConfigureNameLookup.Add(ref m_configurenamelookup, a_swordstream.GetName(), swordsource.GetName(), swordpixelformat.GetName(), swordsource.GetSource(), swordpixelformat.GetPixelFormat());
 
                     // Set the pixelformat...
                     string szCapPixelType;
@@ -8307,6 +8483,14 @@ namespace TwainDirect.OnTwain
         /// The task response...
         /// </summary>
         private SwordTaskResponse m_swordtaskresponse;
+
+        /// <summary>
+        /// We use this to match a source/pixelFormat combination to
+        /// the streamName/sourceName/pixelFormatName values that were
+        /// provided in the task, or their defaults if they're not
+        /// specified...
+        /// </summary>
+        private ConfigureNameLookup m_configurenamelookup;
 
         /// <summary>
         /// Capability ordering for TWAIN (as vendor specific content)

@@ -145,7 +145,7 @@ if '${arg:2}' == '' goto CHECK.PASS
 if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
 ;
 ; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '${arg:1}' '${arg:2}' '${arg:3}')'
+echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
 set createsessionresult 'fail'
 return 'fail'
 ;

@@ -251,14 +251,14 @@ namespace TwainDirect.Support
         /// <returns>image block numbers (ex: 1, 2)</returns>
         public string GetImageBlocks()
         {
+            // We have no images...
             if (string.IsNullOrEmpty(m_szImageBlocks))
             {
                 return ("");
             }
-            else
-            {
-                return (m_szImageBlocks.Replace(" ",""));
-            }
+
+            // We have imageBlocks, remove whitespace...
+            return (m_szImageBlocks.Replace(" ",""));
         }
 
         public long GetSessionRevision()
@@ -1646,7 +1646,7 @@ namespace TwainDirect.Support
             m_szResponseText = null;
             m_lResponseCharacterOffset = -1;
             m_szResponseData = null;
-            m_szImageBlocks = null;
+            m_szImageBlocks = "[]";
             m_jsonlookupReceived = null;
             m_szUri = null;
             m_httplistenercontext = null;

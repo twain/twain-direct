@@ -1,13 +1,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test getSession v1.0 24-Jun-2017
-; arg:1 - state to test for
-; arg:2 - [OUT] set tag to true, if done
-; arg:3 - [OUT] set tag to first imaage block, if we have one
+; Test releaseImageBlocks v1.0 24-Jun-2017
+; arg:1 - first imageblock to remove, inclusive
+; arg:2 - last imageblock to remvoe, inclusive
+; arg:3 - [OUT] set tag to true, if done
+; arg:4 - [OUT] set tag to first imaage block, if we have one
 ; returns: pass or fail
 ;
-; Exercise the getSession command.  We're going to do the following:
+; Exercise the releaseImageBlocks command.  We're going to do the following:
 ;
-; - confirm that getSession succeeds, and contains all required properties
+; - confirm that releaseImageBlocks succeeds, and contains all required properties
 ;
 
 
@@ -16,55 +17,58 @@
 ; Display the banner...
 ;
 echo
-echo 'Test getSession v1.0 24-Jun-2017'
-set getsessionresult 'pass'
+echo 'Test releaseImageBlocks v1.0 24-Jun-2017'
+set releaseimageblocksresult 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Call getSession, and check the return properties...
+; Call releaseImageBlocks, and check the return properties...
 ;
-call GETSESSION '${arg:1}' '${arg:2}' '${arg:3}'
+call RELEASEIMAGEBLOCKS '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Bye-bye...
 ;
-echopassfail 'SUMMARY' '${get:getsessionresult}'
-return '${get:getsessionresult}'
+echopassfail 'SUMMARY' '${get:releaseimageblocksresult}'
+return '${get:releaseimageblocksresult}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; GETSESSION
-; arg:1 - state to test for
+; RELEASEIMAGEBLOCKS
+; arg:1 - first imageblock to remove, inclusive
+; arg:2 - last imageblock to remvoe, inclusive
+; arg:3 - [OUT] set tag to true, if done
+; arg:4 - [OUT] set tag to first imaage block, if we have one
 ; returns pass or fail
 ;
-:GETSESSION
+:RELEASEIMAGEBLOCKS
 ;
 ; Send the command...
-getSession
+releaseImageBlocks '${arg:1}' '${arg:2}'
 ;
 ; Check the mandatory properties...
 call CHECK 'kind'
 call CHECK 'commandId'
-call CHECK 'method' '==' 'getSession'
+call CHECK 'method' '==' 'releaseImageBlocks'
 call CHECK 'results'
 call CHECK 'results.success' '==' 'true'
 call CHECK 'results.session'
 call CHECK 'results.session.sessionId' '!=' ''
 call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' '${arg:1}'
-if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
+call CHECK 'results.session.state' '==' 'capturing'
+if '${get:releaseimageblocksresult}' != 'pass' goto RELEASEIMAGEBLOCKS.FAIL
 ;
 ; We're good, check if we need to output values...
-call RETURNVALUES '${arg:2}' '${arg:3}'
+call RETURNVALUES '${arg:3}' '${arg:4}'
 return 'pass'
 ;
 ; No joy...
-:GETSESSION.FAIL
-set getsessionresult 'fail'
+:RELEASEIMAGEBLOCKS.FAIL
+set releaseimageblocksresult 'fail'
 return 'fail'
 
 
@@ -89,13 +93,13 @@ if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
 ;
 ; The if-statement failed...
 echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set getsessionresult 'fail'
+set releaseimageblocksresult 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
 echopassfail 'check ${arg:1}' 'fail (${arg1:} missing)'
-set getsessionresult 'fail'
+set releaseimageblocksresult 'fail'
 return 'fail'
 ;
 ; We're good...
@@ -114,7 +118,7 @@ return 'PASS'
 :RETURNVALUES
 ;
 ; If we don't have arg:1, we're done...
-if '${arg:1}' == '' goto RETURNVALUES.DONE
+if '${arg:1}' == '') goto RETURNVALUES.DONE
 ;
 ; We're done if our state isn't capturing, or if the
 ; flag tells us we've drained the scanner...
@@ -124,7 +128,7 @@ if '${rj:results.session.imageBlocksDrained}' == 'true' goto RETURNVALUES.DONE
 set '${arg:1}' false
 ;
 ; If we don't have arg:2, we're done...
-if '${arg:2}' == '' goto RETURNVALUES.DONE
+if '${arg:2}' == '') goto RETURNVALUES.DONE
 ;
 ; Get the first image block, if there is one...
 set '${arg:2}' '${rj:results.session.imageBlocks[0]}'

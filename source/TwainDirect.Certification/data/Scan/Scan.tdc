@@ -45,7 +45,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test getSession...
 ;
-run 'test getsession'
+run 'test getsession' 'ready'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -63,7 +63,6 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;
 run 'test startcapturing'
 if '${ret:}' != 'pass' goto MAIN.FAIL
-goto DONE
 
 
 
@@ -76,36 +75,34 @@ goto DONE
 ; Loop here until we see an image, or scanning ends...
 :MAIN.WAITNEXT
 
-	; Get the session object...
-	echo 'getSession'
-	getSession
-	set firstimageblock '${rj:results.session.imageBlocks[0]}'
-	if '${rj:results.success}' != 'true' goto MAIN.FAIL
-	if '${rj:results.session.imageBlocksDrained}' == 'true' goto MAIN.DONE
-	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
-	if '${get:firstimageblock}' != '' goto MAIN.GETIMAGE
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Test sendTask...
+	;
+	run 'test getsession' 'capturing' 'outDone' 'outNextimageblock'
+	if '${ret:}' != 'pass' goto MAIN.FAIL
+	if '${get:outDone}' == 'true' goto MAIN.DONE
+	if '${get:outNextimageblock}' != '' goto MAIN.GETIMAGE
 	sleep 1000
 
 goto MAIN.WAITNEXT
 
-; Keep getting images as long as we have some...
+; Keep getting images as long as we have some, go back to
+; waiting if we're fast enough to drain the scanner's buffers...
 :MAIN.GETIMAGE
 
-	; Get the metadata for the first image block, no thumbnail...
-	echo
-	echo 'CMD: readImageBlockMetadata' '${get:firstimageblock}'
-	readImageBlockMetadata '${get:firstimageblock}' 'false'
-	if '${rj:results.success}' != 'true' goto MAIN.FAIL
-	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Test readImageBlockMetadata...
+	;
+	run 'test readImageBlockMetadata' '${get:outNextimageblock}' false
+	if '${ret:}' != 'pass' goto MAIN.FAIL
 
-	; release the first image block...
-	echo 'CMD: releaseImageBlocks' '${get:firstimageblock}'
-	releaseImageBlocks '${get:firstimageblock}' '${get:firstimageblock}'
-	set firstimageblock '${rj:results.session.imageBlocks[0]}'
-	if '${rj:results.success}' != 'true' goto MAIN.FAIL
-	if '${rj:results.session.imageBlocksDrained}' == 'true' goto MAIN.DONE
-	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
-	if '${get:firstimageblock}' == '' goto MAIN.WAIT
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Test releaseImageBlocks...
+	;
+	run 'test releaseImageBlocks' '${get:outNextimageblock}' '${get:outNextimageblock}' 'outDone' 'outNextimageblock'
+	if '${ret:}' != 'pass' goto MAIN.FAIL
+	if '${get:outDone}' == 'true' goto MAIN.DONE
+	if '${get:outNextimageblock}' == '' goto MAIN.WAIT
 
 goto MAIN.GETIMAGE
 :MAIN.DONE
@@ -115,7 +112,7 @@ goto MAIN.GETIMAGE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test stopCapturing...
 ;
-run 'test stopcapturing'
+run 'test stopcapturing' 'ready'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -123,7 +120,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test closeSession...
 ;
-run 'test closeSession'
+run 'test closeSession' 'noSession'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 

@@ -1318,6 +1318,106 @@ namespace TwainDirect.Certification
                 }
             }
 
+            // Item1 > Item2...
+            else if (szOperator == ">")
+            {
+                int iItem1;
+                int iItem2;
+                if (!int.TryParse(szItem1, out iItem1))
+                {
+                    DisplayError("<" + szItem1 + "> > <" + szItem2 + "> is invalid");
+                }
+                else
+                {
+                    if (!int.TryParse(szItem2, out iItem2))
+                    {
+                        DisplayError("<" + szItem1 + "> > <" + szItem2 + "> is invalid");
+                    }
+                    else
+                    {
+                        if (iItem1 > iItem2)
+                        {
+                            blDoAction = true;
+                        }
+                    }
+                }
+            }
+
+            // Item1 >= Item2...
+            else if (szOperator == ">=")
+            {
+                int iItem1;
+                int iItem2;
+                if (!int.TryParse(szItem1, out iItem1))
+                {
+                    DisplayError("<" + szItem1 + "> >= <" + szItem2 + "> is invalid");
+                }
+                else
+                {
+                    if (!int.TryParse(szItem2, out iItem2))
+                    {
+                        DisplayError("<" + szItem1 + "> >= <" + szItem2 + "> is invalid");
+                    }
+                    else
+                    {
+                        if (iItem1 >= iItem2)
+                        {
+                            blDoAction = true;
+                        }
+                    }
+                }
+            }
+
+            // Item1 < Item2...
+            else if (szOperator == "<")
+            {
+                int iItem1;
+                int iItem2;
+                if (!int.TryParse(szItem1, out iItem1))
+                {
+                    DisplayError("<" + szItem1 + "> < <" + szItem2 + "> is invalid");
+                }
+                else
+                {
+                    if (!int.TryParse(szItem2, out iItem2))
+                    {
+                        DisplayError("<" + szItem1 + "> < <" + szItem2 + "> is invalid");
+                    }
+                    else
+                    {
+                        if (iItem1 < iItem2)
+                        {
+                            blDoAction = true;
+                        }
+                    }
+                }
+            }
+
+            // Item1 <= Item2...
+            else if (szOperator == "<=")
+            {
+                int iItem1;
+                int iItem2;
+                if (!int.TryParse(szItem1, out iItem1))
+                {
+                    DisplayError("<" + szItem1 + "> <= <" + szItem2 + "> is invalid");
+                }
+                else
+                {
+                    if (!int.TryParse(szItem2, out iItem2))
+                    {
+                        DisplayError("<" + szItem1 + "> <= <" + szItem2 + "> is invalid");
+                    }
+                    else
+                    {
+                        if (iItem1 <= iItem2)
+                        {
+                            blDoAction = true;
+                        }
+                    }
+                }
+            }
+
             // Items must not match (case insensitive)...
             else if (szOperator == "!~")
             {
@@ -2673,13 +2773,22 @@ namespace TwainDirect.Certification
                     {
                         if ((m_lcallstack != null) && (m_lcallstack.Count > 0))
                         {
-                            int iIndex;
-                            if (int.TryParse(szSymbol.Substring(0, szSymbol.Length - 1).Substring(6), out iIndex))
+                            string szTarget = szSymbol.Substring(0, szSymbol.Length - 1).Substring(6);
+                            callstack = m_lcallstack[m_lcallstack.Count - 1];
+                            if (szTarget == "#")
                             {
-                                callstack = m_lcallstack[m_lcallstack.Count - 1];
-                                if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                                // Needs to be -2 to remove "call xxx" or "run xxx" from count...
+                                szValue = (callstack.functionarguments.aszCmd.Length - 2).ToString();
+                            }
+                            else
+                            {
+                                int iIndex;
+                                if (int.TryParse(szSymbol.Substring(0, szSymbol.Length - 1).Substring(6), out iIndex))
                                 {
-                                    szValue = callstack.functionarguments.aszCmd[iIndex + 1];
+                                    if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                                    {
+                                        szValue = callstack.functionarguments.aszCmd[iIndex + 1];
+                                    }
                                 }
                             }
                         }

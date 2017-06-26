@@ -1,13 +1,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test getSession v1.0 24-Jun-2017
-; arg:1 - state to test for
-; arg:2 - [OUT] set tag to true, if done
-; arg:3 - [OUT] set tag to first imaage block, if we have one
+; Test stopCapturing v1.0 24-Jun-2017
+; arg:1 - state to check for
 ; returns: pass or fail
 ;
-; Exercise the getSession command.  We're going to do the following:
+; Exercise the stopCapturing command.  We're going to do the following:
 ;
-; - confirm that getSession succeeds, and contains all required properties
+; - confirm that stopCapturing succeeds, and contains all required properties
 ;
 
 
@@ -16,55 +14,54 @@
 ; Display the banner...
 ;
 echo
-echo 'Test getSession v1.0 24-Jun-2017'
-set getsessionresult 'pass'
+echo 'Test stopCapturing v1.0 24-Jun-2017'
+set stopcapturingresult 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Call getSession, and check the return properties...
+; Call stopCapturing, and check the return properties...
 ;
-call GETSESSION '${arg:1}' '${arg:2}' '${arg:3}'
+call STOPCAPTURING '${arg:1}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Bye-bye...
 ;
-echopassfail 'SUMMARY' '${get:getsessionresult}'
-return '${get:getsessionresult}'
+echopassfail 'SUMMARY' '${get:stopcapturingresult}'
+return '${get:stopcapturingresult}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; GETSESSION
-; arg:1 - state to test for
+; STOPCAPTURING
+; arg:1 - state to check for
 ; returns pass or fail
 ;
-:GETSESSION
+:STOPCAPTURING
 ;
 ; Send the command...
-getSession
+stopCapturing
 ;
 ; Check the mandatory properties...
 call CHECK 'kind'
 call CHECK 'commandId'
-call CHECK 'method' '==' 'getSession'
+call CHECK 'method' '==' 'stopCapturing'
 call CHECK 'results'
 call CHECK 'results.success' '==' 'true'
 call CHECK 'results.session'
 call CHECK 'results.session.sessionId' '!=' ''
 call CHECK 'results.session.revision' '!=' ''
 call CHECK 'results.session.state' '==' '${arg:1}'
-if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
+if '${get:stopcapturingresult}' != 'pass' goto STOPCAPTURING.FAIL
 ;
-; We're good, check if we need to output values...
-call RETURNVALUES '${arg:2}' '${arg:3}'
+; We're good...
 return 'pass'
 ;
 ; No joy...
-:GETSESSION.FAIL
-set getsessionresult 'fail'
+:STOPCAPTURING.FAIL
+set stopcapturingresult 'fail'
 return 'fail'
 
 
@@ -89,46 +86,16 @@ if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
 ;
 ; The if-statement failed...
 echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set getsessionresult 'fail'
+set stopcapturingresult 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
 echopassfail 'check ${arg:1}' 'fail (${arg1:} missing)'
-set getsessionresult 'fail'
+set stopcapturingresult 'fail'
 return 'fail'
 ;
 ; We're good...
 :CHECK.PASS
 echopassfail 'check ${arg:1}' 'pass'
 return 'PASS'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; RETURNVALUES
-; arg1 - [OUT] set tag to true, if done
-; arg2 - [OUT] set tag to first imaage block, if we have one
-; return pass
-;
-:RETURNVALUES
-;
-; If we don't have arg:1, we're done...
-if '${arg:1}' == '' goto RETURNVALUES.DONE
-;
-; We're done if our state isn't capturing, or if the
-; flag tells us we've drained the scanner...
-set '${arg:1}' true
-if '${rj:results.session.state}' != 'capturing' goto RETURNVALUES.DONE
-if '${rj:results.session.imageBlocksDrained}' == 'true' goto RETURNVALUES.DONE
-set '${arg:1}' false
-;
-; If we don't have arg:2, we're done...
-if '${arg:2}' == '' goto RETURNVALUES.DONE
-;
-; Get the first image block, if there is one...
-set '${arg:2}' '${rj:results.session.imageBlocks[0]}'
-;
-; bye-bye...
-:RETURNVALUES.DONE
-return 'pass'
