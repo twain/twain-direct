@@ -106,6 +106,7 @@ namespace TwainDirect.Certification
             // Scripting...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCall,                         new string[] { "call" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCd,                           new string[] { "cd" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdClean,                        new string[] { "clean" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
@@ -814,6 +815,36 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Clean the images folder...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdClean(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            // The images folder...
+            string szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
+
+            // Delete the images folder...
+            if (Directory.Exists(szImagesFolder))
+            {
+                try
+                {
+                    DirectoryInfo directoryinfo = new DirectoryInfo(szImagesFolder);
+                    foreach (System.IO.FileInfo file in directoryinfo.GetFiles()) file.Delete();
+                    foreach (System.IO.DirectoryInfo subDirectory in directoryinfo.GetDirectories()) subDirectory.Delete(true);
+                }
+                catch (Exception exception)
+                {
+                    DisplayError("couldn't delete <" + szImagesFolder + "> - " + exception.Message);
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Echo text...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -959,8 +990,10 @@ namespace TwainDirect.Certification
                 Display("closeSession.................................close the current session");
                 Display("");
                 Display("Scripting");
+                Display("help scripting...............................general discussion");
                 Display("call {label}.................................call function");
                 Display("cd [path]....................................shows or sets the current directory");
+                Display("clean........................................clean the images folder");
                 Display("echo [text]..................................echo text");
                 Display("if {item1} {operator} {item2} goto {label}...if statement");
                 Display("increment {dst} {src} [step].................increment src by step and store in dst");
@@ -1159,6 +1192,88 @@ namespace TwainDirect.Certification
             // Scripting
             #region Scripting
 
+            // Scripting...
+            if ((szCommand == "scripting"))
+            {
+                /////////0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+                Display("GENERAL DISCUSSION OF SCRIPTING");
+                Display("The TWAIN Direct Certification program is designed to test scanners and applications.  It looks");
+                Display("at header information, JSONS payloads, and image data.  It's script based to make it easier to");
+                Display("manage the tests.  Users can create and run their own tests, such as extracting key items from an");
+                Display("existing test to make it easier to debug.");
+                Display("");
+                Display("The 'language' is not sophisticated.  It supports a goto, a conditional goto, and a call");
+                Display("function.  The set and increment commands manage variables.  All of the TWAIN Direct calls are");
+                Display("accessible, including some extras used to stress the system.");
+                Display("");
+                Display("The most interesting part of the scripting support is variable expansion.  Variables take the");
+                Display("form ${source:target} with the following available sources:");
+                Display("");
+                Display("  '${arg:target}'");
+                Display("  Expands an argument argument to run, runv, or call.  0 is the name of the script or label, and");
+                Display("  1 - n access the rest of the arguments.");
+                Display("");
+                Display("  '${get:target}'");
+                Display("  The value last assigned to the target using the set command.");
+                Display("");
+                Display("  '${hdrkey:target}'");
+                Display("  Accesses the header keys in the response from the last command.  Target can be # for the number");
+                Display("  of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrvalue:target}'");
+                Display("  Accesses the header values in the response from the last command.  Target can be # for the number");
+                Display("  of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrjsonkey:target}'");
+                Display("  Accesses the header keys in the JSON multipart response from the last command.  Target can be #");
+                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrjsonvalue:target}'");
+                Display("  Accesses the header values in the JSON multipart response from the last command.  Target can be #");
+                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrimagekey:target}'");
+                Display("  Accesses the header keys in the image multipart response from the last command.  Target can be #");
+                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrimagevalue:target}'");
+                Display("  Accesses the header values in the image multipart response from the last command.  Target can be #");
+                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrthumbnailkey:target}'");
+                Display("  Accesses the header keys in the thumbnail multipart response from the last command.  Target can be");
+                Display("  # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrthumbnailvalue:target}'");
+                Display("  Accesses the header values in the thumbnail multipart response from the last command.  Target can be");
+                Display("  # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${ret:}'");
+                Display("  The value supplied to the return command that ended the last run, runv, or call.");
+                Display("");
+                Display("  '${rj:target}'");
+                Display("  Accesses the JSON contents of the last command.  For instance, ${rj:results.success} returns a");
+                Display("  value of true or false for the last command, or an empty string if communication failed.  If");
+                Display("  the target is #, then it expands to the number of UTF-8 bytes in the JSON payload.  If the");
+                Display("  value can't be found it expands to an empty string.");
+                Display("");
+                Display("  '${rjx:target}'");
+                Display("  Works like ${rj:target}, but if the target can't be found it expands to '(null)'");
+                Display("");
+                Display("  '${rsts:}'");
+                Display("  The HTTP status from the last command.");
+                Display("");
+                Display("  '${txt:target}'");
+                Display("  Access the mDNS TXT fields.  If a target can't be found, it expands to an empty string.");
+                Display("");
+                Display("  '${txtx:target}'");
+                Display("  Works like ${txt:target}, but if the target can't be found it expands to '(null)'");
+                Display("");
+                Display("Note that some tricks are allowed, one can do ${hdrkey:${get:index}}, using the set and increment");
+                Display("commands to enumerate all of the header keys.  Or ${rj:${arg:1}} to pass a JSON key into a function.");
+                return (false);
+            }
+
             // Call...
             if ((szCommand == "call"))
             {
@@ -1172,6 +1287,14 @@ namespace TwainDirect.Certification
             {
                 Display("CD [PATH]");
                 Display("Show the current directory.  If a path is specified, change to that path.");
+                return (false);
+            }
+
+            // Clean...
+            if ((szCommand == "clean"))
+            {
+                Display("CLEAN");
+                Display("Delete all files and folders in the images folder.");
                 return (false);
             }
 
