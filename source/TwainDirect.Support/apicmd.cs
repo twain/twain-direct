@@ -521,13 +521,6 @@ namespace TwainDirect.Support
                 Log.Error(a_szReason + ": a_szUri is null");
                 return (false);
             }
-            //if (    (a_szUri != "/privet/info")
-            //    &&  (a_szUri != "/privet/infoex")
-            //    &&  (a_szUri != "/privet/twaindirect/session"))
-            //{
-            //    Log.Error(a_szReason + ": bad a_szUri '" + a_szUri + "'");
-            //    return (false);
-            //}
 
             // For HTTPS we need a certificate for the DNS domain, I have no idea if
             // this can be done with a numeric IP, but I know it can be done with a
@@ -742,6 +735,7 @@ namespace TwainDirect.Support
             // multipart/mixed is okay, with a boundary...
             else if (contenttype.MediaType.ToLowerInvariant() == "multipart/mixed")
             {
+                // Extract the boundary data...
                 blMultipart = true;
                 szMultipartBoundary = contenttype.Boundary;
                 if (string.IsNullOrEmpty(szMultipartBoundary))
@@ -749,7 +743,9 @@ namespace TwainDirect.Support
                     Log.Error(a_szReason + ": bad multipart/mixed boundary...");
                     return (false);
                 }
-                szMultipartBoundary = "--" + szMultipartBoundary;
+
+                // This is the form we expect to find in the data stream...
+                szMultipartBoundary = "--" + szMultipartBoundary + "\r\n";
             }
 
             // Anything else is bad...
@@ -793,24 +789,26 @@ namespace TwainDirect.Support
                 }
 
                 // Else we have a multipart response, and we need to collect
-                // and separate all of the data.  The data will arrive in the
+                // and separate all of the data.  The data must arrive in the
                 // following format, repeating as necessary to send all of
                 // the data...
                 //
-                // boundary + \n
-                // Content-Type: ... + \n
-                // Content-Length: # + \n
-                // \n
-                // data \n
-                // \n
-                // boundary + \n
-                // Content-Type: ... + \n
-                // Content-Length: # + \n
-                // \n
-                // data \n
-                // \n
+                // --boundary + \r\n
+                // Content-Type: ... + \r\n
+                // Content-Length: # + \r\n
+                // any other headers + \r\n
+                // \r\n
+                // data + \r\n
+                // \r\n
+                // --boundary + \r\n
+                // Content-Type: ... + \r\n
+                // Content-Length: # + \r\n
+                // any other headers + \r\n
+                // \r\n
+                // data + \r\n
+                // \r\n
                 //
-                // Getting the newlines right is part of the challenge...
+                // Getting the CRLF terminators right is part of the challenge...
                 //
                 // In theory we could have several parts, but in practice
                 // we're only expecting two:  JSON and an image.  If we are
@@ -822,14 +820,24 @@ namespace TwainDirect.Support
                 // specific behavior...
                 else
                 {
-                    // Give us a large buffer to work with, convert the multipart
-                    // boundary to a byte array, and init other stuff...
-                    abBuffer = new byte[0x200000];
-                    byte[] abImageBlockSeperator = Encoding.UTF8.GetBytes(szMultipartBoundary);
-                    bool blFirstPass = true;
+                    bool blApplicationJsonSeen = false;
                     FileStream filestreamOutputFile = null;
 
-                    // If we received a file, this is where we'll dump the second part...
+                    // Give us a large buffer to work with, we're going to limit
+                    // transfers to this size, to avoid someone trying to get us
+                    // to allocate a massive buffer...
+                    abBuffer = new byte[0x200000];
+
+                    // This is our block separator, it has the dashes and the
+                    // terminating CRLF...
+                    byte[] abImageBlockSeperator = Encoding.UTF8.GetBytes(szMultipartBoundary);
+
+                    // This is our CRLF/CRLF detector that tells us that we've
+                    // captured a complete header block...
+                    byte[] abCRLFCRLF = new byte[] { 13, 10, 13, 10 };
+
+                    // If we were given a filename, create the stream where we'll
+                    // dump the binary data, assuming we get any binary data...
                     if (!string.IsNullOrEmpty(a_szOutputFile))
                     {
                         try
@@ -848,14 +856,62 @@ namespace TwainDirect.Support
                         }
                     }
 
-                    // Loopy on reading the data...
+                    // Okay, here's where the fun begins.  We'll loop around in here
+                    // until we get all the data, or until something horrible happens...
+                    long lRead = 0;
+                    long lOffset = 0;
+                    long lCRLF;
+                    byte[] abCRLF = new byte[] { 13, 10 };
                     while (true)
                     {
-                        // Read some data...
-                        int iRead = stream.Read(abBuffer, iXfer, abBuffer.Length - iXfer);
+                        // Keep reading here until we see a CRLF/CRLF combination in
+                        // the byte array, or until something horrible happens.
+                        //
+                        // We're going to get the header data for the first block, and
+                        // possibily data that goes with it.  We may even pick up stuff
+                        // for the second block.  That's fine.  The abBuffer is going
+                        // to either be empty or it'll contain the remainder data from
+                        // the last block.  What we're going to guarantee is that the
+                        // start of abBuffer is always going to point to the boundary
+                        // string (assuming the data we've been sent is formatted correctly).
+                        //
+                        // lRead is the number of valid bytes in abBuffer.
+                        // lOffet is where we are in abBuffer.
+                        lOffset = 0;
+                        while (true)
+                        {
+                            // Read data...
+                            try
+                            {
+                                lRead += stream.Read(abBuffer, (int)lRead, (int)(abBuffer.Length - lRead));
+                            }
+                            catch
+                            {
+                                break;
+                            }
 
-                        // No more data, we can bail...
-                        if (iRead == 0)
+                            // Bail if we see the CRLF/CRLF pattern...
+                            if (IndexOf(abBuffer, abCRLFCRLF, 0, lRead) >= 0)
+                            {
+                                break;
+                            }
+
+                            // If we fill the buffer, we're a sad panda...
+                            if (abBuffer.Length == lRead)
+                            {
+                                Log.Error(a_szReason + ": filled our buffer without finding CRLF/CRLF, that's not right...");
+                                return (false);
+                            }
+
+                            // We're out of data...
+                            if (lRead == 0)
+                            {
+                                break;
+                            }
+                        }
+
+                        // We've run out of data, so we can bail...
+                        if (lRead == 0)
                         {
                             if (filestreamOutputFile != null)
                             {
@@ -865,67 +921,250 @@ namespace TwainDirect.Support
                             break;
                         }
 
-                        // Handle the JSON / data split...
-                        if (blFirstPass)
+                        // The first item in this block must be --boundary\r\n, so the
+                        // index we get back better match where we are in the iOffset...
+                        lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, lOffset);
+                        if (lImageBlockSeperator == -1)
                         {
-                            // Don't come back into here...
-                            blFirstPass = false;
+                            Log.Error(a_szReason + ": missing --boundary in multipart/mixed");
+                            return (false);
+                        }
+                        if (lImageBlockSeperator != lOffset)
+                        {
+                            Log.Error(a_szReason + ": misaligned --boundary in multipart/mixed");
+                            return (false);
+                        }
+                        lOffset += abImageBlockSeperator.Length;
 
-                            // Keep a tally of the number of bytes we've read...
-                            iXfer += iRead;
+                        // Okey-dokey, what we have now are a collection of HTTP headers
+                        // separated by CRLF's with a blank line (also a CRLF) that
+                        // terminates the header block.  So let's parse our way through
+                        // that, collecting interesting data as we proceed...
+                        bool blMultipartApplicationJson = false;
+                        bool blMultipartApplicationPdf = false;
+                        long lMultipartContentLength = 0;
+                        while (true)
+                        {
+                            // Find the CRLF offset at the end of this header line...
+                            lCRLF = IndexOf(abBuffer, abCRLF, lOffset);
 
-                            // We must find our first separator at the 0th index...
-                            lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, 0, iXfer);
-                            if (lImageBlockSeperator != 0)
+                            // Ruh-roh, ran out of data, that's not good...
+                            if (lCRLF == -1)
                             {
-                                Log.Error("HttprRequestAttempt: failed to find first multipart boundary string...");
-                                if (filestreamOutputFile != null)
-                                {
-                                    filestreamOutputFile.Close();
-                                    filestreamOutputFile = null;
-                                }
+                                Log.Error(a_szReason + ": unexpected end of header block in multipart/mixed");
                                 return (false);
                             }
 
-                            // Find the second seperator...
-                            lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, abImageBlockSeperator.Length, iXfer);
-
-                            // If we didn't find it, convert all of the data, otherwise
-                            // just convert what we found...
-                            if (lImageBlockSeperator < 0)
+                            // If the CRLF offset matches where we currently are, then
+                            // we found a blank line, so scoot, the offset will now be
+                            // pointing to the first byte of data...
+                            if (lCRLF == lOffset)
                             {
-                                szReply = Encoding.UTF8.GetString(abBuffer, 0, (int)abBuffer.Length);
+                                lOffset += (lCRLF - lOffset) + abCRLF.Length;
+                                break;
                             }
+
+                            // Convert this header to a string...
+                            string szHeader = Encoding.UTF8.GetString(abBuffer, (int)lOffset, (int)(lCRLF - lOffset));
+
+                            // We found the content-type, so we now know what kind of
+                            // data we're dealing with...
+                            szHeader = szHeader.ToLowerInvariant();
+                            if (szHeader.StartsWith("content-type"))
+                            {
+                                if (szHeader.Contains("application/json"))
+                                {
+                                    blMultipartApplicationJson = true;
+                                }
+                                else if (szHeader.Contains("application/pdf"))
+                                {
+                                    blMultipartApplicationPdf = true;
+                                }
+                            }
+
+                            // We found the content-length, so know we know now much
+                            // data we expect.  Note that -1 is NOT a valid length for
+                            // us.  We must get the actual byte count...
+                            else if (szHeader.ToLowerInvariant().StartsWith("content-length"))
+                            {
+                                string[] aszSplit = szHeader.Split(':');
+                                if ((aszSplit != null) && (aszSplit.Length > 1))
+                                {
+                                    string szLength = aszSplit[1].Trim();
+                                    if (!long.TryParse(szLength, out lMultipartContentLength))
+                                    {
+                                        Log.Error(a_szReason + ": badly constructed content-length");
+                                        return (false);
+                                    }
+                                }
+                            }
+
+                            // We've read the header data, skip over it...
+                            lOffset += (lCRLF - lOffset) + abCRLF.Length;
+                        }
+
+                        // Okay, inside of here we'll handle the application/json data...
+                        if (blMultipartApplicationJson)
+                        {
+                            // If we find ourselves in here more than once for this data
+                            // transfer, then we have an issue...
+                            if (blApplicationJsonSeen)
+                            {
+                                Log.Error(a_szReason + ": multiple application/json blocks confuse and irritate us...");
+                                return (false);
+                            }
+                            blApplicationJsonSeen = true;
+
+                            // Validate that the content-length wasn't something insane.
+                            // This could give us grief if the JSON data is ever more
+                            // than the size of abBuffer.  That's not impossible, but it
+                            // seems very unlikely...
+                            if ((lOffset + lMultipartContentLength) > abBuffer.Length)
+                            {
+                                Log.Error(a_szReason + ": data overflow...");
+                                return (false);
+                            }
+
+                            // Get the JSON data...
+                            szReply = Encoding.UTF8.GetString(abBuffer, (int)lOffset, (int)lMultipartContentLength);
+
+                            // This is our new offset...
+                            lOffset += lMultipartContentLength;
+
+                            // We're assuming that the CRLF/CRLF data is already in this
+                            // block.  It seems reasonable, but if you see bad things
+                            // happening with the multipart/mixed getting out of sequence,
+                            // this is one place to start...
+                        }
+
+                        // Handle the application/pdf data...
+                        else if (blMultipartApplicationPdf)
+                        {
+                            // There's a possibility that the binary data is smaller than
+                            // or equal to the number of bytes we read.  Handle that here...
+                            if (lMultipartContentLength <= (lRead - lOffset))
+                            {
+                                // Write out the data segment we have...
+                                filestreamOutputFile.Write(abBuffer, 0, (int)(lRead - lOffset));
+                            }
+
+                            // Otherwise we've not read enough data, so we'll be doing
+                            // some looping...
                             else
                             {
-                                szReply = Encoding.UTF8.GetString(abBuffer, 0, (int)lImageBlockSeperator);
-                            }
+                                // Write out the data segment we have, after this lRead and
+                                // lOffset won't have any special meaning, until we're done
+                                // with the data block...
+                                if ((lRead - lOffset) > 0)
+                                {
+                                    filestreamOutputFile.Write(abBuffer, 0, (int)(lRead - lOffset));
+                                }
 
-                            // Remove everything up to the first {, and after the last }...
-                            long lCurly = szReply.IndexOf('{');
-                            if (lCurly > 0)
-                            {
-                                szReply = szReply.Remove(0, (int)lCurly);
-                            }
-                            lCurly = szReply.LastIndexOf('}');
-                            if ((lCurly > 0) && (lCurly < (szReply.Length - 1)))
-                            {
-                                szReply = szReply.Remove((int)(lCurly + 1));
-                            }
+                                // Read and write the rest of the data in this block...
+                                long lRemainder = lMultipartContentLength - (int)(lRead - lOffset);
+                                while (lRemainder > 0)
+                                {
+                                    try
+                                    {
+                                        lRead = stream.Read(abBuffer, (int)0, (int)((lRemainder > abBuffer.Length) ? abBuffer.Length : lRemainder));
+                                    }
+                                    catch
+                                    {
+                                        break;
+                                    }
+                                    filestreamOutputFile.Write(abBuffer, 0, (int)lRead);
+                                    lRemainder -= lRead;
+                                }
 
-                            iXfer = 0;
+                                // Get the terminating CRLF/CRLF, we'll process it further down...
+                                lRead = 0;
+                                lOffset = 0;
+                                lRemainder = 4;
+                                try
+                                {
+                                    while (lRemainder > 0)
+                                    {
+                                        lRead = stream.Read(abBuffer, (int)lRead, (int)lRemainder);
+                                        lRemainder -= lRead;
+                                        if (lRead == 0)
+                                        {
+                                            break;
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    // ruh-roh...
+                                }
+                                lRead = 4 - lRemainder;
+                            }
                         }
+
+                        // Uhhhhh...I have no idea what this is.  We could fix this to ignore
+                        // the data.  So I'll tbd it...
+                        // mlmtbd
                         else
                         {
-                            filestreamOutputFile.Write(abBuffer, 0, iRead);
+                            Log.Error(a_szReason + ": unrecognized data block in multipart/mixed, it wasn't application/json or application/pdf...");
+                            return (false);
                         }
 
-                        // Grow the buffer, if needed...
-                        if ((iRead > 0) && (iXfer >= abBuffer.Length))
+                        // It looks like we've run out of data...
+                        if (lOffset >= lRead)
                         {
-                            byte[] ab = new byte[abBuffer.Length + 0x200000];
-                            abBuffer.CopyTo(ab, 0);
-                            abBuffer = ab;
+                            lRead = 0;
+                            break;
+                        }
+
+                        // Look for the terminating CRLF/CRLF before another block, the
+                        // first one must be at the end of the data...
+                        lCRLF = IndexOf(abBuffer, abCRLF, lOffset);
+                        if (lCRLF == -1)
+                        {
+                            break;
+                        }
+                        if (lCRLF != lOffset)
+                        {
+                            Log.Error(a_szReason + ": badly constructed CRLF terminator following application.json");
+                            return (false);
+                        }
+
+                        // And this CRLF is a blank line...
+                        lOffset += 2;
+                        lCRLF = IndexOf(abBuffer, abCRLF, lOffset);
+                        if (lCRLF != lOffset)
+                        {
+                            Log.Error(a_szReason + ": badly constructed blank CRLF following application.json");
+                            return (false);
+                        }
+                        lOffset += 2;
+
+                        // Okay, now we've run out of data, go back up and try to read more...
+                        if (lOffset >= lRead)
+                        {
+                            lRead = 0;
+                            continue;
+                        }
+
+                        // We have a remainder, and our offset is not zero.  Shift it to
+                        // the front of abBuffer, and modify lRead to indicate that amount.
+                        // When we do the read up above we'll tack more data onto abBuffer,
+                        // if there is any...
+                        if (lRead > lOffset)
+                        {
+                            // Only do the shift if needed...
+                            if (lOffset > 0)
+                            {
+                                Array.ConstrainedCopy(abBuffer, (int)lOffset, abBuffer, 0, (int)(lRead - lOffset));
+                                lRead = (int)(lRead - lOffset);
+                                lOffset = 0;
+                            }
+                        }
+                        // Otherwise, we must not have any data...
+                        else
+                        {
+                            lRead = 0;
+                            lOffset = 0;
                         }
                     }
                 }
@@ -1093,12 +1332,12 @@ namespace TwainDirect.Support
             // of newlines, which are essential to parsing multipart content...
             abBufferJson = Encoding.UTF8.GetBytes
             (
-                "--" + szBoundary + "\n" +
-                "Content-Type: application/json; charset=UTF-8\n" +
-                "Content-Length: " + a_szResponse.Length + "\n" +
-                "\n" +
-                a_szResponse + "\n" +
-                "\n"
+                "--" + szBoundary + "\r\n" +
+                "Content-Type: application/json; charset=UTF-8\r\n" +
+                "Content-Length: " + a_szResponse.Length + "\r\n" +
+                "\r\n" +
+                a_szResponse + "\r\n" +
+                "\r\n"
             );
 
             // Build the thumbnail portion, if we have one, don't send
@@ -1108,22 +1347,24 @@ namespace TwainDirect.Support
                 // Build the thumbnail header portion, don't send anything yet...
                 abBufferThumbnailHeader = Encoding.UTF8.GetBytes
                 (
-                    "--" + szBoundary + "\n" +
-                    "Content-Type: application/pdf\n" +
-                    "Content-Length: " + filestreamThumbnail.Length + "\n" +
-                    "Content-Transfer-Encoding: binary\n" +
-                    "Content-Disposition: inline; filename=\"thumbnail.pdf\"" +
-                    "\n"
+                    "--" + szBoundary + "\r\n" +
+                    "Content-Type: application/pdf\r\n" +
+                    "Content-Length: " + filestreamThumbnail.Length + "\r\n" +
+                    "Content-Transfer-Encoding: binary\r\n" +
+                    "Content-Disposition: inline; filename=\"thumbnail.pdf\"\r\n" +
+                    "\r\n"
                 );
 
                 // Read the thumbnail data, be sure to add an extra two bytes for
                 // the terminating newline and the empty-line newline...
                 try
                 {
-                    abBufferThumbnail = new byte[filestreamThumbnail.Length + 2];
+                    abBufferThumbnail = new byte[filestreamThumbnail.Length + 4];
                     filestreamThumbnail.Read(abBufferThumbnail, 0, abBufferThumbnail.Length);
-                    abBufferThumbnail[abBufferThumbnail.Length] = 10; // '\n'
-                    abBufferThumbnail[abBufferThumbnail.Length + 1] = 10; // '\n'
+                    abBufferThumbnail[filestreamThumbnail.Length]     = 13; // '\r'
+                    abBufferThumbnail[filestreamThumbnail.Length + 1] = 10; // '\n'
+                    abBufferThumbnail[filestreamThumbnail.Length + 2] = 13; // '\r'
+                    abBufferThumbnail[filestreamThumbnail.Length + 3] = 10; // '\n'
                 }
                 // Drat...
                 catch (Exception exception)
@@ -1144,18 +1385,18 @@ namespace TwainDirect.Support
                 // Build the image header portion, don't send anything yet...
                 abBufferImageHeader = Encoding.UTF8.GetBytes
                 (
-                    "--" + szBoundary + "\n" +
-                    "Content-Type: application/pdf\n" +
-                    "Content-Length: " + filestreamImage.Length +"\n" +
-                    "Content-Transfer-Encoding: binary\n" +
-                    "Content-Disposition: inline; filename=\"image.pdf\"" +
-                    "\n"
+                    "--" + szBoundary + "\r\n" +
+                    "Content-Type: application/pdf\r\n" +
+                    "Content-Length: " + filestreamImage.Length + "\r\n" +
+                    "Content-Transfer-Encoding: binary\r\n" +
+                    "Content-Disposition: inline; filename=\"image.pdf\"\r\n" +
+                    "\r\n"
                 );
             }
 
             // Okay, send what we have so far, start by specifying the length,
-            // note the +2 on the image for the terminating newline and the
-            // final empty-line newline...
+            // note the +4 on the image for the terminating CRLF and the
+            // final empty-line CRLF...
             long lLength =
                 abBufferJson.Length +
                 ((abBufferThumbnailHeader != null) ? abBufferThumbnailHeader.Length : 0) +
@@ -1167,45 +1408,35 @@ namespace TwainDirect.Support
             m_httplistenerresponse.Headers.Add(HttpResponseHeader.ContentType, "multipart/mixed; boundary=\"" + szBoundary + "\"");
             m_httplistenerresponse.ContentLength64 =
                 lLength +
-                ((filestreamImage != null) ? filestreamImage.Length + 2 : 0);
+                ((filestreamImage != null) ? filestreamImage.Length + 4 : 0);
 
-            // TBD
-            // Combine the buffers for what we have so far.  This is done for two
-            // reasons.  To make the transfer more efficient, because the system
-            // will almost certainly split this into multiple transmissions across
-            // the network, and to make parsing easier on the receiving end, because
-            // if this content shows up piecemeal we'll have challenges trying to
-            // figure out when we have enough data to proceed (note that it can be
-            // done using the Content-Length field, and at some point that will be
-            // a good fix to make, which is why I have a TBD on this)...
+            // Make things a little easier to read...
             streamResponse = m_httplistenerresponse.OutputStream;
-            byte[] abBuffer = new byte[lLength];
-            lLength = 0;
-            Buffer.BlockCopy(abBufferJson, 0, abBuffer, 0, abBufferJson.Length);
-            lLength = abBufferJson.Length;
+
+            // Write the JSON data to the stream, this includes its header...
+            streamResponse.Write(abBufferJson, 0, (int)abBufferJson.Length);
             abBufferJson = null;
+
+            // Write the thumbnail header, if we have one...
             if (abBufferThumbnailHeader != null)
             {
-                Buffer.BlockCopy(abBufferThumbnailHeader, 0, abBuffer, (int)lLength, abBufferThumbnailHeader.Length);
-                lLength += abBufferThumbnailHeader.Length;
+                streamResponse.Write(abBufferThumbnailHeader, 0, (int)abBufferThumbnailHeader.Length);
                 abBufferThumbnailHeader = null;
             }
+
+            // Write the thumbnail, if we have one...
             if (abBufferThumbnail != null)
             {
-                Buffer.BlockCopy(abBufferThumbnail, 0, abBuffer, (int)lLength, abBufferThumbnail.Length);
-                lLength += abBufferThumbnail.Length;
+                streamResponse.Write(abBufferThumbnail, 0, (int)abBufferThumbnail.Length);
                 abBufferThumbnail = null;
             }
+
+            // Write the image header, if we have one...
             if (abBufferImageHeader != null)
             {
-                Buffer.BlockCopy(abBufferImageHeader, 0, abBuffer, (int)lLength, abBufferImageHeader.Length);
-                lLength += abBufferImageHeader.Length;
+                streamResponse.Write(abBufferImageHeader, 0, (int)abBufferImageHeader.Length);
                 abBufferImageHeader = null;
             }
-
-            // Write this buffer...
-            streamResponse.Write(abBuffer, 0, (int)lLength);
-            abBuffer = null;
 
             // Now let's send the image portion (if we have one), this could be
             // big, so we'll do it in chunks...
@@ -1215,18 +1446,33 @@ namespace TwainDirect.Support
                 {
                     // Loopy on the image...
                     int iReadLength;
+                    bool blCrlfsSent = false;
                     byte[] abData = new byte[0x200000];
                     while ((iReadLength = filestreamImage.Read(abData, 0, abData.Length)) > 0)
                     {
+                        if ((iReadLength + 4) < abData.Length)
+                        {
+                            blCrlfsSent = true;
+                            abData[iReadLength]     = 13; // '\r'
+                            abData[iReadLength + 1] = 10; // '\n'
+                            abData[iReadLength + 2] = 13; // '\r'
+                            abData[iReadLength + 3] = 10; // '\n'
+                            iReadLength += 4;
+                        }
                         streamResponse.Write(abData, 0, iReadLength);
                     }
 
-                    // Send the closing newlines...
-                    abData[0] = 10; // '\n'
-                    abData[1] = 10; // '\n'
-                    streamResponse.Write(abData, 0, 2);
+                    // Send the closing newlines, if we could snooker them into
+                    // the stream up above...
+                    if (!blCrlfsSent)
+                    {
+                        abData[0] = 13; // '\r'
+                        abData[1] = 10; // '\n'
+                        abData[2] = 13; // '\r'
+                        abData[3] = 10; // '\n'
+                        streamResponse.Write(abData, 0, 4);
+                    }
                 }
-                // Drat...
                 catch (Exception exception)
                 {
                     Log.Error("HttpRespond: exception..." + exception.Message);
