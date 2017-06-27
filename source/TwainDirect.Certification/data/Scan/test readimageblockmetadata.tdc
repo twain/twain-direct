@@ -44,6 +44,9 @@ return '${get:readimageblockmetadataresult}'
 ; Send the command...
 readImageBlockMetadata '${arg:1}' '${arg:2}'
 ;
+; Check the header...
+call CHECKREPONSEHEADERS '${arg:2}'
+;
 ; Check the mandatory properties...
 call CHECK 'kind'
 call CHECK 'commandId'
@@ -94,12 +97,115 @@ return 'fail'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECKREPONSEHEADERS
+; arg:1 - thumbnail flag (true/false)
+; returns pass or fail
+;
+:CHECKREPONSEHEADERS
+;
+; Handle a normal header...
+if '${arg:1}' == 'true' goto CHECKREPONSEHEADERS.MULTIPART
+call CHECKHEADER 'content-type' '~contains' 'application/json'
+call CHECKHEADER 'content-type' '~contains' 'charset=utf-8'
+call CHECKHEADER 'content-length' '==' '${rj:#}'
+return '${get:readimageblockmetadataresult}'
+;
+; Handle a multipart header...
+:CHECKREPONSEHEADERS.MULTIPART
+call CHECKJSONHEADER 'content-type' '~contains' 'application/json'
+call CHECKJSONHEADER 'content-type' '~contains' 'charset=utf-8'
+call CHECKJSONHEADER 'content-length' '==' '${rj:#}'
+return '${get:readimageblockmetadataresult}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECKHEADER
+; arg:1 - header name
+; arg:2 - if-statement operation
+; arg:3 - required value
+; returns pass or fail
+;
+:CHECKHEADER
+;
+; Look for the header key...
+set iHeader 0
+:CHECKHEADER.NEXT
+	;
+	; We've run out of keys to check...
+	if '${get:iHeader}' >= '${hdrkey:#}' goto CHECKHEADER.FAIL
+	;
+	; We have a match (note that we're insensitive to case)...
+	if '${hdrkey:${get:iHeader}}' ~~ '${arg:1}' goto CHECKHEADER.FOUND
+	;
+	; Next key...
+	increment 'iHeader' '${get:iHeader}' '1'
+goto CHECKHEADER.NEXT
+;
+; We found something, so check for a match...
+:CHECKHEADER.FOUND
+if '${hdrvalue:${get:iHeader}}' '${arg:2}' '${arg:3}' goto CHECKHEADER.PASS
+;
+; No joy...
+:CHECKHEADER.FAIL
+echopassfail 'check header ${arg:1}' 'fail (<${hdrvalue:${get:iHeader}}> ${arg:2} <${arg:3}>)'
+set readimageblockmetadataresult 'fail'
+return 'fail'
+;
+; We're good...
+:CHECKHEADER.PASS
+echopassfail 'check header ${arg:1}' 'pass'
+return 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECKJSONHEADER
+; arg:1 - header name
+; arg:2 - if-statement operation
+; arg:3 - required value
+; returns pass or fail
+;
+:CHECKJSONHEADER
+;
+; Look for the header key...
+set iHeader 0
+:CHECKJSONHEADER.NEXT
+	;
+	; We've run out of keys to check...
+	if '${get:iHeader}' >= '${hdrjsonkey:#}' goto CHECKJSONHEADER.FAIL
+	;
+	; We have a match (note that we're insensitive to case)...
+	if '${hdrjsonkey:${get:iHeader}}' ~~ '${arg:1}' goto CHECKJSONHEADER.FOUND
+	;
+	; Next key...
+	increment 'iHeader' '${get:iHeader}' '1'
+goto CHECKJSONHEADER.NEXT
+;
+; We found something, so check for a match...
+:CHECKJSONHEADER.FOUND
+if '${hdrjsonvalue:${get:iHeader}}' '${arg:2}' '${arg:3}' goto CHECKJSONHEADER.PASS
+;
+; No joy...
+:CHECKJSONHEADER.FAIL
+echopassfail 'check json header ${arg:1}' 'fail (<${hdrjsonvalue:${get:iHeader}}> ${arg:2} <${arg:3}>)'
+set readimageblockmetadataresult 'fail'
+return 'fail'
+;
+; We're good...
+:CHECKJSONHEADER.PASS
+echopassfail 'check json header ${arg:1}' 'pass'
+return 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; arg4 - value to check for if arg2 is specified
-; arg5 - ...
+; arg:1 - property
+; arg:2 - if-statement operator (optional)
+; arg:3 - value to check for if arg2 is specified
+; arg:4 - value to check for if arg2 is specified
+; arg:5 - ...
 ; returns pass or fail
 ;
 :CHECK

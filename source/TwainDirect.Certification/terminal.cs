@@ -34,6 +34,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using TwainDirect.Support;
 
@@ -1318,6 +1319,15 @@ namespace TwainDirect.Certification
                 }
             }
 
+            // Items must not match (case insensitive)...
+            else if (szOperator == "!~")
+            {
+                if (szItem1.ToLowerInvariant() != szItem2.ToLowerInvariant())
+                {
+                    blDoAction = true;
+                }
+            }
+
             // Item1 > Item2...
             else if (szOperator == ">")
             {
@@ -1418,15 +1428,6 @@ namespace TwainDirect.Certification
                 }
             }
 
-            // Items must not match (case insensitive)...
-            else if (szOperator == "!~")
-            {
-                if (szItem1.ToLowerInvariant() != szItem2.ToLowerInvariant())
-                {
-                    blDoAction = true;
-                }
-            }
-
             // Item1 must contain items2 (case sensitive)...
             else if (szOperator == "contains")
             {
@@ -1436,10 +1437,28 @@ namespace TwainDirect.Certification
                 }
             }
 
+            // Item1 must contain items2 (case insensitive)...
+            else if (szOperator == "~contains")
+            {
+                if (szItem1.ToLowerInvariant().Contains(szItem2.ToLowerInvariant()))
+                {
+                    blDoAction = true;
+                }
+            }
+
             // Item1 must not contain items2 (case sensitive)...
             else if (szOperator == "!contains")
             {
                 if (!szItem1.Contains(szItem2))
+                {
+                    blDoAction = true;
+                }
+            }
+
+            // Item1 must not contain items2 (case insensitive)...
+            else if (szOperator == "!~contains")
+            {
+                if (!szItem1.ToLowerInvariant().Contains(szItem2.ToLowerInvariant()))
                 {
                     blDoAction = true;
                 }
@@ -2586,6 +2605,88 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Attempt to get a key or a value at a specific index.  We also
+        /// support getting the number of headers...
+        /// </summary>
+        /// <returns>value or (null)</returns>
+        internal string GetTransactionAtIndex(string[] a_szHeaders, string a_szTarget, bool a_blKey)
+        {
+            // There's no chance of getting data...
+            if (m_transactionLast == null)
+            {
+                return ("(null)");
+            }
+
+            // We have a request for the number of headers...
+            if (a_szTarget == "#")
+            {
+                return ((a_szHeaders == null) ? "0" : a_szHeaders.Length.ToString());
+            }
+
+            // Try to get data at a specific index, starting from 0...
+            int iIndex;
+            if (int.TryParse(a_szTarget, out iIndex))
+            {
+                if ((iIndex >= 0) && (iIndex < a_szHeaders.Length))
+                {
+                    string[] asz;
+                    string szHeader = a_szHeaders[iIndex];
+
+                    // Life sucks, we're sometimes getting "key=value" and other times we're
+                    // getting "key: value", so we have to be a bit clever to figure out what's
+                    // going on...
+                    int iColon = szHeader.IndexOf(':');
+                    int iEquals = szHeader.IndexOf('=');
+
+                    // Nothing but losers, just return the silly thing...
+                    if ((iColon == -1) && (iEquals == -1))
+                    {
+                        return (szHeader);
+                    }
+
+                    // Init stuff...
+                    asz = new string[2];
+                    asz[0] = "";
+                    asz[1] = "";
+
+                    // Colon wins...
+                    if ((iEquals == -1) || ((iColon != -1) && (iColon < iEquals)))
+                    {
+                        asz[0] = szHeader.Substring(0, iColon);
+                        if ((iColon + 1) >= szHeader.Length)
+                        {
+                            asz[1] = "";
+                        }
+                        else
+                        {
+                            asz[1] = szHeader.Substring(iColon + 1, szHeader.Length - (iColon + 1));
+                        }
+                    }
+
+                    // Equals wins...
+                    if ((iColon == -1) || ((iEquals != -1) && (iEquals < iColon)))
+                    {
+                        asz[0] = szHeader.Substring(0, iEquals);
+                        if ((iEquals + 1) >= szHeader.Length)
+                        {
+                            asz[1] = "";
+                        }
+                        else
+                        {
+                            asz[1] = szHeader.Substring(iEquals + 1, szHeader.Length - (iEquals + 1));
+                        }
+                    }
+
+                    // Woof, we finally made it...
+                    return (a_blKey ? asz[0].Trim() : asz[1].Trim());
+                }
+            }
+
+            // No joy...
+            return ("(null)");
+        }
+
+        /// <summary>
         /// Expand symbols that we find in the tokenized strings.  Symbols take the form
         /// ${source:key} where source can be one of the following:
         ///     - the JSON text from the response to the last API command
@@ -2672,6 +2773,14 @@ namespace TwainDirect.Certification
                         ||  szSymbol.StartsWith("${get:")
                         ||  szSymbol.StartsWith("${arg:")
                         ||  szSymbol.StartsWith("${ret:")
+                        ||  szSymbol.StartsWith("${hdrkey:")
+                        ||  szSymbol.StartsWith("${hdrvalue:")
+                        ||  szSymbol.StartsWith("${hdrjsonkey:")
+                        ||  szSymbol.StartsWith("${hdrjsonvalue:")
+                        ||  szSymbol.StartsWith("${hdrimagekey:")
+                        ||  szSymbol.StartsWith("${hdrimagevalue:")
+                        ||  szSymbol.StartsWith("${hdrthumbnailkey:")
+                        ||  szSymbol.StartsWith("${hdrthumbnailvalue:")
                         ||  szSymbol.StartsWith("${txt:")
                         ||  szSymbol.StartsWith("${txtx:"))
                     {
@@ -2696,18 +2805,35 @@ namespace TwainDirect.Certification
                         if (m_transactionLast != null)
                         {
                             string szResponseData = m_transactionLast.GetResponseData();
-                            if (!string.IsNullOrEmpty(szResponseData))
+                            string szTarget = szSymbol.Substring(0, szSymbol.Length - 1).Substring(5);
+                            // Report the number of bytes of data...
+                            if (szTarget == "#")
                             {
-                                bool blSuccess;
-                                long lJsonErrorIndex;
-                                JsonLookup jsonlookup = new JsonLookup();
-                                blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
-                                if (blSuccess)
+                                if (string.IsNullOrEmpty(szResponseData))
                                 {
-                                    szValue = jsonlookup.Get(szSymbol.Substring(0, szSymbol.Length - 1).Substring(5));
-                                    if (szValue == null)
+                                    szValue = "0";
+                                }
+                                else
+                                {
+                                    szValue = Encoding.UTF8.GetBytes(szResponseData).Length.ToString();
+                                }
+                            }
+                            // Get the key...
+                            else
+                            {
+                                if (!string.IsNullOrEmpty(szResponseData))
+                                {
+                                    bool blSuccess;
+                                    long lJsonErrorIndex;
+                                    JsonLookup jsonlookup = new JsonLookup();
+                                    blSuccess = jsonlookup.Load(szResponseData, out lJsonErrorIndex);
+                                    if (blSuccess)
                                     {
-                                        szValue = "";
+                                        szValue = jsonlookup.Get(szTarget);
+                                        if (szValue == null)
+                                        {
+                                            szValue = "";
+                                        }
                                     }
                                 }
                             }
@@ -2802,6 +2928,54 @@ namespace TwainDirect.Certification
                         {
                             szValue = callstack.functionarguments.szReturnValue;
                         }
+                    }
+
+                    // Get keys from the response headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrkey:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetResponseHeaders(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(9), true);
+                    }
+
+                    // Get values from the response headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrvalue:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetResponseHeaders(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(11), false);
+                    }
+
+                    // Get keys from the multipart JSON headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrjsonkey:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetMultipartHeadersJson(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(13), true);
+                    }
+
+                    // Get values from the multipart JSON headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrjsonvalue:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetMultipartHeadersJson(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(15), false);
+                    }
+
+                    // Get keys from the multipart image headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrimagekey:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetMultipartHeadersImage(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(14), true);
+                    }
+
+                    // Get values from the multipart image headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrimagevalue:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetMultipartHeadersImage(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(16), false);
+                    }
+
+                    // Get keys from the multipart thumbnail headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrthumbnailkey:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetMultipartHeadersThumbnail(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(18), true);
+                    }
+
+                    // Get values from the multipart thumbnail headers for the last command...
+                    else if (szSymbol.StartsWith("${hdrthumbnailvalue:"))
+                    {
+                        szValue = GetTransactionAtIndex(m_transactionLast.GetMultipartHeadersThumbnail(), szSymbol.Substring(0, szSymbol.Length - 1).Substring(20), false);
                     }
 
                     // Check the mDNS text fields for the currently selected scanner...

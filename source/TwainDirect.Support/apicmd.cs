@@ -246,6 +246,36 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return the HTTP response headers for JSON data in a
+        /// multipart/mixed block...
+        /// </summary>
+        /// <returns>string with all the data or null</returns>
+        public string[] GetResponseMultipartHeadersJson()
+        {
+            return (m_aszMultipartHeadersJson);
+        }
+
+        /// <summary>
+        /// Return the HTTP response headers for thumbnail data in a
+        /// multipart/mixed block...
+        /// </summary>
+        /// <returns>string with all the data or null</returns>
+        public string[] GetResponseMultipartHeadersThumbnail()
+        {
+            return (m_aszMultipartHeadersPdfThumbnail);
+        }
+
+        /// <summary>
+        /// Return the HTTP response headers for image data in a
+        /// multipart/mixed block...
+        /// </summary>
+        /// <returns>string with all the data or null</returns>
+        public string[] GetResponseMultipartHeadersImage()
+        {
+            return (m_aszMultipartHeadersPdfImage);
+        }
+
+        /// <summary>
         /// Returns the array of image block numbers...
         /// </summary>
         /// <returns>image block numbers (ex: 1, 2)</returns>
@@ -940,8 +970,12 @@ namespace TwainDirect.Support
                         // separated by CRLF's with a blank line (also a CRLF) that
                         // terminates the header block.  So let's parse our way through
                         // that, collecting interesting data as we proceed...
+                        int iHeaders = 0;
+                        string[] aszHeaders = new string[32];
                         bool blMultipartApplicationJson = false;
                         bool blMultipartApplicationPdf = false;
+                        bool blMultipartApplicationPdfThumbnail = false;
+                        bool blMultipartApplicationPdfImage = false;
                         long lMultipartContentLength = 0;
                         while (true)
                         {
@@ -966,6 +1000,12 @@ namespace TwainDirect.Support
 
                             // Convert this header to a string...
                             string szHeader = Encoding.UTF8.GetString(abBuffer, (int)lOffset, (int)(lCRLF - lOffset));
+
+                            // Squirrel this away...
+                            if (iHeaders < aszHeaders.Length)
+                            {
+                                aszHeaders[iHeaders++] = szHeader;
+                            }
 
                             // We found the content-type, so we now know what kind of
                             // data we're dealing with...
@@ -999,6 +1039,20 @@ namespace TwainDirect.Support
                                 }
                             }
 
+                            // The content-disposition helps us tell what kind of data
+                            // we're getting with an application/pdf block...
+                            else if (szHeader.ToLowerInvariant().StartsWith("content-disposition"))
+                            {
+                                if (szHeader.Contains("image.pdf"))
+                                {
+                                    blMultipartApplicationPdfImage = true;
+                                }
+                                if (szHeader.Contains("thumbnail.pdf"))
+                                {
+                                    blMultipartApplicationPdfThumbnail = true;
+                                }
+                            }
+
                             // We've read the header data, skip over it...
                             lOffset += (lCRLF - lOffset) + abCRLF.Length;
                         }
@@ -1006,6 +1060,17 @@ namespace TwainDirect.Support
                         // Okay, inside of here we'll handle the application/json data...
                         if (blMultipartApplicationJson)
                         {
+                            // Squirrel away this header information...
+                            if (iHeaders > 0)
+                            {
+                                m_aszMultipartHeadersJson = new string[iHeaders];
+                                Array.Copy(aszHeaders, m_aszMultipartHeadersJson, iHeaders);
+                                foreach (string szTmp in m_aszMultipartHeadersJson)
+                                {
+                                    Log.Verbose("http>>> recvheader (multipart/mixed json) " + szTmp);
+                                }
+                            }
+
                             // If we find ourselves in here more than once for this data
                             // transfer, then we have an issue...
                             if (blApplicationJsonSeen)
@@ -1040,6 +1105,27 @@ namespace TwainDirect.Support
                         // Handle the application/pdf data...
                         else if (blMultipartApplicationPdf)
                         {
+                            // Squirrel away this header information, we use the opportunity
+                            // to save just the data we got...
+                            if (blMultipartApplicationPdfThumbnail && (iHeaders > 0))
+                            {
+                                m_aszMultipartHeadersPdfThumbnail = new string[iHeaders];
+                                Array.Copy(aszHeaders, m_aszMultipartHeadersPdfThumbnail, iHeaders);
+                                foreach (string szTmp in m_aszMultipartHeadersPdfThumbnail)
+                                {
+                                    Log.Verbose("http>>> recvheader (multipart/mixed thumbnail) " + szTmp);
+                                }
+                            }
+                            if (blMultipartApplicationPdfImage && (iHeaders > 0))
+                            {
+                                m_aszMultipartHeadersPdfImage = new string[iHeaders];
+                                Array.Copy(aszHeaders, m_aszMultipartHeadersPdfImage, iHeaders);
+                                foreach (string szTmp in m_aszMultipartHeadersPdfImage)
+                                {
+                                    Log.Verbose("http>>> recvheader (multipart/mixed image) " + szTmp);
+                                }
+                            }
+
                             // There's a possibility that the binary data is smaller than
                             // or equal to the number of bytes we read.  Handle that here...
                             if (lMultipartContentLength <= (lRead - lOffset))
@@ -1607,6 +1693,9 @@ namespace TwainDirect.Support
                 m_szResponseStatus = a_apicmd.HttpStatus().ToString();
                 m_iResponseStatus = a_apicmd.GetResponseStatus();
                 m_aszResponseHeaders = a_apicmd.GetResponseHeaders();
+                m_aszMultipartHeadersJson = a_apicmd.GetResponseMultipartHeadersJson();
+                m_aszMultipartHeadersImage = a_apicmd.GetResponseMultipartHeadersImage();
+                m_aszMultipartHeadersThumbnail = a_apicmd.GetResponseMultipartHeadersThumbnail();
                 m_szResponseData = a_apicmd.GetResponseData();
                 m_szResponseText = a_apicmd.GetResponseText();
             }
@@ -1652,6 +1741,33 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the multipart JSON response headers for this transaction...
+            /// </summary>
+            /// <returns></returns>
+            public string[] GetMultipartHeadersJson()
+            {
+                return (m_aszMultipartHeadersJson);
+            }
+
+            /// <summary>
+            /// Get the multipart image response headers for this transaction...
+            /// </summary>
+            /// <returns></returns>
+            public string[] GetMultipartHeadersImage()
+            {
+                return (m_aszMultipartHeadersImage);
+            }
+
+            /// <summary>
+            /// Get the multipart thumbnail response headers for this transaction...
+            /// </summary>
+            /// <returns></returns>
+            public string[] GetMultipartHeadersThumbnail()
+            {
+                return (m_aszMultipartHeadersThumbnail);
+            }
+
+            /// <summary>
             /// Get the response data for this transaction, this should
             /// usually be JSON, or include JSON data...
             /// </summary>
@@ -1659,6 +1775,15 @@ namespace TwainDirect.Support
             public string GetResponseData()
             {
                 return (m_szResponseData);
+            }
+
+            /// <summary>
+            /// Get the response headers for this transaction...
+            /// </summary>
+            /// <returns></returns>
+            public string[] GetResponseHeaders()
+            {
+                return (m_aszResponseHeaders);
             }
 
             /// <summary>
@@ -1700,6 +1825,9 @@ namespace TwainDirect.Support
             /// Response headers, or null...
             /// </summary>
             private string[] m_aszResponseHeaders;
+            private string[] m_aszMultipartHeadersJson;
+            private string[] m_aszMultipartHeadersImage;
+            private string[] m_aszMultipartHeadersThumbnail;
 
             /// <summary>
             /// Response data, or null...
@@ -2090,6 +2218,14 @@ namespace TwainDirect.Support
         /// </summary>
         private string m_szResponseHttpStatus;
         private int m_iResponseHttpStatus;
+
+        /// <summary>
+        /// Header information we can get from a multipart/mixed
+        /// block of data...
+        /// </summary>
+        private string[] m_aszMultipartHeadersJson;
+        private string[] m_aszMultipartHeadersPdfThumbnail;
+        private string[] m_aszMultipartHeadersPdfImage;
 
         /// <summary>
         /// Data that goes with the reply...
