@@ -6,7 +6,7 @@
 ; arg:4 - get metadata with readImageBlock (default false)
 ; returns: pass or fail
 ;
-; Scan using TWAIN Direct, exercise and test as must of the system as possible...
+; Scan using TWAIN Direct, exercise and test as much of the system as possible...
 ;
 
 

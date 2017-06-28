@@ -1796,9 +1796,7 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Register a device.  Actually, we're patching a registration ticket that
-        /// was entered by an application.  They have to get us the registration id
-        /// so we can complete the process.
+        /// Register a device.
         /// 
         /// We register the commands and finalize.  None of this requires anything
         /// more than our application key.
@@ -1828,16 +1826,12 @@ namespace TwainDirect.Support
             }
             string szHostName = a_jsonlookup.Get(szScanner + ".hostName");
             string szSerialNumber = a_jsonlookup.Get(szScanner + ".serialNumber");
+            string szScannerRecord = a_jsonlookup.Get(szScanner);
 
-            // Get the device code...
+            // Set the register.txt file...
             try
             {
-                m_twainlocalsessionInfo.DeviceRegisterSet
-                (
-                    szDeviceName,
-                    szSerialNumber,
-                    a_szNote
-                );
+                m_twainlocalsessionInfo.DeviceRegisterSet(szDeviceName, szSerialNumber, a_szNote, szScannerRecord);
             }
             catch
             {
@@ -4701,19 +4695,16 @@ namespace TwainDirect.Support
             /// <param name="a_szTwainLocalTy">TWAIN Local ty= field</param>
             /// <param name="a_szTwainLocalSerialNumber">TWAIN serial number (from CAP_SERIALNUMBER)</param>
             /// <param name="a_szTwainLocalNote">User's friendly name</param>
+            /// <param name="a_szScanner">the complete scanner record</param>
             public void DeviceRegisterSet
             (
                 string a_szTwainLocalTy,
                 string a_szTwainLocalSerialNumber,
-                string a_szTwainLocalNote
+                string a_szTwainLocalNote,
+                string a_szScanner
             )
             {
-                m_deviceregister.Set
-                (
-                    a_szTwainLocalTy,
-                    a_szTwainLocalSerialNumber,
-                    a_szTwainLocalNote
-                );
+                m_deviceregister.Set(a_szTwainLocalTy, a_szTwainLocalSerialNumber, a_szTwainLocalNote, a_szScanner);
             }
 
             /// <summary>

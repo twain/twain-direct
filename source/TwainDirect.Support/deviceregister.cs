@@ -130,7 +130,8 @@ namespace TwainDirect.Support
                 (
                     jsonlookup.Get("scanner.twainLocalTy"),
                     jsonlookup.Get("scanner.twainLocalSerialNumber"),
-                    jsonlookup.Get("scanner.twainLocalNote")
+                    jsonlookup.Get("scanner.twainLocalNote"),
+                    jsonlookup.Get("scanner")
                 );
             }
             catch
@@ -172,7 +173,8 @@ namespace TwainDirect.Support
                 // of performance) that we'l going to take the risk...
                 szData += "        \"twainLocalTy\": \"" + m_device.szTwainLocalTy + "\",\n";
                 szData += "        \"twainLocalSerialNumber\": \"" + m_device.szTwainLocalSerialNumber + "\",\n";
-                szData += "        \"twainLocalNote\": \"" + m_device.szTwainLocalNote + "\"\n";
+                szData += "        \"twainLocalNote\": \"" + m_device.szTwainLocalNote + "\",\n";
+                szData += "        \"twainLocalScanner\": " + m_device.szScanner + "\n";
 
                 // End of scanner object...
                 szData += "    }\n";
@@ -201,11 +203,13 @@ namespace TwainDirect.Support
         /// <param name="szTwainLocalTy">TWAIN Local ty= field</param>
         /// <param name="a_szTwainLocalSerialNumber">TWAIN serial number (from CAP_SERIALNUMBER)</param>
         /// <param name="szTwainLocalNote">TWAIN Local note= field</param>
+        /// <param name="a_szScanner">the complete scanner record</param>
         public void Set
         (
             string a_szTwainLocalTy,
             string a_szTwainLocalSerialNumber,
-            string a_szTwainLocalNote
+            string a_szTwainLocalNote,
+            string a_szScanner
         )
         {
             // Init stuff...
@@ -222,6 +226,7 @@ namespace TwainDirect.Support
             m_device.szTwainLocalTy = a_szTwainLocalTy;
             m_device.szTwainLocalSerialNumber = a_szTwainLocalSerialNumber;
             m_device.szTwainLocalNote = a_szTwainLocalNote;
+            m_device.szScanner = a_szScanner;
 
             // If the note is empty, use the type...
             if (string.IsNullOrEmpty(m_device.szTwainLocalNote))
@@ -295,6 +300,13 @@ namespace TwainDirect.Support
             /// to be unique on the local area network...
             /// </summary>
             public string szTwainLocalNote;
+
+            /// <summary>
+            /// The complete scanner record collected by TwainInquiry().  Everything
+            /// TwainDirectOnTwain can tell us about this device that might make it
+            /// easier to support.
+            /// </summary>
+            public string szScanner;
         }
 
         #endregion

@@ -1462,6 +1462,105 @@ namespace TwainDirect.OnTwain
             bool blSuccess;
             string szTask;
 
+            // TWAIN Driver Support...
+            #region TWAIN Driver Support
+
+            /*
+            // Have the driver process the task...
+            if (m_blNativeTwainDirectSupport)
+            {
+                string szMetadata;
+                TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);
+
+                // Convert the task to an array, and then copy it into
+                // memory pointed to by a handle...
+                string szTask = a_szTask.Replace("\r", "").Replace("\n", "");
+                byte[] abTask = Encoding.UTF8.GetBytes(szTask);
+                IntPtr intptrTask = Marshal.AllocHGlobal(abTask.Length);
+                Marshal.Copy(abTask, 0, intptrTask, abTask.Length);
+
+                // Build the command...
+                szMetadata =
+                    Marshal.SizeOf(twtwaindirect) + "," +   // SizeOf
+                    "0" + "," +                             // CommunicationManager
+                    intptrTask + "," +                      // Send
+                    abTask.Length + "," +                   // SendSize
+                    "0" + "," +                             // Receive
+                    "0";                                    // ReceiveSize
+
+                // Send the command...
+                szStatus = "";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_TWAINDIRECT", "MSG_SETTASK", ref szMetadata, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
+                    Marshal.FreeHGlobal(intptrTask);
+                    intptrTask = IntPtr.Zero;
+                    m_twaincstoolkit.Cleanup();
+                    m_twaincstoolkit = null;
+                    return (false);
+                }
+
+                // TBD: Open up the reply (we should probably get the CsvToTwaindirect
+                // function to do this for us)...
+                string[] asz = szMetadata.Split(new char[] { ',' });
+                if ((asz == null) || (asz.Length < 6))
+                {
+                    TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
+                    Marshal.FreeHGlobal(intptrTask);
+                    intptrTask = IntPtr.Zero;
+                    m_twaincstoolkit.Cleanup();
+                    m_twaincstoolkit = null;
+                    return (false);
+                }
+
+                // Get the reply data...
+                long lReceive;
+                if (!long.TryParse(asz[4], out lReceive) || (lReceive == 0))
+                {
+                    TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
+                    Marshal.FreeHGlobal(intptrTask);
+                    intptrTask = IntPtr.Zero;
+                    m_twaincstoolkit.Cleanup();
+                    m_twaincstoolkit = null;
+                    return (false);
+                }
+                IntPtr intptrReceiveHandle = new IntPtr(lReceive);
+                uint u32ReceiveBytes;
+                if (!uint.TryParse(asz[5], out u32ReceiveBytes) || (u32ReceiveBytes == 0))
+                {
+                    TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
+                    m_twaincstoolkit.DsmMemFree(ref intptrReceiveHandle);
+                    Marshal.FreeHGlobal(intptrTask);
+                    intptrTask = IntPtr.Zero;
+                    m_twaincstoolkit.Cleanup();
+                    m_twaincstoolkit = null;
+                    return (false);
+                }
+
+                // Convert it to an array and then a string...
+                IntPtr intptrReceive = m_twaincstoolkit.DsmMemLock(intptrReceiveHandle);
+                byte[] abReceive = new byte[u32ReceiveBytes];
+                Marshal.Copy(intptrReceive, abReceive, 0, (int)u32ReceiveBytes);
+                string szReceive = Encoding.UTF8.GetString(abReceive);
+                m_twaincstoolkit.DsmMemUnlock(intptrReceiveHandle);
+
+                // Cleanup...
+                m_twaincstoolkit.DsmMemFree(ref intptrReceiveHandle);
+                Marshal.FreeHGlobal(intptrTask);
+                intptrTask = IntPtr.Zero;
+
+                // Squirrel the reply away...
+                //a_swordtask.SetTaskReply(szReceive);
+                return (true);
+            }
+            */
+
+            #endregion
+
+            // TWAIN Bridge Support...
+            #region TWAIN Bridge Support...
+
             // Init stuff...
             a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit);
 
@@ -1481,6 +1580,8 @@ namespace TwainDirect.OnTwain
             {
                 return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
             }
+
+            #endregion
 
             // All done...
             return (TwainLocalScanner.ApiStatus.success);

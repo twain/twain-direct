@@ -110,6 +110,7 @@ namespace TwainDirect.OnTwain
             bool blSuccess;
             string szStatus;
             TWAINCSToolkit.STS sts;
+            TwainInquiryData twaininquirydata;
             TWAINWorkingGroup.Log.Info("Batch mode starting...");
 
             // Skip if it's already open...
@@ -186,14 +187,16 @@ namespace TwainDirect.OnTwain
             }
 
             // Collect information about the scanner...
-            if (!TwainInquiry(true))
+            twaininquirydata = TwainInquiry(m_szTwainDriverIdentity);
+            if (    (twaininquirydata.GetTwainDirectSupport() == TwainDirectSupport.Undefined)
+                ||  (twaininquirydata.GetTwainDirectSupport() == TwainDirectSupport.None))
             {
                 TWAINWorkingGroup.Log.Error("Process: TwainInquiry says we can't do this");
                 return (false);
             }
 
             // Have the driver process the task...
-            if (m_blNativeTwainDirectSupport)
+            if (twaininquirydata.GetTwainDirectSupport() == TwainDirectSupport.Full)
             {
                 string szMetadata;
                 TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);
@@ -282,7 +285,9 @@ namespace TwainDirect.OnTwain
             }
 
             // Collect information about the scanner...
-            if (!TwainInquiry(false))
+            twaininquirydata = TwainInquiry(m_szTwainDriverIdentity);
+            if (    (twaininquirydata.GetTwainDirectSupport() == TwainDirectSupport.Undefined)
+                ||  (twaininquirydata.GetTwainDirectSupport() == TwainDirectSupport.None))
             {
                 TWAINWorkingGroup.Log.Error("Process: TwainInquiry says we can't do this");
                 //m_twaincstoolkit.Cleanup();
@@ -940,13 +945,9 @@ namespace TwainDirect.OnTwain
         /// <returns>The list of drivers</returns>
         public static string TwainListDrivers()
         {
-            int iEnum;
             string szStatus;
             string szTwainDriverIdentity;
             string szList = "";
-            string szCapability;
-            string szValues;
-            string[] aszContainer;
             IntPtr intptrHwnd;
             TWAINCSToolkit twaincstoolkit;
             TWAINCSToolkit.STS sts;
@@ -1006,11 +1007,12 @@ namespace TwainDirect.OnTwain
 
             // Okay, we have a list of identities, so now let's try to open each one of
             // them up and ask some questions...
-            szList = "{\n";
-            szList += "    \"scanners\": [\n";
+            szList = "{\"scanners\":[";
             string szTwidentityLast = null;
             foreach (string szTwidentity in aszTwidentity)
             {
+                TwainInquiryData twaininquirydata;
+
                 // Closing the previous driver up here helps make the code in this section a
                 // little cleaner, allowing us to continue instead of having to do a cleanup
                 // run in each statement that deals with a problem...
@@ -1049,623 +1051,32 @@ namespace TwainDirect.OnTwain
 
                 // Build an object to add to the list, this is a scratchpad, so if we
                 // have to abandon it mid-way through, it's no problem...
-                string szObject = (!szList.Contains("twidentity")) ? "        {\n" : ",\n        {\n";
                 string[] szTwidentityBits = CSV.Parse(szTwidentity);
                 if (szTwidentityBits == null)
                 {
                     TWAINWorkingGroup.Log.Info("Unable to parse TW_IDENTITY: " + szTwidentity);
                     continue;
                 }
-                szObject += "            \"twidentity\": \"" + szTwidentityBits[11] + "\",\n";
 
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Is the UI controllable?  This isn't a guarantee of good behavior, but without it
-                // we can be confident that the driver won't behave well...
-                #region Is the UI controllable?
-
-                // Get the current value...
-                szStatus = "";
-                szCapability = "CAP_UICONTROLLABLE";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-
-                // If we don't find it, that's bad...                
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                // Check out the driver to see if we can use this driver, and while
+                // we're at it, collect interesting information...
+                ProcessSwordTask processswordtask = new ProcessSwordTask("", twaincstoolkit);
+                twaininquirydata = processswordtask.TwainInquiry(szTwidentity);
+                if (    (twaininquirydata.GetTwainDirectSupport() == TwainDirectSupport.Undefined)
+                    ||  (twaininquirydata.GetTwainDirectSupport() == TwainDirectSupport.Undefined))
                 {
-                    TWAINWorkingGroup.Log.Info("CAP_UICONTROLLABLE error: " + szTwidentity);
+                    TWAINWorkingGroup.Log.Error("TwainInquiry says it can't support this driver: " + szTwidentity);
                     continue;
                 }
 
-                // Parse it...
-                aszContainer = CSV.Parse(szCapability);
+                // Serialize the object...
+                string szObject = (!szList.Contains("twidentity")) ? "" : ",";
+                szObject += twaininquirydata.Serialize(szTwidentityBits[11]);
 
-                // Oh dear...
-                if (aszContainer[1] != "TWON_ONEVALUE")
-                {
-                    TWAINWorkingGroup.Log.Error("CAP_UICONTROLLABLE unsupported container: " + szTwidentity);
-                    continue;
-                }
-
-                // If we can't keep the UI off, then we can't use this driver...
-                if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
-                {
-                    TWAINWorkingGroup.Log.Error("CAP_UICONTROLLABLE isn't TRUE: " + szTwidentity);
-                    continue;
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Make sure the units is set to inches, otherwise we're going to have a less than
-                // plesant experience getting information about the cropping region...
-                #region Is units set to inches?
-
-                // Get the current value...
-                szStatus = "";
-                szCapability = "ICAP_UNITS";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-
-                // If we don't find it, that's bad...                
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_UNITS error: " + szTwidentity);
-                    continue;
-                }
-
-                // Parse it...
-                aszContainer = CSV.Parse(szCapability);
-
-                // Oh dear...
-                if (aszContainer[1] != "TWON_ONEVALUE")
-                {
-                    TWAINWorkingGroup.Log.Error("ICAP_UNITS unsupported container: " + szTwidentity);
-                    continue;
-                }
-
-                // If we't not inches, then set us to inches...
-                if ((aszContainer[3] != "0") && (aszContainer[3] != "TWUN_INCHES"))
-                {
-                    szStatus = "";
-                    szCapability = aszContainer[0] + "," + aszContainer[1] + "," + aszContainer[2] + ",0";
-                    sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAINCSToolkit.STS.SUCCESS)
-                    {
-                        TWAINWorkingGroup.Log.Info("ICAP_UNITS set failed: " + szTwidentity);
-                        continue;
-                    }
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // hostName: this allows us to pair a scanner with a PC, which is needed if the user
-                // has access to more than one scanner of the same model...
-                #region hostName...
-
-                try
-                {
-                    szObject += "            \"hostName\": \"" + Dns.GetHostName() + "\",\n";
-                }
-                catch (Exception exception)
-                {
-                    TWAINWorkingGroup.Log.Info("Failed to get hostName: " + exception.Message);
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // serialNumber: this allows us to uniquely identify a scanner, it's debatable if we
-                // need both the hostname and the serial number, but for now that's what we're doing...
-                #region serialNumber...
-
-                // Get the current value...
-                szStatus = "";
-                szCapability = "CAP_SERIALNUMBER";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-
-                // It's an error, because we've lost the ability to handle more than one
-                // model of this scanner, but it's not fatal, because we can stil handle
-                // at least one scanner...                
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    // If we don't have a serial number, use X, we need the smallest
-                    // value we can get to work with the "TWAIN_FreeImage Software Scanner"...
-                    TWAINWorkingGroup.Log.Info("CAP_SERIALNUMBER error: " + szTwidentity);
-                    szObject += "            \"serialNumber\": \"X\",\n";
-                }
-
-                // Keep on keeping on...
-                else
-                {
-                    // Parse it...
-                    aszContainer = CSV.Parse(szCapability);
-
-                    // We've been weirded out...
-                    if (aszContainer[1] != "TWON_ONEVALUE")
-                    {
-                        TWAINWorkingGroup.Log.Error("CAP_SERIALNUMBER unsupported container: " + szTwidentity);
-                    }
-
-                    // This is enough to add the item...
-                    else
-                    {
-                        szObject += "            \"serialNumber\": \"" + aszContainer[3] + "\",\n";
-                    }
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // sources...
-                #region sources...
-
-                // Get the enumeration...
-                szStatus = "";
-                szCapability = "CAP_FEEDERENABLED";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
-
-                // Assume that we have a flatbed...
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    szObject += "            \"source\": [\"any\",\"flatbed\"],\n";
-                }
-
-                // It looks like we have something else...
-                else
-                {
-                    // Parse it...
-                    aszContainer = CSV.Parse(szCapability);
-
-                    // Handle the container...
-                    szValues = "\"any\"";
-                    switch (aszContainer[1])
-                    {
-                        default:
-                            TWAINWorkingGroup.Log.Info("CAP_FEEDERENABLED unsupported container: " + szTwidentity);
-                            continue;
-
-                        // These containers are just off by an index, so we can combine them.
-                        // We should be checking the bitdepth, just to be sure, but this is a
-                        // real edge case that shouldn't matter 99% of the time...
-                        case "TWON_ONEVALUE":
-                        case "TWON_ENUMERATION":
-                            for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
-                            {
-                                switch (aszContainer[iEnum])
-                                {
-                                    default:
-                                        break;
-                                    case "0": // FALSE
-                                        if (!szValues.Contains("flatbed"))
-                                        {
-                                            szValues += ",\"flatbed\"";
-                                        }
-                                        break;
-                                    case "1": // TRUE
-                                        if (!szValues.Contains("feeder"))
-                                        {
-                                            szValues += ",\"feeder\"";
-                                        }
-                                        break;
-                                }
-                            }
-                            break;
-                    }
-
-                    // Add to the list...
-                    if (szValues != "")
-                    {
-                        szObject += "            \"source\": [" + szValues + "],\n";
-                    }
-                    else
-                    {
-                        TWAINWorkingGroup.Log.Info("ICAP_PIXELTYPE no recognized values: " + szTwidentity);
-                    }
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // numberOfSheets...
-                #region numberOfSheets...
-
-                szObject += "            \"numberOfSheets\": [1,32767],\n";
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // resolutions...
-                #region resolutions...
-
-                // Get the enumeration...
-                szStatus = "";
-                szCapability = "ICAP_XRESOLUTION";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_XRESOLUTION error: " + szTwidentity);
-                    continue;
-                }
-
-                // Parse it...
-                aszContainer = CSV.Parse(szCapability);
-
-                // Handle the container...
-                szValues = "";
-                switch (aszContainer[1])
-                {
-                    default:
-                        TWAINWorkingGroup.Log.Info("ICAP_XRESOLUTION unsupported container: " + szTwidentity);
-                        continue;
-
-                    // These containers are just off by an index, so we can combine them.
-                    // We should be checking the bitdepth, just to be sure, but this is a
-                    // real edge case that shouldn't matter 99% of the time...
-                    case "TWON_ONEVALUE":
-                    case "TWON_ENUMERATION":
-                        for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
-                        {
-                            if (!szValues.Contains(aszContainer[iEnum]))
-                            {
-                                szValues += (szValues == "") ? aszContainer[iEnum] : ("," + aszContainer[iEnum]);
-                            }
-                        }
-                        break;
-
-                    // We're not going to support ranges at this time.  Instead we'll
-                    // pare the range down to a set of commonly used resolutions...
-                    case "TWON_RANGE":
-                        // Get the min and the max, and add items in that range...
-                        int iMin;
-                        int iMax;
-                        if (!int.TryParse(aszContainer[3], out iMin))
-                        {
-                            TWAINWorkingGroup.Log.Info("ICAP_XRESOLUTION error: " + szTwidentity);
-                            continue;
-                        }
-                        if (!int.TryParse(aszContainer[4], out iMax))
-                        {
-                            TWAINWorkingGroup.Log.Info("ICAP_XRESOLUTION error: " + szTwidentity);
-                            continue;
-                        }
-                        szValues += iMin;
-                        foreach (int iRes in new int[] { 75, 100, 150, 200, 240, 250, 300, 400, 500, 600, 1200, 2400, 4800, 9600, 19200 })
-                        {
-                            if ((iMin < iRes) && (iRes < iMax))
-                            {
-                                szValues += "," + iRes;
-                            }
-                        }
-                        szValues += "," + iMax;
-                        break;
-                }
-
-                // Add to the list...
-                if (szValues != "")
-                {
-                    szObject += "            \"resolution\": [" + szValues + "],\n";
-                }
-                else
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_XRESOLUTION no recognized values: " + szTwidentity);
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // height...
-                #region height...
-
-                // Get the physical height...
-                szStatus = "";
-                szCapability = "ICAP_PHYSICALHEIGHT";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_PHYSICALHEIGHT error: " + szTwidentity);
-                    continue;
-                }
-                aszContainer = CSV.Parse(szCapability);
-                int iMaxHeightMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
-
-                // Get the physical width...
-                szStatus = "";
-                szCapability = "ICAP_PHYSICALWIDTH";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_PHYSICALWIDTH error: " + szTwidentity);
-                    continue;
-                }
-                aszContainer = CSV.Parse(szCapability);
-                int iMaxWidthMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
-
-                // Get the minimum height...
-                int iMinHeightMicrons = 0;
-                szStatus = "";
-                szCapability = "ICAP_MINIMUMHEIGHT";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_MINIMUMHEIGHT not found, we'll use 2 inches: " + szTwidentity);
-                    iMinHeightMicrons = (2 * 25400);
-                }
-                else
-                {
-                    aszContainer = CSV.Parse(szCapability);
-                    iMinHeightMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
-                }
-
-                // Get the minimum width...
-                int iMinWidthMicrons = 0;
-                szStatus = "";
-                szCapability = "ICAP_MINIMUMWIDTH";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_MINIMUMWIDTH error, we'll use 2 inches: " + szTwidentity);
-                    iMinWidthMicrons = (2 * 25400);
-                }
-                else
-                {
-                    aszContainer = CSV.Parse(szCapability);
-                    iMinWidthMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
-                }
-
-                // Update the object
-                szObject += "            \"height\": [" + iMinHeightMicrons + "," + iMaxHeightMicrons + "],\n";
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // width...
-                #region width...
-
-                // Update the object
-                szObject += "            \"width\": [" + iMinWidthMicrons + "," + iMaxWidthMicrons + "],\n";
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // offsetX...
-                #region offsetX...
-
-                // Update the object
-                szObject += "            \"offsetX\": [0," + (iMaxWidthMicrons - iMinWidthMicrons) + "],\n";
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // offsetY...
-                #region offsetY...
-
-                // Update the object
-                szObject += "            \"offsetY\": [0," + (iMaxHeightMicrons - iMinHeightMicrons) + "],\n";
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // cropping...
-                #region cropping...
-
-                // Get the enumeration...
-                szStatus = "";
-                szCapability = "ICAP_AUTOMATICBORDERDETECTION";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    szObject += "            \"cropping\": [\"fixed\"],\n";
-                }
-                else
-                {
-                    // Parse it...
-                    aszContainer = CSV.Parse(szCapability);
-
-                    // Handle the container...
-                    szValues = "";
-                    switch (aszContainer[1])
-                    {
-                        default:
-                            TWAINWorkingGroup.Log.Info("ICAP_AUTOMATICBORDERDETECTION unsupported container: " + szTwidentity);
-                            continue;
-
-                        // These containers are just off by an index, so we can combine them.
-                        // We should be checking the bitdepth, just to be sure, but this is a
-                        // real edge case that shouldn't matter 99% of the time...
-                        case "TWON_ONEVALUE":
-                        case "TWON_ENUMERATION":
-                            for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
-                            {
-                                switch (aszContainer[iEnum])
-                                {
-                                    default:
-                                        break;
-                                    case "0": // FALSE
-                                        if (!szValues.Contains("fixed"))
-                                        {
-                                            szValues += (szValues == "") ? "\"fixed\"" : ",\"fixed\"";
-                                        }
-                                        break;
-                                    case "1": // TRUE
-                                        if (!szValues.Contains("auto"))
-                                        {
-                                            szValues += (szValues == "") ? "\"auto\"" : ",\"auto\"";
-                                        }
-                                        break;
-                                }
-                            }
-                            break;
-                    }
-
-                    // Add to the list...
-                    if (szValues != "")
-                    {
-                        szObject += "            \"cropping\": [" + szValues + "],\n";
-                    }
-                    else
-                    {
-                        TWAINWorkingGroup.Log.Info("ICAP_AUTOMATICBORDERDETECTION no recognized values: " + szTwidentity);
-                    }
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // pixelFormat...
-                #region pixelFormat...
-
-                // Get the enumeration...
-                szStatus = "";
-                szCapability = "ICAP_PIXELTYPE";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_PIXELTYPE error: " + szTwidentity);
-                    continue;
-                }
-
-                // Parse it...
-                aszContainer = CSV.Parse(szCapability);
-
-                // Handle the container...
-                szValues = "";
-                switch (aszContainer[1])
-                {
-                    default:
-                        TWAINWorkingGroup.Log.Info("ICAP_PIXELTYPE unsupported container: " + szTwidentity);
-                        continue;
-
-                    // These containers are just off by an index, so we can combine them.
-                    // We should be checking the bitdepth, just to be sure, but this is a
-                    // real edge case that shouldn't matter 99% of the time...
-                    case "TWON_ONEVALUE":
-                    case "TWON_ENUMERATION":
-                        for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
-                        {
-                            switch (aszContainer[iEnum])
-                            {
-                                default:
-                                    break;
-                                case "0": // TWPT_BW
-                                    if (!szValues.Contains("bw1"))
-                                    {
-                                        szValues += (szValues == "") ? "\"bw1\"" : ",\"bw1\"";
-                                    }
-                                    break;
-                                case "1": // TW_PT_GRAY
-                                    if (!szValues.Contains("gray8"))
-                                    {
-                                        szValues += (szValues == "") ? "\"gray8\"" : ",\"gray8\"";
-                                    }
-                                    break;
-                                case "2": // TWPT_RGB
-                                    if (!szValues.Contains("rgb24"))
-                                    {
-                                        szValues += (szValues == "") ? "\"rgb24\"" : ",\"rgb24\"";
-                                    }
-                                    break;
-                            }
-                        }
-                        break;
-                }
-
-                // Add to the list...
-                if (szValues != "")
-                {
-                    szObject += "            \"pixelFormat\": [" + szValues + "],\n";
-                }
-                else
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_PIXELTYPE no recognized values: " + szTwidentity);
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // compression...
-                #region compression...
-
-                // Get the enumeration...
-                szStatus = "";
-                szCapability = "ICAP_COMPRESSION";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_COMPRESSION error: " + szTwidentity);
-                    continue;
-                }
-
-                // Parse it...
-                aszContainer = CSV.Parse(szCapability);
-
-                // Handle the container...
-                szValues = "";
-                switch (aszContainer[1])
-                {
-                    default:
-                        TWAINWorkingGroup.Log.Info("ICAP_COMPRESSION unsupported container: " + szTwidentity);
-                        continue;
-
-                    // These containers are just off by an index, so we can combine them...
-                    case "TWON_ONEVALUE":
-                    case "TWON_ENUMERATION":
-                        for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
-                        {
-                            switch (aszContainer[iEnum])
-                            {
-                                default:
-                                    break;
-                                case "0": // TWCP_NONE
-                                    if (!szValues.Contains("none"))
-                                    {
-                                        szValues += (szValues == "") ? "\"none\"" : ",\"none\"";
-                                    }
-                                    break;
-                                case "5": // TWCP_GROUP4
-                                case "6": // TWCP_JPEG
-                                    if (!szValues.Contains("autoVersion1"))
-                                    {
-                                        szValues += (szValues == "") ? "\"autoVersion1\"" : ",\"autoVersion1\"";
-                                    }
-                                    break;
-                            }
-                        }
-                        break;
-                }
-
-                // Add to the list...
-                if (szValues != "")
-                {
-                    szObject += "            \"compression\": [" + szValues + "]\n";
-                }
-                else
-                {
-                    TWAINWorkingGroup.Log.Info("ICAP_COMPRESSION no recognized values: " + szTwidentity);
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
                 // We got this far, so add the object to the list we're building...
-                szObject += "        }";
                 szList += szObject;
             }
-            szList += "\n    ]\n";
-            szList += "}";
+            szList += "]}";
 
             // Take care of the last close, if we have one...
             if (szTwidentityLast != null)
@@ -1780,6 +1191,22 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// Report the level of TWAIN Direct support.  A value of
+        /// none indicates that the driver is not safe for use.
+        /// Minimal indicates that the driver can be used, but it
+        /// needs the TWAIN Bridge to handle TWAIN Direct features.
+        /// Full indicates that the driver can handle TWAIN Direct
+        /// tasks and return metadata and PDF/raster images.
+        /// </summary>
+        public enum TwainDirectSupport
+        {
+            Undefined,
+            None,
+            Minimal,
+            Full
+        }
+
+        /// <summary>
         /// Tells us the owner of the vendor id...
         /// </summary>
         public enum VendorOwner
@@ -1788,6 +1215,591 @@ namespace TwainDirect.OnTwain
             Twain,          // owned by TWAIN Classic
             Scanner,        // owned by the current scanner
             Unknown         // everybody else
+        }
+
+        /// <summary>
+        /// Information collected as part of TwainInquiry...
+        /// </summary>
+        public class TwainInquiryData
+        {
+            /// <summary>
+            ///  Don't just stand there, construct something!
+            /// </summary>
+            public TwainInquiryData()
+            {
+                m_twaindirectsupport = TwainDirectSupport.Undefined;
+            }
+
+            /// <summary>
+            /// Get JSON array of compressions...
+            /// </summary>
+            /// <returns>JSON array of compressions</returns>
+            public string GetCompressions()
+            {
+                return (m_szCompressions);
+            }
+
+            /// <summary>
+            /// Get JSON array of cropping values...
+            /// </summary>
+            /// <returns>JSON array of cropping values</returns>
+            public string GetCroppings()
+            {
+                return (m_szCroppings);
+            }
+
+            /// <summary>
+            /// Get the DAT_TWAINDIRECT...
+            /// </summary>
+            /// <returns>true if DAT_TWAINDIRECT is supported</returns>
+            public bool GetDatTwainDirect()
+            {
+                return (m_blDatTwainDirect);
+            }
+
+            /// <summary>
+            /// Get the device online setting...
+            /// </summary>
+            /// <returns>true if the device is online</returns>
+            public bool GetDeviceOnline()
+            {
+                return (m_blDeviceOnline);
+            }
+
+            /// <summary>
+            /// Get the extended image info setting...
+            /// </summary>
+            /// <returns>true if extended image info is supported</returns>
+            public bool GetExtImageInfo()
+            {
+                return (m_blExtImageInfo);
+            }
+
+            /// <summary>
+            /// Get the feeder detected setting...
+            /// </summary>
+            /// <returns>true if we have a feeder</returns>
+            public bool GetFeederDetected()
+            {
+                return (m_blFeederDetected);
+            }
+
+            /// <summary>
+            /// Get the flatbed detected setting...
+            /// </summary>
+            /// <returns>true if we have a flatbed</returns>
+            public bool GetFlatbedDetected()
+            {
+                return (m_blFlatbedDetected);
+            }
+
+            /// <summary>
+            /// Get JSON min,max height
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetHeight()
+            {
+                return (m_szHeight);
+            }
+
+            /// <summary>
+            /// Get the image mem file setting...
+            /// </summary>
+            /// <returns>true if support mem file transfers</returns>
+            public bool GetImageMemFileXfer()
+            {
+                return (m_blImageMemFileXfer);
+            }
+
+            /// <summary>
+            /// Get the image file setting...
+            /// </summary>
+            /// <returns>true if support file transfers</returns>
+            public bool GetImageFileXfer()
+            {
+                return (m_blImageFileXfer);
+            }
+
+            /// <summary>
+            /// Get JSON min,max offsetx
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetOffsetX()
+            {
+                return (m_szOffsetX);
+            }
+
+            /// <summary>
+            /// Get JSON min,max offsety
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetOffsetY()
+            {
+                return (m_szOffsetY);
+            }
+
+            /// <summary>
+            /// Get the paper detect setting...
+            /// </summary>
+            /// <returns>true if we can detect paper</returns>
+            public bool GetPaperDetectable()
+            {
+                return (m_blPaperDetectable);
+            }
+
+            /// <summary>
+            /// Get the PDF/raster setting...
+            /// </summary>
+            /// <returns>true if we support PDF/raster</returns>
+            public bool GetPdfRaster()
+            {
+                return (m_blPdfRaster);
+            }
+
+            /// <summary>
+            /// Get the reset setting...
+            /// </summary>
+            /// <returns>true if reset is supported</returns>
+            public bool GetPendingXfersReset()
+            {
+                return (m_blPendingXfersReset);
+            }
+
+            /// <summary>
+            /// Get the stop feeder setting...
+            /// </summary>
+            /// <returns>true if stop feeder is supported</returns>
+            public bool GetPendingXfersStopFeeder()
+            {
+                return (m_blPendingXfersStopFeeder);
+            }
+
+            /// <summary>
+            /// Get the JSON array of pixelFormats...
+            /// </summary>
+            /// <returns>JSON array of pixelFormats</returns>
+            public string GetPixelFormats()
+            {
+                return (m_szPixelFormats);
+            }
+
+            /// <summary>
+            /// Get a JSON array of resolutions...
+            /// </summary>
+            /// <returns>string or empty string</returns>
+            public string GetResolutions()
+            {
+                return (string.IsNullOrEmpty(m_szResolutions) ? "" : m_szResolutions);
+            }
+
+            /// <summary>
+            /// Get the serial number setting...
+            /// </summary>
+            /// <returns>the serial number, if there is one</returns>
+            public string GetSerialNumber()
+            {
+                return (string.IsNullOrEmpty(m_szSerialnumber) ? "" : m_szSerialnumber);
+            }
+
+            /// <summary>
+            /// Do we support sheet count?
+            /// </summary>
+            /// <returns>true if sheet countis supported</returns>
+            public bool GetSheetCount()
+            {
+                return (m_blSheetCount);
+            }
+
+            /// <summary>
+            /// Get the twain direct support setting...
+            /// </summary>
+            /// <returns>the level of twain direct support</returns>
+            public TwainDirectSupport GetTwainDirectSupport()
+            {
+                return (m_twaindirectsupport);
+            }
+
+            /// <summary>
+            /// Get the twain direct metadata setting...
+            /// </summary>
+            /// <returns>true if we can get metadata</returns>
+            public bool GetTweiTwainDirectMetadata()
+            {
+                return (m_blTweiTwainDirectMetadata);
+            }
+
+            /// <summary>
+            /// Get the ui controllable setting...
+            /// </summary>
+            /// <returns>true if we can control the ui</returns>
+            public bool GetUiControllable()
+            {
+                return (m_blUiControllable);
+            }
+
+            /// <summary>
+            /// Get JSON min,max width
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetWidth()
+            {
+                return (m_szWidth);
+            }
+
+            /// <summary>
+            /// Serialize the data into JSON...
+            /// </summary>
+            /// <returns>a JSON object</returns>
+            public string Serialize(string a_szTwidentity)
+            {
+                string szJson = "";
+
+                // Start object...
+                szJson += "{";
+                szJson += "\"twidentity\":\"" + a_szTwidentity + "\",";
+                szJson += "\"twainDirectSupport\":\"" + m_twaindirectsupport + "\",";
+                szJson += "\"isDatTwainDirectSupported\":" + m_blDatTwainDirect.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isDeviceOnline\":" + m_blDeviceOnline.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isExtImageInfoSupported\":" + m_blExtImageInfo.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isFeederDetected\":" + m_blFeederDetected.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isFlatbedDetected\":" + m_blFlatbedDetected.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isImageFileXferSupported\":" + m_blImageFileXfer.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isImagememFileXferSupported\":" + m_blImageMemFileXfer.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPaperDetectableSupported\":" + m_blPaperDetectable.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPdfRasterSupported\":" + m_blPdfRaster.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPendingXfersResetSupported\":" + m_blPendingXfersReset.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPendingXfersStopFeederSupported\":" + m_blPendingXfersStopFeeder.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isSheetCountSupported\":" + m_blSheetCount.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isTweiTwainDirectMetadataSupported\":" + m_blTweiTwainDirectMetadata.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isUiControllableSupported\":" + m_blUiControllable.ToString().ToLowerInvariant() + ",";
+                szJson += "\"hostName\":\"" + Dns.GetHostName() + "\",";
+                szJson += "\"serialNumber\":\"" + m_szSerialnumber + "\",";
+                szJson += "\"numberOfSheets\":" + (m_blSheetCount ? "[1, 32767]" : "[1, 1]") + ",";
+                szJson += "\"resolution\":" + m_szResolutions + ",";
+                szJson += "\"height\":" + m_szHeight + ",";
+                szJson += "\"width\":" + m_szWidth + ",";
+                szJson += "\"offsetX\":" + m_szOffsetX + ",";
+                szJson += "\"offsetY\":" + m_szOffsetY + ",";
+                szJson += "\"cropping\":" + m_szCroppings + ",";
+                szJson += "\"pixelFormat\":" + m_szPixelFormats + ",";
+                szJson += "\"compression\":" + m_szCompressions; // last item, so no comma separator...
+                szJson += "}";
+
+                // All done...
+                return (szJson);
+            }
+
+            /// <summary>
+            /// Set JSON array of compressions...
+            /// </summary>
+            public void SetCompressions(string a_szCompressions)
+            {
+                m_szCompressions = a_szCompressions;
+            }
+
+            /// <summary>
+            /// Set JSON array of cropping values...
+            /// </summary>
+            public void SetCroppings(string a_szCroppings)
+            {
+                m_szCroppings = a_szCroppings;
+            }
+
+            /// <summary>
+            /// Set DAT_TWAINDIRECT...
+            /// </summary>
+            public void SetDatTwainDirect(bool a_blDatTwainDirect)
+            {
+                m_blDatTwainDirect = a_blDatTwainDirect;
+            }
+
+            /// <summary>
+            /// Set device online...
+            /// </summary>
+            public void SetDeviceOnline(bool a_blDeviceOnline)
+            {
+                m_blDeviceOnline = a_blDeviceOnline;
+            }
+
+            /// <summary>
+            /// Set extended image info...
+            /// </summary>
+            public void SetExtImageInfo(bool a_blExtImageInfo)
+            {
+                m_blExtImageInfo = a_blExtImageInfo;
+            }
+
+            /// <summary>
+            /// Set feeder detected...
+            /// </summary>
+            public void SetFeederDetected(bool a_blFeederDetected)
+            {
+                m_blFeederDetected = a_blFeederDetected;
+            }
+
+            /// <summary>
+            /// Set flatbed detected...
+            /// </summary>
+            public void SetFlatbedDetected(bool a_blFlatbedDetected)
+            {
+                m_blFlatbedDetected = a_blFlatbedDetected;
+            }
+
+            /// <summary>
+            /// Set JSON min,max height
+            /// </summary>
+            public void SetHeight(string a_szHeight)
+            {
+                m_szHeight = a_szHeight;
+            }
+
+            /// <summary>
+            /// Set image mem file...
+            /// </summary>
+            public void SetImageMemFileXfer(bool a_blImageMemFileXfer)
+            {
+                m_blImageMemFileXfer = a_blImageMemFileXfer;
+            }
+
+            /// <summary>
+            /// Set image file...
+            /// </summary>
+            public void SetImageFileXfer(bool a_blImageFileXfer)
+            {
+                m_blImageFileXfer = a_blImageFileXfer;
+            }
+
+            /// <summary>
+            /// Set JSON min,max offsetx
+            /// </summary>
+            public void SetOffsetX(string a_szOffsetX)
+            {
+                m_szOffsetX = a_szOffsetX;
+            }
+
+            /// <summary>
+            /// Set JSON min,max offsety
+            /// </summary>
+            public void SetOffsetY(string a_szOffsetY)
+            {
+                m_szOffsetY = a_szOffsetY;
+            }
+
+            /// <summary>
+            /// Set paper detectable...
+            /// </summary>
+            public void SetPaperDetectable(bool a_blPaperDetectable)
+            {
+                m_blPaperDetectable = a_blPaperDetectable;
+            }
+
+            /// <summary>
+            /// Set PDF/raster...
+            /// </summary>
+            public void SetPdfRaster(bool a_blPdfRaster)
+            {
+                m_blPdfRaster = a_blPdfRaster;
+            }
+
+            /// <summary>
+            /// Set reset...
+            /// </summary>
+            public void SetPendingXfersReset(bool a_blPendingXfersReset)
+            {
+                m_blPendingXfersReset = a_blPendingXfersReset;
+            }
+
+            /// <summary>
+            /// Set stop feeder...
+            /// </summary>
+            public void SetPendingXfersStopFeeder(bool a_blPendingXfersStopFeeder)
+            {
+                m_blPendingXfersStopFeeder = a_blPendingXfersStopFeeder;
+            }
+
+            /// <summary>
+            /// Set the JSON array of pixelFormats...
+            /// </summary>
+            public void SetPixelFormats(string a_szPixelFormats)
+            {
+                m_szPixelFormats = a_szPixelFormats;
+            }
+
+            /// <summary>
+            /// Set a JSON array of resolutions...
+            /// </summary>
+            public void SetResolutions(string a_szResolutions)
+            {
+                m_szResolutions = a_szResolutions;
+            }
+
+            /// <summary>
+            /// Set serial number...
+            /// </summary>
+            public void SetSerialNumber(string a_szSerialnumber)
+            {
+                m_szSerialnumber = a_szSerialnumber;
+            }
+
+            /// <summary>
+            /// Set sheet count...
+            /// </summary>
+            public void SetSheetCount(bool a_blSheetCount)
+            {
+                m_blSheetCount = a_blSheetCount;
+            }
+
+            /// <summary>
+            /// Set twain direct support...
+            /// </summary>
+            public void SetTwainDirectSupport(TwainDirectSupport a_twaindirectsupport)
+            {
+                m_twaindirectsupport = a_twaindirectsupport;
+            }
+
+            /// <summary>
+            /// Set twain direct metadata...
+            /// </summary>
+            public void SetTweiTwainDirectMetadata(bool a_blTweiTwainDirectMetadata)
+            {
+                m_blTweiTwainDirectMetadata = a_blTweiTwainDirectMetadata;
+            }
+
+            /// <summary>
+            /// Set ui controllable...
+            /// </summary>
+            public void SetUiControllable(bool a_blUiControllable)
+            {
+                m_blUiControllable = a_blUiControllable;
+            }
+
+            /// <summary>
+            /// Set JSON min,max width
+            /// </summary>
+            public void SetWidth(string a_szWidth)
+            {
+                m_szWidth = a_szWidth;
+            }
+
+            /// <summary>
+            /// JSON array of compressions...
+            /// </summary>
+            private string m_szCompressions;
+
+            /// <summary>
+            /// JSON array of cropping values...
+            /// </summary>
+            private string m_szCroppings;
+
+            /// <summary>
+            /// Is DAT_TWAINDIRECT supported?
+            /// </summary>
+            private bool m_blDatTwainDirect;
+
+            /// <summary>
+            /// Is the device online?
+            /// </summary>
+            private bool m_blDeviceOnline;
+
+            /// <summary>
+            /// Do we support DAT_EXTIMAGEINFO?
+            /// </summary>
+            private bool m_blExtImageInfo;
+
+            /// <summary>
+            /// Do we have a feeder?
+            /// </summary>
+            private bool m_blFeederDetected;
+
+            /// <summary>
+            /// Do we have a flatbed?
+            /// </summary>
+            private bool m_blFlatbedDetected;
+
+            /// <summary>
+            /// JSON array of min,max height...
+            /// </summary>
+            private string m_szHeight;
+
+            /// <summary>
+            /// Can we transfer memory files?
+            /// </summary>
+            private bool m_blImageMemFileXfer;
+
+            /// <summary>
+            /// Can we transfer files?
+            /// </summary>
+            private bool m_blImageFileXfer;
+
+            /// <summary>
+            /// JSON array of min,max offsetx...
+            /// </summary>
+            private string m_szOffsetX;
+
+            /// <summary>
+            /// JSON array of min,max offsety...
+            /// </summary>
+            private string m_szOffsetY;
+
+            /// <summary>
+            /// Can we detect the presence of paper?
+            /// </summary>
+            private bool m_blPaperDetectable;
+
+            /// <summary>
+            /// Do we support PDF/raster?
+            /// </summary>
+            private bool m_blPdfRaster;
+
+            /// <summary>
+            /// Do we support reset?
+            /// </summary>
+            private bool m_blPendingXfersReset;
+
+            /// <summary>
+            /// Do we support stopping the feeder?
+            /// </summary>
+            private bool m_blPendingXfersStopFeeder;
+
+            /// <summary>
+            /// JSON array of pixelFormats...
+            /// </summary>
+            private string m_szPixelFormats;
+
+            /// <summary>
+            /// A JSON array of resolutions...
+            /// </summary>
+            private string m_szResolutions;
+
+            /// <summary>
+            /// The serial number for this scanner...
+            /// </summary>
+            private string m_szSerialnumber;
+
+            /// <summary>
+            /// Is sheet count supported?
+            /// </summary>
+            private bool m_blSheetCount;
+
+            /// <summary>
+            /// What level of support did we come up with?
+            /// </summary>
+            private TwainDirectSupport m_twaindirectsupport;
+
+            /// <summary>
+            /// Is TWEI_TWAINDIRECTMETADATA supported?
+            /// </summary>
+            private bool m_blTweiTwainDirectMetadata;
+
+            /// <summary>
+            /// Can we control the UI?
+            /// </summary>
+            private bool m_blUiControllable;
+
+            /// <summary>
+            /// JSON array of min,max width...
+            /// </summary>
+            private string m_szWidth;
         }
 
         // List of names we can use to resolve the stream, source,
@@ -2898,59 +2910,129 @@ namespace TwainDirect.OnTwain
         // TWAIN Private methods...
         ///////////////////////////////////////////////////////////////////////////////
         #region TWAIN Private methods...
-
         /// <summary>
-        /// Collect information about the TWAIN Driver.  We need this to decide
-        /// if we can safely use it, and to determine what features it can
-        /// support.
-        /// 
-        /// TBD: We're starting simple.  The code will only support single
-        /// stream from a feeder or a flatbed.  We'll add the other stuff
-        /// later on.
+        /// Collect information about the TWAIN Driver.  We need this to decide if we
+        /// can safely use it, and to determine what features it can handle.
         /// </summary>
-        /// <returns></returns>
-        private bool TwainInquiry(bool a_blTestForTwainDirect)
+        /// <param name="a_szTwidentity">the driver we're examining</param>
+        /// <returns>info about what we learned</returns>
+        private TwainInquiryData TwainInquiry(string a_szTwidentity)
         {
+            int iEnum;
+            string szValues;
             string szStatus;
-
-            // We've already done this function...
-            if (m_blTwainInquiryCompleted)
-            {
-                return (true);
-            }
-            m_blTwainInquiryCompleted = true;
+            string szCapability;
+            string[] aszContainer;
+            string szFunction = "TwainInquiry: ";
+            TWAINCSToolkit.STS sts;
 
             // Give a clue where we are...
             TWAINWorkingGroup.Log.Info(" ");
-            TWAINWorkingGroup.Log.Info("TwainInquiry begin...");
+            TWAINWorkingGroup.Log.Info(szFunction + "begin...");
 
-            // First pass, when we test for TWAIN Direct...
-            if (a_blTestForTwainDirect)
+            // Start a new object, assume support is none, unless told otherwise...
+            m_twaininquirydata = new TwainInquiryData();
+            m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+
+            // I'm using sing the loop so I can control code flow with break
+            // statements.  This section checks for Full support...
+            while (true)
             {
-                // Is the device online?
-                szStatus = TwainGetValue("CAP_DEVICEONLINE");
-                m_blDeviceOnline = ((szStatus != null) && (szStatus == "1"));
-                if (!m_blDeviceOnline)
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Is the device online?  If not, support is None...
+                #region Is the device online?
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "CAP_DEVICEONLINE";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
                 {
-                    TWAINWorkingGroup.Log.Error("CAP_DEVICEONLINE if false...");
-                    return (false);
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE is false or not supported - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    m_twaininquirydata.SetDeviceOnline(false);
+                    return (m_twaininquirydata);
                 }
 
-                // Can we turn the UI off...
-                szStatus = TwainGetValue("CAP_UICONTROLLABLE");
-                m_blUiControllable = ((szStatus != null) && (szStatus == "1"));
-                if (!m_blUiControllable)
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
+
+                // Oh dear...
+                if (aszContainer[1] != "TWON_ONEVALUE")
                 {
-                    TWAINWorkingGroup.Log.Error("CAP_UICONTROLLABLE isn't true...");
-                    return (false);
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    m_twaininquirydata.SetDeviceOnline(false);
+                    return (m_twaininquirydata);
                 }
 
-                // Can we detect paper?
-                szStatus = TwainGetValue("CAP_PAPERDETECTABLE");
-                m_blPaperDetectable = ((szStatus != null) && (szStatus == "1"));
+                // If the scanner isn't online, then we can't use this driver...
+                if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE isn't TRUE - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    m_twaininquirydata.SetDeviceOnline(false);
+                    return (m_twaininquirydata);
+                }
+
+                // Good news, everybody...
+                m_twaininquirydata.SetDeviceOnline(true);
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Can we turn the UI off?  If not, support is None...
+                #region Is the UI controllable?
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "CAP_UICONTROLLABLE";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE is false or not supported - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    m_twaininquirydata.SetUiControllable(false);
+                    return (m_twaininquirydata);
+                }
+
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
+
+                // Oh dear...
+                if (aszContainer[1] != "TWON_ONEVALUE")
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    m_twaininquirydata.SetUiControllable(false);
+                    return (m_twaininquirydata);
+                }
+
+                // If we can't keep the UI off, then we can't use this driver...
+                if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE isn't TRUE - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    m_twaininquirydata.SetUiControllable(false);
+                    return (m_twaininquirydata);
+                }
+
+                // Good news, everybody...
+                m_twaininquirydata.SetUiControllable(true);
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Check if DAT_TWAINDIRECT is supported, if not try for Minimal support...
+                #region Can we use DAT_TWAINDIRECT?
 
                 // Does the driver support DAT_TWAINDIRECT?
-                m_blNativeTwainDirectSupport = false;
                 szStatus = TwainGetContainer("CAP_SUPPORTEDDATS");
                 if (    !string.IsNullOrEmpty(szStatus)
                     &&  (Config.Get("useDatTwaindirect", "yes") == "yes"))
@@ -2960,7 +3042,9 @@ namespace TwainDirect.OnTwain
                         string[] asz = CSV.Parse(szStatus);
                         if (asz.Length < 5)
                         {
-                            m_blNativeTwainDirectSupport = false;
+                            TWAINWorkingGroup.Log.Error(szFunction + "CAP_SUPPORTEDDATS has a badly formed container - " + a_szTwidentity);
+                            m_twaininquirydata.SetDatTwainDirect(false);
+                            break;
                         }
                         else
                         {
@@ -2972,7 +3056,7 @@ namespace TwainDirect.OnTwain
                                 {
                                     if (asz[3 + ii] == szTwainDirect)
                                     {
-                                        m_blNativeTwainDirectSupport = true;
+                                        m_twaininquirydata.SetDatTwainDirect(true);
                                         break;
                                     }
                                 }
@@ -2981,73 +3065,893 @@ namespace TwainDirect.OnTwain
                     }
                     catch
                     {
-                        m_blNativeTwainDirectSupport = false;
+                        TWAINWorkingGroup.Log.Error(szFunction + "CAP_SUPPORTEDDATS is not supported (exception) - " + a_szTwidentity);
+                        m_twaininquirydata.SetDatTwainDirect(false);
+                        break;
                     }
                 }
 
-                // Does the driver support TWEI_TWAINDIRECTMETADATA?
-                if (m_blNativeTwainDirectSupport)
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Can we get extended image information, if not try for Minimal support...
+                #region Is there support for DAT_EXTIMAGEINFO?
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "ICAP_EXTIMAGEINFO";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
                 {
-                    m_blNativeTwainDirectSupport = false;
-                    szStatus = TwainGetContainer("ICAP_SUPPORTEDEXTIMAGEINFO");
-                    if (string.IsNullOrEmpty(szStatus))
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO is false or not supported - " + a_szTwidentity);
+                    m_twaininquirydata.SetExtImageInfo(false);
+                    break;
+                }
+
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
+
+                // Oh dear...
+                if (aszContainer[1] != "TWON_ONEVALUE")
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
+                    m_twaininquirydata.SetExtImageInfo(false);
+                    break;
+                }
+
+                // If we can't keep the UI off, then we can't use this driver...
+                if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO isn't TRUE - " + a_szTwidentity);
+                    m_twaininquirydata.SetExtImageInfo(false);
+                    break;
+                }
+
+                // Good news, everybody...
+                m_twaininquirydata.SetExtImageInfo(true);
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Does the driver support TWEI_TWAINDIRECTMETADATA, if not try for Minimal support...
+                #region We need TWEI_TWAINDIRECTMETADATA
+
+                // Does the driver support TWEI_TWAINDIRECTMETADATA?
+                szStatus = TwainGetContainer("ICAP_SUPPORTEDEXTIMAGEINFO");
+                if (string.IsNullOrEmpty(szStatus))
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO is not supported - " + a_szTwidentity);
+                    m_twaininquirydata.SetTweiTwainDirectMetadata(false);
+                    break;
+                }
+
+                // So far so good, now look it up...
+                try
+                {
+                    string[] asz = CSV.Parse(szStatus);
+                    if (asz.Length < 5)
                     {
-                        m_blNativeTwainDirectSupport = false;
+                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO has a badly formed container - " + a_szTwidentity);
+                        m_twaininquirydata.SetTweiTwainDirectMetadata(false);
+                        break;
                     }
                     else
                     {
-                        try
+                        int iNumItems;
+                        if (int.TryParse(asz[3], out iNumItems))
                         {
-                            string[] asz = CSV.Parse(szStatus);
-                            if (asz.Length < 5)
+                            string szMetadata = ((int)TWAIN.TWEI.TWAINDIRECTMETADATA).ToString();
+                            for (int ii = 0; ii < iNumItems; ii++)
                             {
-                                m_blNativeTwainDirectSupport = false;
-                            }
-                            else
-                            {
-                                int iNumItems;
-                                if (int.TryParse(asz[3], out iNumItems))
+                                if (asz[3 + ii] == szMetadata)
                                 {
-                                    string szMetadata = ((int)TWAIN.TWEI.TWAINDIRECTMETADATA).ToString();
-                                    for (int ii = 0; ii < iNumItems; ii++)
-                                    {
-                                        if (asz[3 + ii] == szMetadata)
-                                        {
-                                            m_blNativeTwainDirectSupport = true;
-                                            break;
-                                        }
-                                    }
+                                    m_twaininquirydata.SetTweiTwainDirectMetadata(true);
+                                    break;
                                 }
                             }
                         }
-                        catch
+                    }
+                }
+                catch
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO is not supported (exception) - " + a_szTwidentity);
+                    m_twaininquirydata.SetTweiTwainDirectMetadata(true);
+                    return (m_twaininquirydata);
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Check for TWSX_MEMFILE and TWSX_FILE...
+                #region TWSX_MEMFILE and TWSX_FILE support
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "ICAP_XFERMECH";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH is not supported - " + a_szTwidentity);
+                    m_twaininquirydata.SetImageFileXfer(false);
+                    m_twaininquirydata.SetImageMemFileXfer(false);
+                    break;
+                }
+
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
+
+                // Oh dear...
+                if (aszContainer[1] != "TWON_ENUMERATION")
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH container must be TWON_ENUMERATION - " + a_szTwidentity);
+                    m_twaininquirydata.SetImageFileXfer(false);
+                    m_twaininquirydata.SetImageMemFileXfer(false);
+                    break;
+                }
+                if (aszContainer.Length < 5)
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH has a badly formed container - " + a_szTwidentity);
+                    m_twaininquirydata.SetImageFileXfer(false);
+                    m_twaininquirydata.SetImageMemFileXfer(false);
+                    break;
+                }
+
+                // So far so good, now look it up...
+                try
+                {
+                    int iNumItems;
+                    if (int.TryParse(aszContainer[3], out iNumItems))
+                    {
+                        string szFile = ((int)TWAIN.TWSX.FILE).ToString();
+                        string szMemFile = ((int)TWAIN.TWSX.MEMFILE).ToString();
+                        for (int ii = 0; ii < iNumItems; ii++)
                         {
-                            m_blNativeTwainDirectSupport = false;
+                            if (aszContainer[6 + ii] == szFile)
+                            {
+                                m_twaininquirydata.SetImageFileXfer(true);
+                            }
+                            if (aszContainer[6 + ii] == szMemFile)
+                            {
+                                m_twaininquirydata.SetImageMemFileXfer(true);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH is not supported (exception) - " + a_szTwidentity);
+                    m_twaininquirydata.SetImageFileXfer(false);
+                    m_twaininquirydata.SetImageMemFileXfer(false);
+                    break;
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Check for DG_CONTROL / DAT_PENDINGXFERS / MSG_STOPFEEDER...
+                #region MSG_STOPFEEDER support
+
+                szStatus = "";
+                string szPendingXfers = "0,0";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingXfers, ref szStatus);
+                m_twaininquirydata.SetPendingXfersStopFeeder(sts == TWAINCSToolkit.STS.SEQERROR);
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Check for DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET...
+                #region MSG_RESET support
+
+                szStatus = "";
+                szPendingXfers = "0,0";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingXfers, ref szStatus);
+                m_twaininquirydata.SetPendingXfersReset(sts == TWAINCSToolkit.STS.SEQERROR);
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Can we detect paper?
+                #region Is paper detectable?
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "CAP_PAPERDETECTABLE";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE is false or not supported - " + a_szTwidentity);
+                    m_twaininquirydata.SetPaperDetectable(false);
+                }
+
+                // We found it...
+                else
+                {
+                    // Parse it...
+                    aszContainer = CSV.Parse(szCapability);
+
+                    // Oh dear...
+                    if (aszContainer[1] != "TWON_ONEVALUE")
+                    {
+                        TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
+                        m_twaininquirydata.SetPaperDetectable(false);
+                    }
+
+                    // Okay, now look for a value...
+                    else
+                    {
+                        // We seeketh truth...
+                        if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+                        {
+                            TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE isn't TRUE - " + a_szTwidentity);
+                            m_twaininquirydata.SetPaperDetectable(false);
+                        }
+
+                        // Good news, everybody...
+                        else
+                        {
+                            m_twaininquirydata.SetPaperDetectable(true);
                         }
                     }
                 }
 
-                // We'll be back with an a_blTestForTwainDirect of false, so
-                // allow that to happen...
-                if (!m_blNativeTwainDirectSupport)
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Check for TWFF_PDFRASTER...
+                #region TWFF_PDFRASTER support
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "ICAP_IMAGEFILEFORMAT";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
                 {
-                    m_blTwainInquiryCompleted = false;
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT is not supported - " + a_szTwidentity);
+                    m_twaininquirydata.SetPdfRaster(false);
+                    return (m_twaininquirydata);
                 }
 
-                // Log the result...
-                TWAINWorkingGroup.Log.Info("NativeTwainDirectSupport: " + m_blTwainInquiryCompleted);
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
 
-                // All done...
-                return (true);
+                // Oh dear...
+                if (aszContainer[1] != "TWON_ENUMERATION")
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT container must be TWON_ENUMERATION - " + a_szTwidentity);
+                    m_twaininquirydata.SetPdfRaster(false);
+                    break;
+                }
+                if (aszContainer.Length < 5)
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT has a badly formed container - " + a_szTwidentity);
+                    m_twaininquirydata.SetPdfRaster(false);
+                    break;
+                }
+
+                // So far so good, now look it up...
+                try
+                {
+                    int iNumItems;
+                    if (int.TryParse(aszContainer[3], out iNumItems))
+                    {
+                        string szPdfRaster = ((int)TWAIN.TWFF.PDFRASTER).ToString();
+                        for (int ii = 0; ii < iNumItems; ii++)
+                        {
+                            if (aszContainer[6 + ii] == szPdfRaster)
+                            {
+                                m_twaininquirydata.SetPdfRaster(true);
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT is not supported (exception) - " + a_szTwidentity);
+                    m_twaininquirydata.SetPdfRaster(false);
+                    break;
+                }
+
+                #endregion
+
+
+                // Congratulations, we think this is enough for full support...
+                m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.Full);
+                break;
             }
 
-            // We only need this additional information, if the driver doesn't
-            // support both DAT_TWAINDIRECT and TWEI_TWAINDIRECTMETADATA...
-            if (!m_blNativeTwainDirectSupport)
+            // Collect additional information about the scanner, again, we're using
+            // the loop for flow control...
+            while (true)
             {
-                string szCapability;
-                TWAINCSToolkit.STS sts;
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // Make sure the units is set to inches, otherwise we're going to have a less than
+                // plesant experience getting information about the cropping region...
+                #region Is units set to inches?
 
+                // Get the current value...
+                szStatus = "";
+                szCapability = "ICAP_UNITS";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad, but probably not fatal...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_UNITS not supported - " + a_szTwidentity);
+                }
+
+                // Keep going...
+                else
+                {
+                    // Parse it...
+                    aszContainer = CSV.Parse(szCapability);
+
+                    // Oh dear...
+                    if (aszContainer[1] != "TWON_ONEVALUE")
+                    {
+                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_UNITS container for MSG_GETCURRENT must be TWON_ONEVALUE - " + a_szTwidentity);
+                    }
+
+                    // If we't not inches, then set us to inches...
+                    else
+                    {
+                        if ((aszContainer[3] != "0") && (aszContainer[3] != "TWUN_INCHES"))
+                        {
+                            szStatus = "";
+                            szCapability = aszContainer[0] + "," + aszContainer[1] + "," + aszContainer[2] + ",0";
+                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                            if (sts != TWAINCSToolkit.STS.SUCCESS)
+                            {
+                                TWAINWorkingGroup.Log.Info(szFunction + "ICAP_UNITS set failed - " + a_szTwidentity);
+                            }
+                        }
+                    }
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // serialNumber: this allows us to uniquely identify a scanner, it's debatable if we
+                // need both the hostname and the serial number, but for now that's what we're doing...
+                #region serialNumber...
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "CAP_SERIALNUMBER";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+                // It's an error, because we've lost the ability to handle more than one
+                // model of this scanner, but it's not fatal, because we can stil handle
+                // at least one scanner...                
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    // If we don't have a serial number, use X, we need the smallest
+                    // value we can get to work with the "TWAIN_FreeImage Software Scanner"...
+                    TWAINWorkingGroup.Log.Info(szFunction + "CAP_SERIALNUMBER error - " + a_szTwidentity);
+                    m_twaininquirydata.SetSerialNumber("X");
+                }
+
+                // Keep on keeping on...
+                else
+                {
+                    // Parse it...
+                    aszContainer = CSV.Parse(szCapability);
+
+                    // We've been weirded out...
+                    if (aszContainer[1] != "TWON_ONEVALUE")
+                    {
+                        TWAINWorkingGroup.Log.Error(szFunction + "CAP_SERIALNUMBER unsupported container - " + a_szTwidentity);
+                        m_twaininquirydata.SetSerialNumber("X");
+                    }
+
+                    // This is enough to add the item...
+                    else
+                    {
+                        m_twaininquirydata.SetSerialNumber(aszContainer[3]);
+                    }
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // sources...
+                #region sources...
+
+                // Get the enumeration...
+                szStatus = "";
+                szCapability = "CAP_FEEDERENABLED";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+
+                // Assume that we have a flatbed...
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    m_twaininquirydata.SetFeederDetected(false);
+                    m_twaininquirydata.SetFlatbedDetected(true);
+                }
+
+                // It looks like we have something else...
+                else
+                {
+                    // Parse it...
+                    aszContainer = CSV.Parse(szCapability);
+
+                    // Handle the container...
+                    switch (aszContainer[1])
+                    {
+                        // Assume flatbed...
+                        default:
+                            TWAINWorkingGroup.Log.Info(szFunction + "CAP_FEEDERENABLED unsupported container - " + a_szTwidentity);
+                            m_twaininquirydata.SetFeederDetected(false);
+                            m_twaininquirydata.SetFlatbedDetected(true);
+                            break;
+
+                        // These containers are just off by an index, so we can combine them...
+                        case "TWON_ONEVALUE":
+                        case "TWON_ENUMERATION":
+                            m_twaininquirydata.SetFeederDetected(false);
+                            m_twaininquirydata.SetFlatbedDetected(false);
+                            for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
+                            {
+                                switch (aszContainer[iEnum])
+                                {
+                                    default:
+                                        break;
+                                    case "0": // FALSE
+                                        m_twaininquirydata.SetFlatbedDetected(true);
+                                        break;
+                                    case "1": // TRUE
+                                        m_twaininquirydata.SetFeederDetected(true);
+                                        break;
+                                }
+                            }
+                            break;
+                    }
+
+                    // If all else fails, assume flatbed...
+                    if (!m_twaininquirydata.GetFlatbedDetected() && !m_twaininquirydata.GetFeederDetected())
+                    {
+                        m_twaininquirydata.SetFlatbedDetected(true);
+                    }
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // numberOfSheets...
+                #region numberOfSheets...
+
+                // Just see if we can get it...
+                szStatus = "";
+                szCapability = "CAP_FEEDERENABLED";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                m_twaininquirydata.SetSheetCount(sts == TWAINCSToolkit.STS.SUCCESS);
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // resolutions...
+                #region resolutions...
+
+                // Get the enumeration...
+                szStatus = "";
+                szCapability = "ICAP_XRESOLUTION";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION error - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
+
+                // Handle the container...
+                szValues = "";
+                switch (aszContainer[1])
+                {
+                    default:
+                        TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION unsupported container - " + a_szTwidentity);
+                        m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                        return (m_twaininquirydata);
+
+                    // These containers are just off by an index, so we can combine them.
+                    // We should be checking the bitdepth, just to be sure, but this is a
+                    // real edge case that shouldn't matter 99% of the time...
+                    case "TWON_ONEVALUE":
+                    case "TWON_ENUMERATION":
+                        for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
+                        {
+                            if (!szValues.Contains(aszContainer[iEnum]))
+                            {
+                                szValues += (szValues == "") ? aszContainer[iEnum] : ("," + aszContainer[iEnum]);
+                            }
+                        }
+                        break;
+
+                    // We're not going to support ranges at this time.  Instead we'll
+                    // pare the range down to a set of commonly used resolutions...
+                    case "TWON_RANGE":
+                        // Get the min and the max, and add items in that range...
+                        int iMin;
+                        int iMax;
+                        if (!int.TryParse(aszContainer[3], out iMin))
+                        {
+                            TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION error - " + a_szTwidentity);
+                            m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                            return (m_twaininquirydata);
+                        }
+                        if (!int.TryParse(aszContainer[4], out iMax))
+                        {
+                            TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION error - " + a_szTwidentity);
+                            m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                            return (m_twaininquirydata);
+                        }
+                        szValues += iMin;
+                        foreach (int iRes in new int[] { 75, 100, 150, 200, 240, 250, 300, 400, 500, 600, 1200, 2400, 4800, 9600, 19200 })
+                        {
+                            if ((iMin < iRes) && (iRes < iMax))
+                            {
+                                szValues += "," + iRes;
+                            }
+                        }
+                        szValues += "," + iMax;
+                        break;
+                }
+
+                // Add to the list...
+                if (string.IsNullOrEmpty(szValues))
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION no recognized values - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+
+                // Okay, we got something...
+                m_twaininquirydata.SetResolutions("[" + szValues + "]");
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // height...
+                #region height...
+
+                // Get the physical height...
+                szStatus = "";
+                szCapability = "ICAP_PHYSICALHEIGHT";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PHYSICALHEIGHT error - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+                aszContainer = CSV.Parse(szCapability);
+                int iMaxHeightMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
+
+                // Get the physical width...
+                szStatus = "";
+                szCapability = "ICAP_PHYSICALWIDTH";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PHYSICALWIDTH error - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+                aszContainer = CSV.Parse(szCapability);
+                int iMaxWidthMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
+
+                // Get the minimum height...
+                int iMinHeightMicrons = 0;
+                szStatus = "";
+                szCapability = "ICAP_MINIMUMHEIGHT";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_MINIMUMHEIGHT not found, we'll use 2 inches - " + a_szTwidentity);
+                    iMinHeightMicrons = (2 * 25400);
+                }
+                else
+                {
+                    aszContainer = CSV.Parse(szCapability);
+                    iMinHeightMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
+                }
+
+                // Get the minimum width...
+                int iMinWidthMicrons = 0;
+                szStatus = "";
+                szCapability = "ICAP_MINIMUMWIDTH";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_MINIMUMWIDTH error, we'll use 2 inches - " + a_szTwidentity);
+                    iMinWidthMicrons = (2 * 25400);
+                }
+                else
+                {
+                    aszContainer = CSV.Parse(szCapability);
+                    iMinWidthMicrons = (int)(double.Parse(aszContainer[3]) * 25400);
+                }
+
+                // Okay, squirrel it away...
+                m_twaininquirydata.SetHeight("[" + iMinHeightMicrons + "," + iMaxHeightMicrons + "]");
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // width...
+                #region width...
+
+                m_twaininquirydata.SetWidth("[" + iMinWidthMicrons + "," + iMaxWidthMicrons + "]");
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // offsetX...
+                #region offsetX...
+
+                m_twaininquirydata.SetOffsetX("[0," + (iMaxWidthMicrons - iMinWidthMicrons) + "]");
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // offsetY...
+                #region offsetY...
+
+                m_twaininquirydata.SetOffsetY("[0," + (iMaxHeightMicrons - iMinHeightMicrons) + "]");
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // cropping...
+                #region cropping...
+
+                // Get the enumeration...
+                szStatus = "";
+                szCapability = "ICAP_AUTOMATICBORDERDETECTION";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    m_twaininquirydata.SetCroppings("[\"fixed\"]");
+                }
+                else
+                {
+                    // Parse it...
+                    aszContainer = CSV.Parse(szCapability);
+
+                    // Handle the container...
+                    szValues = "";
+                    switch (aszContainer[1])
+                    {
+                        default:
+                            TWAINWorkingGroup.Log.Info(szFunction + "ICAP_AUTOMATICBORDERDETECTION unsupported container - " + a_szTwidentity);
+                            continue;
+
+                        // These containers are just off by an index, so we can combine them.
+                        // We should be checking the bitdepth, just to be sure, but this is a
+                        // real edge case that shouldn't matter 99% of the time...
+                        case "TWON_ONEVALUE":
+                        case "TWON_ENUMERATION":
+                            for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
+                            {
+                                switch (aszContainer[iEnum])
+                                {
+                                    default:
+                                        break;
+                                    case "0": // FALSE
+                                        if (string.IsNullOrEmpty(m_twaininquirydata.GetCroppings()))
+                                        {
+                                            m_twaininquirydata.SetCroppings("[\"fixed\"]");
+                                        }
+                                        else if (m_twaininquirydata.GetCroppings().Contains("auto"))
+                                        {
+                                            m_twaininquirydata.SetCroppings("[\"auto\",\"fixed\"]");
+                                        }
+                                        break;
+                                    case "1": // TRUE
+                                        if (string.IsNullOrEmpty(m_twaininquirydata.GetCroppings()))
+                                        {
+                                            m_twaininquirydata.SetCroppings("[\"auto\"]");
+                                        }
+                                        else if (m_twaininquirydata.GetCroppings().Contains("fixed"))
+                                        {
+                                            m_twaininquirydata.SetCroppings("[\"auto\",\"fixed\"]");
+                                        }
+                                        break;
+                                }
+                            }
+                            break;
+                    }
+
+                    // Add to the list...
+                    if (string.IsNullOrEmpty(m_twaininquirydata.GetCroppings()))
+                    {
+                        TWAINWorkingGroup.Log.Info(szFunction + "ICAP_AUTOMATICBORDERDETECTION no recognized values - " + a_szTwidentity);
+                        m_twaininquirydata.SetCroppings("[\"fixed\"]");
+                    }
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // pixelFormat...
+                #region pixelFormat...
+
+                // Get the enumeration...
+                szStatus = "";
+                szCapability = "ICAP_PIXELTYPE";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PIXELTYPE error - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
+
+                // Handle the container...
+                szValues = "";
+                switch (aszContainer[1])
+                {
+                    default:
+                        TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PIXELTYPE unsupported container - " + a_szTwidentity);
+                        continue;
+
+                    // These containers are just off by an index, so we can combine them.
+                    // We should be checking the bitdepth, just to be sure, but this is a
+                    // real edge case that shouldn't matter 99% of the time...
+                    case "TWON_ONEVALUE":
+                    case "TWON_ENUMERATION":
+                        for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
+                        {
+                            switch (aszContainer[iEnum])
+                            {
+                                default:
+                                    break;
+                                case "0": // TWPT_BW
+                                    if (!szValues.Contains("bw1"))
+                                    {
+                                        szValues += (szValues == "") ? "\"bw1\"" : ",\"bw1\"";
+                                    }
+                                    break;
+                                case "1": // TW_PT_GRAY
+                                    if (!szValues.Contains("gray8"))
+                                    {
+                                        szValues += (szValues == "") ? "\"gray8\"" : ",\"gray8\"";
+                                    }
+                                    break;
+                                case "2": // TWPT_RGB
+                                    if (!szValues.Contains("rgb24"))
+                                    {
+                                        szValues += (szValues == "") ? "\"rgb24\"" : ",\"rgb24\"";
+                                    }
+                                    break;
+                            }
+                        }
+                        break;
+                }
+
+                // Add to the list...
+                if (szValues != "")
+                {
+                    m_twaininquirydata.SetPixelFormats("[" + szValues + "]");
+                }
+                else
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PIXELTYPE no recognized values - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
+                // compression...
+                #region compression...
+
+                // Get the enumeration...
+                szStatus = "";
+                szCapability = "ICAP_COMPRESSION";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_COMPRESSION error - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+
+                // Parse it...
+                aszContainer = CSV.Parse(szCapability);
+
+                // Handle the container...
+                szValues = "";
+                switch (aszContainer[1])
+                {
+                    default:
+                        TWAINWorkingGroup.Log.Info(szFunction + "ICAP_COMPRESSION unsupported container - " + a_szTwidentity);
+                        m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                        return (m_twaininquirydata);
+
+                    // These containers are just off by an index, so we can combine them...
+                    case "TWON_ONEVALUE":
+                    case "TWON_ENUMERATION":
+                        for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
+                        {
+                            switch (aszContainer[iEnum])
+                            {
+                                default:
+                                    break;
+                                case "0": // TWCP_NONE
+                                    if (!szValues.Contains("none"))
+                                    {
+                                        szValues += (szValues == "") ? "\"none\"" : ",\"none\"";
+                                    }
+                                    break;
+                                case "5": // TWCP_GROUP4
+                                case "6": // TWCP_JPEG
+                                    if (!szValues.Contains("autoVersion1"))
+                                    {
+                                        szValues += (szValues == "") ? "\"autoVersion1\"" : ",\"autoVersion1\"";
+                                    }
+                                    break;
+                            }
+                        }
+                        break;
+                }
+
+                // Add to the list...
+                if (szValues != "")
+                {
+                    m_twaininquirydata.SetCompressions("[" + szValues + "]");
+                }
+                else
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_COMPRESSION no recognized values - " + a_szTwidentity);
+                    m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None);
+                    return (m_twaininquirydata);
+                }
+
+                #endregion
+
+
+                // Good news, we've made it this far...
+                break;
+            }
+
+
+            // If we didn't get full support, then we need to see if we can get by
+            // with a plan B where TWAIN Bridge handles the TWAIN Direct stuff...
+            if (m_twaininquirydata.GetTwainDirectSupport() != TwainDirectSupport.Full)
+            {
                 // Reset the scanner.  This won't necessarily work for every device.
                 // We're not going to treat it as a failure, though, because the user
                 // should be able to get a factory default experience from their driver
@@ -3059,7 +3963,7 @@ namespace TwainDirect.OnTwain
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
                 if (sts != TWAINCSToolkit.STS.SUCCESS)
                 {
-                    TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
+                    TWAINWorkingGroup.Log.Error(szFunction + "MSG_RESETALL is not supported - " + a_szTwidentity);
                 }
 
                 // Do we have a vendor ID?
@@ -3074,6 +3978,18 @@ namespace TwainDirect.OnTwain
                 {
                     m_szVendorOwner = "211a1e90-11e1-11e5-9493-1697f925ec7b";
                 }
+
+                // Do we have an ADF?
+                szStatus = TwainGetValue("CAP_FEEDERENABLED");
+                m_blPaperDetectable = ((szStatus != null) && (szStatus == "1"));
+                m_twaininquirydata.SetPaperDetectable(m_blPaperDetectable);
+
+                // Can we detect paper?  We don't have to be able to do this,
+                // for instance a flatbed has no need of this support, but if
+                // we can get it, it's good to know about.
+                szStatus = TwainGetValue("CAP_PAPERDETECTABLE");
+                m_blPaperDetectable = ((szStatus != null) && (szStatus == "1"));
+                m_twaininquirydata.SetPaperDetectable(m_blPaperDetectable);
 
                 // Can we automatically sense the medium?
                 szStatus = TwainGetContainer("CAP_AUTOMATICSENSEMEDIUM");
@@ -3116,17 +4032,16 @@ namespace TwainDirect.OnTwain
                 szStatus = TwainGetValue("ICAP_AUTOMATICCOLORENABLED");
                 m_blAutomaticColorEnabled = (szStatus != null);
 
-                // Can we get extended image information?
-                szStatus = TwainGetValue("ICAP_EXTIMAGEINFO");
-                m_blExtImageInfo = (szStatus != null);
-
-                // All done...
-                TWAINWorkingGroup.Log.Info(" ");
-                TWAINWorkingGroup.Log.Info("TwainInquiry completed...");
+                // We're going minimal...
+                m_twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.Minimal);
             }
 
             // All done...
-            return (true);
+            TWAINWorkingGroup.Log.Info(" ");
+            TWAINWorkingGroup.Log.Info("TwainInquiry completed...");
+
+            // All done...
+            return (m_twaininquirydata);
         }
 
         /// <summary>
@@ -3458,7 +4373,7 @@ namespace TwainDirect.OnTwain
                     }
 
                     // Ask for extended image info...
-                    if (m_blExtImageInfo)
+                    if (m_twaininquirydata.GetExtImageInfo())
                     {
                         szStatus = "";
                         szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
@@ -3763,14 +4678,14 @@ namespace TwainDirect.OnTwain
             // Get the metadata for TW_EXTIMAGEINFO...
             TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
             TWAIN.TW_INFO twinfo = default(TWAIN.TW_INFO);
-            if (m_blExtImageInfo)
+            if (m_twaininquirydata.GetExtImageInfo())
             {
                 twextimageinfo.NumInfos = 0;
                 twinfo.InfoId = (ushort)TWAIN.TWEI.PAGESIDE; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                 sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
-                    m_blExtImageInfo = false;
+                    m_twaininquirydata.SetExtImageInfo(false);
                 }
             }
 
@@ -3888,7 +4803,7 @@ namespace TwainDirect.OnTwain
                 bool blFoundPageSide = false;
 
                 // See if we can get the side from the extended image info...
-                if (m_blExtImageInfo)
+                if (m_twaininquirydata.GetExtImageInfo())
                 {
                     for (uu = 0; uu < twextimageinfo.NumInfos; uu++)
                     {
@@ -8525,29 +9440,14 @@ namespace TwainDirect.OnTwain
         private int[] m_aiResolution;
 
         /// <summary>
-        /// TWAIN: true if we've collected our inquiry data...
+        /// TWAIN: the level of support this driver has for TWWAIN Direct...
         /// </summary>
-        private bool m_blTwainInquiryCompleted;
-
-        /// <summary>
-        /// TWAIN: true if our device is online...
-        /// </summary>
-        private bool m_blDeviceOnline;
-
-        /// <summary>
-        /// TWAIN: true if we can turn off the UI...
-        /// </summary>
-        private bool m_blUiControllable;
+        private TwainInquiryData m_twaininquirydata;
 
         /// <summary>
         /// TWAIN: true if we can detect paper in the feeder...
         /// </summary>
         private bool m_blPaperDetectable;
-
-        /// <summary>
-        /// TWAIN: true if the TWAIN Driver supports TWAIN Direct...
-        /// </summary>
-        private bool m_blNativeTwainDirectSupport;
 
         /// <summary>
         /// TWAIN: the toolkit used to talk to the scanner, the one
@@ -8571,11 +9471,6 @@ namespace TwainDirect.OnTwain
         /// TWAIN: true if ICAP_AUTOMATICCOLORENABLED is supported...
         /// </summary>
         private bool m_blAutomaticColorEnabled;
-
-        /// <summary>
-        /// TWAIN: true if extended image info is supported...
-        /// </summary>
-        private bool m_blExtImageInfo;
 
         /// <summary>
         /// TWAIN: true if we're processing...

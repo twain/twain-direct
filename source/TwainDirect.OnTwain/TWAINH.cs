@@ -3252,7 +3252,8 @@ namespace TWAINWorkingGroup
             JPX = 13,
             DEJAVU = 14,
             PDFA = 15,
-            PDFA2 = 16
+            PDFA2 = 16,
+            PDFRASTER = 17
         }
 
         /// <summary>
