@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?include Details.wxi ?>
+  
+  <Fragment>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)">
+          <Component Id="applicationShortcut" Guid="{129B0AA5-4C9B-49DD-AA17-F05ECA8ED0A8}">
+            <Shortcut Id="ApplicationStartMenuShortcut"
+                      Name="$(var.ProductName)"
+                      Description="$(var.ProductName)"
+                      Target="[#TwainDirect.Scanner.exe]"
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon ="twain.ico" />
+            <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
+            <RegistryValue Root="HKCU" Key="Software\$(var.Manufacturer)\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+
+      <Directory Id="$(var.PlatformProgramFilesFolder)">
+        <Directory Id="INSTALLFOLDER" Name="TWAIN Direct Scanner">
+
+          <Component Id="TwainDirect.Scanner.exe" Guid="{8BA908AD-DFB4-4BC6-9132-5028E90CC6D5}">
+            <File Id="TwainDirect.Scanner.exe" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.exe" KeyPath="yes" />
+          </Component>
+          <Component Id="TwainDirect.Scanner.exe.config" Guid="{B0CD6476-8A29-4B01-A611-60F798604876}">
+            <File Id="TwainDirect.Scanner.exe.config" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.exe.config" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.OnTwain.exe" Guid="{7263CF35-D722-4B29-90F4-1D7A9ED3BEA3}">
+            <File Id="TwainDirect.OnTwain.exe" Source="$(var.TwainDirect.OnTwain.TargetDir)\TwainDirect.OnTwain.exe" KeyPath="yes" />
+          </Component>
+          <Component Id="TwainDirect.OnTwain.exe.config" Guid="{C26B2610-C50D-4018-8469-EC9BEE70BE98}">
+            <File Id="TwainDirect.OnTwain.exe.config" Source="$(var.TwainDirect.OnTwain.TargetDir)\TwainDirect.OnTwain.exe.config" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Support.dll" Guid="{00E26F5A-F175-45AD-8C81-AAE5F82A6972}">
+            <File Id="TwainDirect.Support.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Support.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_reader_managed.dll" Guid="{3B28FAE7-BC20-4F8C-8D83-238AA67FF6B5}">
+            <File Id="pdfras_reader_managed.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\pdfras_reader_managed.dll" KeyPath="yes" />
+          </Component>
+
+        </Directory>
+      </Directory>
+    </Directory>
+    
+	</Fragment>
+</Wix>

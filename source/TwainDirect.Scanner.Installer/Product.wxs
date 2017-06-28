@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?include Details.wxi ?>
+
+  <Product Id="$(var.ProductId)"
+           Name="$(var.ProductName)"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="$(var.Manufacturer)"
+           UpgradeCode="$(var.UpgradeCode)">
+
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+    <Media Id="1" Cabinet="twaindirect.app.cab" EmbedCab="yes" />
+    <Icon Id="twain.ico" SourceFile="$(var.ProductIcon)" />
+    
+    <Property Id="ARPPRODUCTICON" Value="twain.ico" />
+    <Property Id="ARPHELPLINK" Value="$(var.SupportUrl)" />
+    
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <Feature Id="ProductFeature" Title="TwainDirectProxy.Installer" Level="1">
+      <ComponentRef Id="applicationShortcut"/>      
+      
+      <ComponentRef Id="TwainDirect.Scanner.exe"/>
+      <ComponentRef Id="TwainDirect.Scanner.exe.config"/>
+
+      <ComponentRef Id="TwainDirect.OnTwain.exe"/>
+      <ComponentRef Id="TwainDirect.OnTwain.exe.config"/>
+      
+      <ComponentRef Id="TwainDirect.Support.dll"/>
+      <ComponentRef Id="pdfras_reader_managed.dll"/>
+    </Feature>
+
+    <!-- UI -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ProductBannerBitmap)" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ProductDialogBitmap)" />
+    <!--<WixVariable Id="WixUILicenseRtf" Value="$(var.ProductLicense)" />-->
+    <UIRef Id="WixUI_InstallDir" />
+
+  </Product>
+  
+</Wix>
