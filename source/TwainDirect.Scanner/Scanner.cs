@@ -408,6 +408,18 @@ namespace TwainDirect.Scanner
                 {
                     szTwainDirectOn = "TwainDirect.OnTwain";
                 }
+
+                // Try to load TwainDirect.OnTwain from the same execution folder first
+                var localOnTwainApplication = Path.Combine(Path.GetDirectoryName(szDataFolder), szTwainDirectOn + ".exe");
+                if (File.Exists(localOnTwainApplication))
+                {
+                    m_szTwainDirectOn = localOnTwainApplication;
+                    return true;
+                }
+
+                // Otherwise, assume we are in DEV environment
+                // TODO: simplify this, overcomplicated
+
                 if (szDataFolder.Contains("Debug"))
                 {
                     szConfiguration = "Debug";
