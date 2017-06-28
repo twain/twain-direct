@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include>
+
+  <?define ProductId="*" ?>
+
+  <!-- Product name as you want it to appear in Add/Remove Programs-->
+  <?if $(var.Platform) = x64 ?>
+    <?define ShortProductName = "TWAIN Direct Scanner (64 bit)" ?>
+    <?define ProductName = "TWAIN Direct Scanner (64 bit)" ?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?else ?>
+    <?define ShortProductName = "TWAIN Direct Scanner (32 bit)" ?>
+    <?define ProductName = "TWAIN Direct Scanner (32 bit)" ?>
+    <?define Win64 = "no" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?endif ?>
+  
+  <?define Manufacturer="TWAIN Working Group" ?>
+  <?define SupportUrl="http://www.twain.org" ?>
+    
+  <!-- 
+    Upgrade code HAS to be the same for all updates.
+    Once you've chosen it don't change it. 
+    -->
+  <?define UpgradeCode="32CAD34D-528F-4C0F-84CD-0B2D57AD3B6F" ?>
+  
+  <!--
+  Versioning. These have to be changed for upgrades.
+  It's not enough to just include newer files.
+  -->
+  <?define MajorVersion="1" ?>
+  <?define MinorVersion="0" ?>
+  <?define BuildVersion="0" ?>
+  <?define Revision="0" ?>
+
+  <!-- Full version number to display -->
+  <?if $(var.ProductVersion) = "" ?>
+    <?undef ProductVersion?>
+    <?define ProductVersion="$(var.MajorVersion).$(var.MinorVersion).$(var.BuildVersion).$(var.Revision)" ?>
+  <?endif?>
+
+  <!-- Resources -->
+  <?define ResourceFolder="$(var.ProjectDir)\Images" ?>
+  <?define ProductIcon="$(var.ResourceFolder)\twain.ico" ?>
+  <?define ProductDialogBitmap="$(var.ResourceFolder)\dialog.bmp" ?>
+  <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
+  <?define ProductLicense="$(var.ResourceFolder)\license.rtf" ?>
+
+</Include>
