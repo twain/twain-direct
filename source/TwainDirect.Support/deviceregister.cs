@@ -67,6 +67,19 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// What level of support do we have in the TWAIN driver?
+        /// </summary>
+        /// <returns>level of support</returns>
+        public TwainDirectSupport GetTwainLocalTwainDirectSupport()
+        {
+            if (m_device.twaininquirydata == null)
+            {
+                return (TwainDirectSupport.None);
+            }
+            return (m_device.twaininquirydata.GetTwainDirectSupport());
+        }
+
+        /// <summary>
         /// Return the TWAIN ty= field...
         /// </summary>
         /// <returns>the access token</returns>
@@ -131,7 +144,8 @@ namespace TwainDirect.Support
                     jsonlookup.Get("scanner.twainLocalTy"),
                     jsonlookup.Get("scanner.twainLocalSerialNumber"),
                     jsonlookup.Get("scanner.twainLocalNote"),
-                    jsonlookup.Get("scanner")
+                    jsonlookup.Get("scanner"),
+                    jsonlookup.Get("scanner.twainLocalScanner.twainDirectSupport")
                 );
             }
             catch
@@ -204,12 +218,14 @@ namespace TwainDirect.Support
         /// <param name="a_szTwainLocalSerialNumber">TWAIN serial number (from CAP_SERIALNUMBER)</param>
         /// <param name="szTwainLocalNote">TWAIN Local note= field</param>
         /// <param name="a_szScanner">the complete scanner record</param>
+        /// <param name="a_szTwainDirectSupport">none, minimal, or full</param>
         public void Set
         (
             string a_szTwainLocalTy,
             string a_szTwainLocalSerialNumber,
             string a_szTwainLocalNote,
-            string a_szScanner
+            string a_szScanner,
+            string a_szTwainDirectSupport = null
         )
         {
             // Init stuff...
@@ -251,6 +267,633 @@ namespace TwainDirect.Support
                     m_device.szTwainLocalInstanceName = m_device.szTwainLocalInstanceName.Remove(ii, 1).Insert(ii, "_");
                 }
             }
+
+            // If its null, then make one...
+            if (m_device.twaininquirydata == null)
+            {
+                m_device.twaininquirydata = new TwainInquiryData();
+            }
+
+            // If we have a value, try to set it...
+            if (a_szTwainDirectSupport != null)
+            {
+                switch (a_szTwainDirectSupport.ToLowerInvariant())
+                {
+                    default: m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None); break;
+                    case "none": m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None); break;
+                    case "minimal": m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.Minimal); break;
+                    case "full": m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.Full); break;
+                }
+            }
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Definitions...
+
+        /// <summary>
+        /// Report the level of TWAIN Direct support.  A value of
+        /// none indicates that the driver is not safe for use.
+        /// Minimal indicates that the driver can be used, but it
+        /// needs the TWAIN Bridge to handle TWAIN Direct features.
+        /// Full indicates that the driver can handle TWAIN Direct
+        /// tasks and return metadata and PDF/raster images.
+        /// </summary>
+        public enum TwainDirectSupport
+        {
+            Undefined,
+            None,
+            Minimal,
+            Full
+        }
+
+        /// <summary>
+        /// Information collected as part of TwainInquiry...
+        /// </summary>
+        public class TwainInquiryData
+        {
+            /// <summary>
+            ///  Don't just stand there, construct something!
+            /// </summary>
+            public TwainInquiryData()
+            {
+                m_twaindirectsupport = TwainDirectSupport.Undefined;
+            }
+
+            /// <summary>
+            /// Get JSON array of compressions...
+            /// </summary>
+            /// <returns>JSON array of compressions</returns>
+            public string GetCompressions()
+            {
+                return (m_szCompressions);
+            }
+
+            /// <summary>
+            /// Get JSON array of cropping values...
+            /// </summary>
+            /// <returns>JSON array of cropping values</returns>
+            public string GetCroppings()
+            {
+                return (m_szCroppings);
+            }
+
+            /// <summary>
+            /// Get the DAT_TWAINDIRECT...
+            /// </summary>
+            /// <returns>true if DAT_TWAINDIRECT is supported</returns>
+            public bool GetDatTwainDirect()
+            {
+                return (m_blDatTwainDirect);
+            }
+
+            /// <summary>
+            /// Get the device online setting...
+            /// </summary>
+            /// <returns>true if the device is online</returns>
+            public bool GetDeviceOnline()
+            {
+                return (m_blDeviceOnline);
+            }
+
+            /// <summary>
+            /// Get the extended image info setting...
+            /// </summary>
+            /// <returns>true if extended image info is supported</returns>
+            public bool GetExtImageInfo()
+            {
+                return (m_blExtImageInfo);
+            }
+
+            /// <summary>
+            /// Get the feeder detected setting...
+            /// </summary>
+            /// <returns>true if we have a feeder</returns>
+            public bool GetFeederDetected()
+            {
+                return (m_blFeederDetected);
+            }
+
+            /// <summary>
+            /// Get the flatbed detected setting...
+            /// </summary>
+            /// <returns>true if we have a flatbed</returns>
+            public bool GetFlatbedDetected()
+            {
+                return (m_blFlatbedDetected);
+            }
+
+            /// <summary>
+            /// Get JSON min,max height
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetHeight()
+            {
+                return (m_szHeight);
+            }
+
+            /// <summary>
+            /// Get the image mem file setting...
+            /// </summary>
+            /// <returns>true if support mem file transfers</returns>
+            public bool GetImageMemFileXfer()
+            {
+                return (m_blImageMemFileXfer);
+            }
+
+            /// <summary>
+            /// Get the image file setting...
+            /// </summary>
+            /// <returns>true if support file transfers</returns>
+            public bool GetImageFileXfer()
+            {
+                return (m_blImageFileXfer);
+            }
+
+            /// <summary>
+            /// Get JSON min,max offsetx
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetOffsetX()
+            {
+                return (m_szOffsetX);
+            }
+
+            /// <summary>
+            /// Get JSON min,max offsety
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetOffsetY()
+            {
+                return (m_szOffsetY);
+            }
+
+            /// <summary>
+            /// Get the paper detect setting...
+            /// </summary>
+            /// <returns>true if we can detect paper</returns>
+            public bool GetPaperDetectable()
+            {
+                return (m_blPaperDetectable);
+            }
+
+            /// <summary>
+            /// Get the PDF/raster setting...
+            /// </summary>
+            /// <returns>true if we support PDF/raster</returns>
+            public bool GetPdfRaster()
+            {
+                return (m_blPdfRaster);
+            }
+
+            /// <summary>
+            /// Get the reset setting...
+            /// </summary>
+            /// <returns>true if reset is supported</returns>
+            public bool GetPendingXfersReset()
+            {
+                return (m_blPendingXfersReset);
+            }
+
+            /// <summary>
+            /// Get the stop feeder setting...
+            /// </summary>
+            /// <returns>true if stop feeder is supported</returns>
+            public bool GetPendingXfersStopFeeder()
+            {
+                return (m_blPendingXfersStopFeeder);
+            }
+
+            /// <summary>
+            /// Get the JSON array of pixelFormats...
+            /// </summary>
+            /// <returns>JSON array of pixelFormats</returns>
+            public string GetPixelFormats()
+            {
+                return (m_szPixelFormats);
+            }
+
+            /// <summary>
+            /// Get a JSON array of resolutions...
+            /// </summary>
+            /// <returns>string or empty string</returns>
+            public string GetResolutions()
+            {
+                return (string.IsNullOrEmpty(m_szResolutions) ? "" : m_szResolutions);
+            }
+
+            /// <summary>
+            /// Get the serial number setting...
+            /// </summary>
+            /// <returns>the serial number, if there is one</returns>
+            public string GetSerialNumber()
+            {
+                return (string.IsNullOrEmpty(m_szSerialnumber) ? "" : m_szSerialnumber);
+            }
+
+            /// <summary>
+            /// Do we support sheet count?
+            /// </summary>
+            /// <returns>true if sheet countis supported</returns>
+            public bool GetSheetCount()
+            {
+                return (m_blSheetCount);
+            }
+
+            /// <summary>
+            /// Get the twain direct support setting...
+            /// </summary>
+            /// <returns>the level of twain direct support</returns>
+            public TwainDirectSupport GetTwainDirectSupport()
+            {
+                return (m_twaindirectsupport);
+            }
+
+            /// <summary>
+            /// Get the twain direct metadata setting...
+            /// </summary>
+            /// <returns>true if we can get metadata</returns>
+            public bool GetTweiTwainDirectMetadata()
+            {
+                return (m_blTweiTwainDirectMetadata);
+            }
+
+            /// <summary>
+            /// Get the ui controllable setting...
+            /// </summary>
+            /// <returns>true if we can control the ui</returns>
+            public bool GetUiControllable()
+            {
+                return (m_blUiControllable);
+            }
+
+            /// <summary>
+            /// Get JSON min,max width
+            /// </summary>
+            /// <returns>[min,max]</returns>
+            public string GetWidth()
+            {
+                return (m_szWidth);
+            }
+
+            /// <summary>
+            /// Serialize the data into JSON...
+            /// </summary>
+            /// <returns>a JSON object</returns>
+            public string Serialize(string a_szTwidentity)
+            {
+                string szJson = "";
+
+                // Start object...
+                szJson += "{";
+                szJson += "\"twidentity\":\"" + a_szTwidentity + "\",";
+                szJson += "\"twainDirectSupport\":\"" + m_twaindirectsupport + "\",";
+                szJson += "\"isDatTwainDirectSupported\":" + m_blDatTwainDirect.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isDeviceOnline\":" + m_blDeviceOnline.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isExtImageInfoSupported\":" + m_blExtImageInfo.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isFeederDetected\":" + m_blFeederDetected.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isFlatbedDetected\":" + m_blFlatbedDetected.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isImageFileXferSupported\":" + m_blImageFileXfer.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isImagememFileXferSupported\":" + m_blImageMemFileXfer.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPaperDetectableSupported\":" + m_blPaperDetectable.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPdfRasterSupported\":" + m_blPdfRaster.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPendingXfersResetSupported\":" + m_blPendingXfersReset.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isPendingXfersStopFeederSupported\":" + m_blPendingXfersStopFeeder.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isSheetCountSupported\":" + m_blSheetCount.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isTweiTwainDirectMetadataSupported\":" + m_blTweiTwainDirectMetadata.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isUiControllableSupported\":" + m_blUiControllable.ToString().ToLowerInvariant() + ",";
+                szJson += "\"hostName\":\"" + Dns.GetHostName() + "\",";
+                szJson += "\"serialNumber\":\"" + m_szSerialnumber + "\",";
+                szJson += "\"numberOfSheets\":" + (m_blSheetCount ? "[1, 32767]" : "[1, 1]") + ",";
+                szJson += "\"resolution\":" + m_szResolutions + ",";
+                szJson += "\"height\":" + m_szHeight + ",";
+                szJson += "\"width\":" + m_szWidth + ",";
+                szJson += "\"offsetX\":" + m_szOffsetX + ",";
+                szJson += "\"offsetY\":" + m_szOffsetY + ",";
+                szJson += "\"cropping\":" + m_szCroppings + ",";
+                szJson += "\"pixelFormat\":" + m_szPixelFormats + ",";
+                szJson += "\"compression\":" + m_szCompressions; // last item, so no comma separator...
+                szJson += "}";
+
+                // All done...
+                return (szJson);
+            }
+
+            /// <summary>
+            /// Set JSON array of compressions...
+            /// </summary>
+            public void SetCompressions(string a_szCompressions)
+            {
+                m_szCompressions = a_szCompressions;
+            }
+
+            /// <summary>
+            /// Set JSON array of cropping values...
+            /// </summary>
+            public void SetCroppings(string a_szCroppings)
+            {
+                m_szCroppings = a_szCroppings;
+            }
+
+            /// <summary>
+            /// Set DAT_TWAINDIRECT...
+            /// </summary>
+            public void SetDatTwainDirect(bool a_blDatTwainDirect)
+            {
+                m_blDatTwainDirect = a_blDatTwainDirect;
+            }
+
+            /// <summary>
+            /// Set device online...
+            /// </summary>
+            public void SetDeviceOnline(bool a_blDeviceOnline)
+            {
+                m_blDeviceOnline = a_blDeviceOnline;
+            }
+
+            /// <summary>
+            /// Set extended image info...
+            /// </summary>
+            public void SetExtImageInfo(bool a_blExtImageInfo)
+            {
+                m_blExtImageInfo = a_blExtImageInfo;
+            }
+
+            /// <summary>
+            /// Set feeder detected...
+            /// </summary>
+            public void SetFeederDetected(bool a_blFeederDetected)
+            {
+                m_blFeederDetected = a_blFeederDetected;
+            }
+
+            /// <summary>
+            /// Set flatbed detected...
+            /// </summary>
+            public void SetFlatbedDetected(bool a_blFlatbedDetected)
+            {
+                m_blFlatbedDetected = a_blFlatbedDetected;
+            }
+
+            /// <summary>
+            /// Set JSON min,max height
+            /// </summary>
+            public void SetHeight(string a_szHeight)
+            {
+                m_szHeight = a_szHeight;
+            }
+
+            /// <summary>
+            /// Set image mem file...
+            /// </summary>
+            public void SetImageMemFileXfer(bool a_blImageMemFileXfer)
+            {
+                m_blImageMemFileXfer = a_blImageMemFileXfer;
+            }
+
+            /// <summary>
+            /// Set image file...
+            /// </summary>
+            public void SetImageFileXfer(bool a_blImageFileXfer)
+            {
+                m_blImageFileXfer = a_blImageFileXfer;
+            }
+
+            /// <summary>
+            /// Set JSON min,max offsetx
+            /// </summary>
+            public void SetOffsetX(string a_szOffsetX)
+            {
+                m_szOffsetX = a_szOffsetX;
+            }
+
+            /// <summary>
+            /// Set JSON min,max offsety
+            /// </summary>
+            public void SetOffsetY(string a_szOffsetY)
+            {
+                m_szOffsetY = a_szOffsetY;
+            }
+
+            /// <summary>
+            /// Set paper detectable...
+            /// </summary>
+            public void SetPaperDetectable(bool a_blPaperDetectable)
+            {
+                m_blPaperDetectable = a_blPaperDetectable;
+            }
+
+            /// <summary>
+            /// Set PDF/raster...
+            /// </summary>
+            public void SetPdfRaster(bool a_blPdfRaster)
+            {
+                m_blPdfRaster = a_blPdfRaster;
+            }
+
+            /// <summary>
+            /// Set reset...
+            /// </summary>
+            public void SetPendingXfersReset(bool a_blPendingXfersReset)
+            {
+                m_blPendingXfersReset = a_blPendingXfersReset;
+            }
+
+            /// <summary>
+            /// Set stop feeder...
+            /// </summary>
+            public void SetPendingXfersStopFeeder(bool a_blPendingXfersStopFeeder)
+            {
+                m_blPendingXfersStopFeeder = a_blPendingXfersStopFeeder;
+            }
+
+            /// <summary>
+            /// Set the JSON array of pixelFormats...
+            /// </summary>
+            public void SetPixelFormats(string a_szPixelFormats)
+            {
+                m_szPixelFormats = a_szPixelFormats;
+            }
+
+            /// <summary>
+            /// Set a JSON array of resolutions...
+            /// </summary>
+            public void SetResolutions(string a_szResolutions)
+            {
+                m_szResolutions = a_szResolutions;
+            }
+
+            /// <summary>
+            /// Set serial number...
+            /// </summary>
+            public void SetSerialNumber(string a_szSerialnumber)
+            {
+                m_szSerialnumber = a_szSerialnumber;
+            }
+
+            /// <summary>
+            /// Set sheet count...
+            /// </summary>
+            public void SetSheetCount(bool a_blSheetCount)
+            {
+                m_blSheetCount = a_blSheetCount;
+            }
+
+            /// <summary>
+            /// Set twain direct support...
+            /// </summary>
+            public void SetTwainDirectSupport(TwainDirectSupport a_twaindirectsupport)
+            {
+                m_twaindirectsupport = a_twaindirectsupport;
+            }
+
+            /// <summary>
+            /// Set twain direct metadata...
+            /// </summary>
+            public void SetTweiTwainDirectMetadata(bool a_blTweiTwainDirectMetadata)
+            {
+                m_blTweiTwainDirectMetadata = a_blTweiTwainDirectMetadata;
+            }
+
+            /// <summary>
+            /// Set ui controllable...
+            /// </summary>
+            public void SetUiControllable(bool a_blUiControllable)
+            {
+                m_blUiControllable = a_blUiControllable;
+            }
+
+            /// <summary>
+            /// Set JSON min,max width
+            /// </summary>
+            public void SetWidth(string a_szWidth)
+            {
+                m_szWidth = a_szWidth;
+            }
+
+            /// <summary>
+            /// JSON array of compressions...
+            /// </summary>
+            private string m_szCompressions;
+
+            /// <summary>
+            /// JSON array of cropping values...
+            /// </summary>
+            private string m_szCroppings;
+
+            /// <summary>
+            /// Is DAT_TWAINDIRECT supported?
+            /// </summary>
+            private bool m_blDatTwainDirect;
+
+            /// <summary>
+            /// Is the device online?
+            /// </summary>
+            private bool m_blDeviceOnline;
+
+            /// <summary>
+            /// Do we support DAT_EXTIMAGEINFO?
+            /// </summary>
+            private bool m_blExtImageInfo;
+
+            /// <summary>
+            /// Do we have a feeder?
+            /// </summary>
+            private bool m_blFeederDetected;
+
+            /// <summary>
+            /// Do we have a flatbed?
+            /// </summary>
+            private bool m_blFlatbedDetected;
+
+            /// <summary>
+            /// JSON array of min,max height...
+            /// </summary>
+            private string m_szHeight;
+
+            /// <summary>
+            /// Can we transfer memory files?
+            /// </summary>
+            private bool m_blImageMemFileXfer;
+
+            /// <summary>
+            /// Can we transfer files?
+            /// </summary>
+            private bool m_blImageFileXfer;
+
+            /// <summary>
+            /// JSON array of min,max offsetx...
+            /// </summary>
+            private string m_szOffsetX;
+
+            /// <summary>
+            /// JSON array of min,max offsety...
+            /// </summary>
+            private string m_szOffsetY;
+
+            /// <summary>
+            /// Can we detect the presence of paper?
+            /// </summary>
+            private bool m_blPaperDetectable;
+
+            /// <summary>
+            /// Do we support PDF/raster?
+            /// </summary>
+            private bool m_blPdfRaster;
+
+            /// <summary>
+            /// Do we support reset?
+            /// </summary>
+            private bool m_blPendingXfersReset;
+
+            /// <summary>
+            /// Do we support stopping the feeder?
+            /// </summary>
+            private bool m_blPendingXfersStopFeeder;
+
+            /// <summary>
+            /// JSON array of pixelFormats...
+            /// </summary>
+            private string m_szPixelFormats;
+
+            /// <summary>
+            /// A JSON array of resolutions...
+            /// </summary>
+            private string m_szResolutions;
+
+            /// <summary>
+            /// The serial number for this scanner...
+            /// </summary>
+            private string m_szSerialnumber;
+
+            /// <summary>
+            /// Is sheet count supported?
+            /// </summary>
+            private bool m_blSheetCount;
+
+            /// <summary>
+            /// What level of support did we come up with?
+            /// </summary>
+            private TwainDirectSupport m_twaindirectsupport;
+
+            /// <summary>
+            /// Is TWEI_TWAINDIRECTMETADATA supported?
+            /// </summary>
+            private bool m_blTweiTwainDirectMetadata;
+
+            /// <summary>
+            /// Can we control the UI?
+            /// </summary>
+            private bool m_blUiControllable;
+
+            /// <summary>
+            /// JSON array of min,max width...
+            /// </summary>
+            private string m_szWidth;
         }
 
         #endregion
@@ -307,6 +950,11 @@ namespace TwainDirect.Support
             /// easier to support.
             /// </summary>
             public string szScanner;
+
+            /// <summary>
+            /// The data in easily chewable form...
+            /// </summary>
+            public TwainInquiryData twaininquirydata;
         }
 
         #endregion

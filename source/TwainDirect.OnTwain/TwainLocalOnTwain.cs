@@ -1465,9 +1465,9 @@ namespace TwainDirect.OnTwain
             // TWAIN Driver Support...
             #region TWAIN Driver Support
 
-            /*
             // Have the driver process the task...
-            if (m_blNativeTwainDirectSupport)
+            /*
+            if (m_twaincstoolkit.)
             {
                 string szMetadata;
                 TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);
