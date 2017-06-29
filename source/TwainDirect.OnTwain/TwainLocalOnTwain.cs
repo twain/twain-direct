@@ -34,6 +34,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using TwainDirect.Support;
 using TWAINWorkingGroup;
@@ -1072,23 +1073,24 @@ namespace TwainDirect.OnTwain
                 return (TwainLocalScanner.ApiStatus.newSessionNotAllowed);
             }
 
-            // Build the identity...
-            m_szScanner = a_jsonlookup.Get("scanner");
-            if (m_szScanner.Contains(" | "))
-            {
-                m_szScanner = m_szScanner.Split(new string[] { " | " }, StringSplitOptions.RemoveEmptyEntries)[0];
-            }
+            // Load our deviceregister object...
+            m_deviceregisterSession = new DeviceRegister();
+            m_deviceregisterSession.Load("{\"scanner\":" + a_jsonlookup.Get("scanner") + "}");
+
+            // Life sucks.
+            // On a side note, the ty= field contains the TW_IDENTITY.ProductName
+            // we need to find our scanner...
             if (TwainLocalScanner.GetPlatform() == TwainLocalScanner.Platform.WINDOWS)
             {
-                m_szTwainDriverIdentity = "0,0,0,USA,USA, ,0,0,0xFFFFFFFF, , ," + m_szScanner;
+                m_szTwainDriverIdentity = "0,0,0,USA,USA, ,0,0,0xFFFFFFFF, , ," + m_deviceregisterSession.GetTwainLocalTy();
             }
             else if (TwainLocalScanner.GetPlatform() == TwainLocalScanner.Platform.MACOSX)
             {
-                m_szTwainDriverIdentity = "0,0,0,USA,USA, ,0,0,0xFFFFFFFF, , ," + m_szScanner;
+                m_szTwainDriverIdentity = "0,0,0,USA,USA, ,0,0,0xFFFFFFFF, , ," + m_deviceregisterSession.GetTwainLocalTy();
             }
             else
             {
-                m_szTwainDriverIdentity = "1,0,0,USA,USA, ,0,0,0xFFFFFFFF, , ," + m_szScanner;
+                m_szTwainDriverIdentity = "1,0,0,USA,USA, ,0,0,0xFFFFFFFF, , ," + m_deviceregisterSession.GetTwainLocalTy();
             }
 
             // Open the driver...
@@ -1461,23 +1463,31 @@ namespace TwainDirect.OnTwain
         {
             bool blSuccess;
             string szTask;
+            string szStatus;
+            TWAINCSToolkit.STS sts;
+
+            // Init stuff...
+            a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit);
+
+            // Get the task from the TWAIN Local command...
+            szTask = a_jsonlookup.GetJson("task");
 
             // TWAIN Driver Support...
             #region TWAIN Driver Support
 
             // Have the driver process the task...
-            /*
-            if (m_twaincstoolkit.)
+            if (m_deviceregisterSession.GetTwainLocalTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Full)
             {
                 string szMetadata;
                 TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);
 
                 // Convert the task to an array, and then copy it into
-                // memory pointed to by a handle...
-                string szTask = a_szTask.Replace("\r", "").Replace("\n", "");
+                // memory pointed to by a handle.  I'm NUL terminating
+                // the data because it feels safer that way...
                 byte[] abTask = Encoding.UTF8.GetBytes(szTask);
-                IntPtr intptrTask = Marshal.AllocHGlobal(abTask.Length);
+                IntPtr intptrTask = Marshal.AllocHGlobal(abTask.Length + 1);
                 Marshal.Copy(abTask, 0, intptrTask, abTask.Length);
+                Marshal.WriteByte(intptrTask, abTask.Length, 0);
 
                 // Build the command...
                 szMetadata =
@@ -1496,9 +1506,8 @@ namespace TwainDirect.OnTwain
                     TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
                     Marshal.FreeHGlobal(intptrTask);
                     intptrTask = IntPtr.Zero;
-                    m_twaincstoolkit.Cleanup();
-                    m_twaincstoolkit = null;
-                    return (false);
+                    //m_swordtaskresponse.SetError("fail", null, "invalidJson", lResponseCharacterOffset);
+                    return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                 }
 
                 // TBD: Open up the reply (we should probably get the CsvToTwaindirect
@@ -1509,9 +1518,8 @@ namespace TwainDirect.OnTwain
                     TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
                     Marshal.FreeHGlobal(intptrTask);
                     intptrTask = IntPtr.Zero;
-                    m_twaincstoolkit.Cleanup();
-                    m_twaincstoolkit = null;
-                    return (false);
+                    //m_swordtaskresponse.SetError("fail", null, "invalidJson", lResponseCharacterOffset);
+                    return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                 }
 
                 // Get the reply data...
@@ -1521,9 +1529,7 @@ namespace TwainDirect.OnTwain
                     TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
                     Marshal.FreeHGlobal(intptrTask);
                     intptrTask = IntPtr.Zero;
-                    m_twaincstoolkit.Cleanup();
-                    m_twaincstoolkit = null;
-                    return (false);
+                    return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                 }
                 IntPtr intptrReceiveHandle = new IntPtr(lReceive);
                 uint u32ReceiveBytes;
@@ -1533,9 +1539,8 @@ namespace TwainDirect.OnTwain
                     m_twaincstoolkit.DsmMemFree(ref intptrReceiveHandle);
                     Marshal.FreeHGlobal(intptrTask);
                     intptrTask = IntPtr.Zero;
-                    m_twaincstoolkit.Cleanup();
-                    m_twaincstoolkit = null;
-                    return (false);
+                    //m_swordtaskresponse.SetError("fail", null, "invalidJson", lResponseCharacterOffset);
+                    return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                 }
 
                 // Convert it to an array and then a string...
@@ -1551,21 +1556,14 @@ namespace TwainDirect.OnTwain
                 intptrTask = IntPtr.Zero;
 
                 // Squirrel the reply away...
-                //a_swordtask.SetTaskReply(szReceive);
-                return (true);
+                a_processswordtask.SetTaskReply(szReceive);
+                return (TwainLocalScanner.ApiStatus.success);
             }
-            */
 
             #endregion
 
             // TWAIN Bridge Support...
             #region TWAIN Bridge Support...
-
-            // Init stuff...
-            a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit);
-
-            // Get the task from the TWAIN Local command...
-            szTask = a_jsonlookup.GetJson("task");
 
             // Deserialize our task...
             blSuccess = a_processswordtask.Deserialize(szTask, "211a1e90-11e1-11e5-9493-1697f925ec7b");
@@ -1761,9 +1759,9 @@ namespace TwainDirect.OnTwain
         private TWAINCSToolkit m_twaincstoolkit;
 
         /// <summary>
-        /// The TWAIN TW_IDENTITY.ProductName of the scanner we're using...
+        /// Information about the scanner sent to use by createSession...
         /// </summary>
-        private string m_szScanner;
+        private DeviceRegister m_deviceregisterSession;
 
         /// <summary>
         /// TWAIN identity of the scanner we're using...

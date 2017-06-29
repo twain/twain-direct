@@ -80,6 +80,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Get the contents of the register.txt file...
+        /// </summary>
+        /// <returns>everything we know about the scanner</returns>
+        public string GetTwainLocalScanner()
+        {
+            return (m_device.szScanner);
+        }
+
+        /// <summary>
         /// Return the TWAIN ty= field...
         /// </summary>
         /// <returns>the access token</returns>
@@ -116,24 +125,55 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Load data from a file...
+        /// Load data from a file or from the argument...
         /// </summary>
-        /// <param name="a_szFile">the file to load it from</param>
+        /// <param name="a_szFile">the file or the data itself</param>
         /// <returns>try if successful</returns>
-        public bool Load(string a_szFile)
+        public bool Load(string a_szFileOrData)
         {
             try
             {
-                // No file...
-                if (!File.Exists(a_szFile))
+                string szJson;
+
+                // Validate...
+                if (string.IsNullOrEmpty(a_szFileOrData))
                 {
+                    Log.Error("DeviceRegister.Load failed...no data...");
                     return (false);
+                }
+
+                // If the data contains a '{' then we think we have
+                // data instead of a file...
+                if (a_szFileOrData.Contains("{"))
+                {
+                    szJson = a_szFileOrData;
+                }
+
+                // Otherwise, we expect a file...
+                else
+                {
+                    // No joy...
+                    if (!File.Exists(a_szFileOrData))
+                    {
+                        Log.Error("DeviceRegister.Load failed...no file <" + a_szFileOrData + ">");
+                        return (false);
+                    }
+
+                    // Read it...
+                    szJson = File.ReadAllText(a_szFileOrData);
+
+                    // Bugger...
+                    if (string.IsNullOrEmpty(szJson))
+                    {
+                        Log.Error("DeviceRegister.Load failed...no data <" + a_szFileOrData + ">");
+                        return (false);
+                    }
                 }
 
                 // Parse it...
                 long lResponseCharacterOffset;
                 JsonLookup jsonlookup = new JsonLookup();
-                jsonlookup.Load(File.ReadAllText(a_szFile), out lResponseCharacterOffset);
+                jsonlookup.Load(szJson, out lResponseCharacterOffset);
 
                 // Start with a clean slate...
                 m_device = default(Device);
@@ -176,25 +216,25 @@ namespace TwainDirect.Support
                 }
 
                 // Root JSON object...
-                szData += "{\n";
+                szData += "{";
 
                 // Scanner data...
-                szData += "    \"scanner\": {\n";
+                szData += "\"scanner\":{";
 
                 // Persist the items we want to remember for the user, technically we
                 // shouldn't hold onto the serial number, because user's might move
                 // scanners around, but it's so expensive to get the value (in terms
                 // of performance) that we'l going to take the risk...
-                szData += "        \"twainLocalTy\": \"" + m_device.szTwainLocalTy + "\",\n";
-                szData += "        \"twainLocalSerialNumber\": \"" + m_device.szTwainLocalSerialNumber + "\",\n";
-                szData += "        \"twainLocalNote\": \"" + m_device.szTwainLocalNote + "\",\n";
-                szData += "        \"twainLocalScanner\": " + m_device.szScanner + "\n";
+                szData += "\"twainLocalTy\":\"" + m_device.szTwainLocalTy + "\",";
+                szData += "\"twainLocalSerialNumber\":\"" + m_device.szTwainLocalSerialNumber + "\",";
+                szData += "\"twainLocalNote\":\"" + m_device.szTwainLocalNote + "\",";
+                szData += "\"twainLocalScanner\": " + m_device.szScanner;
 
                 // End of scanner object...
-                szData += "    }\n";
+                szData += "}";
 
                 // End of root object...
-                szData += "}\n";
+                szData += "}";
 
                 // Save to the file...
                 File.WriteAllText(a_szFile, szData);

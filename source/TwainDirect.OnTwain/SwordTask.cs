@@ -482,7 +482,7 @@ namespace TwainDirect.OnTwain
                 // Add to the action array, skip vendor stuff we don't recognize...
                 string szActionException = jsonlookup.Get(szSwordAction + ".exception",false);
                 string szActionVendor = jsonlookup.Get(szSwordAction + ".vendor",false);
-                swordaction = m_swordtask.AppendAction(szSwordAction, jsonlookup.Get(szSwordAction + ".action",false), szActionException, szActionVendor);
+                swordaction = m_swordtask.AppendAction(szSwordAction, jsonlookup.Get(szSwordAction + ".action", false), szActionException, szActionVendor);
                 if (swordaction == null)
                 {
                     continue;
@@ -646,7 +646,7 @@ namespace TwainDirect.OnTwain
                                 string szAttributeVendor = jsonlookup.Get(szSwordAttribute + ".vendor",false);
                                 if (string.IsNullOrEmpty(szAttributeException)) szAttributeException = swordpixelformat.GetException();
                                 if (string.IsNullOrEmpty(szAttributeVendor)) szAttributeVendor = swordpixelformat.GetVendor();
-                                swordattribute = swordpixelformat.AddAttribute(szSwordAttribute, jsonlookup.Get(szSwordAttribute + ".attribute",false), szAttributeException, szAttributeVendor);
+                                swordattribute = swordpixelformat.AddAttribute(szSwordAttribute, jsonlookup.Get(szSwordAttribute + ".attribute", false), szAttributeException, szAttributeVendor);
                                 if (swordattribute == null)
                                 {
                                     continue;
@@ -714,6 +714,7 @@ namespace TwainDirect.OnTwain
             // work out the context, based on where we are in the array.
             if (m_swordtask != null)
             {
+                // Check the actions...
                 for (swordaction = m_swordtask.GetFirstAction();
                      swordaction != null;
                      swordaction = swordaction.GetNextAction())
@@ -730,9 +731,10 @@ namespace TwainDirect.OnTwain
                          swordstream != null;
                          swordstream = swordstream.GetNextStream())
                     {
+                        // If we're not the last action, set nextStream, else set ignore...
                         string szException = (swordstream.GetNextStream() != null) ? "nextStream" : "ignore";
 
-                        // Fix the exception based on where we are in the array...
+                        // Fix the exception...
                         if (swordstream.GetException() == "@nextStreamOrIgnore")
                         {
                             swordstream.SetException(szException);
@@ -799,7 +801,16 @@ namespace TwainDirect.OnTwain
         /// <returns></returns>
         public string GetTaskReply()
         {
-            return (this.m_swordtaskresponse.GetTaskResponse());
+            return (m_swordtaskresponse.GetTaskResponse());
+        }
+
+        /// <summary>
+        /// This is for use by TWAIN drivers that support DAT_TWAINDIRECT,
+        /// so they can return their task reply...
+        /// </summary>
+        public void SetTaskReply(string a_szTaskReply)
+        {
+            m_swordtaskresponse.SetTaskResponse(a_szTaskReply);
         }
 
         /// <summary>
@@ -820,7 +831,7 @@ namespace TwainDirect.OnTwain
             // because this is a null task...
             if ((m_swordtask == null) || (m_swordtask.GetFirstAction() == null))
             {
-                m_swordtaskresponse.JSON_ROOT_BGN(); // {                   // {
+                m_swordtaskresponse.JSON_ROOT_BGN();                        // {
                 m_swordtaskresponse.JSON_ARR_BGN(1, "actions");             // actions:[
                 m_swordtaskresponse.JSON_OBJ_BGN(2, "");                    // {
                 m_swordtaskresponse.JSON_STR_SET(3, "action", ",", "");     // action:"",
@@ -4769,7 +4780,7 @@ namespace TwainDirect.OnTwain
                     return (null);
                 }
 
-                // Make the first actiion the head of the list...
+                // Make the first action the head of the list...
                 if (m_swordaction == null)
                 {
                     m_swordaction = swordaction;
@@ -4931,14 +4942,14 @@ namespace TwainDirect.OnTwain
             /// Add a stream to an action...
             /// </summary>
             /// <param name="a_szJsonKey">actions[].streams[] key</param>
-            /// <param name="a_szStream">name of the stream</param>
+            /// <param name="a_szStreamName">name of the stream</param>
             /// <param name="a_szException">exception for this stream</param>
             /// <param name="a_szVendor">vendor id, if any</param>
             /// <returns></returns>
             public SwordStream AppendStream
             (
 	            string a_szJsonKey,
-                string a_szStream,
+                string a_szStreamName,
                 string a_szException,
                 string a_szVendor
             )
@@ -4946,7 +4957,7 @@ namespace TwainDirect.OnTwain
                 SwordStream swordstream;
 
                 // Allocate a new stream and initialize it...
-                swordstream = new SwordStream(m_processswordtask, m_swordtaskresponse, m_swordstream, a_szJsonKey, a_szStream, a_szException, a_szVendor);
+                swordstream = new SwordStream(m_processswordtask, m_swordtaskresponse, m_swordstream, a_szJsonKey, a_szStreamName, a_szException, a_szVendor);
                 if (swordstream == null)
                 {
                     return (null);
@@ -8967,6 +8978,15 @@ namespace TwainDirect.OnTwain
         public string GetTaskResponse()
         {
             return (m_szTaskResponse);
+        }
+
+        /// <summary>
+        /// Set the task response...
+        /// </summary>
+        /// <param name="a_szTaskResponse">the reply</param>
+        public void SetTaskResponse(string a_szTaskResponse)
+        {
+            m_szTaskResponse = a_szTaskResponse;
         }
 
         /// <summary>

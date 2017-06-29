@@ -61,12 +61,14 @@ namespace TwainDirect.Support
         /// <summary>
         /// Create a console on Windows...
         /// </summary>
-        public static void CreateConsole()
+        public static StreamReader CreateConsole()
         {
             // Make sure we have a console...
             if (TwainLocalScanner.GetPlatform() == TwainLocalScanner.Platform.WINDOWS)
             {
+                // Get our console...
                 NativeMethods.AllocConsole();
+
                 // We have to do some additional work to get out text in the console instead
                 // of having it redirected to Visual Studio's output window...
                 IntPtr stdHandle = NativeMethods.GetStdHandle(NativeMethods.STD_OUTPUT_HANDLE);
@@ -77,6 +79,10 @@ namespace TwainDirect.Support
                 streamwriterStdout.AutoFlush = true;
                 Console.SetOut(streamwriterStdout);
             }
+
+            // And because life is hard, we need to up the size of standard input...
+            StreamReader streamreaderConsole = new StreamReader(Console.OpenStandardInput(65536));
+            return (streamreaderConsole);
         }
 
         /// <summary>
@@ -99,8 +105,9 @@ namespace TwainDirect.Support
         /// <summary>
         /// Prompt for input, returning a string, if there's any data...
         /// </summary>
+        /// <param name="a_streamreaderConsole">the console to use</param>
         /// <returns>data captured</returns>
-        public string Prompt()
+        public string Prompt(StreamReader a_streamreaderConsole)
         {
             string szCmd;
 
@@ -111,7 +118,7 @@ namespace TwainDirect.Support
                 Console.Out.Write(m_szPrompt);
 
                 // Read in a line...
-                szCmd = Console.In.ReadLine();
+                szCmd = (a_streamreaderConsole == null) ? Console.In.ReadLine() : a_streamreaderConsole.ReadLine();
                 if (string.IsNullOrEmpty(szCmd))
                 {
                     continue;

@@ -55,7 +55,7 @@ namespace TwainDirect.Certification
         public Terminal()
         {
             // Make sure we have a console...
-            Interpreter.CreateConsole();
+            m_streamreaderConsole = Interpreter.CreateConsole();
 
             // Init stuff...
             m_blSilent = false;
@@ -162,7 +162,7 @@ namespace TwainDirect.Certification
                 string[] aszCmd;
 
                 // Prompt...
-                szCmd = interpreter.Prompt();
+                szCmd = interpreter.Prompt(m_streamreaderConsole);
 
                 // Tokenize...
                 aszCmd = interpreter.Tokenize(szCmd);
@@ -3216,6 +3216,11 @@ namespace TwainDirect.Certification
         /// Map commands to functions...
         /// </summary>
         private List<Interpreter.DispatchTable> m_ldispatchtable;
+
+        /// <summary>
+        /// Our console input...embiggened...
+        /// </summary>
+        private StreamReader m_streamreaderConsole;
 
         /// <summary>
         /// A snapshot of the current available devices...

@@ -2224,6 +2224,7 @@ namespace TwainDirect.Support
         private bool ParseSession(string a_szReason, ApiCmd a_apicmd, out string a_szCode)
         {
             bool blSuccess;
+            bool blIsInfoOrInfoex;
             int ii;
             int iSessionRevision;
             long lResponseCharacterOffset;
@@ -2242,8 +2243,11 @@ namespace TwainDirect.Support
                 return (false);
             }
 
+            // Are we info or infoex?
+            blIsInfoOrInfoex = ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex"));
+
             // Run-roh...
-            if (jsonlookup.Get("results.success") == "false")
+            if (!blIsInfoOrInfoex && jsonlookup.Get("results.success") == "false")
             {
                 // Get the code...
                 a_szCode = jsonlookup.Get("results.code");
@@ -2277,8 +2281,7 @@ namespace TwainDirect.Support
             }
 
             // Is this /privet/info or /privet/infoex?
-            if (    (a_apicmd.GetUri() == "/privet/info")
-                ||  (a_apicmd.GetUri() == "/privet/infoex"))
+            if (blIsInfoOrInfoex)
             {
                 // Squirrel away the x-privet-token...
                 m_szXPrivetToken = jsonlookup.Get("x-privet-token");
@@ -3419,7 +3422,7 @@ namespace TwainDirect.Support
                 string szCommand =
                     "{" +
                     "\"method\":\"createSession\"," +
-                    "\"scanner\":\"" + m_twainlocalsession.DeviceRegisterGetTwainLocalTy() + "\"" +
+                    "\"scanner\":" + m_twainlocalsession.DeviceRegisterGetTwainLocalScanner() +
                     "}";
                 m_twainlocalsession.GetIpcTwainDirectOnTwain().Write(szCommand);
 
@@ -4714,6 +4717,15 @@ namespace TwainDirect.Support
             public string DeviceRegisterGetDeviceId()
             {
                 return (m_deviceregister.GetTwainLocalInstanceName());
+            }
+
+            /// <summary>
+            /// Get the contents of the register.txt file...
+            /// </summary>
+            /// <returns>everything we know about the scanner</returns>
+            public string DeviceRegisterGetTwainLocalScanner()
+            {
+                return (m_deviceregister.GetTwainLocalScanner());
             }
 
             /// <summary>
