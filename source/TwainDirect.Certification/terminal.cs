@@ -112,11 +112,12 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIncrement,                    new string[] { "increment" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdJson2Xml,                     new string[] { "json2xml" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdReturn,                       new string[] { "return" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRunv,                         new string[] { "runv" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSet,                          new string[] { "set" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep, new string[] { "sleep" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                        new string[] { "sleep" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdTwainlocalsession,            new string[] { "twainlocalsession" }));
 
             // Say hi...
@@ -1731,6 +1732,66 @@ namespace TwainDirect.Certification
         {
             // Bye-bye...
             return (true);
+        }
+
+        /// <summary>
+        /// Convert JSON to XML...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdJson2Xml(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            bool blSuccess;
+            string szJson;
+
+            // Must supply a file or data...
+            if ((a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            {
+                DisplayError("must supply a file or data...");
+                return (false);
+            }
+
+            // Is the argument a file?
+            if (File.Exists(a_functionarguments.aszCmd[1]))
+            {
+                try
+                {
+                    szJson = File.ReadAllText(a_functionarguments.aszCmd[1]);
+                }
+                catch (Exception exception)
+                {
+                    DisplayError("failed to open file...<" + a_functionarguments.aszCmd[1] + "> - " + exception.Message);
+                    return (false);
+                }
+            }
+            else
+            {
+                szJson = a_functionarguments.aszCmd[1];
+            }
+
+            // Load it...
+            long lJsonErrorIndex;
+            JsonLookup jsonlookup = new JsonLookup();
+            blSuccess = jsonlookup.Load(szJson, out lJsonErrorIndex);
+            if (!blSuccess)
+            {
+                DisplayError("json error at index: " + lJsonErrorIndex);
+            }
+            else
+            {
+                string szXml = jsonlookup.GetXml();
+                if (szXml == null)
+                {
+                    DisplayError("unable to convert json to xml...");
+                }
+                else
+                {
+                    Display(szXml);
+                }
+            }   
+
+            // Bye-bye...
+            return (false);
         }
 
         /// <summary>

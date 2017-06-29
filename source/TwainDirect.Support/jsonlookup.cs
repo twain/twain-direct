@@ -423,6 +423,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Get the JSON data as XML.  This is a simple name/value conversion...
+        /// </summary>
+        /// <returns>teh XML string</returns>
+        public string GetXml()
+        {
+            return (GetXmlPrivate(m_property, 0, ""));
+        }
+
+        /// <summary>
         /// Loads a JSON string...
         /// </summary>
         /// <param name="a_szJson">JSON string to parse</param>
@@ -574,8 +583,6 @@ namespace TwainDirect.Support
 	        return (true);
         }
 
-
-
         /// <summary>
         /// Diagnostic dump of the results of a Load, this function
         /// runs recursively...
@@ -655,7 +662,169 @@ namespace TwainDirect.Support
 	        }
         }
 
+        /// <summary>
+        /// Emit the JSON data as compact XML.  We're doing this in a
+        /// literal fashion.  Therefore:
+        /// 
+        ///    {
+        ///        "metadata": {
+        ///             "address": {
+        ///	                "imageNumber": 1,
+        ///	                "imagePart": 1,
+        ///	                "moreParts": false,
+        ///	                "sheetNumber": 1,
+        ///	                "source": "feederFront",
+        ///	                "streamName": "stream0",
+        ///	                "sourceName": "source0",
+        ///	                "pixelFormatName": "pixelFormat0"
+        ///             },
+        ///             "image": {
+        ///	                "compression": "none",
+        ///	                "pixelFormat": "bw1",
+        ///	                "pixelHeight": 2200,
+        ///	                "pixelOffsetX": 0,
+        ///	                "pixelOffsetY": 0,
+        ///	                "pixelWidth": 1728,
+        ///	                "resolution": 200,
+        ///	                "size": 476279
+        ///             },
+		///             "status": {
+		///	                 "success": true
+		///             }
+	    ///        }
+        ///    }
+        ///    
+        /// Will appear in XML as:
+        ///    <twaindirect>
+        ///        <metadata>
+        ///             <address>
+        ///	                <imageNumber>1</imageNumber>
+        ///	                <imagePart>1</imagePart>
+        ///	                <moreParts>false</moreParts>
+        ///	                <sheetNumber>1</sheetNumber>
+        ///	                <source>feederFront</source>
+        ///	                <streamName>stream0</streamName>
+        ///	                <sourceName>source0</sourceName>
+        ///	                <pixelFormatName>pixelFormat0</pixelFormatName>
+        ///             </address>
+        ///             <image>
+        ///	                <compression>none</compression>
+        ///	                <pixelFormat>bw1</pixelFormat>
+        ///	                <pixelHeight>2200</pixelHeight>
+        ///	                <pixelOffsetX>0</pixelOffsetX>
+        ///	                <pixelOffsetY>0</pixelOffsetY>
+        ///	                <pixelWidth>1728</pixelWidth>
+        ///	                <resolution>200</resolution>
+        ///	                <size>476279</size>
+        ///             </image>
+		///             <status>
+		///	                 <success>true</success>
+		///             </status>
+	    ///        </metadata>
+        ///    </twaindirect>
+        ///    
+        /// Arrays are handle like so:
+        /// 
+        ///     {
+        ///         "array": [1, 2, 3]
+        ///     }
+        ///     
+        ///     <twaindirect>
+        ///         <array>
+        ///             <item>1</item>
+        ///             <item>2</item>
+        ///             <item>3</item>
+        ///         </array>
+        ///     </twaindirect>
+        /// 
+        /// </summary>
+        /// <param name="a_property">property to emit</param>
+        /// <param name="a_iDepth">depth we're at</param>
+        /// <param name="a_szXml">current string provided by caller</param>
+        /// /// <returns>an XML string, or null on error</returns>
+        private string GetXmlPrivate(Property a_property, int a_iDepth, string a_szXml)
+        {
+            string szXml = a_szXml;
+            string szData;
+            string szName;
+            Property property;
+            EPROPERTYTYPE epropertytype;
 
+            // Init...
+            property = a_property;
+            if (property == null)
+            {
+                return (null);
+            }
+
+            // Loopy...
+            while (property != null)
+            {
+                // Get the name...
+                if (!GetProperty(property, out szName))
+                {
+                    return (null);
+                }
+
+                // If we didn't get a name, make one up...
+                if (string.IsNullOrEmpty(szName))
+                {
+                    switch (property.epropertytype)
+                    {
+                        default: szName = "x" + szName; break;
+                        case EPROPERTYTYPE.ARRAY: szName = "a" + szName; break;
+                        case EPROPERTYTYPE.OBJECT: szName = "o" + szName; break;
+                    }
+                }
+                // If we got a name, prefix it with obj or arr, if needed...
+                else
+                {
+                    switch (property.epropertytype)
+                    {
+                        default: szName = "x_" + szName; break;
+                        case EPROPERTYTYPE.ARRAY: szName = "a_" + szName; break;
+                        case EPROPERTYTYPE.BOOLEAN: szName = "b_" + szName; break;
+                        case EPROPERTYTYPE.NULL: szName = "u_" + szName; break;
+                        case EPROPERTYTYPE.NUMBER: szName = "n_" + szName; break;
+                        case EPROPERTYTYPE.OBJECT: szName = "o_" + szName; break;
+                        case EPROPERTYTYPE.STRING: szName = "s_" + szName; break;
+                    }
+                }
+
+                // ADD: our opening tag...
+                szXml += "<" + szName + ">";
+
+                // Get the value...
+                if (!GetValue(property, out szData, out epropertytype))
+                {
+                    return (null);
+                }
+
+                // Dive into our kiddie, if we have one...
+                if (property.propertyChild != null)
+                {
+                    // Dive in...
+                    szXml = GetXmlPrivate(property.propertyChild, a_iDepth + 1, szXml);
+                    if (szXml == null)
+                    {
+                        return (null);
+                    }
+                }
+                else
+                {
+                    szXml += szData;
+                }
+
+                // ADD: our closing tag...
+                szXml += "</" + szName + ">";
+
+                // Next sibling...
+                property = property.propertySibling;
+            }
+
+            // This is what we have so far...
+            return (szXml);
+        }
 
         /// <summary>
         /// Free a property tree...
@@ -689,8 +858,6 @@ namespace TwainDirect.Support
 		        property = null;
 	        }
         }
-
-
 
         /// <summary>
         /// Get a property name.  When the JSON rules are relaxed we allow
@@ -747,8 +914,6 @@ namespace TwainDirect.Support
 	        // All done...
 	        return (true);
         }
-
-
 
         /// <summary>
         /// Get a value.  When the JSON rules are relaxed we allow for the
@@ -813,8 +978,6 @@ namespace TwainDirect.Support
             a_epropertytype = a_property.epropertytype;
 	        return (true);
         }
-
-
 
         /// <summary>
         /// Work our way through an object...
@@ -968,8 +1131,6 @@ namespace TwainDirect.Support
 	        return (false);
         }
 
-
-
         /// <summary>
         /// Work our way through an array...
         /// </summary>
@@ -1086,8 +1247,6 @@ namespace TwainDirect.Support
 	        a_u32Json = u32Json;
 	        return (false);
         }
-
-
 
         /// <summary>
         /// Work our way through a value...
@@ -1209,8 +1368,6 @@ namespace TwainDirect.Support
 			        return (true);
 	        }
         }
-
-
 
         /// <summary>
         /// Work our way through a string (property or value)...
@@ -1427,8 +1584,6 @@ namespace TwainDirect.Support
 	        return (false);
         }
 
-
-
         /// <summary>
         /// Work our way through a number...
         /// </summary>
@@ -1608,8 +1763,6 @@ namespace TwainDirect.Support
 	        return (false);
         }
 
-
-
         /// <summary>
         /// Skip whitespace in the JSON string...
         /// </summary>
@@ -1631,8 +1784,6 @@ namespace TwainDirect.Support
 	        return (false);
         }
 
-
-
         /// <summary>
         /// Free resources...
         /// </summary>
@@ -1646,8 +1797,6 @@ namespace TwainDirect.Support
 		        m_property = null;
 	        }
         }
-
-
 
         /// <summary>
         /// C# leaves out the most amazing stuff...

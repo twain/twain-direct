@@ -992,7 +992,7 @@ namespace TwainDirect.Support
                     szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".meta");
                     try
                     {
-                        File.WriteAllText(szMetaFile, "\"metadata\":" + m_twainlocalsession.GetMetadata());
+                        File.WriteAllText(szMetaFile, "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}");
                     }
                     catch (Exception exception)
                     {
@@ -1107,7 +1107,7 @@ namespace TwainDirect.Support
                 szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".meta");
                 try
                 {
-                    File.WriteAllText(szMetaFile, "\"metadata\":" + m_twainlocalsession.GetMetadata());
+                    File.WriteAllText(szMetaFile, "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}");
                 }
                 catch (Exception exception)
                 {
