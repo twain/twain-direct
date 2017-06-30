@@ -394,153 +394,6 @@ namespace TwainDirect.OnTwain
         #endregion
 
 
-        // Private Methods: CreatePdfRaster
-        #region Private Methods: CreatePdfRaster
-
-        /// <summary>
-        /// Create a PDF/raster from one of the following:
-        /// - bitonal uncompressed
-        /// - bitonal group4
-        /// - grayscale uncompressed
-        /// - grayscale jpeg
-        /// - color uncompressed
-        /// - color jpeg
-        /// </summary>
-        /// <param name="a_szPrdFile">file to store the pdf/raster</param>
-        /// <param name="a_abImage">raw image data to wrap</param>
-        /// <param name="a_iImageOffset">byte offset into the image</param>
-        /// <param name="a_twpt">bitonal, grayscale or color</param>
-        /// <param name="a_twcp">none, group4 or jpeg</param>
-        /// <param name="a_u32Resolution">dots per inch</param>
-        /// <param name="a_u32Width">width in pixels</param>
-        /// <param name="a_u32Height">height in pixels</param>
-        /// <returns></returns>
-        private bool CreatePdfRaster
-        (
-            string a_szPdfRasterFile,
-            byte[] a_abImage,
-            int a_iImageOffset,
-            TWAIN.TWPT a_twpt,
-            TWAIN.TWCP a_twcp,
-            UInt32 a_u32Resolution,
-            UInt32 a_u32Width,
-            UInt32 a_u32Height
-        )
-        {
-            bool blSuccess = true;
-            PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
-            PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
-
-            // Convert the pixel type...
-            switch (a_twpt)
-            {
-                default:
-                    TWAINWorkingGroup.Log.Error("Unsupported pixel type: " + a_twpt);
-                    return (false);
-                case TWAIN.TWPT.BW: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
-                case TWAIN.TWPT.GRAY: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
-                case TWAIN.TWPT.RGB: rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB; break;
-            }
-
-            // Convert the compression...
-            switch (a_twcp)
-            {
-                default:
-                    TWAINWorkingGroup.Log.Error("Unsupported compression: " + a_twcp);
-                    return (false);
-                case TWAIN.TWCP.NONE: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED; break;
-                case TWAIN.TWCP.GROUP4: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_CCITTG4; break;
-                case TWAIN.TWCP.JPEG: rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_JPEG; break;
-            }
-
-            // Create the file...
-            try
-            {
-                // Construct a raster PDF encoder
-                PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
-                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
-                pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
-
-                // Create the page (we only ever have one)...
-                pdfRasWr.encoder_set_resolution(enc, a_u32Resolution, a_u32Resolution);
-                pdfRasWr.encoder_set_pixelformat(enc, rasterpixelformat);
-                pdfRasWr.encoder_set_compression(enc, rastercompression);
-                pdfRasWr.encoder_start_page(enc, (int)a_u32Width);
-
-                if (rastercompression != PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED)
-                {
-                    pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                }
-                else
-                { // if uncompressed, need to remove BMP EOL conditions
-                    UInt32 rowWidthInBytesNotBMP = 0;
-                    switch (rasterpixelformat)
-                    {
-                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL: rowWidthInBytesNotBMP = (a_u32Width + 7) / 8; break;
-                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE: rowWidthInBytesNotBMP = a_u32Width; break;
-                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB: rowWidthInBytesNotBMP = a_u32Width * 3; break;
-                    }
-                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3) / 4) * 4;
-                    byte[] abImageNotBMP = new byte[rowWidthInBytesNotBMP * a_u32Height];
-
-                    UInt32 srcOffset = (UInt32)a_iImageOffset;
-                    UInt32 dstOffset = 0;
-                    for (UInt32 i = 0; i < a_u32Height; ++i)
-                    {
-                        Array.Copy(a_abImage, srcOffset, abImageNotBMP, dstOffset, rowWidthInBytesNotBMP);
-                        srcOffset += rowWidthInBytesOfBMP;
-                        dstOffset += rowWidthInBytesNotBMP;
-                    }
-                    pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, abImageNotBMP, 0, (UInt32)abImageNotBMP.Length);
-                }
-                pdfRasWr.encoder_end_page(enc);
-
-                // The document is complete
-                pdfRasWr.encoder_end_document(enc);
-
-                // clean up
-                pdfRasWr.encoder_destroy(enc);
-            }
-            catch (Exception exception)
-            {
-                TWAINWorkingGroup.Log.Error("unable to open " + a_szPdfRasterFile + " for writing");
-                TWAINWorkingGroup.Log.Error(exception.Message);
-                blSuccess = false;
-            }
-
-            // All done...
-            return (blSuccess);
-        }
-
-        /// <summary>
-        /// Write a blob of data to disk...
-        /// </summary>
-        /// <param name="a_abData">the data</param>
-        /// <param name="a_u32Offset">the byte offset into the data</param>
-        /// <param name="a_u32Length">the amount of data from the offset to write</param>
-        /// <param name="a_object">our binary writer object</param>
-        /// <returns>the number of bytes written</returns>
-        private long PdfRasterOutputWriter(byte[] a_abData, long a_lOffset, long a_lLength, object a_object)
-        {
-            // Get our object...
-            BinaryWriter binarywriter = (BinaryWriter)a_object;
-
-            // Validate...
-            if ((a_abData == null) || (a_lLength == 0))
-            {
-                return (0);
-            }
-
-            // Write...
-            binarywriter.Write(a_abData, (int)a_lOffset, (int)a_lLength);
-
-            // All done...
-            return (a_lLength);
-        }
-
-        #endregion
-
-
         // Private Methods: ReportImage
         #region Private Methods: ReportImage
 
@@ -654,18 +507,60 @@ namespace TwainDirect.OnTwain
                 }
             }
 
-            // Save as PDF/Raster...
+            // Our filename...
             szImageFile = szFile + ".pdf";
-            blSuccess = CreatePdfRaster
+
+            // Get our pixelFormat...
+            string szPixelFormat;
+            switch ((TWAIN.TWPT)twimageinfo.PixelType)
+            {
+                default:
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
+                    m_blCancel = false;
+                    SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                    return (TWAINCSToolkit.MSG.RESET);
+                case TWAIN.TWPT.BW:
+                    szPixelFormat = "bw1";
+                    break;
+                case TWAIN.TWPT.GRAY:
+                    szPixelFormat = "gray8";
+                    break;
+                case TWAIN.TWPT.RGB:
+                    szPixelFormat = "rgb24";
+                    break;
+            }
+
+            // Get our compression...
+            string szCompression;
+            switch ((TWAIN.TWCP)twimageinfo.Compression)
+            {
+                default:
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
+                    m_blCancel = false;
+                    SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                    return (TWAINCSToolkit.MSG.RESET);
+                case TWAIN.TWCP.NONE:
+                    szCompression = "none";
+                    break;
+                case TWAIN.TWCP.GROUP4:
+                    szCompression = "group4";
+                    break;
+                case TWAIN.TWCP.JPEG:
+                    szCompression = "jpeg";
+                    break;
+            }
+
+            // Save as PDF/Raster...
+            blSuccess = PdfRaster.CreatePdfRaster
             (
                 szImageFile,
                 a_abImage,
                 a_iImageOffset,
-                (TWAIN.TWPT)twimageinfo.PixelType,
-                (TWAIN.TWCP)twimageinfo.Compression,
-                (UInt32)twimageinfo.XResolution.Whole,
-                (UInt32)twimageinfo.ImageWidth,
-                (UInt32)twimageinfo.ImageLength
+                szPixelFormat,
+                szCompression,
+                twimageinfo.XResolution.Whole,
+                twimageinfo.ImageWidth,
+                twimageinfo.ImageLength
             );
             if (!blSuccess)
             {
@@ -673,44 +568,6 @@ namespace TwainDirect.OnTwain
                 m_blCancel = false;
                 SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                 return (TWAINCSToolkit.MSG.RESET);
-            }
-
-            // Compression...
-            string szCompression;
-            switch (twimageinfo.Compression)
-            {
-                default:
-                    m_blCancel = false;
-                    SetImageBlocksDrained(TWAIN.STS.BADVALUE);
-                    return (TWAINCSToolkit.MSG.RESET);
-                case (ushort)TWAIN.TWCP.GROUP4:
-                    szCompression = "group4";
-                    break;
-                case (ushort)TWAIN.TWCP.JPEG:
-                    szCompression = "jpeg";
-                    break;
-                case (ushort)TWAIN.TWCP.NONE:
-                    szCompression = "none";
-                    break;
-            }
-
-            // Figure out the pixel format...
-            string szPixelFormat;
-            switch (twimageinfo.PixelType)
-            {
-                default:
-                    m_blCancel = false;
-                    SetImageBlocksDrained(TWAIN.STS.BADVALUE);
-                    return (TWAINCSToolkit.MSG.RESET);
-                case (short)TWAIN.TWPT.BW:
-                    szPixelFormat = "bw1";
-                    break;
-                case (short)TWAIN.TWPT.GRAY:
-                    szPixelFormat = "gray8";
-                    break;
-                case (short)TWAIN.TWPT.RGB:
-                    szPixelFormat = "rgb24";
-                    break;
             }
 
             // Work out the source...
@@ -1261,71 +1118,18 @@ namespace TwainDirect.OnTwain
             a_szThumbnailFile = "";
             if (a_jsonlookup.Get("withThumbnail") == "true")
             {
-                long ssww;
-                long ddww;
-                long hh;
                 bool blSuccess;
-                byte[] abImage;
-                byte[] abStripData;
-                long lResolution;
-                long lWidth;
-                long lHeight;
-                Bitmap bitmap = null;
-                BitmapData bitmapdata;
-
-                // This is the file we'll use...
-                a_szThumbnailFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + "_thumbnail.pdf");
-                a_szThumbnailFile = a_szThumbnailFile.Replace("\\", "/");
 
                 // The name of our image file...
                 szPdf = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".pdf");
                 szPdf = szPdf.Replace("\\", "/");
 
-                // Convert the image to a thumbnail...
-                PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
-                PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
-                PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
-                int decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, szPdf);
-                lWidth = pdfRasRd.decoder_get_width(decoder);
-                lHeight = pdfRasRd.decoder_get_height(decoder);
-                lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
-                rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
-                rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
-                abStripData = pdfRasRd.decoder_read_strips(decoder);
-                pdfRasRd.decoder_destroy(decoder);
-                PdfRaster.AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
-                using (var memorystream = new MemoryStream(abImage))
-                {
-                    // Get the thumbnail, fix so all thumbnails have the same height
-                    // we want to preserve the aspect ratio...
-                    bitmap = new Bitmap(memorystream);
-                    Image.GetThumbnailImageAbort myCallback = new Image.GetThumbnailImageAbort(ThumbnailCallback);
-                    int iWidth = (64 * (int)bitmap.HorizontalResolution) / (int)bitmap.VerticalResolution;
-                    Image imageThumbnail = bitmap.GetThumbnailImage(iWidth, 64, myCallback, IntPtr.Zero);
-                    bitmap = new Bitmap(imageThumbnail);
+                // This is the file we'll use...
+                a_szThumbnailFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + "_thumbnail.pdf");
+                a_szThumbnailFile = a_szThumbnailFile.Replace("\\", "/");
 
-                    // Convert it from 32bit rgb to 24bit rgb...
-                    bitmapdata = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
-                    byte[] abImageBgr = new byte[bitmapdata.Stride * bitmap.Height];
-                    System.Runtime.InteropServices.Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
-                    int iNewStride = (bitmapdata.Stride - (bitmapdata.Stride / 4)); // lose the A from BGRA
-                    iNewStride = (iNewStride + 3) & ~3; // align the new stride on a 4-byte boundary
-                    abImage = new byte[iNewStride * bitmapdata.Height];
-                    for (hh = 0; hh < bitmapdata.Height; hh++)
-                    {
-                        long lSsRow = (hh * bitmapdata.Stride);
-                        long lDdRow = (hh * iNewStride);
-                        for (ssww = ddww = 0; ssww < bitmapdata.Stride; ddww += 3, ssww += 4)
-                        {
-                            abImage[lDdRow + ddww + 0] = (byte)abImageBgr[lSsRow + ssww + 2]; // R
-                            abImage[lDdRow + ddww + 1] = (byte)abImageBgr[lSsRow + ssww + 1]; // G
-                            abImage[lDdRow + ddww + 2] = (byte)abImageBgr[lSsRow + ssww + 0]; // B
-                        }
-                    }
-
-                    // PDF/raster it...
-                    blSuccess = CreatePdfRaster(a_szThumbnailFile, abImage, 0, TWAIN.TWPT.RGB, TWAIN.TWCP.NONE, (uint)bitmap.HorizontalResolution, (uint)bitmap.Width, (uint)bitmap.Height);
-                }
+                // Create the thumbnail...
+                blSuccess = PdfRaster.CreatePdfRasterThumbnail(szPdf, a_szThumbnailFile);
             }
 
             // Build the metadata filename, if we don't have one, we have a problem...

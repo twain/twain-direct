@@ -451,150 +451,6 @@ namespace TwainDirect.OnSane
         #endregion
 
 
-        // Private Methods: CreatePdfRaster
-        #region Private Methods: CreatePdfRaster
-
-        /// <summary>
-        /// Create a PDF/raster from one of the following:
-        /// - bitonal uncompressed
-        /// - bitonal group4
-        /// - grayscale uncompressed
-        /// - grayscale jpeg
-        /// - color uncompressed
-        /// - color jpeg
-        /// </summary>
-        /// <param name="a_szPrdFile">file to store the pdf/raster</param>
-        /// <param name="a_abImage">raw image data to wrap</param>
-        /// <param name="a_iImageOffset">byte offset into the image</param>
-        /// <param name="a_twpt">bitonal, grayscale or color</param>
-        /// <param name="a_twcp">none, group4 or jpeg</param>
-        /// <param name="a_u32Resolution">dots per inch</param>
-        /// <param name="a_u32Width">width in pixels</param>
-        /// <param name="a_u32Height">height in pixels</param>
-        /// <returns></returns>
-        private bool CreatePdfRaster
-        (
-            string a_szPdfRasterFile,
-            byte[] a_abImage,
-            int a_iImageOffset,
-            string a_szMode,
-            UInt32 a_u32Resolution,
-            UInt32 a_u32Width,
-            UInt32 a_u32Height
-        )
-        {
-            bool blSuccess = true;
-            PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
-            PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
-
-            // Convert the pixel type...
-            switch (a_szMode)
-            {
-                default:
-                    TwainDirect.Support.Log.Error("Unsupported mode: " + a_szMode);
-                    return (false);
-                case "P4": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
-                case "P5": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
-                case "P6": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB; break;
-            }
-
-            // We only support none...
-            rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED;
-
-            // Create the file...
-            try
-            {
-                // Construct a raster PDF encoder
-                PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
-                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
-                pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on SANE v1.0");
-
-                // Create the page (we only ever have one)...
-                pdfRasWr.encoder_set_resolution(enc, a_u32Resolution, a_u32Resolution);
-                pdfRasWr.encoder_set_pixelformat(enc, rasterpixelformat);
-                pdfRasWr.encoder_set_compression(enc, rastercompression);
-                pdfRasWr.encoder_start_page(enc, (int)a_u32Width);
-
-                if (rastercompression != PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED)
-                {   // write compressed image data as one strip
-                    pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                }
-                else
-                {   // if uncompressed, must remove BMP end of image row padding
-                    UInt32 rowWidthInBytesNotBMP = 0;
-                    switch (rasterpixelformat)
-                    {
-                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL: rowWidthInBytesNotBMP = (a_u32Width + 7) / 8; break;
-                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE: rowWidthInBytesNotBMP = a_u32Width; break;
-                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB: rowWidthInBytesNotBMP = a_u32Width * 3; break;
-                    }
-                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3) / 4) * 4;
-                    if (rowWidthInBytesOfBMP == rowWidthInBytesNotBMP)
-                    {   // if there is no BMP EOL padding, write out the image data as one strip
-                        pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
-                    }
-                    else
-                    {   // if there is BMP EOL padding, strip out the excess EOL bytes, then write the unpadded image data as one strip
-                        byte[] abImageNotBMP = new byte[rowWidthInBytesNotBMP * a_u32Height];
-                        UInt32 srcOffset = (UInt32)a_iImageOffset;
-                        UInt32 dstOffset = 0;
-                        for (UInt32 i = 0; i < a_u32Height; ++i)
-                        {
-                            Array.Copy(a_abImage, srcOffset, abImageNotBMP, dstOffset, rowWidthInBytesNotBMP);
-                            srcOffset += rowWidthInBytesOfBMP;
-                            dstOffset += rowWidthInBytesNotBMP;
-                        }
-                        pdfRasWr.encoder_write_strip(enc, (int)a_u32Height, abImageNotBMP, 0, (UInt32)abImageNotBMP.Length);
-                    }
-                }
-                pdfRasWr.encoder_end_page(enc);
-
-                // The document is complete
-                pdfRasWr.encoder_end_document(enc);
-
-                // clean up
-                pdfRasWr.encoder_destroy(enc);
-            }
-            catch (Exception exception)
-            {
-                TwainDirect.Support.Log.Error("unable to open %s for writing: " + a_szPdfRasterFile);
-                TwainDirect.Support.Log.Error(exception.Message);
-                blSuccess = false;
-            }
-
-            // All done...
-            return (blSuccess);
-        }
-
-        /// <summary>
-        /// Write a blob of data to disk...
-        /// </summary>
-        /// <param name="a_abData">the data</param>
-        /// <param name="a_u32Offset">the byte offset into the data</param>
-        /// <param name="a_u32Length">the amount of data from the offset to write</param>
-        /// <param name="a_object">our binary writer object</param>
-        /// <returns>the number of bytes written</returns>
-        private long PdfRasterOutputWriter(byte[] a_abData, long a_lOffset, long a_lLength, object a_object)
-        {
-            // Get our object...
-            BinaryWriter binarywriter = (BinaryWriter)a_object;
-
-            // Validate...
-            if ((a_abData == null) || (a_lLength == 0))
-            {
-                return (0);
-            }
-
-            // Write...
-            binarywriter.Write(a_abData, (int)a_lOffset, (int)a_lLength);
-
-            // All done...
-            return (a_lLength);
-        }
-        
-        #endregion
-
-
         // Private Methods: ReportImage
         #region Private Methods: ReportImage
 
@@ -983,17 +839,17 @@ namespace TwainDirect.OnSane
                 // nice to show what we can get...
                 if (e == null)
                 {
-                    TwainDirect.Support.Log.Info("scanimage>>> (program exited)");
+                    Log.Info("scanimage>>> (program exited)");
                     blEndOfJob = true;
                 }
                 else if (string.IsNullOrEmpty(e.Data))
                 {
-                    TwainDirect.Support.Log.Info("scanimage>>> (no data)");
+                    Log.Info("scanimage>>> (no data)");
                     return;
                 }
                 else
                 {
-                    TwainDirect.Support.Log.Info("scanimage>>> " + e.Data);
+                    Log.Info("scanimage>>> " + e.Data);
                     if (!e.Data.StartsWith("Scanned page"))
                     {
                         return;
@@ -1024,7 +880,7 @@ namespace TwainDirect.OnSane
                     }
 
                     // Load the .pnm data...
-                    TwainDirect.Support.Log.Info("scanimage>>> load " + szPnm);
+                    Log.Info("scanimage>>> load " + szPnm);
                     try
                     {
                         abPnm = File.ReadAllBytes(szPnm);
@@ -1033,7 +889,7 @@ namespace TwainDirect.OnSane
                     {
                         // We'll assume that the file isn't ready for us yet,
                         // so bail...
-                        TwainDirect.Support.Log.Info("scanimage>>> ReadAllBytes failed (file may be in use)...");
+                        Log.Info("scanimage>>> ReadAllBytes failed (file may be in use)...");
                         if (blEndOfJob)
                         {
                             SetEndOfJob("SUCCESS");
@@ -1051,6 +907,7 @@ namespace TwainDirect.OnSane
                     int iHeight = 0;
                     int iImageOffset = 0;
                     string szPixelFormat = aszHeader[0];
+                    string szTwainDirectPixelFormat;
                     switch (szPixelFormat)
                     {
                         default:
@@ -1058,14 +915,17 @@ namespace TwainDirect.OnSane
                             continue;
 
                         case "P4":
+                            szTwainDirectPixelFormat = "bw1";
                             iImageOffset = (aszHeader[0].Length + 1) + (aszHeader[1].Length + 1) + (aszHeader[2].Length + 1);
                             break;
 
                         case "P5":
+                            szTwainDirectPixelFormat = "gray8";
                             iImageOffset = (aszHeader[0].Length + 1) + (aszHeader[1].Length + 1) + (aszHeader[2].Length + 1) + (aszHeader[3].Length + 1);
                             break;
 
                         case "P6":
+                            szTwainDirectPixelFormat = "rgb25";
                             iImageOffset = (aszHeader[0].Length + 1) + (aszHeader[1].Length + 1) + (aszHeader[2].Length + 1) + (aszHeader[3].Length + 1);
                             break;
                     }
@@ -1092,37 +952,38 @@ namespace TwainDirect.OnSane
                     iStride = abImage.Length / iHeight;
 
                     // Get a byte array from the image...
-                    TwainDirect.Support.Log.Info("scanimage>>> done: format=" + szPixelFormat + " " + iWidth + "x" + iHeight + " res=" + SaneTask.ms_szResolution + " stride=" + iStride);
+                    Log.Info("scanimage>>> done: format=" + szPixelFormat + " " + iWidth + "x" + iHeight + " res=" + SaneTask.ms_szResolution + " stride=" + iStride);
 
                     // So far so good, let's extract the image number...
                     if (!int.TryParse(Path.GetFileNameWithoutExtension(szPnm).Replace("img",""), out iImageNumber))
                     {
-                        TwainDirect.Support.Log.Info("scanimage>>> failed to get the image number...");
+                        Log.Info("scanimage>>> failed to get the image number...");
                         continue;
                     }
 
                     // Create the .pdf...
                     string szPdfFile = szPnm.Remove(szPnm.Length - 4, 4) + ".pdf";
-                    TwainDirect.Support.Log.Info("scanimage>>> creating pdf " + szPdfFile);
-                    blSuccess = CreatePdfRaster
+                    Log.Info("scanimage>>> creating pdf " + szPdfFile);
+                    blSuccess = PdfRaster.CreatePdfRaster
                     (
                         szPdfFile,
                         abImage,
                         0,
-                        szPixelFormat,
-                        (UInt32)int.Parse(SaneTask.ms_szResolution),
-                        (UInt32)iWidth,
-                        (UInt32)iHeight
+                        szTwainDirectPixelFormat,
+                        "none",
+                        int.Parse(SaneTask.ms_szResolution),
+                        iWidth,
+                        iHeight
                     );
                     if (!blSuccess)
                     {
-                        TwainDirect.Support.Log.Error("ReportImage: unable to save the image file..." + szPdfFile);
+                        Log.Error("ReportImage: unable to save the image file..." + szPdfFile);
                         //m_blProcessing = false;
                         //m_blCancel = false;
                         SetEndOfJob("FILEWRITEERROR");
                         return;
                     }
-                    TwainDirect.Support.Log.Info("scanimage>>> done...");
+                    Log.Info("scanimage>>> done...");
 
                     // TWAIN Direct metadata...
                     szMeta = "";
@@ -1240,11 +1101,11 @@ namespace TwainDirect.OnSane
                     {
                         string szMetaFile = szPnm.Remove(szPnm.Length-4,4) + ".meta";
                         File.WriteAllText(szMetaFile, szMeta);
-                        TwainDirect.Support.Log.Info("ReportImage: saved " + szMetaFile);
+                        Log.Info("ReportImage: saved " + szMetaFile);
                     }
                     catch
                     {
-                        TwainDirect.Support.Log.Error("ReportImage: unable to save the metadata file...");
+                        Log.Error("ReportImage: unable to save the metadata file...");
                         //m_blProcessing = false;
                         //m_blCancel = false;
                         SetEndOfJob("FILEWRITEERROR");

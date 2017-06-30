@@ -771,23 +771,24 @@ namespace TwainDirect.Support
                 {
                     switch (property.epropertytype)
                     {
-                        default: szName = "x" + szName; break;
-                        case EPROPERTYTYPE.ARRAY: szName = "a" + szName; break;
-                        case EPROPERTYTYPE.OBJECT: szName = "o" + szName; break;
+                        default: szName = "z"; break;
+                        case EPROPERTYTYPE.ARRAY: szName = "a"; break;
+                        case EPROPERTYTYPE.OBJECT: szName = "o"; break;
                     }
                 }
+                  
                 // If we got a name, prefix it with obj or arr, if needed...
                 else
                 {
                     switch (property.epropertytype)
                     {
-                        default: szName = "x_" + szName; break;
-                        case EPROPERTYTYPE.ARRAY: szName = "a_" + szName; break;
-                        case EPROPERTYTYPE.BOOLEAN: szName = "b_" + szName; break;
-                        case EPROPERTYTYPE.NULL: szName = "u_" + szName; break;
-                        case EPROPERTYTYPE.NUMBER: szName = "n_" + szName; break;
-                        case EPROPERTYTYPE.OBJECT: szName = "o_" + szName; break;
-                        case EPROPERTYTYPE.STRING: szName = "s_" + szName; break;
+                        default: szName = "z:" + szName; break;
+                        case EPROPERTYTYPE.ARRAY: szName = "a:" + szName; break;
+                        case EPROPERTYTYPE.BOOLEAN: szName = "b:" + szName; break;
+                        case EPROPERTYTYPE.NULL: szName = "u:" + szName; break;
+                        case EPROPERTYTYPE.NUMBER: szName = "n:" + szName; break;
+                        case EPROPERTYTYPE.OBJECT: szName = "o:" + szName; break;
+                        case EPROPERTYTYPE.STRING: szName = "s:" + szName; break;
                     }
                 }
 

@@ -34,6 +34,8 @@
 
 // Helpers...
 using System;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -170,6 +172,231 @@ namespace TwainDirect.Support
 
             // All done...
             return (true);
+        }
+
+        /// <summary>
+        /// Convert a PDF/raster into something we can easily display with
+        /// native .NET stuff...
+        /// </summary>
+        /// <param name="a_szImage">file to convert</param>
+        /// <returns>a byte array we can turn into a bitmap</returns>
+        public static byte[] ConvertPdfToTiffOrJpeg(string a_szImage)
+        {
+            long lWidth;
+            long lHeight;
+            long lResolution;
+            byte[] abStripData;
+            byte[] abImage = null;
+
+            // Do the conversion...
+            PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
+            PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
+            PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
+            int decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
+            lWidth = pdfRasRd.decoder_get_width(decoder);
+            lHeight = pdfRasRd.decoder_get_height(decoder);
+            lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
+            rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
+            rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
+            abStripData = pdfRasRd.decoder_read_strips(decoder);
+            pdfRasRd.decoder_destroy(decoder);
+            AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
+
+            // Spit back the result...
+            return (abImage);
+        }
+
+        /// <summary>
+        /// Create a PDF/raster from one of the following:
+        /// - bitonal uncompressed
+        /// - bitonal group4
+        /// - grayscale uncompressed
+        /// - grayscale jpeg
+        /// - color uncompressed
+        /// - color jpeg
+        /// </summary>
+        /// <param name="a_szPrdFile">file to store the pdf/raster</param>
+        /// <param name="a_abImage">raw image data to wrap</param>
+        /// <param name="a_iImageOffset">byte offset into the image</param>
+        /// <param name="a_szPixelFormat">bw1, gray8, rgb24</param>
+        /// <param name="a_szCompression">none, group4, jpeg</param>
+        /// <param name="a_i32Resolution">dots per inch</param>
+        /// <param name="a_i32Width">width in pixels</param>
+        /// <param name="a_i32Height">height in pixels</param>
+        /// <returns></returns>
+        public static bool CreatePdfRaster
+        (
+            string a_szPdfRasterFile,
+            byte[] a_abImage,
+            int a_iImageOffset,
+            string a_szPixelFormat,
+            string a_szCompression,
+            int a_i32Resolution,
+            int a_i32Width,
+            int a_i32Height
+        )
+        {
+            bool blSuccess = true;
+            PdfRasterWriter.Writer.PdfRasterPixelFormat rasterpixelformat;
+            PdfRasterWriter.Writer.PdfRasterCompression rastercompression;
+
+            // Convert the pixel type...
+            switch (a_szPixelFormat)
+            {
+                default:
+                    Log.Error("Unsupported pixel type: " + a_szPixelFormat);
+                    return (false);
+                case "bw1": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL; break;
+                case "gray8": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE; break;
+                case "rgb24": rasterpixelformat = PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB; break;
+            }
+
+            // Convert the compression...
+            switch (a_szCompression)
+            {
+                default:
+                    Log.Error("Unsupported compression: " + a_szCompression);
+                    return (false);
+                case "none": rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED; break;
+                case "group4": rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_CCITTG4; break;
+                case "jpeg": rastercompression = PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_JPEG; break;
+            }
+
+            // Create the file...
+            try
+            {
+                // Construct a raster PDF encoder
+                PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
+                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
+
+                // Create the page (we only ever have one)...
+                pdfRasWr.encoder_set_resolution(enc, a_i32Resolution, a_i32Resolution);
+                pdfRasWr.encoder_set_pixelformat(enc, rasterpixelformat);
+                pdfRasWr.encoder_set_compression(enc, rastercompression);
+                pdfRasWr.encoder_start_page(enc, (int)a_i32Width);
+
+                if (rastercompression != PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED)
+                {
+                    pdfRasWr.encoder_write_strip(enc, a_i32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
+                }
+                else
+                { // if uncompressed, need to remove BMP EOL conditions
+                    UInt32 rowWidthInBytesNotBMP = 0;
+                    switch (rasterpixelformat)
+                    {
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_BITONAL: rowWidthInBytesNotBMP = (uint)((a_i32Width + 7) / 8); break;
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE: rowWidthInBytesNotBMP = (uint)a_i32Width; break;
+                        case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB: rowWidthInBytesNotBMP = (uint)(a_i32Width * 3); break;
+                    }
+                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3) / 4) * 4;
+                    byte[] abImageNotBMP = new byte[rowWidthInBytesNotBMP * a_i32Height];
+
+                    UInt32 srcOffset = (UInt32)a_iImageOffset;
+                    UInt32 dstOffset = 0;
+                    for (UInt32 i = 0; i < a_i32Height; ++i)
+                    {
+                        Array.Copy(a_abImage, srcOffset, abImageNotBMP, dstOffset, rowWidthInBytesNotBMP);
+                        srcOffset += rowWidthInBytesOfBMP;
+                        dstOffset += rowWidthInBytesNotBMP;
+                    }
+                    pdfRasWr.encoder_write_strip(enc, (int)a_i32Height, abImageNotBMP, 0, (UInt32)abImageNotBMP.Length);
+                }
+                pdfRasWr.encoder_end_page(enc);
+
+                // The document is complete
+                pdfRasWr.encoder_end_document(enc);
+
+                // clean up
+                pdfRasWr.encoder_destroy(enc);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("unable to open " + a_szPdfRasterFile + " for writing");
+                Log.Error(exception.Message);
+                blSuccess = false;
+            }
+
+            // All done...
+            return (blSuccess);
+        }
+
+        /// <summary>
+        /// Create a thumbnail from a PDF/raster file...
+        /// </summary>
+        /// <param name="a_szPdf">source</param>
+        /// <param name="a_szThumbnailFile">destination</param>
+        /// <returns>true on success</returns>
+        public static bool CreatePdfRasterThumbnail
+        (
+            string a_szPdf,
+            string a_szThumbnailFile
+        )
+        {
+            int hh;
+            int ssww;
+            int ddww;
+            bool blSuccess;
+            long lWidth;
+            long lHeight;
+            long lResolution;
+            byte[] abImage;
+            byte[] abStripData;
+            Bitmap bitmap;
+            BitmapData bitmapdata;
+
+            // Convert the image to a thumbnail...
+            PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
+            PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
+            PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
+            int decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szPdf);
+            lWidth = pdfRasRd.decoder_get_width(decoder);
+            lHeight = pdfRasRd.decoder_get_height(decoder);
+            lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
+            rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
+            rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
+            abStripData = pdfRasRd.decoder_read_strips(decoder);
+            pdfRasRd.decoder_destroy(decoder);
+            PdfRaster.AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
+            using (var memorystream = new MemoryStream(abImage))
+            {
+                // Get the thumbnail, fix so all thumbnails have the same height
+                // we want to preserve the aspect ratio...
+                bitmap = new Bitmap(memorystream);
+                Image.GetThumbnailImageAbort myCallback = new Image.GetThumbnailImageAbort(ThumbnailCallback);
+                int iWidth = (64 * (int)bitmap.HorizontalResolution) / (int)bitmap.VerticalResolution;
+                Image imageThumbnail = bitmap.GetThumbnailImage(iWidth, 64, myCallback, IntPtr.Zero);
+                bitmap = new Bitmap(imageThumbnail);
+
+                // Convert it from 32bit rgb to 24bit rgb...
+                bitmapdata = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
+                byte[] abImageBgr = new byte[bitmapdata.Stride * bitmap.Height];
+                System.Runtime.InteropServices.Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
+                int iNewStride = (bitmapdata.Stride - (bitmapdata.Stride / 4)); // lose the A from BGRA
+                iNewStride = (iNewStride + 3) & ~3; // align the new stride on a 4-byte boundary
+                abImage = new byte[iNewStride * bitmapdata.Height];
+                for (hh = 0; hh < bitmapdata.Height; hh++)
+                {
+                    long lSsRow = (hh * bitmapdata.Stride);
+                    long lDdRow = (hh * iNewStride);
+                    for (ssww = ddww = 0; ssww < bitmapdata.Stride; ddww += 3, ssww += 4)
+                    {
+                        abImage[lDdRow + ddww + 0] = (byte)abImageBgr[lSsRow + ssww + 2]; // R
+                        abImage[lDdRow + ddww + 1] = (byte)abImageBgr[lSsRow + ssww + 1]; // G
+                        abImage[lDdRow + ddww + 2] = (byte)abImageBgr[lSsRow + ssww + 0]; // B
+                    }
+                }
+
+                // PDF/raster it...              
+                blSuccess = PdfRaster.CreatePdfRaster(a_szThumbnailFile, abImage, 0, "rgb24", "none", (int)bitmap.HorizontalResolution, bitmap.Width, bitmap.Height);
+            }
+
+            // All done...
+            return (blSuccess);
+        }
+        private static bool ThumbnailCallback()
+        {
+            return false;
         }
 
         #endregion

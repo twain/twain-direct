@@ -516,26 +516,17 @@ namespace TwainDirect.Certification
             if (fileinfo.Length > 200)
             {
                 byte[] abImage;
-                byte[] abStripData;
-                long lResolution;
-                long lWidth;
-                long lHeight;
 
                 // Just for now...
                 blGotImage = true;
-                
-                PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
-                PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
-                PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
-                int decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
-                lWidth = pdfRasRd.decoder_get_width(decoder);
-                lHeight = pdfRasRd.decoder_get_height(decoder);
-                lResolution = (long) pdfRasRd.decoder_get_yresolution(decoder);
-                rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
-                rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
-                abStripData = pdfRasRd.decoder_read_strips(decoder);
-                pdfRasRd.decoder_destroy(decoder);
-                PdfRaster.AddImageHeader(out abImage,abStripData,rasterreaderpixelformat,rasterreadercompression,lResolution,lWidth,lHeight);
+
+                // Convert the beastie...
+                abImage = PdfRaster.ConvertPdfToTiffOrJpeg(a_szImage);
+                if (abImage == null)
+                {
+                    // Ew...
+                    return (blGotImage);
+                }
 
                 // Get the image data...
                 using (var bitmap = new Bitmap(new MemoryStream(abImage)))

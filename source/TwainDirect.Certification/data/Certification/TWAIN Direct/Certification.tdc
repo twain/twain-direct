@@ -15,13 +15,13 @@ echo 'TWAIN Direct Certification v1.0 22-Jun-2017'
 echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 echo
 set certifyresult pass
-call CERTIFY '01 - JSON Syntax' '${arg:1}'
-call CERTIFY '02 - Task Topology' '${arg:1}'
-call CERTIFY '03 - Exception Handling' '${arg:1}'
-call CERTIFY '04 - Vendor Handling' '${arg:1}'
-call CERTIFY '05 - Exercises' '${arg:1}'
-call CERTIFY '06 - Check Values' '${arg:1}'
-call CERTIFY '07 - Info Infoex' '${arg:1}'
+call CERTIFY 'JSON Syntax' '${arg:1}'
+call CERTIFY 'Task Topology' '${arg:1}'
+call CERTIFY 'Exception Handling' '${arg:1}'
+call CERTIFY 'Vendor Handling' '${arg:1}'
+call CERTIFY 'Exercises' '${arg:1}'
+call CERTIFY 'Check Values' '${arg:1}'
+call CERTIFY 'Info Infoex' '${arg:1}'
 
 
 
