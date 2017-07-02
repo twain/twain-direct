@@ -100,10 +100,55 @@ namespace TwainDirect.Support
         /// of waitForEvents...
         /// </summary>
         /// <param name="a_apicmd">object we're copying from</param>
-        public ApiCmd(ApiCmd a_apicmd)
+        /// <param name="a_szSessionState">session state found in data</param>
+        /// <param name="a_lSessionRevision">session revision found in data</param>
+        public ApiCmd(ApiCmd a_apicmd, out string a_szSessionState, out long a_lSessionRevision)
         {
+            bool blSuccess;
+            long lResponseCharacterOffset;
+            JsonLookup jsonlookup = new JsonLookup();
+
+            // Create our object...
             HttpListenerContext httplistenercontext = null;
             ApiCmdHelper(a_apicmd.m_dnssddeviceinfo, null, ref httplistenercontext, a_apicmd.m_waitforeventprocessingcallback, a_apicmd.m_objectWaitforeventprocessingcallback);
+
+            // If we have JSON in the response, and it has session
+            // data, then we need to collect the session revision
+            // and the state...
+            a_szSessionState = "";
+            a_lSessionRevision = 0;
+            jsonlookup = new JsonLookup();
+            blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+            if (blSuccess)
+            {
+                if (jsonlookup.Get("results.success", false) == "true")
+                {
+                    // Look for the last values...
+                    for (int ii = 0; true; ii++)
+                    {
+                        string szTmp;
+                        string szEvent = "results.events[" + ii + "]";
+                        if (string.IsNullOrEmpty(jsonlookup.Get(szEvent, false)))
+                        {
+                            break;
+                        }
+
+                        // Get the state...
+                        szTmp = jsonlookup.Get(szEvent + ".session.state", false);
+                        if (!string.IsNullOrEmpty(szTmp))
+                        {
+                            a_szSessionState = szTmp;
+                        }
+
+                        // Get the revision...
+                        szTmp = jsonlookup.Get(szEvent + ".session.revision", false);
+                        if (!string.IsNullOrEmpty(szTmp))
+                        {
+                            long.TryParse(szTmp, out a_lSessionRevision);
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>

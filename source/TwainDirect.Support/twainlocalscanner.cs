@@ -2620,6 +2620,8 @@ namespace TwainDirect.Support
         private void ClientScannerWaitForEventsCommunicationHelper()
         {
             bool blSuccess;
+            long lSessionRevision = 0;
+            string szSessionState;
             ApiCmd apicmd = m_waitforeventsinfo.m_apicmd;
 
             // Loop until something stops us...
@@ -2633,8 +2635,10 @@ namespace TwainDirect.Support
                 // Session data is protected...
                 lock (m_waitforeventsinfo.m_objectlapicmdLock)
                 {
-                    // Report our current session id to the scanner...
-                    szData = szData.Replace("@@@SESSIONREVISION@@@", m_twainlocalsession.GetSessionRevision().ToString());
+                    // Report our current session id to the scanner, this
+                    // will either be the revision from the session object
+                    // or from the last event...
+                    szData = szData.Replace("@@@SESSIONREVISION@@@", (lSessionRevision == 0) ? m_twainlocalsession.GetSessionRevision().ToString() : lSessionRevision.ToString());
 
                     // If we've gone to noSession, we should scoot, since
                     // it's no longer possible to receive events...
@@ -2676,15 +2680,21 @@ namespace TwainDirect.Support
                     }
                 }
 
-                // Send this off for procesing, we have to lock when adding
+                // Send this off for processing, we have to lock when adding
                 // it to the list...
                 lock (m_waitforeventsinfo.m_objectlapicmdLock)
                 {
                     m_waitforeventsinfo.m_lapicmdEvents.Add(apicmd);
                 }
 
-                // We need a new one of these for the next long poll...
-                apicmd = new ApiCmd(apicmd);
+                // We need a new one of these for the next long poll, the
+                // code in this function collects the session state and
+                // the session revision...
+                apicmd = new ApiCmd(apicmd, out szSessionState, out lSessionRevision);
+                if (szSessionState == "noSession")
+                {
+                    return;
+                }
 
                 // Wake up the processor...
                 m_autoreseteventWaitForEventsProcessing.Set();

@@ -59,6 +59,7 @@ namespace TwainDirect.Certification
 
             // Init stuff...
             m_blSilent = false;
+            m_blSilentEvents = false;
             m_adnssddeviceinfoSnapshot = null;
             m_dnssddeviceinfoSelected = null;
             m_twainlocalscanner = null;
@@ -1854,9 +1855,12 @@ namespace TwainDirect.Certification
         {
             bool blSuccess;
             bool blSilent = m_blSilent;
+            bool blSilentEvents = m_blSilentEvents;
             m_blSilent = true;
+            m_blSilentEvents = true;
             blSuccess = CmdRunv(ref a_functionarguments);
             m_blSilent = blSilent;
+            m_blSilentEvents = blSilentEvents;
             return (blSuccess);
         }
 
@@ -2750,13 +2754,17 @@ namespace TwainDirect.Certification
         /// Display information about this apicmd object...
         /// </summary>
         /// <param name="a_apicmd">the object we want to display</param>
+        /// <param name="a_blForce">force output</param>
+        /// <param name="a_szPrefix">prefix (meant for events)</param>
         private void DisplayApicmd
         (
-            ApiCmd a_apicmd
+            ApiCmd a_apicmd,
+            bool a_blForce = false,
+            string a_szPrefix = ""
         )
         {
             // Nope...
-            if (m_blSilent)
+            if (m_blSilent && !a_blForce)
             {
                 return;
             }
@@ -2768,7 +2776,7 @@ namespace TwainDirect.Certification
             {
                 foreach (string sz in lszTransation)
                 {
-                    Display(sz);
+                    Display(a_szPrefix + sz);
                 }
             }
         }
@@ -3261,7 +3269,8 @@ namespace TwainDirect.Certification
         /// <param name="a_apicmd">the event information</param>
         private void WaitForEventsCallback(ApiCmd a_apicmd)
         {
-            // do fun stuff here
+            Display("EVENT");
+            DisplayApicmd(a_apicmd, m_blSilentEvents, "EVENT - ");
         }
 
         #endregion
@@ -3342,6 +3351,7 @@ namespace TwainDirect.Certification
         /// No output when this is true...
         /// </summary>
         private bool m_blSilent;
+        private bool m_blSilentEvents;
 
         /// <summary>
         /// A record of the last transaction on the API, this
