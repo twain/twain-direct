@@ -723,11 +723,18 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
-            // Make the call...
-            apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+            // If we have an argument, it'll be the script to run...
+            if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 1))
+            {
+                m_szWaitForEventsCallball = a_functionarguments.aszCmd[1];
+            }
+
+            // Make the call, this is where we register the callback we
+            // want to fire when events show up...
+            apicmd = new ApiCmd(m_dnssddeviceinfoSelected, WaitForEventsCallbackLaunchpad, this);
             m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
 
-            // Squirrel away the transaction...
+            // Squirrel away the partial transaction (we usually won't have a reply)...
             a_functionarguments.transaction = apicmd.GetTransaction();
 
             // Display what we send...
@@ -3234,6 +3241,29 @@ namespace TwainDirect.Certification
             m_lcallstack[m_lcallstack.Count - 1] = callstack;
         }
 
+        /// <summary>
+        /// The function that will be called when events arrive...
+        /// </summary>
+        /// <param name="a_apicmd">the event information</param>
+        /// <param name="a_object">our object</param>
+        private void WaitForEventsCallbackLaunchpad(ApiCmd a_apicmd, object a_object)
+        {
+            Terminal terminal = (Terminal)a_object;
+            if (terminal != null)
+            {
+                WaitForEventsCallback(a_apicmd);
+            }
+        }
+
+        /// <summary>
+        /// Process events...
+        /// </summary>
+        /// <param name="a_apicmd">the event information</param>
+        private void WaitForEventsCallback(ApiCmd a_apicmd)
+        {
+            // do fun stuff here
+        }
+
         #endregion
 
 
@@ -3297,6 +3327,11 @@ namespace TwainDirect.Certification
         /// The connection to our device...
         /// </summary>
         private TwainLocalScanner m_twainlocalscanner;
+
+        /// <summary>
+        /// Script to call when waitForEvents returns events...
+        /// </summary>
+        private string m_szWaitForEventsCallball;
 
         /// <summary>
         /// Our object for discovering TWAIN Local scanners...

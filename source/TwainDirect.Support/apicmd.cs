@@ -55,16 +55,55 @@ namespace TwainDirect.Support
         #region Public Methods...
 
         /// <summary>
+        /// Use this constructor when we need an apicmd, but don't plan to use
+        /// it to talk to anything...
+        /// </summary>
+        public ApiCmd()
+        {
+            HttpListenerContext httplistenercontext = null;
+            ApiCmdHelper(null, null, ref httplistenercontext, null, null);
+        }
+
+        /// <summary>
         /// Use this constructor when initiating a command on the client
         /// side, which means we don't have any JSON data or an HTTP
         /// context...
         /// </summary>
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
-        /// <param name="a_jsonlookup">the command data or null</param>
         public ApiCmd(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo)
         {
             HttpListenerContext httplistenercontext = null;
-            ApiCmdHelper(a_dnssddeviceinfo, null, ref httplistenercontext);
+            ApiCmdHelper(a_dnssddeviceinfo, null, ref httplistenercontext, null, null);
+        }
+
+        /// <summary>
+        /// Use this constructor when initiating a waitForEvents on the
+        /// client side, which means we don't have any JSON data or an HTTP
+        /// context...
+        /// </summary>
+        /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
+        /// <param name="a_waitforeventprocessingcallback">callback for each event</param>
+        /// <param name="a_objectWaitforeventprocessingcallback">object to pass to the callback</param>
+        public ApiCmd
+        (
+            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
+            TwainLocalScanner.WaitForEventsProcessingCallback a_waitforeventprocessingcallback,
+            object a_objectWaitforeventprocessingcallback
+        )
+        {
+            HttpListenerContext httplistenercontext = null;
+            ApiCmdHelper(a_dnssddeviceinfo, null, ref httplistenercontext, a_waitforeventprocessingcallback, a_objectWaitforeventprocessingcallback);
+        }
+
+        /// <summary>
+        /// Use this constructor when making a copy of ApiCmd as part
+        /// of waitForEvents...
+        /// </summary>
+        /// <param name="a_apicmd">object we're copying from</param>
+        public ApiCmd(ApiCmd a_apicmd)
+        {
+            HttpListenerContext httplistenercontext = null;
+            ApiCmdHelper(a_apicmd.m_dnssddeviceinfo, null, ref httplistenercontext, a_apicmd.m_waitforeventprocessingcallback, a_apicmd.m_objectWaitforeventprocessingcallback);
         }
 
         /// <summary>
@@ -83,7 +122,7 @@ namespace TwainDirect.Support
             ref HttpListenerContext a_httplistenercontext
         )
         {
-            ApiCmdHelper(a_dnssddeviceinfo, a_jsonlookup, ref a_httplistenercontext);
+            ApiCmdHelper(a_dnssddeviceinfo, a_jsonlookup, ref a_httplistenercontext, null, null);
         }
 
         /// <summary>
@@ -1641,6 +1680,19 @@ namespace TwainDirect.Support
             }
         }
 
+        /// <summary>
+        /// Call the user's function when we get an event.  This should
+        /// have been provided in the constructor, just prior to the call
+        /// to ClientScannerWaitForEvents...
+        /// </summary>
+        public void WaitForEventsCallback()
+        {
+            if (m_waitforeventprocessingcallback != null)
+            {
+                m_waitforeventprocessingcallback(this, m_objectWaitforeventprocessingcallback);
+            }
+        }
+
         #endregion
 
 
@@ -1978,11 +2030,15 @@ namespace TwainDirect.Support
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
         /// <param name="a_jsonlookup">the command data or null</param>
         /// <param name="a_httplistenercontext">the request that delivered the jsonlookup data</param>
+        /// <param name="a_waitforeventprocessingcallback">callback for each event</param>
+        /// <param name="a_objectWaitforeventprocessingcallback">object to pass to the callback</param>
         public void ApiCmdHelper
         (
             Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
             JsonLookup a_jsonlookup,
-            ref HttpListenerContext a_httplistenercontext
+            ref HttpListenerContext a_httplistenercontext,
+            TwainLocalScanner.WaitForEventsProcessingCallback a_waitforeventprocessingcallback,
+            object a_objectWaitforeventprocessingcallback
         )
         {
             // Should we use HTTP or HTTPS?  Our default behavior is to
@@ -2013,7 +2069,9 @@ namespace TwainDirect.Support
             }
 
             // We always need this...
-            m_dnssdeviceinfo = a_dnssddeviceinfo;
+            m_dnssddeviceinfo = a_dnssddeviceinfo;
+            m_waitforeventprocessingcallback = a_waitforeventprocessingcallback;
+            m_objectWaitforeventprocessingcallback = a_objectWaitforeventprocessingcallback;
             m_blResponseSuccess = false;
             m_szResponseHttpStatus = null;
             m_szResponseCode = null;
@@ -2137,7 +2195,11 @@ namespace TwainDirect.Support
         #region Private Attributes...
 
         // Information about the device we're communicating with...
-        private Dnssd.DnssdDeviceInfo m_dnssdeviceinfo;
+        private Dnssd.DnssdDeviceInfo m_dnssddeviceinfo;
+
+        // The callback and its object for the waitForEvents command...
+        TwainLocalScanner.WaitForEventsProcessingCallback m_waitforeventprocessingcallback;
+        object m_objectWaitforeventprocessingcallback;
 
         /// <summary>
         /// The HTTP listener context of the command we received...

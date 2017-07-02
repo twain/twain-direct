@@ -219,7 +219,7 @@ namespace TwainDirect.Scanner
 
             // Register it, make a note if it works by clearing the
             // no devices flag...
-            apicmd = new ApiCmd(null);
+            apicmd = new ApiCmd();
             if (m_scanner.RegisterScanner(jsonlookup, iNumber, szNote, ref apicmd))
             {
                 m_blNoDevices = false;
