@@ -416,7 +416,7 @@ namespace TwainDirect.OnTwain
             string a_szDg,
             string a_szDat,
             string a_szMsg,
-            TWAINCSToolkit.STS a_sts,
+            TWAIN.STS a_sts,
             Bitmap a_bitmap,
             string a_szFile,
             string a_szTwimageinfo,
@@ -758,31 +758,11 @@ namespace TwainDirect.OnTwain
         /// </summary>
         private void ClearImageBlocksDrained()
         {
-            m_blImageBlocksDrained = false;
-            string szImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
-            if (File.Exists(szImageBlocksDrained))
+            m_blSessionImageBlocksDrained = false;
+            string szSessionImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
+            if (File.Exists(szSessionImageBlocksDrained))
             {
-                File.Delete(szImageBlocksDrained);
-            }
-        }
-
-        /// <summary>
-        /// Set imageblocks drained with a status...
-        /// </summary>
-        /// <param name="a_sts">status of end of job</param>
-        private void SetImageBlocksDrained(TWAINCSToolkit.STS a_sts)
-        {
-            string szImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
-            if (!File.Exists(szImageBlocksDrained))
-            {
-                TWAINWorkingGroup.Log.Info("SetImageBlocksDrained: " + a_sts);
-                File.WriteAllText
-                (
-                    szImageBlocksDrained,
-                    "{" +
-                    "\"status\":\"" + a_sts + "\"" +
-                    "}"
-                );
+                File.Delete(szSessionImageBlocksDrained);
             }
         }
 
@@ -792,13 +772,13 @@ namespace TwainDirect.OnTwain
         /// <param name="a_sts">status of end of job</param>
         private void SetImageBlocksDrained(TWAIN.STS a_sts)
         {
-            string szImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
-            if (!File.Exists(szImageBlocksDrained))
+            string szSessionImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
+            if (!File.Exists(szSessionImageBlocksDrained))
             {
                 TWAINWorkingGroup.Log.Info("SetImageBlocksDrained: " + a_sts);
                 File.WriteAllText
                 (
-                    szImageBlocksDrained,
+                    szSessionImageBlocksDrained,
                     "{" +
                     "\"status\":\"" + a_sts + "\"" +
                     "}"
@@ -843,7 +823,7 @@ namespace TwainDirect.OnTwain
             DeviceScannerGetSession(out a_szSession);
 
             // If we're out of images, then bail...
-            if (m_blImageBlocksDrained)
+            if (m_blSessionImageBlocksDrained)
             {
                 // Close the driver...
                 szStatus = "";
@@ -892,10 +872,17 @@ namespace TwainDirect.OnTwain
         private TwainLocalScanner.ApiStatus DeviceScannerCreateSession(JsonLookup a_jsonlookup, out string a_szSession)
         {
             string szStatus;
-            TWAINCSToolkit.STS sts;
+            TWAIN.STS sts;
 
             // Init stuff...
             a_szSession = "";
+
+            // Make sure the images folder is empty...
+            if (Directory.Exists(m_szImagesFolder))
+            {
+                Directory.Delete(m_szImagesFolder, true);
+            }
+            Directory.CreateDirectory(m_szImagesFolder);
 
             // Create the toolkit...
             try
@@ -953,17 +940,10 @@ namespace TwainDirect.OnTwain
             // Open the driver...
             szStatus = "";
             sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_OPENDS", ref m_szTwainDriverIdentity, ref szStatus);
-            if (sts != TWAINCSToolkit.STS.SUCCESS)
+            if (sts != TWAIN.STS.SUCCESS)
             {
                 return (TwainLocalScanner.ApiStatus.newSessionNotAllowed);
             }
-
-            // Make sure the images folder is empty...
-            if (Directory.Exists(m_szImagesFolder))
-            {
-                Directory.Delete(m_szImagesFolder, true);
-            }
-            Directory.CreateDirectory(m_szImagesFolder);
 
             // Build the reply...
             DeviceScannerGetSession(out a_szSession);
@@ -1021,7 +1001,7 @@ namespace TwainDirect.OnTwain
             // that we're out of images...
             if (string.IsNullOrEmpty(szImageBlocks) && File.Exists(Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta")))
             {
-                m_blImageBlocksDrained = true;
+                m_blSessionImageBlocksDrained = true;
             }
 
             // Build the reply.  Note that we have this kind of code in three places
@@ -1268,7 +1248,7 @@ namespace TwainDirect.OnTwain
             bool blSuccess;
             string szTask;
             string szStatus;
-            TWAINCSToolkit.STS sts;
+            TWAIN.STS sts;
 
             // Init stuff...
             a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit);
@@ -1305,7 +1285,7 @@ namespace TwainDirect.OnTwain
                 // Send the command...
                 szStatus = "";
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_TWAINDIRECT", "MSG_SETTASK", ref szMetadata, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
                     Marshal.FreeHGlobal(intptrTask);
@@ -1399,7 +1379,7 @@ namespace TwainDirect.OnTwain
             string szStatus;
             string szCapability;
             string szUserInterface;
-            TWAINCSToolkit.STS sts;
+            TWAIN.STS sts;
 
             // Init stuff...
             m_blCancel = false;
@@ -1423,7 +1403,7 @@ namespace TwainDirect.OnTwain
                 szStatus = "";
                 szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
                     return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
@@ -1433,7 +1413,7 @@ namespace TwainDirect.OnTwain
                 szStatus = "";
                 szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
                     return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
@@ -1444,7 +1424,7 @@ namespace TwainDirect.OnTwain
                 szStatus = "";
                 szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
                     m_blExtImageInfo = false;
@@ -1455,7 +1435,7 @@ namespace TwainDirect.OnTwain
             szStatus = "";
             szUserInterface = "0,0";
             sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_ENABLEDS", ref szUserInterface, ref szStatus);
-            if (sts != TWAINCSToolkit.STS.SUCCESS)
+            if (sts != TWAIN.STS.SUCCESS)
             {
                 TWAINWorkingGroup.Log.Info("Action: MSG_ENABLEDS failed");
                 return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
@@ -1465,7 +1445,7 @@ namespace TwainDirect.OnTwain
             DeviceScannerGetSession(out a_szSession);
 
             // All done...
-            if (sts == TWAINCSToolkit.STS.SUCCESS)
+            if (sts == TWAIN.STS.SUCCESS)
             {
                 return (TwainLocalScanner.ApiStatus.success);
             }
@@ -1483,7 +1463,7 @@ namespace TwainDirect.OnTwain
             string szStatus;
             string szUserinterface;
             string szPendingxfers;
-            TWAINCSToolkit.STS sts;
+            TWAIN.STS sts;
 
             // Init stuff...
             a_szSession = "";
@@ -1497,7 +1477,7 @@ namespace TwainDirect.OnTwain
             // It looks like we're done, so declare success and scoot...
             if (m_twaincstoolkit.GetState() <= 4)
             {
-                sts = TWAINCSToolkit.STS.SUCCESS;
+                sts = TWAIN.STS.SUCCESS;
             }
 
             // We never got to state 6, this can happen if the request to
@@ -1510,9 +1490,9 @@ namespace TwainDirect.OnTwain
             }
 
             // We're done scanning, so bail...
-            else if (m_blImageBlocksDrained)
+            else if (m_blSessionImageBlocksDrained)
             {
-                sts = TWAINCSToolkit.STS.SUCCESS;
+                sts = TWAIN.STS.SUCCESS;
                 if (m_twaincstoolkit.GetState() == 5)
                 {
                     szStatus = "";
@@ -1529,7 +1509,7 @@ namespace TwainDirect.OnTwain
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingxfers, ref szStatus);
 
                 // That didn't go well, then end abruptly...
-                if (sts != TWAINCSToolkit.STS.SUCCESS)
+                if (sts != TWAIN.STS.SUCCESS)
                 {
                     szStatus = "";
                     szPendingxfers = "0,0";
@@ -1541,7 +1521,7 @@ namespace TwainDirect.OnTwain
             DeviceScannerGetSession(out a_szSession);
 
             // All done...
-            if (sts == TWAINCSToolkit.STS.SUCCESS)
+            if (sts == TWAIN.STS.SUCCESS)
             {
                 return (TwainLocalScanner.ApiStatus.success);
             }
@@ -1612,7 +1592,7 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// End of job detected...
         /// </summary>
-        private bool m_blImageBlocksDrained;
+        private bool m_blSessionImageBlocksDrained;
 
         /// <summary>
         /// We're scanning from a flatbed...

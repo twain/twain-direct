@@ -50,14 +50,12 @@ namespace TwainDirect.Scanner
         /// <summary>
         /// Initialize interesting stuff...
         /// </summary>
-        /// <param name="a_blNeedBrowser">we need a browser for authentication</param>
         /// <param name="a_displaycallback">display callback function or null</param>
         /// <param name="a_stopnotification">notification that we've stopped monitoring</param>
         /// <param name="m_confirmscan">confirmation function or null</param>
         /// <param name="a_blNoDevices">true if we have no devices</param>
         public Scanner
         (
-            bool a_blNeedBrowser,
             TwainLocalScanner.DisplayCallback a_displaycallback,
             StopNotification a_stopnotification,
             TwainLocalScanner.ConfirmScan a_confirmscan,

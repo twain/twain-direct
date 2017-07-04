@@ -137,12 +137,6 @@ namespace TwainDirect.Certification
             m_dnssd.MonitorStart(null,IntPtr.Zero);
 
             // Get our TWAIN Local interface.
-            //
-            // For Windows we don't need a browser, because we're
-            // suppling our own callback that'll take care of getting the
-            // Authorization Code using a WebBrowser object (yay C#).
-            //
-            // No such joy for the Linux and Mac worlds...
             m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this, null);
         }
 

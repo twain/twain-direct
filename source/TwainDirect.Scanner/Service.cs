@@ -57,7 +57,6 @@ namespace TwainDirect.Scanner
             // Instantiate our scanner object...
             m_scanner = new Scanner
             (
-                false,
                 Display,
                 null,
                 blConfirmScan ? (TwainLocalScanner.ConfirmScan)null : (TwainLocalScanner.ConfirmScan)null,

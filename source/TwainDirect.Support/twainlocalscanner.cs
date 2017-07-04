@@ -68,7 +68,9 @@ using TwainDirect.Support;
 namespace TwainDirect.Support
 {
     /// <summary>
-    /// A scanner interface to TWAIN Local scanners....
+    /// A scanner interface to a TWAIN Local scanner.  We only support one
+    /// registered scanner on a PC.  The user can change this at any time.
+    /// The client portion of the class can access any advertised scanner.
     /// </summary>
     public sealed class TwainLocalScanner : IDisposable
     {
@@ -355,6 +357,19 @@ namespace TwainDirect.Support
         public string ClientGetImageBlocks(ApiCmd a_apicmd)
         {
             return (a_apicmd.GetImageBlocks().Replace(" ",""));
+        }
+
+        /// <summary>
+        /// Return the current session state...
+        /// </summary>
+        /// <returns>session state</returns>
+        public string ClientGetSessionState()
+        {
+            if (m_twainlocalsession == null)
+            {
+                return ("noSession");
+            }
+            return (m_twainlocalsession.GetSessionState().ToString());
         }
 
         /// <summary>
@@ -1292,7 +1307,7 @@ namespace TwainDirect.Support
                 }
 
                 // Assume that this is going to work...
-                m_twainlocalsession.SetSessionImageBlocksDrained(false);
+                //mlmtbd m_twainlocalsession.SetSessionImageBlocksDrained(false);
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
@@ -1447,6 +1462,27 @@ namespace TwainDirect.Support
 
             // All done...
             return (true);
+        }
+
+        /// <summary>
+        /// Wait for the session object to be updated, this is done
+        /// by comparing the current session.revision number to the
+        /// session.revision from the last command or event.
+        /// </summary>
+        /// <param name="a_lMilliseconds">milliseconds to wait for the update</param>
+        /// <returns>true if an update was detected, false if the command timed out</returns>
+        public bool ClientWaitForSessionUpdate(long a_lMilliseconds)
+        {
+            bool blSignaled = false;
+
+            // Wait for it...
+            if (m_twainlocalsession != null)
+            {
+                blSignaled = m_twainlocalsession.ClientWaitForSessionUpdate(a_lMilliseconds);
+            }
+
+            // All done...
+            return (blSignaled);
         }
 
         /// <summary>
@@ -1928,18 +1964,6 @@ namespace TwainDirect.Support
         };
 
         /// <summary>
-        /// Our supported browsers...
-        /// </summary>
-        public enum Browser
-        {
-            UNKNOWN,
-            CHROME,
-            FIREFOX,
-            IE,
-            SAFARI
-        }
-
-        /// <summary>
         /// Buttons that a user can press...
         /// </summary>
         public enum ButtonPress
@@ -2344,13 +2368,20 @@ namespace TwainDirect.Support
 
                                     // Only do this bit if the number is newer than what
                                     // we already have...
-                                    if (!m_twainlocalsession.SetSessionRevision(iSessionRevision))
+                                    if (!m_twainlocalsession.SetSessionRevision(iSessionRevision, true))
                                     {
                                         continue;
                                     }
 
+                                    // Only set the imageBlocksDrained to true if we're told to,
+                                    // don't set them to false.  That's done once during the state
+                                    // change to capturing...
+                                    if (jsonlookup.Get(szEvent + ".session.imageBlocksDrained", false) == "true")
+                                    {
+                                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                                    }
+
                                     // Get the image blocks...
-                                    m_twainlocalsession.SetSessionImageBlocksDrained((jsonlookup.Get(szEvent + ".session.imageBlocksDrained", false) == "true"));
                                     m_twainlocalsession.m_alSessionImageBlocks = null;
                                     szImageBlocks = jsonlookup.Get(szEvent + ".session.imageBlocks", false);
                                     if (!string.IsNullOrEmpty(szImageBlocks))
@@ -2379,6 +2410,8 @@ namespace TwainDirect.Support
 
                                 // Now we can zap it...
                                 SetSessionState(SessionState.noSession);
+
+                                // All done...
                                 break;
                         }
                     }
@@ -2419,12 +2452,19 @@ namespace TwainDirect.Support
             {
                 return (true);
             }
-            
+
             // Protect ourselves from weirdness...
             try
             {
+                // Only set the imageBlocksDrained to true if we're told to,
+                // don't set them to false.  That's done once during the state
+                // change to capturing...
+                if (jsonlookup.Get("results.session.imageBlocksDrained", false) == "true")
+                {
+                    m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                }
+
                 // Collect the image blocks data...
-                m_twainlocalsession.SetSessionImageBlocksDrained((jsonlookup.Get("results.session.imageBlocksDrained", false) == "true"));
                 m_twainlocalsession.m_alSessionImageBlocks = null;
                 szImageBlocks = jsonlookup.Get("results.session.imageBlocks", false);
                 if (!string.IsNullOrEmpty(szImageBlocks))
@@ -3119,7 +3159,7 @@ namespace TwainDirect.Support
                     "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                     "\"revision\":" + m_twainlocalsession.GetSessionRevision() + "," +
                     "\"state\":\"" + esessionstate.ToString() + "\"," +
-                    a_apicmd.GetImageBlocksJson(sessionstatePrevious.ToString());
+                    a_apicmd.GetImageBlocksJson(esessionstate.ToString());
 
                 // Add the TWAIN Direct options, if any...
                 string szTaskReply = a_apicmd.GetTaskReply();
@@ -3374,8 +3414,8 @@ namespace TwainDirect.Support
             }
 
             // Validate...
-            if ((m_twainlocalsession == null)
-                || (m_twainlocalsession.GetIpcTwainDirectOnTwain() == null))
+            if (    (m_twainlocalsession == null)
+                ||  (m_twainlocalsession.GetIpcTwainDirectOnTwain() == null))
             {
                 DeviceReturnError(szFunction, a_apicmd, "invalidSessionId", null, -1);
                 return (false);
@@ -4088,6 +4128,13 @@ namespace TwainDirect.Support
             // then transition to nosession or ready...
             if (string.IsNullOrEmpty(a_apicmd.GetImageBlocks()))
             {
+                // Set the flag if we can't get any more images...
+                if ((m_twainlocalsession != null) && File.Exists(Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta")))
+                {
+                    m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                }
+
+                // Where we go next depends on our current state...
                 switch (GetState())
                 {
                     default:
@@ -4283,7 +4330,7 @@ namespace TwainDirect.Support
             }
 
             // Update the ApiCmd command object...
-            a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+            a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
 
             // Reply to the command with a session object...
             blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.capturing, -1, null);
@@ -4600,7 +4647,7 @@ namespace TwainDirect.Support
         ///////////////////////////////////////////////////////////////////////////////
         // Private Attributes...
         // All of the members in this section must be specific to the device
-        // and not to the session.
+        // and not to the session.  Session stuff goes into TwainLocalSession.
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Attributes...
 
@@ -4745,6 +4792,8 @@ namespace TwainDirect.Support
 
         ///////////////////////////////////////////////////////////////////////////////
         // Class: File System Watcher
+        // We use this to detect when TwainDirectOnTwain has added new images and
+        // metadata to the image folder maintained by TwainDirectScanner.
         ///////////////////////////////////////////////////////////////////////////////
         #region Class: File System Watcher
 
@@ -4771,6 +4820,9 @@ namespace TwainDirect.Support
 
         ///////////////////////////////////////////////////////////////////////////////
         // Class: Twain Local Session
+        // Information about a session.  In theory we should be able to have more
+        // than one of these, with one of them owning the scanner transport, and
+        // the others finishing up transferring images.
         ///////////////////////////////////////////////////////////////////////////////
         #region Class: Twain Local Session
 
@@ -4803,7 +4855,7 @@ namespace TwainDirect.Support
                 m_lWaitForEventsSessionRevision = 0;
                 m_szSessionSnapshot = "";
                 m_alSessionImageBlocks = null;
-                m_blSessionImageBlocksDrained = true; // we start empty and ready to scoot
+                SetSessionImageBlocksDrained(true); // we start empty and ready to scoot
                 m_szXPrivetToken = a_szXPrivetToken;
 
                 // Metadata...
@@ -4818,6 +4870,9 @@ namespace TwainDirect.Support
 
                 // The place we'll keep our device information...
                 m_deviceregister = new DeviceRegister();
+
+                // Notification when the session revision changes...
+                m_autoreseteventWaitForSessionUpdate = new AutoResetEvent(false);
             }
 
             /// <summary>
@@ -4844,6 +4899,25 @@ namespace TwainDirect.Support
             public string ClientCreateCommandId()
             {
                 return (Guid.NewGuid().ToString());
+            }
+
+            /// <summary>
+            /// Wait for the session object to be updated, this is done
+            /// by comparing the current session.revision number to the
+            /// session.revision from the last command or event.
+            /// </summary>
+            /// <param name="a_lMilliseconds">milliseconds to wait for the update</param>
+            /// <returns>true if an update was detected, false if the command timed out</returns>
+            public bool ClientWaitForSessionUpdate(long a_lMilliseconds)
+            {
+                bool blSignaled;
+
+                // Wait for it...
+                blSignaled = m_autoreseteventWaitForSessionUpdate.WaitOne((int)a_lMilliseconds);
+                m_autoreseteventWaitForSessionUpdate.Reset();
+
+                // All done...
+                return (blSignaled);
             }
 
             /// <summary>
@@ -5147,7 +5221,7 @@ namespace TwainDirect.Support
             /// </summary>
             /// <param name="a_lSessionRevision">new revision</param>
             /// <returns>true if the value is greater than what we had</returns>
-            public bool SetSessionRevision(long a_lSessionRevision)
+            public bool SetSessionRevision(long a_lSessionRevision, bool a_blSetEvent = false)
             {
                 // If the session sent to us is less than or equal to
                 // what we already have, discard it and let the caller
@@ -5159,6 +5233,14 @@ namespace TwainDirect.Support
 
                 // Otherwise it's all sunshine and rainbows...
                 m_lSessionRevision = a_lSessionRevision;
+
+                // Set the event, if asked to...
+                if (a_blSetEvent)
+                {
+                    m_autoreseteventWaitForSessionUpdate.Set();
+                }
+
+                // All done...
                 return (true);
             }
 
@@ -5185,6 +5267,12 @@ namespace TwainDirect.Support
 
                     // Set it...
                     m_sessionstate = a_sessionstate;
+
+                    // If we just started capturing, then we can't be drained...
+                    if (m_sessionstate == SessionState.capturing)
+                    {
+                        SetSessionImageBlocksDrained(false);
+                    }
 
                     // Cleanup, we need to do this to make sure that we're
                     // reset if a new session is started, and this is the
@@ -5238,6 +5326,11 @@ namespace TwainDirect.Support
                 // Free managed resources...
                 if (a_blDisposing)
                 {
+                    // Wake up anybody checking this event...
+                    if (m_autoreseteventWaitForSessionUpdate != null)
+                    {
+                        m_autoreseteventWaitForSessionUpdate.Set();
+                    }
                     if (m_filesystemwatcherhelperImageBlocks != null)
                     {
                         m_filesystemwatcherhelperImageBlocks.EnableRaisingEvents = false;
@@ -5294,6 +5387,11 @@ namespace TwainDirect.Support
             /// imageBlocks data is being updated...
             /// </summary>
             private long m_lSessionRevision;
+
+            /// <summary>
+            /// Triggered when the session object had been updated...
+            /// </summary>
+            private AutoResetEvent m_autoreseteventWaitForSessionUpdate;
 
             /// <summary>
             /// This holds a JSON subset of the session object, so that we can

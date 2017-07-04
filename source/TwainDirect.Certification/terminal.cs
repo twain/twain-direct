@@ -120,6 +120,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSet,                          new string[] { "set" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                        new string[] { "sleep" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdTwainlocalsession,            new string[] { "twainlocalsession" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdWaitForSessionUpdate,         new string[] { "waitforsessionupdate" }));
 
             // Say hi...
             Assembly assembly = typeof(Terminal).Assembly;
@@ -725,9 +726,10 @@ namespace TwainDirect.Certification
             }
 
             // If we have an argument, it'll be the script to run...
+            m_szWaitForEventsCallback = "";
             if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 1))
             {
-                m_szWaitForEventsCallball = a_functionarguments.aszCmd[1];
+                m_szWaitForEventsCallback = a_functionarguments.aszCmd[1];
             }
 
             // Make the call, this is where we register the callback we
@@ -2013,7 +2015,7 @@ namespace TwainDirect.Certification
 
             // Pop this item, and pass along the return value, but don't do it
             // if we detect that a return call was made in the script, because
-            // it will have already poped the stack for us...
+            // it will have already popped the stack for us...
             if (!blReturn && (m_lcallstack.Count > 1))
             {
                 string szReturnValue = m_lcallstack[m_lcallstack.Count - 1].functionarguments.szReturnValue;
@@ -2263,7 +2265,7 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
-        /// Creste the TwainLocalSession object without going through createSession, we need
+        /// Create the TwainLocalSession object without going through createSession, we need
         /// this to do some of the certification tests...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -2293,6 +2295,39 @@ namespace TwainDirect.Certification
 
             // All done...
             DisplayError("specify create or destroy");
+            return (false);
+        }
+
+        /// <summary>
+        /// Return when the session is update, or after the timeout expires...
+        /// </summary>
+        /// <param name="a_functionarguments">>tokenized command and anything needed</param>
+        /// <returns></returns>
+        private bool CmdWaitForSessionUpdate(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            bool blSignaled;
+            long lTimeout = long.MaxValue;
+            CallStack callstack;
+
+            // Validate...
+            if ((a_functionarguments.aszCmd != null) || (a_functionarguments.aszCmd.Length > 1) || !string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
+            {
+                if (!long.TryParse(a_functionarguments.aszCmd[1], out lTimeout))
+                {
+                    DisplayError("bad value for timeout...");
+                    return (false);
+                }
+            }
+
+            // Wait...
+            blSignaled = m_twainlocalscanner.ClientWaitForSessionUpdate(lTimeout);
+
+            // Update the return value...
+            callstack = m_lcallstack[m_lcallstack.Count - 1];
+            callstack.functionarguments.szReturnValue = blSignaled ? "true" : "false";
+            m_lcallstack[m_lcallstack.Count - 1] = callstack;
+
+            // All done...
             return (false);
         }
 
@@ -2969,6 +3004,7 @@ namespace TwainDirect.Certification
                     if (    szSymbol.StartsWith("${rj:")
                         ||  szSymbol.StartsWith("${rjx:")
                         ||  szSymbol.StartsWith("${rsts:")
+                        ||  szSymbol.StartsWith("${session:")
                         ||  szSymbol.StartsWith("${get:")
                         ||  szSymbol.StartsWith("${arg:")
                         ||  szSymbol.StartsWith("${ret:")
@@ -3072,6 +3108,55 @@ namespace TwainDirect.Certification
                         if (m_transactionLast != null)
                         {
                             szValue = m_transactionLast.GetResponseStatus().ToString();
+                        }
+                    }
+
+                    // Get stuff from the session object...
+                    else if (szSymbol.StartsWith("${session:"))
+                    {
+                        int iIndex;
+                        szValue = "";
+                        string szTarget = szSymbol.Substring(0, szSymbol.Length - 1).Substring(10);
+
+                        // Image blocks value...
+                        if (szTarget.StartsWith("imageBlocks[") && szTarget.EndsWith("]"))
+                        {
+                            if (m_twainlocalscanner != null)
+                            {
+                                string[] szIndex = szTarget.Split(new string[] { "[", "]" }, StringSplitOptions.None);
+                                if ((szIndex == null) || (szIndex.Length < 2) || !int.TryParse(szIndex[1], out iIndex))
+                                {
+                                    DisplayError("badly constructed index for imageBlocks");
+                                }
+                                else
+                                {
+                                    long[] lImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
+                                    if ((lImageBlocks != null) && (iIndex >= 0) && (iIndex < lImageBlocks.Length))
+                                    {
+                                        szValue = lImageBlocks[iIndex].ToString();
+                                    }
+                                }
+                            }
+                        }
+
+                        // Image blocks drained...
+                        else if (szTarget == "imageBlocksDrained")
+                        {
+                            szValue = "true";
+                            if (m_twainlocalscanner != null)
+                            {
+                                szValue = m_twainlocalscanner.ClientGetImageBlocksDrained() ? "true" : "false";
+                            }
+                        }
+
+                        // State...
+                        else if (szTarget == "state")
+                        {
+                            szValue = "noSession";
+                            if (m_twainlocalscanner != null)
+                            {
+                                szValue = m_twainlocalscanner.ClientGetSessionState();
+                            }
                         }
                     }
 
@@ -3269,8 +3354,29 @@ namespace TwainDirect.Certification
         /// <param name="a_apicmd">the event information</param>
         private void WaitForEventsCallback(ApiCmd a_apicmd)
         {
-            Display("EVENT");
-            DisplayApicmd(a_apicmd, m_blSilentEvents, "EVENT - ");
+            // Display what's going on, if we're displaying stuff...
+            Display("EVENT", !m_blSilentEvents);
+            DisplayApicmd(a_apicmd, !m_blSilentEvents, "EVENT - ");
+
+            // If we have a script to call, then call it...
+            if (!string.IsNullOrEmpty(m_szWaitForEventsCallback))
+            {
+                Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
+                if (m_blSilentEvents)
+                {
+                    functionarguments.aszCmd = new string[2];
+                    functionarguments.aszCmd[0] = "run";
+                    functionarguments.aszCmd[1] = m_szWaitForEventsCallback;
+                    CmdRun(ref functionarguments);
+                }
+                else
+                {
+                    functionarguments.aszCmd = new string[2];
+                    functionarguments.aszCmd[0] = "runv";
+                    functionarguments.aszCmd[1] = m_szWaitForEventsCallback;
+                    CmdRunv(ref functionarguments);
+                }
+            }
         }
 
         #endregion
@@ -3340,7 +3446,7 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Script to call when waitForEvents returns events...
         /// </summary>
-        private string m_szWaitForEventsCallball;
+        private string m_szWaitForEventsCallback;
 
         /// <summary>
         /// Our object for discovering TWAIN Local scanners...

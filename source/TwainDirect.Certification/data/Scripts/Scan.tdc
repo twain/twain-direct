@@ -72,21 +72,24 @@ if '${rj:results.session.state}' != 'capturing' goto ERROR
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Scan until the scanner stops giving us images...
 ;
-:MAIN.WAIT
-	echo
-
 ; Loop here until we see an image, or scanning ends...
-:MAIN.WAITNEXT
+:MAIN.WAIT
 
-	; Get the session object...
-	echo 'CMD: getSession'
-	getSession
-	set firstimageblock '${rj:results.session.imageBlocks[0]}'
-	if '${rj:results.success}' != 'true' goto MAIN.FAIL
-	if '${rj:results.session.imageBlocksDrained}' == 'true' goto MAIN.DONE
-	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
+	; We should only wait if more images could be coming...
+	if '${session:imageBlocksDrained}' == 'false' goto MAIN.WAITFORSESSIONUPDATE
+	goto MAIN.DONE
+
+	; Wait for the session object to be updated...
+	:MAIN.WAITFORSESSIONUPDATE
+	echo
+	echo 'WaitForSessionUpdate 5000'
+	waitforsessionupdate 5000
+	echo 'signaled: ${ret:}'
+
+	; If we have an image, get it...
+	set firstimageblock '${session:imageBlocks[0]}'
 	if '${get:firstimageblock}' != '' goto MAIN.GETIMAGE
-	sleep 1000
+	goto MAIN.WAIT
 
 goto MAIN.WAITNEXT
 
@@ -95,18 +98,21 @@ goto MAIN.WAITNEXT
 
 	; Get the metadata for the first image block, no thumbnail...
 	echo
-	echo 'CMD: readImageBlockMetadata' '${get:firstimageblock}'
+	echo 'CMD: readImageBlockMetadata' '${get:firstimageblock}' 'false'
 	readImageBlockMetadata '${get:firstimageblock}' 'false'
 	if '${rj:results.success}' != 'true' goto MAIN.FAIL
-	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
+
+	; Get the first image block, no metadata...
+	echo 'CMD: readImageBlock' '${get:firstimageblock}' 'false
+	readImageBlock '${get:firstimageblock}' 'false'
+	if '${rj:results.success}' != 'true' goto MAIN.FAIL
 
 	; release the first image block...
-	echo 'CMD: releaseImageBlocks' '${get:firstimageblock}'
+	echo 'CMD: releaseImageBlocks' '${get:firstimageblock}' '${get:firstimageblock}'
 	releaseImageBlocks '${get:firstimageblock}' '${get:firstimageblock}'
 	set firstimageblock '${rj:results.session.imageBlocks[0]}'
 	if '${rj:results.success}' != 'true' goto MAIN.FAIL
-	if '${rj:results.session.imageBlocksDrained}' == 'true' goto MAIN.DONE
-	if '${rj:results.session.state}' != 'capturing' goto MAIN.DONE
+	if '${rj:results.session.imageBlocksDrained}' != 'false' goto MAIN.DONE
 	if '${get:firstimageblock}' == '' goto MAIN.WAIT
 
 goto MAIN.GETIMAGE

@@ -299,7 +299,7 @@ namespace TwainDirect.Support
         /// <returns>true if we're out of images</returns>
         public bool GetImageBlocksDrained()
         {
-            return (m_blImageBlocksDrained);
+            return (m_blSessionImageBlocksDrained);
         }
 
         /// <summary>
@@ -407,16 +407,6 @@ namespace TwainDirect.Support
         /// <returns>an array of image block numbers (ex: [ 1, 2 ])</returns>
         public string GetImageBlocksJson(string a_szSessionState)
         {
-            // We have data, this should be impossible in any state
-            // save for capturing and draining...
-            if (!string.IsNullOrEmpty(m_szImageBlocks))
-            {
-                return (
-                    "\"imageBlocksDrained\":false," +
-                    "\"imageBlocks\":" + m_szImageBlocks + ","
-                );
-            }
-
             // We have no data, but that doesn't mean that we're
             // done.  What we report depends on our state...
             switch (a_szSessionState)
@@ -428,8 +418,9 @@ namespace TwainDirect.Support
                 // We're capturing or draining...
                 case "capturing":
                 case "draining":
+
                     // We've run out of images...
-                    if (m_blImageBlocksDrained)
+                    if (m_blSessionImageBlocksDrained)
                     {
                         return (
                             "\"imageBlocksDrained\":true," +
@@ -441,7 +432,7 @@ namespace TwainDirect.Support
                     return
                     (
                         "\"imageBlocksDrained\":false," +
-                        "\"imageBlocks\":[],"
+                        "\"imageBlocks\":" + (string.IsNullOrEmpty(m_szImageBlocks) ? "[]" : m_szImageBlocks) + ","
                     );
             }
         }
@@ -494,6 +485,15 @@ namespace TwainDirect.Support
             m_szEventName = a_szEventName;
             m_szSessionState = a_szSessionState;
             m_lSessionRevision = a_lSessionRevision;
+        }
+
+        /// <summary>
+        /// Set the imageblocksdrained flag...
+        /// </summary>
+        /// <param name="a_blSessionImageBlocksDrained"></param>
+        public void SetSessionImageBlocksDrained(bool a_blSessionImageBlocksDrained)
+        {
+            m_blSessionImageBlocksDrained = a_blSessionImageBlocksDrained;
         }
 
         /// <summary>
@@ -1699,12 +1699,12 @@ namespace TwainDirect.Support
             m_szThumbnailFile = a_jsonlookup.Get("thumbnailFile", false);
 
             // End of job...
-            m_blImageBlocksDrained = true;
+            m_blSessionImageBlocksDrained = true;
             if (    a_blCapturing
                 &&  (!string.IsNullOrEmpty(m_szImageBlocks)
                 ||  !File.Exists(Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta"))))
             {
-                m_blImageBlocksDrained = false;
+                m_blSessionImageBlocksDrained = false;
             }
        
             // The task reply...
@@ -2288,7 +2288,7 @@ namespace TwainDirect.Support
         private string m_szThumbnailFile;
 
         // End of job (true if we're not scanning)...
-        private bool m_blImageBlocksDrained;
+        private bool m_blSessionImageBlocksDrained;
 
         /// <summary>
         /// The way we want to respond to an HTTP command...
