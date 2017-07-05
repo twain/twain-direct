@@ -51,7 +51,7 @@ waitForEvents
 ;
 set task '${arg:2}'
 if '${get:task}' != '' goto MAIN.SENDTASK
-set task '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"attributes":[{"attribute":"numberOfSheets","values":[{"value":1}]}]}]}]}]}]}'
+set task '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"bw1","attributes":[{"attribute":"compression","values":[{"value":"autoVersion1"}]},{"attribute":"numberOfSheets","values":[{"value":1}]}]}]}]}]}]}'
 :MAIN.SENDTASK
 echo 'CMD: sendTask'
 sendTask '${get:task}'

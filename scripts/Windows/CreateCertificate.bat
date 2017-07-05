@@ -42,13 +42,13 @@ if "%VSINSTALLDIR%" == "" (
 ::
 echo Creating a new certificate...
 makecert -pe^
- 	 -n "CN=Test And Dev Root Authority"^
+ 	 -n "CN=TWAIN Direct Root Authority for %COMPUTERNAME%"^
  	 -ss my^
  	 -sr LocalMachine^
  	 -a sha1^
  	 -sky signature^
  	 -r^
- 	 "Test And Dev Root Authority.cer"
+ 	 "TWAIN Direct Root Authority for %COMPUTERNAME%.cer"
 
 
 ::
@@ -82,7 +82,7 @@ pause press ENTER when ready to continue...
 :: -a sha1						Signature algorithm
 :: -sky exchange					Subject key type is for key-exchange purposes (i.e. Encryption)
 :: -eku 1.3.6.1.5.5.7.3.1				Enhanced key usage OIDs. Trust me on this :)
-:: -in "Test And Dev Root Authority"			Issuers certificate common name
+:: -in "TWAIN Direct Root Authority for %COMPUTERNAME%"	Issuers certificate common name
 :: -is my						Issuers certificate store name
 :: -ir LocalMachine					Issuers certificate store location
 :: -sp "Microsoft RSA SChannel Cryptographic Provider"	CryptoAPI providers name
@@ -99,12 +99,12 @@ makecert -pe^
  	 -a sha1^
  	 -sky exchange^
  	 -eku 1.3.6.1.5.5.7.3.1^
- 	 -in "Test And Dev Root Authority"^
+ 	 -in "TWAIN Direct Root Authority for %COMPUTERNAME%"^
  	 -is my^
  	 -ir LocalMachine^
  	 -sp "Microsoft RSA SChannel Cryptographic Provider"^
  	 -sy 12^
- 	 "%COMPUTERNAME%.cer"
+ 	 "TWAIN Direct Exchange for %COMPUTERNAME%.cer"
 
 
 ::

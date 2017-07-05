@@ -69,7 +69,7 @@ goto:done
 	netsh http add urlacl "url=https://+:55555/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
 	netsh http add urlacl "url=https://+:55555/privet/infoex/" "sddl=D:(A;;GX;;;S-1-2-0)"
 	netsh http add urlacl "url=https://+:55555/privet/twaindirect/session/" "sddl=D:(A;;GX;;;S-1-2-0)"
-	netsh http add sslcert ipport=0.0.0.0:55555 certhash=4e017253251c9357320a5d8d20eb8d3014185274 appid={aadc29dd-1d81-42f5-873d-5d89cf6e58ee} certstore=my
+	netsh http add sslcert ipport=0.0.0.0:55555 certhash=24afaeefeef77c4854d19fc7a548828de212377e appid={aadc29dd-1d81-42f5-873d-5d89cf6e58ee} certstore=my
 	goto:done
 
 :Show	

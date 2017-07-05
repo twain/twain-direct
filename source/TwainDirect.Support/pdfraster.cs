@@ -276,12 +276,18 @@ namespace TwainDirect.Support
                 pdfRasWr.encoder_set_compression(enc, rastercompression);
                 pdfRasWr.encoder_start_page(enc, (int)a_i32Width);
 
+                // Data is compressed...
                 if (rastercompression != PdfRasterWriter.Writer.PdfRasterCompression.PDFRASWR_UNCOMPRESSED)
                 {
                     pdfRasWr.encoder_write_strip(enc, a_i32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(a_abImage.Length - a_iImageOffset));
                 }
+
+                // If uncompressed, need to remove BMP EOL conditions, basically we're
+                // packing the data on a byte boundry, instead of the DWORD boundary
+                // that TWAIN requires...
                 else
-                { // if uncompressed, need to remove BMP EOL conditions
+                {
+                    // Work out the byte packing boundary...
                     UInt32 rowWidthInBytesNotBMP = 0;
                     switch (rasterpixelformat)
                     {
@@ -289,24 +295,43 @@ namespace TwainDirect.Support
                         case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_GRAYSCALE: rowWidthInBytesNotBMP = (uint)a_i32Width; break;
                         case PdfRasterWriter.Writer.PdfRasterPixelFormat.PDFRASWR_RGB: rowWidthInBytesNotBMP = (uint)(a_i32Width * 3); break;
                     }
-                    UInt32 rowWidthInBytesOfBMP = ((rowWidthInBytesNotBMP + 3) / 4) * 4;
-                    byte[] abImageNotBMP = new byte[rowWidthInBytesNotBMP * a_i32Height];
 
-                    UInt32 srcOffset = (UInt32)a_iImageOffset;
-                    UInt32 dstOffset = 0;
-                    for (UInt32 i = 0; i < a_i32Height; ++i)
+                    // Get the stride for the source by dividing the total number of bytes in the image
+                    // by the height.  If this isn't an integer value, then we have a bad image size,
+                    // and we'll find that out when we go to do the copy...
+                    UInt32 rowWidthInBytesOfBMP = (UInt32)(a_abImage.Length / a_i32Height);
+
+                    // There's a possibility that the two values match, in that case we shouldn't
+                    // penalize the user by doing an unneeded copy.  So write what we have...
+                    //
+                    // Otherwise we need to pack the data before writing it.  We can do this in
+                    // the same buffer, since the result is going to be smaller than the original.
+                    // That'll save on memory.
+                    //
+                    // Note that we're not bothering with the offset, we know where the raster data
+                    // is located, and that's good enough.
+                    if (rowWidthInBytesOfBMP != rowWidthInBytesNotBMP)
                     {
-                        Array.Copy(a_abImage, srcOffset, abImageNotBMP, dstOffset, rowWidthInBytesNotBMP);
-                        srcOffset += rowWidthInBytesOfBMP;
-                        dstOffset += rowWidthInBytesNotBMP;
+                        UInt32 srcOffset = (UInt32)a_iImageOffset;
+                        UInt32 dstOffset = (UInt32)a_iImageOffset;
+                        for (UInt32 ii = 0; ii < a_i32Height; ii++)
+                        {
+                            Array.Copy(a_abImage, srcOffset, a_abImage, dstOffset, rowWidthInBytesNotBMP);
+                            srcOffset += rowWidthInBytesOfBMP;
+                            dstOffset += rowWidthInBytesNotBMP;
+                        }                     
                     }
-                    pdfRasWr.encoder_write_strip(enc, (int)a_i32Height, abImageNotBMP, 0, (UInt32)abImageNotBMP.Length);
+
+                    // Write the strip...
+                    pdfRasWr.encoder_write_strip(enc, (int)a_i32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(rowWidthInBytesNotBMP * a_i32Height));
                 }
+
+                // End of page...
                 pdfRasWr.encoder_end_page(enc);
 
                 // The document is complete
                 pdfRasWr.encoder_end_document(enc);
-
+ 
                 // clean up
                 pdfRasWr.encoder_destroy(enc);
             }
@@ -314,6 +339,14 @@ namespace TwainDirect.Support
             {
                 Log.Error("unable to open " + a_szPdfRasterFile + " for writing");
                 Log.Error(exception.Message);
+                Log.Error("file: <" + a_szPdfRasterFile + ">");
+                Log.Error("image length: " + ((a_abImage == null) ? "-1" : a_abImage.Length.ToString()));
+                Log.Error("image offset: " + a_iImageOffset);
+                Log.Error("pixelFormat:  " + a_szPixelFormat);
+                Log.Error("compression:  " + a_szCompression);
+                Log.Error("resolution:   " + a_i32Resolution);
+                Log.Error("width:        " + a_i32Width);
+                Log.Error("height:       " + a_i32Height);
                 blSuccess = false;
             }
 

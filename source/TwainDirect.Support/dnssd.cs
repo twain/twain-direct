@@ -1011,10 +1011,11 @@ namespace TwainDirect.Support
 	        Int32 dnsserviceerrortype;
             CallbackContext callbackcontext = (CallbackContext)Marshal.PtrToStructure(a_pvContext, typeof(CallbackContext));
 	        IntPtr pcallbackcontextQuery;
+            DNSServiceQueryRecordReply dnsservicequeryrecordreply;
 
-	        // Grab simple stuff...
-	        // Apparently bonjour gives us stuff in network (big endian) order...
-	        u16Opaqueport = WX(a_u16Opaqueport);
+            // Grab simple stuff...
+            // Apparently bonjour gives us stuff in network (big endian) order...
+            u16Opaqueport = WX(a_u16Opaqueport);
             callbackcontext.dnssddeviceinfo.lInterface = a_i32Interface;
             callbackcontext.dnssddeviceinfo.lPort = u16Opaqueport;
             callbackcontext.dnssddeviceinfo.szLinkLocal = a_szHosttarget;
@@ -1104,80 +1105,84 @@ namespace TwainDirect.Support
 		        goto ABORT;
 	        }
 
-            // Query our IPv4 address...
-
-            // Handle our reference...
-            pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
-            if (pdnsserviceref == IntPtr.Zero)
-	        {
-		        Log.Error("calloc failed...");
-		        goto ABORT;
-	        }
-            Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
-
-            // Build a callback context...
-            pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
-	        if (pcallbackcontextQuery == IntPtr.Zero)
-	        {
-                Log.Error("calloc failed...");
-                goto ABORT;
-	        }
-            Marshal.StructureToPtr(callbackcontext, pcallbackcontextQuery, false);
-
-            // Make the query...
-            DNSServiceQueryRecordReply dnsservicequeryrecordreply = QueryCallbackLaunchpad;
-            dnsserviceerrortype = m_pfndnsservicequeryrecord
-	        (
-		        pdnsserviceref,
-		        0x4000, // kDNSServiceFlagsShareConnection
-                a_i32Interface, // kDNSServiceInterfaceIndexAny,
-                callbackcontext.dnssddeviceinfo.szLinkLocal,
-		        1, // kDNSServiceType_A
-                1, // kDNSServiceClass_IN
-                dnsservicequeryrecordreply,
-		        pcallbackcontextQuery
-	        );
-	        if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+            // Query for our IPv4 address...
+            if (Config.Get("useIpv4", "yes") == "yes")
             {
-		        Log.Error("m_pfndnsservicequeryrecord failed..." + dnsserviceerrortype);
-	        }
+                // Handle our reference...
+                pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
+                if (pdnsserviceref == IntPtr.Zero)
+                {
+                    Log.Error("calloc failed...");
+                    goto ABORT;
+                }
+                Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
 
-            // Query our IPv6 address...
+                // Build a callback context...
+                pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
+                if (pcallbackcontextQuery == IntPtr.Zero)
+                {
+                    Log.Error("calloc failed...");
+                    goto ABORT;
+                }
+                Marshal.StructureToPtr(callbackcontext, pcallbackcontextQuery, false);
 
-            // Handle our reference...
-            pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
-            if (pdnsserviceref == IntPtr.Zero)
-            {
-                Log.Error("calloc failed...");
-                goto ABORT;
+                // Make the query...
+                dnsservicequeryrecordreply = QueryCallbackLaunchpad;
+                dnsserviceerrortype = m_pfndnsservicequeryrecord
+                (
+                    pdnsserviceref,
+                    0x4000, // kDNSServiceFlagsShareConnection
+                    a_i32Interface, // kDNSServiceInterfaceIndexAny,
+                    callbackcontext.dnssddeviceinfo.szLinkLocal,
+                    1, // kDNSServiceType_A
+                    1, // kDNSServiceClass_IN
+                    dnsservicequeryrecordreply,
+                    pcallbackcontextQuery
+                );
+                if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+                {
+                    Log.Error("m_pfndnsservicequeryrecord failed..." + dnsserviceerrortype);
+                }
             }
-            Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
 
-            // Build a callback context...
-            pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
-            if (pcallbackcontextQuery == IntPtr.Zero)
+            // Query for our IPv6 address...
+            if (Config.Get("useIpv6", "yes") == "yes")
             {
-                Log.Error("calloc failed...");
-                goto ABORT;
-            }
-            Marshal.StructureToPtr(callbackcontext, pcallbackcontextQuery, false);
+                // Handle our reference...
+                pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
+                if (pdnsserviceref == IntPtr.Zero)
+                {
+                    Log.Error("calloc failed...");
+                    goto ABORT;
+                }
+                Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
 
-            // Make the query...
-            dnsservicequeryrecordreply = QueryCallbackLaunchpad;
-            dnsserviceerrortype = m_pfndnsservicequeryrecord
-            (
-                pdnsserviceref,
-                0x4000, // kDNSServiceFlagsShareConnection
-                a_i32Interface, // kDNSServiceInterfaceIndexAny,
-                callbackcontext.dnssddeviceinfo.szLinkLocal,
-                28, // kDNSServiceType_AAAA
-                1, // kDNSServiceClass_IN
-                dnsservicequeryrecordreply,
-                pcallbackcontextQuery
-            );
-            if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
-            {
-                Log.Error("m_pfndnsservicequeryrecord failed..." + dnsserviceerrortype);
+                // Build a callback context...
+                pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
+                if (pcallbackcontextQuery == IntPtr.Zero)
+                {
+                    Log.Error("calloc failed...");
+                    goto ABORT;
+                }
+                Marshal.StructureToPtr(callbackcontext, pcallbackcontextQuery, false);
+
+                // Make the query...
+                dnsservicequeryrecordreply = QueryCallbackLaunchpad;
+                dnsserviceerrortype = m_pfndnsservicequeryrecord
+                (
+                    pdnsserviceref,
+                    0x4000, // kDNSServiceFlagsShareConnection
+                    a_i32Interface, // kDNSServiceInterfaceIndexAny,
+                    callbackcontext.dnssddeviceinfo.szLinkLocal,
+                    28, // kDNSServiceType_AAAA
+                    1, // kDNSServiceClass_IN
+                    dnsservicequeryrecordreply,
+                    pcallbackcontextQuery
+                );
+                if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+                {
+                    Log.Error("m_pfndnsservicequeryrecord failed..." + dnsserviceerrortype);
+                }
             }
 
             // Cleanup...
@@ -1207,6 +1212,23 @@ namespace TwainDirect.Support
 	        IntPtr a_pvContext
         )
         {
+            // Don't go any further if we see a problem...
+            if (a_dnsserviceerrortype != 0) // kDNSServiceErr_NoError
+            {
+                return;
+            }
+
+            // We're only handling A and AAAA, anything else is going to weird us out...
+            if (    (a_u16Rrtype != 1)      // kDNSServiceType_A
+                &&  (a_u16Rrtype != 28))    // kDNSServiceType_AAAA
+            {
+                return;
+            }
+
+            // It should be safe to continue, I have seen crashes when trying
+            // to dereference this pointer, but only with AAAA records.  So if
+            // this is blowing up, set useIpv6 to "no" in appdata.txt and see
+            // if that resolves it...
             CallbackContext callbackcontext = (CallbackContext)Marshal.PtrToStructure(a_pvContext, typeof(CallbackContext));
             GCHandle gchandle = GCHandle.FromIntPtr(callbackcontext.dnssd);
             Dnssd dnssd = (gchandle.Target as Dnssd);
