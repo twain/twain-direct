@@ -4,7 +4,7 @@
 ;
 ; Exercise the createSession command.  We're going to do the following:
 ;
-; - confirm that commands report invalidSession when called before createSession
+; - confirm that commands report invalidState when called before createSession
 ;
 ; - confirm that createSession succeeds, and contains all required properties
 ;
@@ -23,7 +23,7 @@ set createsessionresult 'pass'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Make sure that commands prior to a successful createSession return invalidSessionId.  We don't do
+; Make sure that commands prior to a successful createSession return invalidState.  We don't do
 ; waitForEvents here, because any complaint has to come back asynchronously...
 ;
 call CHECKINVALIDSESSIONID 'getSession'
@@ -90,7 +90,7 @@ set createsessionresult 'fail'
 return 'fail'
 ;
 :CHECKINVALIDSESSIONID.FAILCODE
-echopassfail 'check invalidSessionId: ${arg:1}' 'fail (coded not invalidSessionId)'
+echopassfail 'check invalidSessionId: ${arg:1}' 'fail (code not invalidSessionId)'
 set createsessionresult 'fail'
 return 'fail'
 

@@ -3,7 +3,7 @@
 //  TwainDirect.OnTwain.SwordTask
 //
 //  This class follows the full lifecycle of a TWAIN Direct task, carrying its
-//  inputs and supprot data, and returning the result.  The theory is we have
+//  inputs and support data, and returning the result.  The theory is we have
 //  a one-stop shop for everything we want to do in a task, and functions don't
 //  need any other context than what this class brings with it.
 //

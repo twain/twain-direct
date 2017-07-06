@@ -146,7 +146,7 @@ namespace TwainDirect.App
             m_dnssd.MonitorStart(null,IntPtr.Zero);
 
             // Get our TWAIN Local interface.
-            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this, null);
+            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this, null, false);
         }
 
         /// <summary>

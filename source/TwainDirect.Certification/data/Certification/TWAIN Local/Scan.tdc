@@ -161,7 +161,6 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Bye-bye...
 ;
-:DONE
 echo
 echopassfail 'FINAL SUMMARY' 'pass'
 return pass

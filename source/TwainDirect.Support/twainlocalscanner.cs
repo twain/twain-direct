@@ -84,14 +84,18 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_confirmscan">user must confirm a scan request</param>
         /// <param name="a_fConfirmScanScale">scale the confirmation dialog</param>
-        /// <param name="a_objectEvent">object that provided the event</param>
+        /// <param name="a_eventcallback">event function</param>
+        /// <param name="a_objectEventCallback">object that provided the event</param>
+        /// <param name="a_displaycallback">display callback</param>
+        /// <param name="a_blCreateTwainLocalSession">true for the server only</param>
         public TwainLocalScanner
         (
             ConfirmScan a_confirmscan,
             float a_fConfirmScanScale,
             EventCallback a_eventcallback,
             object a_objectEventCallback,
-            DisplayCallback a_displaycallback
+            DisplayCallback a_displaycallback,
+            bool a_blCreateTwainLocalSession
         )
         {
             int iDefault;
@@ -137,7 +141,10 @@ namespace TwainDirect.Support
             m_displaycallback = a_displaycallback;
 
             // Set up session specific content...
-            m_twainlocalsessionInfo = new TwainLocalSession("");
+            if (a_blCreateTwainLocalSession)
+            {
+                m_twainlocalsessionInfo = new TwainLocalSession("");
+            }
 
             // Our lock...
             m_objectLock = new object();
@@ -622,9 +629,8 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    Log.Error(szFunction + ": already closed");
-                    ClientReturnError(a_apicmd, true, null, -1, null);
-                    return (true);
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
+                    return (false);
                 }
 
                 // Send the RESTful API command...
@@ -637,7 +643,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -687,6 +693,7 @@ namespace TwainDirect.Support
         public bool ClientScannerCreateSession(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, ref ApiCmd a_apicmd)
         {
             bool blSuccess;
+            bool blCreatedTwainLocalSession = false;
             string szFunction = "ClientScannerCreateSession";
 
             // Lock this command to protect the session object...
@@ -696,6 +703,7 @@ namespace TwainDirect.Support
                 if (m_twainlocalsession == null)
                 {
                     m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
+                    blCreatedTwainLocalSession = true;
                 }
 
                 // Squirrel this away, do the useHttps check in such a way that
@@ -742,7 +750,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken("")
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -757,6 +765,11 @@ namespace TwainDirect.Support
                 if (!blSuccess)
                 {
                     ClientReturnError(a_apicmd, false, "", 0, "");
+                    if (blCreatedTwainLocalSession)
+                    {
+                        m_twainlocalsession.Dispose();
+                        m_twainlocalsession = null;
+                    }
                     return (false);
                 }
 
@@ -784,7 +797,7 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
 
@@ -798,7 +811,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -838,6 +851,13 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -848,7 +868,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -885,6 +905,13 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
+                // Validate...
+                if (m_twainlocalsession == null)
+                {
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
+                    return (false);
+                }
+
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -894,7 +921,7 @@ namespace TwainDirect.Support
                     "/privet/twaindirect/invaliduri",
                     "GET",
                     new string[] {
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     null,
                     null,
@@ -940,7 +967,7 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
 
@@ -971,7 +998,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -1053,7 +1080,7 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
 
@@ -1089,7 +1116,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -1167,7 +1194,7 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
 
@@ -1181,7 +1208,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -1245,7 +1272,7 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
 
@@ -1259,7 +1286,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -1302,12 +1329,9 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
-
-                // Assume that this is going to work...
-                //mlmtbd m_twainlocalsession.SetSessionImageBlocksDrained(false);
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
@@ -1319,7 +1343,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -1365,7 +1389,7 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
 
@@ -1379,7 +1403,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -1421,7 +1445,7 @@ namespace TwainDirect.Support
                 // Validate...
                 if (m_twainlocalsession == null)
                 {
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": null session");
+                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
                     return (false);
                 }
 
@@ -1437,7 +1461,7 @@ namespace TwainDirect.Support
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_szXPrivetToken
+                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -1593,13 +1617,54 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // The rest of this must be coming in on /privet/twaindirect/session,
-            // we'll start by validating our X-Privet-Token...
-            if (szXPrivetToken != m_szXPrivetToken)
+            // If we get here, it implies that a command has been issued before making
+            // a call to info or infoex, so we'll reject it.  This is technically a
+            // state violation, so we'll report that...
+            if (string.IsNullOrEmpty(szXPrivetToken) || string.IsNullOrEmpty(m_szXPrivetToken))
             {
                 apicmd = new ApiCmd(m_dnssddeviceinfo, null, ref a_httplistenercontext);
-                DeviceReturnError(szFunction, apicmd, "invalid_x_privet_token", null, 0);
+                DeviceReturnError(szFunction, apicmd, "invalid_x_privet_token", null, -1);
                 return;
+            }
+
+            // The rest of this must be coming in on /privet/twaindirect/session,
+            // we'll start by validating our X-Privet-Token.  We check the session
+            // first, because if it has the token, it wins...
+            else if ((m_twainlocalsession != null) && (szXPrivetToken == m_twainlocalsession.GetXPrivetToken("")))
+            {
+                // Woot! We're good, keep going...
+            }
+
+            // We should only come here if we don't have a session with a token,
+            // which means this should be a createSession command...
+            else if (szXPrivetToken != m_szXPrivetToken)
+            {
+                bool blValid = false;
+                long lXPrivetTokenTicks;
+
+                // Crack the token open, if it looks valid, and if its timestamp falls
+                // inside of our window, we'll take it.  The window is small, just 5
+                // seconds, but it can be overridden, if needed...
+                if (!string.IsNullOrEmpty(szXPrivetToken) && !string.IsNullOrEmpty(szXPrivetToken))
+                {
+                    string[] aszTokens = szXPrivetToken.Split(new string[] { ":" }, StringSplitOptions.None);
+                    if ((aszTokens != null) && (aszTokens.Length == 2) && (aszTokens[1] != null) && long.TryParse(aszTokens[1], out lXPrivetTokenTicks))
+                    {
+                        long lCurrentTicks = DateTime.Now.Ticks;
+                        if ((lCurrentTicks >= lXPrivetTokenTicks) && (((lCurrentTicks - lXPrivetTokenTicks) / TimeSpan.TicksPerSecond) > Config.Get("createSessionWindow", 5000)))
+                        {
+                            blValid = true;
+                        }
+                    }
+                }
+
+                // Nope, we're done...
+                if (!blValid)
+                {
+                    apicmd = new ApiCmd(m_dnssddeviceinfo, null, ref a_httplistenercontext);
+                    DeviceReturnError(szFunction, apicmd, "invalid_x_privet_token", null, 0);
+                    return;
+                }
             }
 
             // Parse the command...
@@ -1687,7 +1752,7 @@ namespace TwainDirect.Support
                     break;
 
                 case "createSession":
-                    DeviceScannerCreateSession(ref apicmd);
+                    DeviceScannerCreateSession(ref apicmd, szXPrivetToken);
                     break;
 
                 case "getSession":
@@ -3486,8 +3551,9 @@ namespace TwainDirect.Support
     /// Create a new scanning session...
     /// </summary>
     /// <param name="a_apicmd">the command the caller sent</param>
+    /// <param name="a_szXPrivetToken">the X-Privet-Token for this session</param>
     /// <returns>true on success</returns>
-    private bool DeviceScannerCreateSession(ref ApiCmd a_apicmd)
+    private bool DeviceScannerCreateSession(ref ApiCmd a_apicmd, string a_szXPrivetToken)
     {
         bool blSuccess;
         long lErrorErrorIndex;
@@ -3502,7 +3568,7 @@ namespace TwainDirect.Support
             // Create it if we need it...
             if (m_twainlocalsession == null)
             {
-                m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
+                m_twainlocalsession = new TwainLocalSession(a_szXPrivetToken);
                 m_twainlocalsession.DeviceRegisterLoad(this, Path.Combine(m_szWriteFolder, "register.txt"));
             }
 
@@ -5115,9 +5181,17 @@ namespace TwainDirect.Support
             /// <summary>
             /// Get the privet token...
             /// </summary>
+            /// <param name="a_szCallersHostName">if our copy is empty, is this value instead</param>
             /// <returns>the privet token</returns>
-            public string GetXPrivetToken()
+            public string GetXPrivetToken(string a_szXPrivateToken)
             {
+                // The "backup"...
+                if (string.IsNullOrEmpty(m_szXPrivetToken))
+                {
+                    return (a_szXPrivateToken);
+                }
+
+                // The value we really want...
                 return (m_szXPrivetToken);
             }
 

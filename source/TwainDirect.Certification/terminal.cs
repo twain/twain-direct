@@ -2187,7 +2187,7 @@ namespace TwainDirect.Certification
             if (m_dnssddeviceinfoSelected != null)
             {
                 Display(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
-                m_twainlocalscanner = new TwainLocalScanner(null, 1, null, null, null);
+                m_twainlocalscanner = new TwainLocalScanner(null, 1, null, null, null, false);
                 SetReturnValue("true");
             }
             else
