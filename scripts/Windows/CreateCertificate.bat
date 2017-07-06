@@ -112,7 +112,7 @@ makecert -pe^
 ::
 echo.
 echo Go back to the certificates snap-in, right-click the
-echo "Test and Dev Root Authority" certificate and copy it
+echo "TWAIN Direct Root Authority for %COMPUTERNAME%" certificate and copy it
 echo to the "Trusted Root Certification Authorities" node.
 echo Once done, if you expand this node, and then select
 echo certificates your newly created root cert should be

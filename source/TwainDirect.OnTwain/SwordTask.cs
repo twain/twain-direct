@@ -2955,6 +2955,19 @@ namespace TwainDirect.OnTwain
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////
+                // cap_automaticsensemedium...
+                #region cap_automaticsensemedium...
+
+                // Just see if we can get it...
+                szStatus = "";
+                szCapability = "CAP_AUTOMATICSENSEMEDIUM";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                m_twaininquirydata.SetAutomaticSenseMedium(sts == TWAIN.STS.SUCCESS);
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
                 // cap_cameraside...
                 #region cap_cameraside...
 
@@ -5832,27 +5845,56 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Return the automatic sense medium setting...
             /// </summary>
-            /// <returns>basically true or false</returns>
+            /// <returns>the TWAIN command or an empty string</returns>
             public string GetAutomaticSenseMedium()
             {
+                // We don't support CAP_AUTOMATICSENSEMEDIUM, reporting
+                // an empty string will cause other parts of the code to
+                // skip this capability...
+                if (!m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetAutomaticSenseMedium())
+                {
+                    return ("");
+                }
+
+                // We support it, so return whatever we have...
                 return (m_szAutomaticSenseMedium);
             }
 
             /// <summary>
             /// Return the camera side setting...
             /// </summary>
-            /// <returns>basically true or false</returns>
+            /// <returns>the TWAIN command or an empty string</returns>
             public string GetCameraSide()
             {
+                // We don't support CAP_CAMERASIDES, reporting an empty
+                // string will cause other parts of the code to skip
+                // this capability...
+                if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetCameraSides() == "[]")
+                {
+                    return ("");
+                }
+
+                // We support it, so return whatever we have...
                 return (m_szCameraSide);
             }
 
             /// <summary>
             /// Return the feeder enabled setting...
             /// </summary>
-            /// <returns>basically true or false</returns>
+            /// <returns>the TWAIN command or an empty string</returns>
             public string GetFeederEnabled()
             {
+                // We don't support CAP_FEEDERENABLED, reporting an empty
+                // string will cause other parts of the code to skip
+                // this capability, (we need to see both a feeder and a
+                // flatbed to treat this capability as supported)...
+                if (    !m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetFeederDetected()
+                    ||  !m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetFlatbedDetected())
+                {
+                    return ("");
+                }
+
+                // We support it, so return whatever we have...
                 return (m_szFeederEnabled);
             }
 

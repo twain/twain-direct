@@ -408,6 +408,16 @@ namespace TwainDirect.Support
                     case "full": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Full; break;
                 }
 
+                // CAP_AUTOMATICSENSEMEDIUM?
+                szValue = jsonlookup.Get("isAutomaticSenseMedium", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blAutomaticSenseMedium = false; break;
+                    case "false": twaininquirydata.m_blAutomaticSenseMedium = false; break;
+                    case "true": twaininquirydata.m_blAutomaticSenseMedium = true; break;
+                }
+
                 // DAT_TWAINDIRECT?
                 szValue = jsonlookup.Get("isDatTwainDirectSupported", false);
                 if (szValue == null) szValue = "";
@@ -592,6 +602,15 @@ namespace TwainDirect.Support
 
                 // All done...
                 return (twaininquirydata);
+            }
+
+            /// <summary>
+            /// Get CAP_AUTOMATICSENSEMEDIUM...
+            /// </summary>
+            /// <returns>true if supported</returns>
+            public bool GetAutomaticSenseMedium()
+            {
+                return (m_blAutomaticSenseMedium);
             }
 
             /// <summary>
@@ -833,6 +852,7 @@ namespace TwainDirect.Support
                 szJson += "{";
                 szJson += "\"twidentity\":\"" + a_szTwidentity + "\",";
                 szJson += "\"twainDirectSupport\":\"" + m_twaindirectsupport + "\",";
+                szJson += "\"isAutomaticSenseMedium\":" + m_blAutomaticSenseMedium.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isDatTwainDirectSupported\":" + m_blDatTwainDirect.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isDeviceOnline\":" + m_blDeviceOnline.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isExtImageInfoSupported\":" + m_blExtImageInfo.ToString().ToLowerInvariant() + ",";
@@ -863,6 +883,14 @@ namespace TwainDirect.Support
 
                 // All done...
                 return (szJson);
+            }
+
+            /// <summary>
+            /// Set CAP_AUTOMATICSENSEMEDIUM...
+            /// </summary>
+            public void SetAutomaticSenseMedium(bool a_blAutomaticSenseMedium)
+            {
+                m_blAutomaticSenseMedium = a_blAutomaticSenseMedium;
             }
 
             /// <summary>
@@ -1064,6 +1092,12 @@ namespace TwainDirect.Support
             {
                 m_szWidth = a_szWidth;
             }
+
+            /// <summary>
+            /// Is CAP_AUTOMATICSENSEMEDIUM supported?
+            /// </summary>
+            /// <returns></returns>
+            private bool m_blAutomaticSenseMedium;
 
             /// <summary>
             /// JSON array of camerasides, or an empty string...
