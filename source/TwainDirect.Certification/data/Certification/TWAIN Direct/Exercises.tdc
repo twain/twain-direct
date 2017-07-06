@@ -109,6 +109,15 @@ return false
 ;
 :CHECKKEYVALUE
 ;
+; Log it to make it easier to diagnose stuff...
+log info '#'
+log info '#Test:                        ${arg:1}'
+log info '#Task:                        ${arg:2}'
+log info '#Expected success:            ${arg:3}'
+log info '#Key to check:                ${arg:4}'
+log info '#Expected key value:          ${arg:5}'
+;
+; Send the command...
 sendtask '${arg:2}'
 ;
 if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECKKEYVALUE.FAIL
@@ -116,12 +125,13 @@ if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CH
 if '${rj:${arg:4}}' != '${arg:5}' goto CHECKKEYVALUE.FAIL
 ;
 set result pass
-echopassfail '${arg:1}' '${get:result}'
-return '${get:result}'
+echopassfail '${arg:1}' 'pass'
+log info '#Test result:                 pass'
+return 'pass'
 ;
 :CHECKKEYVALUE.FAIL
 set result fail
 set localresult fail
-echopassfail '${arg:1}' '${get:result}'
-;
-return '${get:result}'
+echopassfail '${arg:1}' 'fail'
+log info '#Test result:                 fail'
+return 'fail'

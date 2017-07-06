@@ -474,6 +474,15 @@ return false
 ;
 :CHECK
 ;
+; Log it to make it easier to diagnose stuff...
+log info '#'
+log info '#Test:                        ${arg:1}'
+log info '#Task:                        ${arg:2}'
+log info '#Expected success:            ${arg:3}'
+log info '#Expected code:               ${arg:4}'
+log info '#Expected characterOffset:    ${arg:5}'
+;
+; Send the command...
 sendtask '${arg:2}'
 ;
 if '${rj:results.success}' == '' goto CHECK.FAIL
@@ -482,12 +491,13 @@ if '${rj:results.code}' != '${arg:4}' goto CHECK.FAIL
 if '${rj:results.characterOffset}' != '${arg:5}' goto CHECK.FAIL
 ;
 set result pass
-echopassfail '${arg:1}' '${get:result}'
-return '${get:result}'
+echopassfail '${arg:1}' 'pass'
+log info '#Test result:                 pass'
+return 'pass'
 ;
 :CHECK.FAIL
 set result fail
 set localresult fail
-echopassfail '${arg:1}' '${get:result}'
-;
-return '${get:result}'
+echopassfail '${arg:1}' 'fail'
+log info '#Test result:                 fail'
+return 'fail'

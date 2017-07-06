@@ -71,12 +71,14 @@ namespace TwainDirect.OnTwain
         /// </summary>
         /// <param name="a_szImagesFolder">place to put images</param>
         /// <param name="a_twaincstoolkit">if not null, the toolkit the caller wants us to use</param>
-        public ProcessSwordTask(string a_szImagesFolder, TWAINCSToolkit a_twaincstoolkit)
+        /// <param name="a_deviceregister">info about the TWAIN driver</param>
+        public ProcessSwordTask(string a_szImagesFolder, TWAINCSToolkit a_twaincstoolkit, DeviceRegister a_deviceregister)
         {
             // Init stuff...
             m_szImagesFolder = a_szImagesFolder;
             m_twaincstoolkit = a_twaincstoolkit;
             m_twaincstoolkitCaller = a_twaincstoolkit;
+            m_deviceregister = (a_deviceregister != null) ? a_deviceregister : new DeviceRegister();
             m_blTwainLocal = true;
 
             // Our response object for errors and success...
@@ -795,6 +797,15 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// Get information about the TWAIN driver...
+        /// </summary>
+        /// <returns></returns>
+        public DeviceRegister GetDeviceRegister()
+        {
+            return (m_deviceregister);
+        }
+
+        /// <summary>
         /// Get the task reply...
         /// </summary>
         /// <returns></returns>
@@ -926,7 +937,7 @@ namespace TwainDirect.OnTwain
             ProcessSwordTask processswordtask;
 
             // Create the SWORD manager...
-            processswordtask = new ProcessSwordTask("", null);
+            processswordtask = new ProcessSwordTask("", null, null);
 
             // Check for a TWAIN driver...
             szTwainDefaultDriver = processswordtask.TwainGetDefaultDriver(a_szScanner);
@@ -1070,7 +1081,7 @@ namespace TwainDirect.OnTwain
 
                 // Check out the driver to see if we can use this driver, and while
                 // we're at it, collect interesting information...
-                ProcessSwordTask processswordtask = new ProcessSwordTask("", twaincstoolkit);
+                ProcessSwordTask processswordtask = new ProcessSwordTask("", twaincstoolkit, null);
                 twaininquirydata = processswordtask.TwainInquiry(szTwidentity);
                 if (    (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Undefined)
                     ||  (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Undefined))
@@ -2944,6 +2955,71 @@ namespace TwainDirect.OnTwain
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////
+                // cap_cameraside...
+                #region cap_cameraside...
+
+                // If we don't have an ADF, we can't take sides... :)
+                if (!m_twaininquirydata.GetFeederDetected())
+                {
+                    m_twaininquirydata.SetCameraSides("[]");
+                }
+
+                // Okay, see what we have...
+                else
+                {
+                    // Assume we have nothing...
+                    m_twaininquirydata.SetCameraSides("[]");
+
+                    // Get the enumeration...
+                    szStatus = "";
+                    szCapability = "CAP_CAMERASIDE";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+
+                    // It looks like we have something else...
+                    if (sts == TWAIN.STS.SUCCESS)
+                    {
+                        // Parse it...
+                        aszContainer = CSV.Parse(szCapability);
+
+                        // Handle the container...
+                        switch (aszContainer[1])
+                        {
+                            // Assume flatbed...
+                            default:
+                                TWAINWorkingGroup.Log.Info(szFunction + "CAP_CAMERASIDE unsupported container - " + a_szTwidentity);
+                                break;
+
+                            // These containers are just off by an index, so we can combine them...
+                            case "TWON_ONEVALUE":
+                            case "TWON_ENUMERATION":
+                                string szArray = "";
+                                for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
+                                {
+                                    switch (aszContainer[iEnum])
+                                    {
+                                        default:
+                                            break;
+                                        case "0": // BOTH
+                                            szArray += (szArray == "") ? "0" : ",0";
+                                            break;
+                                        case "1": // TOP
+                                            szArray += (szArray == "") ? "1" : ",1";
+                                            break;
+                                        case "2": // BOTTOM
+                                            szArray += (szArray == "") ? "2" : ",2";
+                                            break;
+                                    }
+                                }
+                                m_twaininquirydata.SetCameraSides("[" + szArray + "]");
+                                break;
+                        }
+                    }
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////
                 // numberOfSheets...
                 #region numberOfSheets...
 
@@ -4625,7 +4701,7 @@ namespace TwainDirect.OnTwain
 
             //********************************
             // Camera settings...
-            ICAP_CAMERASIDE,
+            CAP_CAMERASIDE,
 
             ICAP_AUTOMATICCOLORENABLED,
                 ICAP_AUTOMATICCOLORNONCOLORPIXELTYPE,
@@ -6570,7 +6646,7 @@ namespace TwainDirect.OnTwain
                 }
 
                 // CAP_CAMERASIDE...
-                if (string.IsNullOrEmpty(a_szCameraSide))
+                if (string.IsNullOrEmpty(a_szCameraSide) || (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetCameraSides() == "[]"))
                 {
                     m_swordattributeCameraside.AppendValue(m_szJsonKey, "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
                 }
@@ -7452,6 +7528,10 @@ namespace TwainDirect.OnTwain
 					            goto ABORT;
 				            }
 				            break;
+
+                        case "pixelFormat":
+                            // Just accept it...
+                            break;
 
                         case "resolution":
                             if (ProcessResolution(a_swordvalueHead) != SwordStatus.Success)
@@ -8704,7 +8784,7 @@ namespace TwainDirect.OnTwain
                 }
 
                 // This is a machine value...
-                if (capabilityordering < CapabilityOrdering.ICAP_CAMERASIDE)
+                if (capabilityordering < CapabilityOrdering.CAP_CAMERASIDE)
                 {
                     // We need one of these...
                     if (m_acapabilitymapMachine == null)
@@ -8817,14 +8897,14 @@ namespace TwainDirect.OnTwain
         private ConfigureNameLookup m_configurenamelookup;
 
         /// <summary>
+        /// Information about our TWAIN driver...
+        /// </summary>
+        private DeviceRegister m_deviceregister;
+
+        /// <summary>
         /// Capability ordering for TWAIN (as vendor specific content)
         /// </summary>
         //private TwainCapabilityOrdering m_twaincapabilityordering;
-
-        /// <summary>
-        /// TWAIN Direct attribute info...
-        /// </summary>
-        //private TwainDirectLookup m_twaindirectlookup;
 
         /// <summary>
         /// The TWAIN Direct vendor id...

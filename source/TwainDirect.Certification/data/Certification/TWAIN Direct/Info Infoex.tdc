@@ -178,6 +178,10 @@ return 'fail'
 ;
 :CHECKINFO
 ;
+; Log it to make it easier to diagnose stuff...
+log info '#'
+log info '#Test:                        ${arg:1}'
+;
 ; Issue the command...
 info
 ;
@@ -244,6 +248,7 @@ goto LOOPAPI
 ;
 ; We're good...
 echopassfail '${arg:1}' 'pass'
+log info '#Test result:                 pass'
 return 'pass'
 ;
 :CHECKINFO.MISSINGVERSION
@@ -328,7 +333,8 @@ goto CHECKINFO.FAIL
 ;
 :CHECKINFO.FAIL
 set localresult fail
-echopassfail '${arg:1}' '${get:error}'
+echopassfail '${arg:1}' 'fail'
+log info '#Test result:                 fail'
 return 'fail'
 
 
@@ -359,7 +365,7 @@ goto CHECKINFOEX.FAIL
 ;
 :CHECKINFOEX.FAIL
 set localresult fail
-echopassfail '${arg:1}' '${get:error}'
+echopassfail '${arg:1}' 'fail'
 return 'fail'
 ;
 ; Don't add anything, CHECKINFO already did all the work...

@@ -157,7 +157,7 @@ namespace TwainDirect.OnTwain
             }
 
             // Init stuff...
-            m_processswordtask = new ProcessSwordTask(Path.Combine(m_szWriteFolder,"images"), null);
+            m_processswordtask = new ProcessSwordTask(Path.Combine(m_szWriteFolder,"images"), null, null);
 
             // Buttons off, cancel on...
             SetButtonMode(ButtonMode.Scanning);

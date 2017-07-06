@@ -114,6 +114,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIncrement,                    new string[] { "increment" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdJson2Xml,                     new string[] { "json2xml" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdLog,                          new string[] { "log" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdReturn,                       new string[] { "return" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRunv,                         new string[] { "runv" }));
@@ -1801,6 +1802,86 @@ namespace TwainDirect.Certification
             }   
 
             // Bye-bye...
+            return (false);
+        }
+
+        /// <summary>
+        /// Log text...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdLog(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int ii;
+            int iStart;
+            string szSeverity;
+            string szMessage;
+
+            // If we have no arguments, then log a blank informational...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            {
+                Log.Info("");
+                return (false);
+            }
+
+            // Pick a severity...
+            switch (a_functionarguments.aszCmd[1])
+            {
+                default:
+                    szSeverity = "info";
+                    iStart = 1;
+                    break;
+                case "info":
+                    szSeverity = "info";
+                    iStart = 2;
+                    break;
+                case "warn":
+                    szSeverity = "warn";
+                    iStart = 2;
+                    break;
+                case "error":
+                    szSeverity = "error";
+                    iStart = 2;
+                    break;
+                case "verbose":
+                    szSeverity = "verbose";
+                    iStart = 2;
+                    break;
+                case "assert":
+                    szSeverity = "assert";
+                    iStart = 2;
+                    break;
+            }
+
+            // Build the message...
+            szMessage = "";
+            for (ii = iStart; ii < a_functionarguments.aszCmd.Length; ii++)
+            {
+                szMessage += (szMessage == "") ? a_functionarguments.aszCmd[ii] : " " + a_functionarguments.aszCmd[ii];
+            }
+
+            // Log it...
+            switch (szSeverity)
+            {
+                default:
+                case "info":
+                    Log.Info(szMessage);
+                    break;
+                case "warn":
+                    Log.Warn(szMessage);
+                    break;
+                case "error":
+                    Log.Error(szMessage);
+                    break;
+                case "verbose":
+                    Log.Verbose(szMessage);
+                    break;
+                case "assert":
+                    Log.Assert(szMessage);
+                    break;
+            }
+
+            // All done...
             return (false);
         }
 

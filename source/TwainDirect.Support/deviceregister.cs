@@ -67,6 +67,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Information about our TWAIN driver...
+        /// </summary>
+        /// <returns>TWAIN driver info</returns>
+        public TwainInquiryData GetTwainInquiryData()
+        {
+            return (m_device.twaininquirydata);
+        }
+
+        /// <summary>
         /// What level of support do we have in the TWAIN driver?
         /// </summary>
         /// <returns>level of support</returns>
@@ -185,7 +194,7 @@ namespace TwainDirect.Support
                     jsonlookup.Get("scanner.twainLocalSerialNumber"),
                     jsonlookup.Get("scanner.twainLocalNote"),
                     jsonlookup.Get("scanner"),
-                    jsonlookup.Get("scanner.twainLocalScanner.twainDirectSupport")
+                    jsonlookup.Get("scanner.twainLocalScanner")
                 );
             }
             catch
@@ -258,14 +267,14 @@ namespace TwainDirect.Support
         /// <param name="a_szTwainLocalSerialNumber">TWAIN serial number (from CAP_SERIALNUMBER)</param>
         /// <param name="szTwainLocalNote">TWAIN Local note= field</param>
         /// <param name="a_szScanner">the complete scanner record</param>
-        /// <param name="a_szTwainDirectSupport">none, minimal, or full</param>
+        /// <param name="isDatTwainDirectSupported">the register.txt stuff</param>
         public void Set
         (
             string a_szTwainLocalTy,
             string a_szTwainLocalSerialNumber,
             string a_szTwainLocalNote,
             string a_szScanner,
-            string a_szTwainDirectSupport = null
+            string a_szTwainLocalScanner = null
         )
         {
             // Init stuff...
@@ -308,22 +317,16 @@ namespace TwainDirect.Support
                 }
             }
 
-            // If its null, then make one...
-            if (m_device.twaininquirydata == null)
+            // Load the inquiry data...
+            if (!string.IsNullOrEmpty(a_szTwainLocalScanner))
             {
-                m_device.twaininquirydata = new TwainInquiryData();
+                m_device.twaininquirydata = TwainInquiryData.Deserialize(a_szTwainLocalScanner);
             }
 
-            // If we have a value, try to set it...
-            if (a_szTwainDirectSupport != null)
+            // If its null, then make one...
+            else if (m_device.twaininquirydata == null)
             {
-                switch (a_szTwainDirectSupport.ToLowerInvariant())
-                {
-                    default: m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None); break;
-                    case "none": m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.None); break;
-                    case "minimal": m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.Minimal); break;
-                    case "full": m_device.twaininquirydata.SetTwainDirectSupport(TwainDirectSupport.Full); break;
-                }
+                m_device.twaininquirydata = new TwainInquiryData();
             }
         }
 
@@ -362,6 +365,242 @@ namespace TwainDirect.Support
             public TwainInquiryData()
             {
                 m_twaindirectsupport = TwainDirectSupport.Undefined;
+            }
+
+            /// <summary>
+            /// Deserialize the JSON back into us...
+            /// </summary>
+            /// <returns>a JSON object</returns>
+            public static TwainInquiryData Deserialize(string a_szJson)
+            {
+                bool blSuccess;
+                long lJsonErrorIndex;
+                string szValue;
+                JsonLookup jsonlookup;
+                TwainInquiryData twaininquirydata = new TwainInquiryData();
+
+                // Nada...
+                if (string.IsNullOrEmpty(a_szJson))
+                {
+                    return (null);
+                }
+
+                // Load the JSON...
+                jsonlookup = new JsonLookup();
+                blSuccess = jsonlookup.Load(a_szJson, out lJsonErrorIndex);
+                if (!blSuccess)
+                {
+                    Log.Error("bad TwainInquiryData - <" + a_szJson + ">");
+                    return (null);
+                }
+
+                // TW_IDENTITY.ProductName...
+                twaininquirydata.m_szTwidentity         = jsonlookup.Get("twidentity", false);
+
+                // TWAIN Direct Support...
+                szValue = jsonlookup.Get("twainDirectSupport", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_twaindirectsupport = TwainDirectSupport.None; break;
+                    case "none": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.None; break;
+                    case "minimal": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Minimal; break;
+                    case "full": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Full; break;
+                }
+
+                // DAT_TWAINDIRECT?
+                szValue = jsonlookup.Get("isDatTwainDirectSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blDatTwainDirect = false; break;
+                    case "false": twaininquirydata.m_blDatTwainDirect = false; break;
+                    case "true": twaininquirydata.m_blDatTwainDirect = true; break;
+                }
+
+                // Device online? (just keeping a record of what we saw at the time we captured this)
+                szValue = jsonlookup.Get("isDeviceOnline", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blDeviceOnline = false; break;
+                    case "false": twaininquirydata.m_blDeviceOnline = false; break;
+                    case "true": twaininquirydata.m_blDeviceOnline = true; break;
+                }
+
+                // DAT_EXTIMAGEINFO?
+                szValue = jsonlookup.Get("isExtImageInfoSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blExtImageInfo = false; break;
+                    case "false": twaininquirydata.m_blExtImageInfo = false; break;
+                    case "true": twaininquirydata.m_blExtImageInfo = true; break;
+                }
+
+                // CAP_FEEDERENABLED (true)?
+                szValue = jsonlookup.Get("isFeederDetected", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blFeederDetected = false; break;
+                    case "false": twaininquirydata.m_blFeederDetected = false; break;
+                    case "true": twaininquirydata.m_blFeederDetected = true; break;
+                }
+
+                // CAP_FEEDERENABLED (false)?
+                szValue = jsonlookup.Get("isFlatbedDetected", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blFlatbedDetected = false; break;
+                    case "false": twaininquirydata.m_blFlatbedDetected = false; break;
+                    case "true": twaininquirydata.m_blFlatbedDetected = true; break;
+                }
+
+                // DAT_IMAGEFILEXFER?
+                szValue = jsonlookup.Get("isImageFileXferSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blImageFileXfer = false; break;
+                    case "false": twaininquirydata.m_blImageFileXfer = false; break;
+                    case "true": twaininquirydata.m_blImageFileXfer = true; break;
+                }
+
+                // DAT_IMAGEMEMFILEXFER?
+                szValue = jsonlookup.Get("isImageMemFileXferSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blImageMemFileXfer = false; break;
+                    case "false": twaininquirydata.m_blImageMemFileXfer = false; break;
+                    case "true": twaininquirydata.m_blImageMemFileXfer = true; break;
+                }
+
+                // CAP_PAPERDETECTABLE?
+                szValue = jsonlookup.Get("isPaperDetectableSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blPaperDetectable = false; break;
+                    case "false": twaininquirydata.m_blPaperDetectable = false; break;
+                    case "true": twaininquirydata.m_blPaperDetectable = true; break;
+                }
+
+                // TWFF_PDFRASTER?
+                szValue = jsonlookup.Get("isPdfRasterSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blPdfRaster = false; break;
+                    case "false": twaininquirydata.m_blPdfRaster = false; break;
+                    case "true": twaininquirydata.m_blPdfRaster = true; break;
+                }
+
+                // DAT_PENDINGXFERS/MSG_RESET?
+                szValue = jsonlookup.Get("isPendingXfersResetSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blPendingXfersReset = false; break;
+                    case "false": twaininquirydata.m_blPendingXfersReset = false; break;
+                    case "true": twaininquirydata.m_blPendingXfersReset = true; break;
+                }
+
+                // DAT_PENDINGXFERS/MSG_STOPFEEDER?
+                szValue = jsonlookup.Get("isPendingXfersStopFeederSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blPendingXfersStopFeeder = false; break;
+                    case "false": twaininquirydata.m_blPendingXfersStopFeeder = false; break;
+                    case "true": twaininquirydata.m_blPendingXfersStopFeeder = true; break;
+                }
+
+                // CAP_SHEETCOUNT?
+                szValue = jsonlookup.Get("isSheetCountSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blSheetCount = false; break;
+                    case "false": twaininquirydata.m_blSheetCount = false; break;
+                    case "true": twaininquirydata.m_blSheetCount = true; break;
+                }
+
+                // TWEI_TWAINDIRECTMETADATA?
+                szValue = jsonlookup.Get("isTweiTwainDirectMetadataSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blTweiTwainDirectMetadata = false; break;
+                    case "false": twaininquirydata.m_blTweiTwainDirectMetadata = false; break;
+                    case "true": twaininquirydata.m_blTweiTwainDirectMetadata = true; break;
+                }
+
+                // CAP_UICONTROLLABLE?
+                szValue = jsonlookup.Get("isUiControllableSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blUiControllable = false; break;
+                    case "false": twaininquirydata.m_blUiControllable = false; break;
+                    case "true": twaininquirydata.m_blUiControllable = true; break;
+                }
+
+                // Hostname...
+                twaininquirydata.m_szHostname = jsonlookup.Get("hostName", false);
+
+                // Serial number...
+                twaininquirydata.m_szSerialnumber = jsonlookup.Get("serialNumber", false);
+
+                // Serial number...
+                szValue = jsonlookup.Get("numberOfSheets", false);
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blSheetCount = false; break;
+                    case "[1, 1]": twaininquirydata.m_blSheetCount = false; break;
+                    case "[1, 32767]": twaininquirydata.m_blSheetCount = true; break;
+                }
+
+                // Resolutions...
+                twaininquirydata.m_szResolutions = jsonlookup.Get("resolutions", false);
+
+                // Height...
+                twaininquirydata.m_szHeight = jsonlookup.Get("height", false);
+
+                // Width...
+                twaininquirydata.m_szWidth = jsonlookup.Get("width", false);
+
+                // Offset-X...
+                twaininquirydata.m_szOffsetX = jsonlookup.Get("offsetX", false);
+
+                // Offset-Y...
+                twaininquirydata.m_szOffsetY = jsonlookup.Get("offsetY", false);
+
+                // Croppings...
+                twaininquirydata.m_szCroppings = jsonlookup.Get("croppings", false);
+
+                // Pixel formats...
+                twaininquirydata.m_szPixelFormats = jsonlookup.Get("pixelFormats", false);
+
+                // Camera sides...
+                twaininquirydata.m_szCameraSides = jsonlookup.Get("cameraSides", false);
+
+                // Compressions...
+                twaininquirydata.m_szCompressions = jsonlookup.Get("compressions", false);
+
+                // All done...
+                return (twaininquirydata);
+            }
+
+            /// <summary>
+            /// Get CAP_CAMERASIDE values...
+            /// </summary>
+            /// <returns>JSON array of camera side values</returns>
+            public string GetCameraSides()
+            {
+                return (m_szCameraSides);
             }
 
             /// <summary>
@@ -587,6 +826,8 @@ namespace TwainDirect.Support
             public string Serialize(string a_szTwidentity)
             {
                 string szJson = "";
+                m_szTwidentity = a_szTwidentity;
+                m_szHostname = Dns.GetHostName();
 
                 // Start object...
                 szJson += "{";
@@ -598,7 +839,7 @@ namespace TwainDirect.Support
                 szJson += "\"isFeederDetected\":" + m_blFeederDetected.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isFlatbedDetected\":" + m_blFlatbedDetected.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isImageFileXferSupported\":" + m_blImageFileXfer.ToString().ToLowerInvariant() + ",";
-                szJson += "\"isImagememFileXferSupported\":" + m_blImageMemFileXfer.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isImageMemFileXferSupported\":" + m_blImageMemFileXfer.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isPaperDetectableSupported\":" + m_blPaperDetectable.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isPdfRasterSupported\":" + m_blPdfRaster.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isPendingXfersResetSupported\":" + m_blPendingXfersReset.ToString().ToLowerInvariant() + ",";
@@ -606,21 +847,30 @@ namespace TwainDirect.Support
                 szJson += "\"isSheetCountSupported\":" + m_blSheetCount.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isTweiTwainDirectMetadataSupported\":" + m_blTweiTwainDirectMetadata.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isUiControllableSupported\":" + m_blUiControllable.ToString().ToLowerInvariant() + ",";
-                szJson += "\"hostName\":\"" + Dns.GetHostName() + "\",";
+                szJson += "\"hostName\":\"" + m_szHostname + "\",";
                 szJson += "\"serialNumber\":\"" + m_szSerialnumber + "\",";
                 szJson += "\"numberOfSheets\":" + (m_blSheetCount ? "[1, 32767]" : "[1, 1]") + ",";
-                szJson += "\"resolution\":" + m_szResolutions + ",";
+                szJson += "\"resolutions\":" + m_szResolutions + ",";
                 szJson += "\"height\":" + m_szHeight + ",";
                 szJson += "\"width\":" + m_szWidth + ",";
                 szJson += "\"offsetX\":" + m_szOffsetX + ",";
                 szJson += "\"offsetY\":" + m_szOffsetY + ",";
-                szJson += "\"cropping\":" + m_szCroppings + ",";
-                szJson += "\"pixelFormat\":" + m_szPixelFormats + ",";
-                szJson += "\"compression\":" + m_szCompressions; // last item, so no comma separator...
+                szJson += "\"croppings\":" + m_szCroppings + ",";
+                szJson += "\"pixelFormats\":" + m_szPixelFormats + ",";
+                szJson += "\"cameraSides\":" + m_szCameraSides + ",";
+                szJson += "\"compressions\":" + m_szCompressions; // last item, so no comma separator...
                 szJson += "}";
 
                 // All done...
                 return (szJson);
+            }
+
+            /// <summary>
+            /// Set CAP_CAMERASIDE...
+            /// </summary>
+            public void SetCameraSides(string a_szCameraSides)
+            {
+                m_szCameraSides = a_szCameraSides;
             }
 
             /// <summary>
@@ -816,6 +1066,11 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// JSON array of camerasides, or an empty string...
+            /// </summary>
+            private string m_szCameraSides;
+
+            /// <summary>
             /// JSON array of compressions...
             /// </summary>
             private string m_szCompressions;
@@ -854,6 +1109,11 @@ namespace TwainDirect.Support
             /// JSON array of min,max height...
             /// </summary>
             private string m_szHeight;
+
+            /// <summary>
+            /// The hostname for this PC...
+            /// </summary>
+            private string m_szHostname;
 
             /// <summary>
             /// Can we transfer memory files?
@@ -924,6 +1184,11 @@ namespace TwainDirect.Support
             /// Is TWEI_TWAINDIRECTMETADATA supported?
             /// </summary>
             private bool m_blTweiTwainDirectMetadata;
+
+            /// <summary>
+            /// The TW_IDENTITY.ProductName of our TWAIN driver...
+            /// </summary>
+            private string m_szTwidentity;
 
             /// <summary>
             /// Can we control the UI?

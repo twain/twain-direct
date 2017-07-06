@@ -177,7 +177,7 @@ namespace TwainDirect.OnTwain
             if (!string.IsNullOrEmpty(Config.Get("testtask", null)))
             {
                 // Create our object...
-                ProcessSwordTask processswordtask = new ProcessSwordTask(szImagesFolder, null);
+                ProcessSwordTask processswordtask = new ProcessSwordTask(szImagesFolder, null, null);
 
                 // Did we get a valid filename?
                 if ((szTaskFile == null) || !File.Exists(szTaskFile))
@@ -323,7 +323,7 @@ namespace TwainDirect.OnTwain
                 ProcessSwordTask processswordtask;
 
                 // Init stuff...
-                processswordtask = new ProcessSwordTask(szImagesFolder, null);
+                processswordtask = new ProcessSwordTask(szImagesFolder, null, null);
 
                 // Run our task...
                 processswordtask.BatchMode(Config.Get("scanner", null), szTaskFile, false, ref blSetAppCapabilities);

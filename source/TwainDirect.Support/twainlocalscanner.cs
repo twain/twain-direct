@@ -3122,11 +3122,6 @@ namespace TwainDirect.Support
             &&  (a_apicmd.GetUri() == "/privet/twaindirect/session")
             &&  !a_blWaitForEvents)
         {
-            SessionState sessionstatePrevious;
-
-            // Change our state...
-            sessionstatePrevious = SetSessionState(a_esessionstate);
-
             // Okay, you're going to love this.  So in order to change our revision
             // number in a meaningful way, we'll generate the string data we want
             // to send back and compare it to the previous string we generated, if
@@ -3136,57 +3131,40 @@ namespace TwainDirect.Support
             // The chief benefit of doing it this way, is that it's centralized and
             // easy to understand.  The chief drawback is that it feels groadie with
             // the if-statements...
-            szSessionObjects = "";
-            if (a_esessionstate != SessionState.noSession)
+
+            // Start building the session object...
+            szSessionObjects =
+                "\"session\":{" +
+                "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
+                "\"revision\":" + m_twainlocalsession.GetSessionRevision() + "," +
+                "\"state\":\"" + a_esessionstate.ToString() + "\"," +
+                a_apicmd.GetImageBlocksJson(a_esessionstate.ToString());
+
+            // Add the TWAIN Direct options, if any...
+            string szTaskReply = a_apicmd.GetTaskReply();
+            if (!string.IsNullOrEmpty(szTaskReply))
             {
-                SessionState esessionstate;
+                szSessionObjects += "\"task\":" + szTaskReply + ",";
+            }
 
-                // If the state we're being asked for is closed, but we're drained
-                // and can't get any more images, then jump to noSession...
-                if ((a_esessionstate == SessionState.closed) && ((m_twainlocalsession == null) || m_twainlocalsession.GetSessionImageBlocksDrained()))
-                {
-                    esessionstate = SessionState.noSession;
-                }
-                // Otherwise, just use what was passed to us...
-                else
-                {
-                    esessionstate = a_esessionstate;
-                }
+            // End the session object...
+            if (szSessionObjects.EndsWith(","))
+            {
+                szSessionObjects = szSessionObjects.Substring(0, szSessionObjects.Length - 1);
+            }
+            szSessionObjects+= "}";
 
-                // Start building the session object...
-                szSessionObjects =
-                    "\"session\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
-                    "\"revision\":" + m_twainlocalsession.GetSessionRevision() + "," +
-                    "\"state\":\"" + esessionstate.ToString() + "\"," +
-                    a_apicmd.GetImageBlocksJson(esessionstate.ToString());
-
-                // Add the TWAIN Direct options, if any...
-                string szTaskReply = a_apicmd.GetTaskReply();
-                if (!string.IsNullOrEmpty(szTaskReply))
-                {
-                    szSessionObjects += "\"task\":" + szTaskReply + ",";
-                }
-
-                // End the session object...
-                if (szSessionObjects.EndsWith(","))
-                {
-                    szSessionObjects = szSessionObjects.Substring(0, szSessionObjects.Length - 1);
-                }
-                szSessionObjects+= "}";
-
-                // Check to see if we have to update our revision number...
-                if (    string.IsNullOrEmpty(m_twainlocalsession.GetSessionSnapshot())
-                    ||  (szSessionObjects != m_twainlocalsession.GetSessionSnapshot()))
-                {
-                    szSessionObjects = szSessionObjects.Replace
-                    (
-                        "\"revision\":" + m_twainlocalsession.GetSessionRevision() + ",",
-                        "\"revision\":" + (m_twainlocalsession.GetSessionRevision() + 1) + ","
-                    );
-                    m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
-                    m_twainlocalsession.SetSessionSnapshot(szSessionObjects);
-                }
+            // Check to see if we have to update our revision number...
+            if (    string.IsNullOrEmpty(m_twainlocalsession.GetSessionSnapshot())
+                ||  (szSessionObjects != m_twainlocalsession.GetSessionSnapshot()))
+            {
+                szSessionObjects = szSessionObjects.Replace
+                (
+                    "\"revision\":" + m_twainlocalsession.GetSessionRevision() + ",",
+                    "\"revision\":" + (m_twainlocalsession.GetSessionRevision() + 1) + ","
+                );
+                m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
+                m_twainlocalsession.SetSessionSnapshot(szSessionObjects);
             }
 
             // Construct a response...
@@ -3205,6 +3183,9 @@ namespace TwainDirect.Support
             // Send the response, note that any multipart contruction work
             // takes place in this function...
             a_apicmd.HttpRespond("success", szResponse);
+
+            // Okay, now do the state transition...
+            SetSessionState(a_esessionstate);
 
             // All done...
             return (true);
@@ -3388,6 +3369,7 @@ namespace TwainDirect.Support
         bool blSuccess;
         long lResponseCharacterOffset;
         string szIpc;
+        SessionState sessionstate;
         string szFunction = "DeviceScannerCloseSession";
 
         // Protect our stuff...
@@ -3469,20 +3451,26 @@ namespace TwainDirect.Support
                 "}"
             );
 
-            // Reply to the command with a session object, our real state depends on
-            // whether or not we have more image blocks coming...
-            blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.closed, -1, null);
+            // Figure out the session state we want to transition to.  If
+            // we've lost our session, or we're ready, or we have no more
+            // images to deliver, then transition to noSession...
+            if (    (m_twainlocalsession == null)
+                ||  (m_twainlocalsession.GetSessionState() == SessionState.ready)
+                ||  m_twainlocalsession.GetSessionImageBlocksDrained())
+            {
+                sessionstate = SessionState.noSession;
+            }
+            else
+            {
+                sessionstate = SessionState.closed;
+            }
+
+            // Reply to the command with a session object...
+            blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, sessionstate, -1, null);
             if (!blSuccess)
             {
                 DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
                 return (false);
-            }
-
-            // If we're out of imageBlocks, and can't get anymore,
-            // then transition to nosession...
-            if ((m_twainlocalsession == null) || m_twainlocalsession.GetSessionImageBlocksDrained())
-            {
-                SetSessionState(SessionState.noSession);
             }
 
             // Shutdown TWAIN Direct on TWAIN, but only if we've run out of

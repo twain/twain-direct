@@ -13,6 +13,8 @@
 ;
 echo 'TWAIN Direct Certification v1.0 22-Jun-2017'
 echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+log info '#TWAIN Direct Certification v1.0 22-Jun-2017'
+log info '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 echo
 set certifyresult pass
 call CERTIFY 'JSON Syntax' '${arg:1}'
@@ -30,9 +32,13 @@ call CERTIFY 'Info Infoex' '${arg:1}'
 ;
 if '${get:certifyresult}' != 'pass' goto MAIN.ERROR
 echo
-echo '*****************************************'
-echo 'Scanner passed TWAIN Direct Certification'
-echo '*****************************************'
+echo '*********************************************'
+echo 'The scanner passed TWAIN Direct Certification'
+echo '*********************************************'
+log info '#'
+log info '#*********************************************'
+log info '#The scanner passed TWAIN Direct Certification'
+log info '#*********************************************'
 return 'pass'
 ;
 :MAIN.ERROR
@@ -40,6 +46,10 @@ echo
 echo '***************************************************'
 echo 'The scanner did not pass TWAIN Direct Certification'
 echo '***************************************************'
+log info '#'
+log info '#***************************************************'
+log info '#The scanner did not pass TWAIN Direct Certification'
+log info '#***************************************************'
 return 'fail'
 
 

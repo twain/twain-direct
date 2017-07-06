@@ -1251,7 +1251,7 @@ namespace TwainDirect.OnTwain
             TWAIN.STS sts;
 
             // Init stuff...
-            a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit);
+            a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit, m_deviceregisterSession);
 
             // Get the task from the TWAIN Local command...
             szTask = a_jsonlookup.GetJson("task");
