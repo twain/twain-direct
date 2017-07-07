@@ -76,9 +76,11 @@ call CHECK 'results.session.state' '==' 'capturing'
 if '${get:startcapturingresult}' != 'pass' goto STARTCAPTURING.FAIL
 ;
 ; We're good...
+echopassfail 'startCapturing call' 'pass'
 return 'pass'
 ;
 :STARTCAPTURING.FAIL
+echopassfail 'startCapturing call' 'fail'
 return 'fail'
 
 

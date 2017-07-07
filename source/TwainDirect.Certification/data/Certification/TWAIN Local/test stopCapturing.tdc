@@ -57,11 +57,13 @@ call CHECK 'results.session.state' '==' '${arg:1}'
 if '${get:stopcapturingresult}' != 'pass' goto STOPCAPTURING.FAIL
 ;
 ; We're good...
+echopassfail 'stopCapturing call' 'pass'
 return 'pass'
 ;
 ; No joy...
 :STOPCAPTURING.FAIL
 set stopcapturingresult 'fail'
+echopassfail 'stopCapturing call' 'fail'
 return 'fail'
 
 

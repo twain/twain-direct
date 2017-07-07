@@ -94,10 +94,12 @@ if '${get:readimageblockresult}' != 'pass' goto READIMAGEBLOCK.FAIL
 ;
 ; We're good...
 :READIMAGEBLOCK.PASS
+echopassfail 'readImageBlock call' 'pass'
 return 'pass'
 ;
 :READIMAGEBLOCK.FAIL
 set readimageblockresult 'fail'
+echopassfail 'readImageBlock call' 'fail'
 return 'fail'
 
 

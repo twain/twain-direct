@@ -60,11 +60,13 @@ if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
 ;
 ; We're good, check if we need to output values...
 call RETURNVALUES '${arg:2}' '${arg:3}'
+echopassfail 'getSession call' 'pass'
 return 'pass'
 ;
 ; No joy...
 :GETSESSION.FAIL
 set getsessionresult 'fail'
+echopassfail 'getSession call' 'fail'
 return 'fail'
 
 

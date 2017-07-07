@@ -1581,7 +1581,7 @@ namespace TwainDirect.Certification
             apicmd = new ApiCmd(m_dnssddeviceinfo);
 
             // We need this to get the x-privet-token...
-            blSuccess = m_twainlocalscanner.ClientInfo(m_dnssddeviceinfo, ref apicmd);
+            blSuccess = m_twainlocalscanner.ClientInfo(ref apicmd);
             if (!blSuccess)
             {
                 Log.Error("ClientInfo failed: " + apicmd.HttpResponseData());
@@ -1591,7 +1591,7 @@ namespace TwainDirect.Certification
             }
 
             // Create session...
-            blSuccess = m_twainlocalscanner.ClientScannerCreateSession(m_dnssddeviceinfo, ref apicmd);
+            blSuccess = m_twainlocalscanner.ClientScannerCreateSession(ref apicmd);
             if (!blSuccess)
             {
                 Log.Error("ClientScannerCreateSession failed: " + apicmd.HttpResponseData());

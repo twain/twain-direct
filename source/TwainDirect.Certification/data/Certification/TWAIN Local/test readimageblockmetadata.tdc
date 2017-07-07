@@ -88,10 +88,12 @@ call CHECK 'results.metadata.image.size' != ''
 if '${get:readimageblockmetadataresult}' != 'pass' goto READIMAGEBLOCKMETADATA.FAIL
 ;
 ; We're good...
+echopassfail 'releaseImageBlockMetadata call' 'pass'
 return 'pass'
 ;
 :READIMAGEBLOCKMETADATA.FAIL
 set readimageblockmetadataresult 'fail'
+echopassfail 'releaseImageBlockMetadata call' 'fail'
 return 'fail'
 
 

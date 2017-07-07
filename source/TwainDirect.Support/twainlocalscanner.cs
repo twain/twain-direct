@@ -382,13 +382,11 @@ namespace TwainDirect.Support
         /// <summary>
         /// Get info about the device...
         /// </summary>
-        /// <param name="a_dnssddeviceinfo">info about the device</param>
         /// <param name="a_apicmd">info about the command</param>
         /// <param name="a_szOverride">used for certification testing</param>
         /// <returns>true on success</returns>
         public bool ClientInfo
         (
-            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
             ref ApiCmd a_apicmd,
             string a_szOverride = null
         )
@@ -399,9 +397,6 @@ namespace TwainDirect.Support
 
             // This command can be issued at any time, so we don't check state, we also
             // don't have to worry about locking anything...
-
-            // Squirrel this away...
-            m_dnssddeviceinfo = a_dnssddeviceinfo;
 
             // Figure out what command we're sending...
             if (a_szOverride != null)
@@ -418,7 +413,6 @@ namespace TwainDirect.Support
             blSuccess = ClientHttpRequest
             (
                 szFunction,
-                m_dnssddeviceinfo,
                 ref a_apicmd,
                 szCommand,
                 "GET",
@@ -626,31 +620,35 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"closeSession\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
                     "}" +
                     "}",
                     null,
@@ -687,10 +685,9 @@ namespace TwainDirect.Support
         /// If it works out the session state will go to "ready".  Anything else
         /// is going to be an issue...
         /// </summary>
-        /// <param name="a_dnssddeviceinfo">info about the device</param>
         /// <param name="a_apicmd">info about the command</param>
         /// <returns>true on success</returns>
-        public bool ClientScannerCreateSession(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, ref ApiCmd a_apicmd)
+        public bool ClientScannerCreateSession(ref ApiCmd a_apicmd)
         {
             bool blSuccess;
             bool blCreatedTwainLocalSession = false;
@@ -706,45 +703,10 @@ namespace TwainDirect.Support
                     blCreatedTwainLocalSession = true;
                 }
 
-                // Squirrel this away, do the useHttps check in such a way that
-                // one must precisely specify "no" to get it, otherwise we're
-                // going to use HTTPS...
-                if (m_dnssddeviceinfo == null)
-                {
-                    m_dnssddeviceinfo = a_dnssddeviceinfo;
-                    if (m_dnssddeviceinfo.szIpv4 != null)
-                    {
-                        if (Config.Get("useHttps", "yes") == "no")
-                        {
-                            m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv4;
-                        }
-                        else
-                        {
-                            m_szHttpServer = "https://" + m_dnssddeviceinfo.szIpv4;
-                        }
-                    }
-                    else if (m_dnssddeviceinfo.szIpv6 != null)
-                    {
-                        if (Config.Get("useHttps", "yes") == "no")
-                        {
-                            m_szHttpServer = "http://" + m_dnssddeviceinfo.szIpv6;
-                        }
-                        else
-                        {
-                            m_szHttpServer = "https://" + m_dnssddeviceinfo.szIpv6;
-                        }
-                    }
-                    else
-                    {
-                        m_szHttpServer = "http://***noipaddress***";
-                    }
-                }
-
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
@@ -794,31 +756,35 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"getSession\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
                     "}" +
                     "}",
                     null,
@@ -851,24 +817,24 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
@@ -905,23 +871,23 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/invaliduri",
                     "GET",
                     new string[] {
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + m_szXPrivetToken
                     },
                     null,
                     null,
@@ -964,11 +930,16 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Build the full image path...
@@ -992,20 +963,19 @@ namespace TwainDirect.Support
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"readImageBlock\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
                     (a_blGetMetadataWithImage ? "\"withMetadata\":true," : "") +
                     "\"imageBlockNum\":" + a_lImageBlockNum +
                     "}" +
@@ -1022,7 +992,7 @@ namespace TwainDirect.Support
                 }
 
                 // We asked for metadata...
-                if (a_blGetMetadataWithImage)
+                if (a_blGetMetadataWithImage && (m_twainlocalsession != null))
                 {
                     // Try to get the meta data...
                     if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
@@ -1071,17 +1041,22 @@ namespace TwainDirect.Support
         {
             bool blSuccess;
             string szThumbnail;
-            string szMetaFile;
+            string szMetaFile = "(no session)";
             string szFunction = "ClientScannerReadImageBlockMetadata";
 
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // We're asking for a thumbnail...
@@ -1110,20 +1085,19 @@ namespace TwainDirect.Support
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"readImageBlockMetadata\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
                     "\"imageBlockNum\":" + a_lImageBlockNum +
                     (a_blGetThumbnail ? ",\"withThumbnail\":true" : "") +
                     "}" +
@@ -1139,31 +1113,35 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Try to get the meta data...
-                if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
+                // Make sure we have a session for this...
+                if (m_twainlocalsession != null)
                 {
-                    m_twainlocalsession.SetMetadata(null);
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " 'results.metadata' missing");
-                    return (false);
-                }
+                    // Try to get the meta data...
+                    if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
+                    {
+                        m_twainlocalsession.SetMetadata(null);
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " 'results.metadata' missing");
+                        return (false);
+                    }
 
-                // Save the metadata to a file...
-                szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".meta");
-                try
-                {
-                    File.WriteAllText(szMetaFile, "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}");
-                }
-                catch (Exception exception)
-                {
-                    m_twainlocalsession.SetMetadata(null);
-                    ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " access denied: " + szMetaFile + " (" + exception.Message + ")");
-                    return (false);
-                }
+                    // Save the metadata to a file...
+                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".meta");
+                    try
+                    {
+                        File.WriteAllText(szMetaFile, "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}");
+                    }
+                    catch (Exception exception)
+                    {
+                        m_twainlocalsession.SetMetadata(null);
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " access denied: " + szMetaFile + " (" + exception.Message + ")");
+                        return (false);
+                    }
 
-                // Give it to the callback...
-                if (a_scancallback != null)
-                {
-                    a_scancallback(szMetaFile);
+                    // Give it to the callback...
+                    if (a_scancallback != null)
+                    {
+                        a_scancallback(szMetaFile);
+                    }
                 }
             }
 
@@ -1191,31 +1169,35 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"releaseImageBlocks\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
                     "\"imageBlockNum\":" + a_lImageBlockNum + "," +
                     "\"lastImageBlockNum\":" + a_lLastImageBlockNum +
                     "}" +
@@ -1269,31 +1251,35 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"sendTask\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
                     "\"task\":" + a_szTask +
                     "}" +
                     "}",
@@ -1326,31 +1312,35 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"startCapturing\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
                     "}" +
                     "}",
                     null,
@@ -1386,31 +1376,35 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
                     "\"method\":\"stopCapturing\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
                     "}" +
                     "}",
                     null,
@@ -1442,33 +1436,35 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                // Validate...
-                if (m_twainlocalsession == null)
+                string szXPrivetToken = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
                 {
-                    ClientReturnError(a_apicmd, false, "invalidSessionId", -1, szFunction + ": null session");
-                    return (false);
+                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken);
+                    szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
                 // Send the RESTful API command...
                 // Both @@@COMMANDID@@@ and @@@SESSIONREVISION@@@ are resolved
-                // inside of ClientScannerWaitForEventsHelper...
+                // inside of the ClientScannerWaitForEventsHelper thread...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
-                    m_dnssddeviceinfo,
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
                     new string[] {
                         "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken(m_szXPrivetToken)
+                        "X-Privet-Token: " + szXPrivetToken
                     },
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"@@@COMMANDID@@@\"," +
                     "\"method\":\"waitForEvents\"," +
                     "\"params\":{" +
-                    "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
                     "\"sessionRevision\":@@@SESSIONREVISION@@@" +
                     "}" +
                     "}",
@@ -1576,7 +1572,7 @@ namespace TwainDirect.Support
             }
             if (ii >= a_httplistenercontext.Request.Headers.Count)
             {
-                apicmd = new ApiCmd(m_dnssddeviceinfo, null, ref a_httplistenercontext);
+                apicmd = new ApiCmd(null, null, ref a_httplistenercontext);
                 DeviceReturnError(szFunction, apicmd, "invalid_x_privet_token", null, 0);
                 return;
             }
@@ -1612,17 +1608,17 @@ namespace TwainDirect.Support
                 }
 
                 // Run it...
-                apicmd = new ApiCmd(m_dnssddeviceinfo, null, ref a_httplistenercontext);
+                apicmd = new ApiCmd(null, null, ref a_httplistenercontext);
                 DeviceInfo(ref apicmd);
                 return;
             }
 
             // If we get here, it implies that a command has been issued before making
             // a call to info or infoex, so we'll reject it.  This is technically a
-            // state violation, so we'll report that...
+            // state violation, but invalid_x_privet_token takes priority...
             if (string.IsNullOrEmpty(szXPrivetToken) || string.IsNullOrEmpty(m_szXPrivetToken))
             {
-                apicmd = new ApiCmd(m_dnssddeviceinfo, null, ref a_httplistenercontext);
+                apicmd = new ApiCmd(null, null, ref a_httplistenercontext);
                 DeviceReturnError(szFunction, apicmd, "invalid_x_privet_token", null, -1);
                 return;
             }
@@ -1661,7 +1657,7 @@ namespace TwainDirect.Support
                 // Nope, we're done...
                 if (!blValid)
                 {
-                    apicmd = new ApiCmd(m_dnssddeviceinfo, null, ref a_httplistenercontext);
+                    apicmd = new ApiCmd(null, null, ref a_httplistenercontext);
                     DeviceReturnError(szFunction, apicmd, "invalid_x_privet_token", null, 0);
                     return;
                 }
@@ -1673,13 +1669,13 @@ namespace TwainDirect.Support
             blSuccess = jsonlookup.Load(a_szJsonCommand, out lResponseCharacterOffset);
             if (!blSuccess)
             {
-                apicmd = new ApiCmd(m_dnssddeviceinfo, jsonlookup, ref a_httplistenercontext);
+                apicmd = new ApiCmd(null, jsonlookup, ref a_httplistenercontext);
                 DeviceReturnError(szFunction, apicmd, "invalidJson", null, lResponseCharacterOffset);
                 return;
             }
 
             // Init stuff...
-            apicmd = new ApiCmd(m_dnssddeviceinfo, jsonlookup, ref a_httplistenercontext);
+            apicmd = new ApiCmd(null, jsonlookup, ref a_httplistenercontext);
 
             // If we are running a session, make sure that the command's session id matches
             // our session's id...
@@ -1983,7 +1979,7 @@ namespace TwainDirect.Support
                 // We only have an event if we have a session...
                 if (m_twainlocalsession != null)
                 {
-                    ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    ApiCmd apicmd = new ApiCmd(null);
                     m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
                     apicmd.SetEvent(a_szEvent, m_twainlocalsession.GetSessionState().ToString(), m_twainlocalsession.GetSessionRevision());
                     DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, m_twainlocalsession.GetSessionState(), m_twainlocalsession.GetSessionRevision(), a_szEvent);
@@ -2623,7 +2619,6 @@ namespace TwainDirect.Support
         private bool ClientHttpRequest
         (
             string a_szReason,
-            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
             ref ApiCmd a_apicmd,
             string a_szUri,
             string a_szMethod,
@@ -2645,7 +2640,6 @@ namespace TwainDirect.Support
                 blSuccess = a_apicmd.HttpRequest
                 (
                     a_szReason,
-                    a_dnssddeviceinfo,
                     a_szUri,
                     a_szMethod,
                     a_aszHeader,
@@ -2686,7 +2680,7 @@ namespace TwainDirect.Support
                 m_waitforeventsinfo.m_threadCommunication = new Thread(new ParameterizedThreadStart(ClientScannerWaitForEventsCommunicationLaunchpad));
                 m_waitforeventsinfo.m_threadProcessing = new Thread(new ParameterizedThreadStart(ClientScannerWaitForEventsProcessingLaunchpad));
                 m_waitforeventsinfo.m_szReason = a_szReason;
-                m_waitforeventsinfo.m_dnssddeviceinfo = a_dnssddeviceinfo;
+                m_waitforeventsinfo.m_dnssddeviceinfo = a_apicmd.GetDnssdDeviceInfo();
                 m_waitforeventsinfo.m_szUri = a_szUri;
                 m_waitforeventsinfo.m_szMethod = a_szMethod;
                 m_waitforeventsinfo.m_aszHeader = a_aszHeader;
@@ -2757,7 +2751,6 @@ namespace TwainDirect.Support
                 blSuccess = apicmd.HttpRequest
                 (
                     m_waitforeventsinfo.m_szReason,
-                    m_waitforeventsinfo.m_dnssddeviceinfo,
                     m_waitforeventsinfo.m_szUri,
                     m_waitforeventsinfo.m_szMethod,
                     m_waitforeventsinfo.m_aszHeader,
@@ -3839,7 +3832,7 @@ namespace TwainDirect.Support
                 if (a_blGetSession)
                 {
                     // Create an event...
-                    apicmdEvent = new ApiCmd(m_dnssddeviceinfo);
+                    apicmdEvent = new ApiCmd(null);
 
                     // Get the current session info...
                     m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
@@ -4724,17 +4717,6 @@ namespace TwainDirect.Support
         /// Something we can lock...
         /// </summary>
         private object m_objectLock;
-
-        /// <summary>
-        /// Information about our device...
-        /// </summary>
-        private Dnssd.DnssdDeviceInfo m_dnssddeviceinfo;
-
-        /// <summary>
-        /// Our HTTP server name, this will be the link local
-        /// name of the PC we're running on.
-        /// </summary>
-        private string m_szHttpServer;
 
         /// <summary>
         /// Our HTTP server, all sessions must past through

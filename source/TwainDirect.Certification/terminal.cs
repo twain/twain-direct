@@ -259,7 +259,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerCreateSession(m_dnssddeviceinfoSelected, ref apicmd);
+            m_twainlocalscanner.ClientScannerCreateSession(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -319,7 +319,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd, "info");
+            m_twainlocalscanner.ClientInfo(ref apicmd, "info");
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -349,7 +349,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientInfo(m_dnssddeviceinfoSelected, ref apicmd, "infoex");
+            m_twainlocalscanner.ClientInfo(ref apicmd, "infoex");
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();

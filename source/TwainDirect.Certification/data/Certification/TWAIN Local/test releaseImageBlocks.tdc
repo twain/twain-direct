@@ -64,11 +64,13 @@ if '${get:releaseimageblocksresult}' != 'pass' goto RELEASEIMAGEBLOCKS.FAIL
 ;
 ; We're good, check if we need to output values...
 call RETURNVALUES '${arg:3}' '${arg:4}'
+echopassfail 'releaseImageBlocks call' 'pass'
 return 'pass'
 ;
 ; No joy...
 :RELEASEIMAGEBLOCKS.FAIL
 set releaseimageblocksresult 'fail'
+echopassfail 'releaseImageBlocks call' 'fail'
 return 'fail'
 
 

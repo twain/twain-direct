@@ -204,6 +204,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return what we know about the scanner we're talking to...
+        /// </summary>
+        /// <returns>a point to the device info</returns>
+        public Dnssd.DnssdDeviceInfo GetDnssdDeviceInfo()
+        {
+            return (m_dnssddeviceinfo);
+        }
+
+        /// <summary>
         /// Return the response data...
         /// </summary>
         /// <returns>the HTTP response</returns>
@@ -588,7 +597,6 @@ namespace TwainDirect.Support
         public bool HttpRequest
         (
             string a_szReason,
-            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
             string a_szUri,
             string a_szMethod,
             string[] a_aszHeader,
@@ -642,14 +650,14 @@ namespace TwainDirect.Support
             // name of the device...
             if (m_blUseHttps)
             {
-                string szLinkLocal = a_dnssddeviceinfo.szLinkLocal.Replace(".local.", ".local");
-                szUri = "https://" + szLinkLocal + ":" + a_dnssddeviceinfo.lPort + a_szUri;
+                string szLinkLocal = m_dnssddeviceinfo.szLinkLocal.Replace(".local.", ".local");
+                szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.lPort + a_szUri;
             }
 
             // Build the URI, for HTTP we can use the IP address to get to our device...
             else
             {
-                szUri = "http://" + a_dnssddeviceinfo.szIpv4 + ":" + a_dnssddeviceinfo.lPort + a_szUri;
+                szUri = "http://" + m_dnssddeviceinfo.szIpv4 + ":" + m_dnssddeviceinfo.lPort + a_szUri;
             }
             m_szMethod = a_szMethod;
             m_szUriFull = szUri;

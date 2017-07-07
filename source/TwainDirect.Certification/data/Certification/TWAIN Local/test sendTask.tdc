@@ -68,10 +68,12 @@ call CHECK 'results.session.task.actions[0].streams[0].sources[0].name' '==' 'so
 if '${get:sendtaskresult}' != 'pass' goto SENDTASK.FAIL
 ;
 ; We're good...
+echopassfail 'sendTask call' 'pass'
 return 'pass'
 ;
 :SENDTASK.FAIL
 set sendtaskresult 'fail'
+echopassfail 'sendTask call' 'fail'
 return 'fail'
 
 

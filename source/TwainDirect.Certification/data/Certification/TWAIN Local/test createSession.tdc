@@ -23,8 +23,10 @@ set createsessionresult 'pass'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Make sure that commands prior to a successful createSession return invalidState.  We don't do
-; waitForEvents here, because any complaint has to come back asynchronously...
+; Make sure that commands prior to a successful createSession return invalidSessionId.  We don't do
+; waitForEvents here, because any complaint has to come back asynchronously.  invalidSessionId takes
+; precedence over invalidState, because in order to figure out what state we're in, we have to know
+; what session we belong to.
 ;
 call CHECKINVALIDSESSIONID 'getSession'
 call CHECKINVALIDSESSIONID 'sendTask' '{}'
@@ -118,10 +120,12 @@ call CHECK 'results.session.state' '==' 'ready'
 if '${get:createsessionresult}' != 'pass' goto CREATESESSION.FAIL
 ;
 ; We're good...
+echopassfail 'createSession call' 'pass'
 return 'pass'
 ;
 :CREATESESSION.FAIL
 set createsessionresult 'fail'
+echopassfail 'createSession call' 'fail'
 return 'fail'
 
 

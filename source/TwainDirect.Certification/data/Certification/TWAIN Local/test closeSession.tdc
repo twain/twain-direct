@@ -57,11 +57,13 @@ call CHECK 'results.session.state' '==' '${arg:1}'
 if '${get:closesessionresult}' != 'pass' goto CLOSESESSION.FAIL
 ;
 ; We're good...
+echopassfail 'closeSession call' 'pass'
 return 'pass'
 ;
 ; No joy...
 :CLOSESESSION.FAIL
 set closesessionresult 'fail'
+echopassfail 'closeSession call' 'fail'
 return 'fail'
 
 
