@@ -119,7 +119,7 @@ namespace TwainDirect.Support
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Out.Write(m_szPrompt);
-                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.ForegroundColor = ConsoleColor.Gray;
                 }
                 else
                 {

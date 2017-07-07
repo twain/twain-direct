@@ -129,7 +129,7 @@ namespace TwainDirect.Certification
             Version version = assemblyname.Version;
             DateTime datetime = new DateTime(2000, 1, 1).AddDays(version.Build).AddSeconds(version.MinorRevision * 2);
 
-            Display("TWAIN Direct Certification v" + version.Major + "." + version.Minor + " " + datetime.ToShortDateString() + " " + ((IntPtr.Size == 4) ? " (32-bit)" : " (64-bit)"));
+            Display("TWAIN Direct Certification v" + version.Major + "." + version.Minor + " " + datetime.Day + "-" + datetime.ToString("MMM") + "-" + datetime.Year + " " + ((IntPtr.Size == 4) ? "(32-bit)" : "(64-bit)"));
             Display("Enter \"help\" for more info.");
         }
 
@@ -979,7 +979,7 @@ namespace TwainDirect.Certification
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
                 DisplayRed("Discovery and Selection");
-                Display("help.........................................this text");
+                Display("help [command]...............................this text or info about a command");
                 Display("list.........................................list scanners");
                 Display("quit.........................................exit the program");
                 Display("select {pattern}.............................select a scanner");
@@ -1047,7 +1047,7 @@ namespace TwainDirect.Certification
             {
                 DisplayRed("LIST");
                 Display("List the scanners that are advertising themselves.  Note that the");
-                Display("same scanner make be seen multiple times, if it's being advertised");
+                Display("same scanner may be seen multiple times, if it's being advertised");
                 Display("on more than one network interface card.");
                 return (false);
             }
@@ -1409,10 +1409,10 @@ namespace TwainDirect.Certification
                 Display("");
                 Display("Operators");
                 Display("==...........values are equal (case sensitive)");
-                Display("<............item1 is less than item2 (must be numbers)");
-                Display("<=...........item1 is less than or equal to item2 (must be numbers)");
-                Display(">............item1 is greater than item2 (must be numbers)");
-                Display(">=...........item1 is greater than or equal to item2 (must be numbers)");
+                Display("<............item1 is numerically less than item2");
+                Display("<=...........item1 is numerically less than or equal to item2");
+                Display(">............item1 is numerically greater than item2");
+                Display(">=...........item1 is numerically greater than or equal to item2");
                 Display("~~...........values are equal (case insensitive)");
                 Display("contains.....item2 is contained in item1 (case sensitive)");
                 Display("~contains....item2 is contained in item1 (case insensitive)");
@@ -1428,6 +1428,8 @@ namespace TwainDirect.Certification
                 Display("Items prefixed with 'get:' indicate that the item is the");
                 Display("result of a prior set command.");
                 Display("  if '${get:value}' != 'true' goto FAIL");
+                Display("");
+                Display("Enter HELP SCRIPTING for the complete list of symbols.");
                 return (false);
             }
 
@@ -2987,7 +2989,7 @@ namespace TwainDirect.Certification
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.Out.WriteLine(a_szText);
-                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.ForegroundColor = ConsoleColor.Gray;
                 }
                 else
                 {
