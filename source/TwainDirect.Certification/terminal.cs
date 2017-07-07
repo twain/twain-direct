@@ -1007,12 +1007,19 @@ namespace TwainDirect.Certification
                 Display("cd [path]....................................shows or sets the current directory");
                 Display("clean........................................clean the images folder");
                 Display("echo [text]..................................echo text");
+                Display("echopassfail {title} {result}................echo text in a tabular form");
+                Display("goto {label}.................................jump to the :label in the script");
                 Display("if {item1} {operator} {item2} goto {label}...if statement");
                 Display("increment {dst} {src} [step].................increment src by step and store in dst");
+                Display("json2xml {file|json}.........................convert json formatted data to xml");
+                Display("log {info|warn|error,etc} text...............add a line to the log file");
                 Display("return [status]..............................return from call function");
                 Display("run [script].................................run a script");
                 Display("runv [script]................................run a script verbosely");
                 Display("set [key [value]]............................show, set, or delete keys");
+                Display("sleep {milliseconds}.........................pause the current thread");
+                Display("twainlocalsession {create|destroy}...........use to test calls without using createSession");
+                Display("waitforsessionupdate {milliseconds}..........wait for the session object to update");
                 return (false);
             }
 
@@ -1041,7 +1048,7 @@ namespace TwainDirect.Certification
                 Display("LIST");
                 Display("List the scanners that are advertising themselves.  Note that the");
                 Display("same scanner make be seen multiple times, if it's being advertised");
-                Display("on more than one network.");
+                Display("on more than one network interface card.");
                 return (false);
             }
 
@@ -1060,6 +1067,11 @@ namespace TwainDirect.Certification
                 Display("Selects one of the scanners shown in the list command, which is");
                 Display("the scanner that will be accessed by the API commands.  The pattern");
                 Display("must match some or all of the name, the IP address, or the note.");
+                Display("");
+                Display("Note that with HTTPS we have to use the link local name, which");
+                Display("means that you can't select which network interface is going to");
+                Display("be used to talk to the scanner.  Put another way, we can't use the");
+                Display("raw IP address.");
                 return (false);
             }
 
@@ -1132,10 +1144,12 @@ namespace TwainDirect.Certification
             // waitForEvents...
             if ((szCommand == "waitforevents"))
             {
-                Display("WAITFOREVENTS");
+                Display("WAITFOREVENTS [SCRIPT [argument1 [argument2[...]]]");
                 Display("TWAIN Direct is event driven.  The command creates the event");
                 Display("monitor used to detect updates to the session object.  It");
-                Display("should be called once after CREATESESSION.");
+                Display("should be called once after CREATESESSION.  If a script name");
+                Display("is specified, it'll be run when the event fires, and it will");
+                Display("receive the arguments sent to it, if any.");
                 return (false);
             }
 
@@ -1161,7 +1175,10 @@ namespace TwainDirect.Certification
             {
                 Display("READIMAGEBLOCKMETADATA {BLOCK} {INCLUDETHUMBNAIL}");
                 Display("Reads the metadata for the specified image BLOCK, and");
-                Display("optionally includes a thumbnail for that image.");
+                Display("optionally includes a thumbnail for that image.  The");
+                Display("value of BLOCK matches one of the numbers in the session");
+                Display("object's imageBlocks array.  The INCLUDETHUMBNAIL value");
+                Display("mustt be set to true to get a thumbnail.");
                 return (false);
             }
 
@@ -1170,7 +1187,10 @@ namespace TwainDirect.Certification
             {
                 Display("READIMAGEBLOCK {BLOCK} {INCLUDEMETADATA}");
                 Display("Reads the image data for the specified image BLOCK, and");
-                Display("optionally includes the metadata for that image.");
+                Display("optionally includes the metadata for that image.  The");
+                Display("value of BLOCK matches one of the numbers in the session");
+                Display("object's imageBlocks array.  The INCLUDEMETADATA value");
+                Display("must be set to true to get metadata with the image.");
                 return (false);
             }
 
@@ -1179,6 +1199,8 @@ namespace TwainDirect.Certification
             {
                 Display("RELEASEIMAGEBLOCKS {FIRST} {LAST}");
                 Display("Releases the image blocks from FIRST to LAST inclusive.");
+                Display("The value of FIRST and LAST matches one of the numbers in");
+                Display("the session object's imageBlocks array.");
                 return (false);
             }
 
@@ -1186,7 +1208,8 @@ namespace TwainDirect.Certification
             if ((szCommand == "stopCapturing"))
             {
                 Display("STOPCAPTURING");
-                Display("Stop capturing images from the scanner.");
+                Display("Stop capturing images from the scanner, the scanner will");
+                Display("complete scanning the current image.");
                 return (false);
             }
 
@@ -1195,7 +1218,8 @@ namespace TwainDirect.Certification
             {
                 Display("CLOSESESSION");
                 Display("Close the session, which unlocks the scanner.  The user");
-                Display("is responsible for releasing any remaining images.");
+                Display("is responsible for releasing any remaining images.  The");
+                Display("scanner is not unlocked until all images are released.");
                 return (false);
             }
 
@@ -1216,7 +1240,8 @@ namespace TwainDirect.Certification
                 Display("");
                 Display("The 'language' is not sophisticated.  It supports a goto, a conditional goto, and a call");
                 Display("function.  The set and increment commands manage variables.  All of the TWAIN Direct calls are");
-                Display("accessible, including some extras used to stress the system.");
+                Display("accessible, including some extras used to stress the system.  The semicolon ';' is the comment");
+                Display("indicator.  At this time it must appear on a line by itself.");
                 Display("");
                 Display("The most interesting part of the scripting support is variable expansion.  Variables take the");
                 Display("form ${source:target} with the following available sources:");
@@ -1224,6 +1249,19 @@ namespace TwainDirect.Certification
                 Display("  '${arg:target}'");
                 Display("  Expands an argument argument to run, runv, or call.  0 is the name of the script or label, and");
                 Display("  1 - n access the rest of the arguments.");
+                Display("");
+                Display("  '${ej:target}'");
+                Display("  Accesses the JSON contents of the last event.  For instance, ${ej:results.success} returns a");
+                Display("  value of true or false for the last event, or an empty string if communication failed.  If");
+                Display("  the target is #, then it expands to the number of UTF-8 bytes in the JSON payload.  If the");
+                Display("  value can't be found it expands to an empty string.  Use this in the WAITFOREVENTS script.");
+                Display("");
+                Display("  '${ejx:target}'");
+                Display("  Works like ${ej:target}, but if the target can't be found it expands to '(null)'.  Use this");
+                Display("  in the WAITFOREVENTS script.");
+                Display("");
+                Display("  '${ests:}'");
+                Display("  The HTTP status from the last waitForEvents command.  Use this in the WAITFOREVENTS script.");
                 Display("");
                 Display("  '${get:target}'");
                 Display("  The value last assigned to the target using the set command.");
@@ -1249,19 +1287,22 @@ namespace TwainDirect.Certification
                 Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
                 Display("");
                 Display("  '${hdrimagevalue:target}'");
-                Display("  Accesses the header values in the image multipart response from the last command.  Target can be #");
-                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("  Accesses the header values in the image multipart response from the last command.  Target can be");
+                Display("  # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
                 Display("");
                 Display("  '${hdrthumbnailkey:target}'");
-                Display("  Accesses the header keys in the thumbnail multipart response from the last command.  Target can be");
-                Display("  # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("  Accesses the header keys in the thumbnail multipart response from the last command.  Target can");
+                Display("  be # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular");
+                Display("  header.");
                 Display("");
                 Display("  '${hdrthumbnailvalue:target}'");
-                Display("  Accesses the header values in the thumbnail multipart response from the last command.  Target can be");
-                Display("  # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("  Accesses the header values in the thumbnail multipart response from the last command.  Target");
+                Display("  can be # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular");
+                Display("  header.");
                 Display("");
                 Display("  '${ret:}'");
-                Display("  The value supplied to the return command that ended the last run, runv, or call.");
+                Display("  The value supplied to the return command that ended the last run, runv, or call.  It's also");
+                Display("  used by the WAITFORSESSIONUPDATE command.");
                 Display("");
                 Display("  '${rj:target}'");
                 Display("  Accesses the JSON contents of the last command.  For instance, ${rj:results.success} returns a");
@@ -1282,15 +1323,36 @@ namespace TwainDirect.Certification
                 Display("  Works like ${txt:target}, but if the target can't be found it expands to '(null)'");
                 Display("");
                 Display("Note that some tricks are allowed, one can do ${hdrkey:${get:index}}, using the set and increment");
-                Display("commands to enumerate all of the header keys.  Or ${rj:${arg:1}} to pass a JSON key into a function.");
+                Display("increment commands to enumerate all of the header keys.  Or ${rj:${arg:1}} to pass a JSON key into");
+                Display("a function.");
                 return (false);
             }
 
             // Call...
             if ((szCommand == "call"))
             {
-                Display("CALL {FUNCTION}");
-                Display("Call the function.");
+                Display("CALL {FUNCTION [argument1 [argument2 [...]]}");
+                Display("Call a function with optional arguments.  Check '${ret:} to see what the");
+                Display("function send back with its RETURN command.  The function must be prefixed");
+                Display("with a colon.  For example...");
+                Display("  call XYZ");
+                Display("  ; the script will return here");
+                Display("  ...");
+                Display("  :XYZ");
+                Display("  return");
+                Display("");
+                Display("Gotos are easy to implement, and easy to script, but they can get out of");
+                Display("control fast.  Keep functions small.  And when doing a goto inside of a");
+                Display("function, use the function name as a prefix to help avoid reusing the same");
+                Display("label in more than one place.  For example...");
+                Display("  call XYZ abc");
+                Display("  ; the script will return here");
+                Display("  ...");
+                Display("  :XYZ");
+                Display("  if '${arg:1}' == 'abc' goto XYZ.ABC");
+                Display("  return 'is not abc'");
+                Display("  :XYZ.ABC");
+                Display("  return 'is abc'");
                 return (false);
             }
 
@@ -1315,6 +1377,25 @@ namespace TwainDirect.Certification
             {
                 Display("ECHO [TEXT]");
                 Display("Echoes the text.  If there is no text an empty line is echoed.");
+                return (false);
+            }
+
+            // Echopassfail...
+            if ((szCommand == "echopassfail"))
+            {
+                Display("ECHOPASSFAIL [TITLE] [RESULT]");
+                Display("Echoes the title and result in a tabular format.");
+                return (false);
+            }
+
+            // Goto...
+            if ((szCommand == "goto"))
+            {
+                Display("GOTO {LABEL}");
+                Display("Jump to the specified label in the script.  The label must be");
+                Display("prefixed with a colon.  For example...");
+                Display("  goto XYZ");
+                Display("  :XYZ");
                 return (false);
             }
 
@@ -1354,7 +1435,8 @@ namespace TwainDirect.Certification
             if ((szCommand == "return"))
             {
                 Display("RETURN [STATUS]");
-                Display("Return from a call function.");
+                Display("Return from a call function or a script invoked with RUN or RUNV.");
+                Display("The caller can examine this value with the '${ret:}' symbol.");
                 return (false);
             }
 
@@ -1389,6 +1471,34 @@ namespace TwainDirect.Certification
                 Display("Values prefixed with 'rj:' indicate that the item is a JSON");
                 Display("key in the last command's response payload.  For instance:");
                 Display("  set success '${rj:results.success}'");
+                return (false);
+            }
+
+            // Sleep...
+            if ((szCommand == "sleep"))
+            {
+                Display("SLEEP {MILLISECONDS}");
+                Display("Pause the thread for the specified number of milliseconds.");
+                return (false);
+            }
+
+            // Twainlocalsession...
+            if ((szCommand == "twainlocalsession"))
+            {
+                Display("TWAINLOCALSESSION {CREATE|DESTROY}");
+                Display("Use this to test the behavior of commands called before");
+                Display("createSession.  They should return 'invalidSessionId'.");
+                return (false);
+            }
+
+            // Waitforsessionupdate...
+            if ((szCommand == "waitforsessionupdate"))
+            {
+                Display("WAITFORSESSIONUPDATE {MILLISECONDS}");
+                Display("Wait MILLISECONDS for the session object to be updated, which");
+                Display("means that its revision number has been incremented.  The '${ret:}'");
+                Display("symbol is set to true if the command was signaled.  A value of");
+                Display("false means the command timed out.");
                 return (false);
             }
 

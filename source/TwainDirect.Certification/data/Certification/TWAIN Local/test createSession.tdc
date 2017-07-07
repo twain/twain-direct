@@ -114,7 +114,7 @@ return 'fail'
 ; Send the command...
 set waitforeventsresult 'fail'
 twainlocalsession 'create'
-waitForEvents 'test waitForEvents' 'checkinvalidsessionid' 'waitforeventsresult' '3000'
+waitForEvents 'test waitForEvents' 'checkinvalidsessionid' 'waitforeventsresult'
 sleep 5000
 twainlocalsession 'destroy'
 if '${get:waitforeventsresult}' != 'pass' goto WAITFOREVENTSCHECKINVALIDSESSIONID.FAIL
