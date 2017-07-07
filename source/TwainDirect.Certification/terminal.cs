@@ -108,6 +108,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCall,                         new string[] { "call" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCd,                           new string[] { "cd" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdClean,                        new string[] { "clean" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdDir,                          new string[] { "dir", "ls" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
@@ -857,6 +858,39 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Lists the files and folders in the current directory...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdDir(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            // Get the folders...
+            string[] aszFolders = Directory.GetDirectories(".");
+            if ((aszFolders != null) && (aszFolders.Length > 0))
+            {
+                Array.Sort(aszFolders);
+                foreach (string sz in aszFolders)
+                {
+                    Display(sz.Replace(".\\","").Replace("./","") + Path.DirectorySeparatorChar);
+                }
+            }
+
+            // Get the files...
+            string[] aszFiles = Directory.GetFiles(".");
+            if ((aszFiles != null) && (aszFiles.Length > 0))
+            {
+                Array.Sort(aszFiles);
+                foreach (string sz in aszFiles)
+                {
+                    Display(sz.Replace(".\\", "").Replace("./", ""));
+                }
+            }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Echo text...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -1006,6 +1040,7 @@ namespace TwainDirect.Certification
                 Display("call {label}.................................call function");
                 Display("cd [path]....................................shows or sets the current directory");
                 Display("clean........................................clean the images folder");
+                Display("dir..........................................lists files and folders in the current directory");
                 Display("echo [text]..................................echo text");
                 Display("echopassfail {title} {result}................echo text in a tabular form");
                 Display("goto {label}.................................jump to the :label in the script");
@@ -1369,6 +1404,14 @@ namespace TwainDirect.Certification
             {
                 DisplayRed("CLEAN");
                 Display("Delete all files and folders in the images folder.");
+                return (false);
+            }
+
+            // Dir...
+            if ((szCommand == "dir"))
+            {
+                DisplayRed("DIR");
+                Display("Directory command, lists files and folders in the current directory.");
                 return (false);
             }
 
