@@ -1,0 +1,97 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test waitForEvents callback v1.0 06-Jul-2017
+; arg:1 - test to run
+; arg:2 - variable to set with the result
+; arg:3 - timeout in milliseconds
+; returns: pass or fail
+;
+; Exercise the waitForEvents command.  We're called by other scripts.  This script runs as a callback
+; when the waitForEvents thread processes a response.
+;
+; - confirm that commands report invalidState when called before createSession
+;
+; - confirm that createSession succeeds, and contains all required properties
+;
+; - confirm that createSession reports busy now, and others report invalidState
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; We don't have a banner, because we're called from other scripts...
+;
+set waitforeventsresultname '${arg:2}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Dispatch the test...
+;
+if '${arg:1}' == 'checkinvalidsessionid' goto CHECKINVALIDSESSIONID
+echopassfail 'event waitForEvents - ${arg:1}' 'fail (no test specified)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECKINVALIDSESSIONID
+;
+:CHECKINVALIDSESSIONID
+;
+; Now that we're in the callback, assume we'll pass...
+set '${arg:2}' 'pass'
+;
+; Analyze the result...
+call CHECK 'kind'
+call CHECK 'commandId'
+call CHECK 'method' '==' 'waitForEvents'
+call CHECK 'results'
+call CHECK 'results.success' '==' 'false'
+call CHECK 'results.code' == 'invalidSessionId'
+if '${get:${arg:2}}' != 'pass' goto CHECKINVALIDSESSIONID.FAIL
+;
+; We're good...
+echopassfail 'event waitForEvents - ${arg:1}' 'pass'
+return 'pass'
+;
+; We're not good...
+:CHECKINVALIDSESSIONID.FAIL
+echopassfail 'event waitForEvents - ${arg:1}' 'fail'
+set '${arg:2}' 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECK
+; arg1 - property
+; arg2 - if-statement operator (optional)
+; arg3 - value to check for if arg2 is specified
+; returns pass or fail
+;
+:CHECK
+;
+; Make sure the property exists...
+if '${ejx:${arg:1}}' == '(null)' goto CHECK.MISSING
+;
+; If we have no operator, we're done...
+if '${arg:2}' == '' goto CHECK.PASS
+;
+; Do the if-statement...
+if '${ej:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
+;
+; The if-statement failed...
+echopassfail 'event check ${arg:1}' 'fail (if '<${ej:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
+set '${get:waitforeventsresultname}' 'fail'
+return 'fail'
+;
+; The property is missing...
+:CHECK.MISSING
+echopassfail 'event check ${arg:1}' 'fail (${arg1:} missing)'
+set '${get:waitforeventsresultname}' 'fail'
+return 'fail'
+;
+; We're good...
+:CHECK.PASS
+echopassfail 'event check ${arg:1}' 'pass'
+return 'pass'

@@ -177,12 +177,31 @@ namespace TwainDirect.Support
         /// <param name="a_szResponseCode">things like invalidJson or invalidValue</param>
         /// <param name="a_lResponseCharacterOffset">index of a syntax error or -1</param>
         /// <param name="a_szResponseText">free form text about the problem</param>
-        public void DeviceResponseSetStatus(bool a_blSuccess, string a_szResponseCode, long a_lResponseCharacterOffset, string a_szResponseText)
+        /// <param name="a_iResponseHttpStatusOverride">override the status if not 0</param>
+        public void DeviceResponseSetStatus
+        (
+            bool a_blSuccess,
+            string a_szResponseCode,
+            long a_lResponseCharacterOffset,
+            string a_szResponseText,
+            int a_iResponseHttpStatusOverride = 0
+        )
         {
-            if (m_iResponseHttpStatus != 200)
+            // Override the m_iResponseHttpStatus, we typically do this in
+            // situations where we know we can't possibly have a valid value...
+            if (a_iResponseHttpStatusOverride != 0)
+            {
+                m_iResponseHttpStatus = a_iResponseHttpStatusOverride;
+            }
+
+            // For non-successful status the text is our data, or if we're
+            // overriding the status...
+            if ((m_iResponseHttpStatus != 200) || (a_iResponseHttpStatusOverride != 0))
             {
                 m_szResponseData = a_szResponseText;
             }
+
+            // Squirrel away the rest of it...
             m_blResponseSuccess = a_blSuccess;
             m_szResponseCode = a_szResponseCode;
             m_lResponseCharacterOffset = a_lResponseCharacterOffset;
@@ -593,6 +612,7 @@ namespace TwainDirect.Support
         /// <param name="a_szOutputFile">redirect the data to a file</param>
         /// <param name="a_iTimeout">timeout in milliseconds</param>
         /// <param name="a_httpreplystyle">how the reply will be handled</param>
+        /// <param name="a_blInitOnly">init only (used in error cases)</param>
         /// <returns>true on success</returns>
         public bool HttpRequest
         (
@@ -604,7 +624,8 @@ namespace TwainDirect.Support
             string a_szUploadFile,
             string a_szOutputFile,
             int a_iTimeout,
-            HttpReplyStyle a_httpreplystyle
+            HttpReplyStyle a_httpreplystyle,
+            bool a_blInitOnly = false
         )
         {
             //
@@ -661,6 +682,14 @@ namespace TwainDirect.Support
             }
             m_szMethod = a_szMethod;
             m_szUriFull = szUri;
+
+            // If all we want is to initialize the ApiCmd data, then scoot.
+            // We do this to help stock the object when errors occur.
+            if (a_blInitOnly)
+            {
+                return (false);
+            }
+
             Log.Info("http>>> " + m_szMethod + " " + m_szUriFull);
             httpwebrequest = (HttpWebRequest)WebRequest.Create(szUri);
             httpwebrequest.AllowWriteStreamBuffering = true;

@@ -41,6 +41,13 @@ call CHECKINVALIDSESSIONID 'invalidCommand'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Now do this test with waitForEvents
+;
+call WAITFOREVENTSCHECKINVALIDSESSIONID
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call createSession, and check the return properties...
 ;
 call CREATESESSION
@@ -93,6 +100,31 @@ return 'fail'
 ;
 :CHECKINVALIDSESSIONID.FAILCODE
 echopassfail 'check invalidSessionId: ${arg:1}' 'fail (code not invalidSessionId)'
+set createsessionresult 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; WAITFOREVENTSCHECKINVALIDSESSIONID
+; returns pass or fail
+;
+:WAITFOREVENTSCHECKINVALIDSESSIONID
+;
+; Send the command...
+set waitforeventsresult 'fail'
+twainlocalsession 'create'
+waitForEvents 'test waitForEvents' 'checkinvalidsessionid' 'waitforeventsresult' '3000'
+sleep 5000
+twainlocalsession 'destroy'
+if '${get:waitforeventsresult}' != 'pass' goto WAITFOREVENTSCHECKINVALIDSESSIONID.FAIL
+; We're good...
+echopassfail 'check invalidSessionId: waitForEvents' 'pass'
+return 'pass'
+;
+; We're not so good...
+:WAITFOREVENTSCHECKINVALIDSESSIONID.FAIL
+echopassfail 'check invalidSessionId: waitForEvents' 'fail'
 set createsessionresult 'fail'
 return 'fail'
 
@@ -162,7 +194,7 @@ return 'fail'
 ; We're good...
 :CHECK.PASS
 echopassfail 'check ${arg:1}' 'pass'
-return 'PASS'
+return 'pass'
 
 
 

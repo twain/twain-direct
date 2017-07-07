@@ -726,11 +726,11 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
-            // If we have an argument, it'll be the script to run...
-            m_szWaitForEventsCallback = "";
+            // If we have arguments, it'll be the script to run, along with its arguments...
+            m_aszWaitForEventsCallback = null;
             if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 1))
             {
-                m_szWaitForEventsCallback = a_functionarguments.aszCmd[1];
+                m_aszWaitForEventsCallback = a_functionarguments.aszCmd;
             }
 
             // Make the call, this is where we register the callback we
@@ -3085,6 +3085,9 @@ namespace TwainDirect.Certification
                     if (    szSymbol.StartsWith("${rj:")
                         ||  szSymbol.StartsWith("${rjx:")
                         ||  szSymbol.StartsWith("${rsts:")
+                        ||  szSymbol.StartsWith("${ej:")
+                        ||  szSymbol.StartsWith("${ejx:")
+                        ||  szSymbol.StartsWith("${ests:")
                         ||  szSymbol.StartsWith("${session:")
                         ||  szSymbol.StartsWith("${get:")
                         ||  szSymbol.StartsWith("${arg:")
@@ -3116,11 +3119,12 @@ namespace TwainDirect.Certification
                     // Use the value as a JSON key to get data from the response data, if we
                     // don't find the value treat it as an empty string.  In most cases this
                     // will be good enough for testing purposes...
-                    if (szSymbol.StartsWith("${rj:"))
+                    if (szSymbol.StartsWith("${rj:") || szSymbol.StartsWith("${ej:"))
                     {
-                        if (m_transactionLast != null)
+                        ApiCmd.Transaction transaction = szSymbol.StartsWith("${rj:") ? m_transactionLast : m_transactionEvent;
+                        if (transaction != null)
                         {
-                            string szResponseData = m_transactionLast.GetResponseData();
+                            string szResponseData = transaction.GetResponseData();
                             string szTarget = szSymbol.Substring(0, szSymbol.Length - 1).Substring(5);
                             // Report the number of bytes of data...
                             if (szTarget == "#")
@@ -3158,12 +3162,13 @@ namespace TwainDirect.Certification
 
                     // Use the value as a JSON key to get data from the response data, add
                     // an existance check, and if we don't find data, return '(null)'...
-                    else if (szSymbol.StartsWith("${rjx:"))
+                    else if (szSymbol.StartsWith("${rjx:") || szSymbol.StartsWith("${ejx:"))
                     {
+                        ApiCmd.Transaction transaction = szSymbol.StartsWith("${rjx:") ? m_transactionLast : m_transactionEvent;
                         szValue = "(null)";
-                        if (m_transactionLast != null)
+                        if (transaction != null)
                         {
-                            string szResponseData = m_transactionLast.GetResponseData();
+                            string szResponseData = transaction.GetResponseData();
                             if (!string.IsNullOrEmpty(szResponseData))
                             {
                                 bool blSuccess;
@@ -3183,12 +3188,13 @@ namespace TwainDirect.Certification
                     }
 
                     // We're getting the HTTP response status, which is an integer...
-                    else if (szSymbol.StartsWith("${rsts:"))
+                    else if (szSymbol.StartsWith("${rsts:") || szSymbol.StartsWith("${ests:"))
                     {
+                        ApiCmd.Transaction transaction = szSymbol.StartsWith("${rsts:") ? m_transactionLast : m_transactionEvent;
                         szValue = "(null)";
-                        if (m_transactionLast != null)
+                        if (transaction != null)
                         {
-                            szValue = m_transactionLast.GetResponseStatus().ToString();
+                            szValue = transaction.GetResponseStatus().ToString();
                         }
                     }
 
@@ -3440,21 +3446,31 @@ namespace TwainDirect.Certification
             DisplayApicmd(a_apicmd, !m_blSilentEvents, "EVENT - ");
 
             // If we have a script to call, then call it...
-            if (!string.IsNullOrEmpty(m_szWaitForEventsCallback))
+            if ((m_aszWaitForEventsCallback != null) && (m_aszWaitForEventsCallback.Length > 1))
             {
+                // Create a transaction we can check out...
+                m_transactionEvent = new ApiCmd.Transaction(a_apicmd);
+
+                // Make the call...
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
                 if (m_blSilentEvents)
                 {
-                    functionarguments.aszCmd = new string[2];
+                    functionarguments.aszCmd = new string[m_aszWaitForEventsCallback.Length];
                     functionarguments.aszCmd[0] = "run";
-                    functionarguments.aszCmd[1] = m_szWaitForEventsCallback;
+                    for (int ii = 1; ii < m_aszWaitForEventsCallback.Length; ii++)
+                    {
+                        functionarguments.aszCmd[ii] = m_aszWaitForEventsCallback[ii];
+                    }
                     CmdRun(ref functionarguments);
                 }
                 else
                 {
-                    functionarguments.aszCmd = new string[2];
+                    functionarguments.aszCmd = new string[m_aszWaitForEventsCallback.Length];
                     functionarguments.aszCmd[0] = "runv";
-                    functionarguments.aszCmd[1] = m_szWaitForEventsCallback;
+                    for (int ii = 1; ii < m_aszWaitForEventsCallback.Length; ii++)
+                    {
+                        functionarguments.aszCmd[ii] = m_aszWaitForEventsCallback[ii];
+                    }
                     CmdRunv(ref functionarguments);
                 }
             }
@@ -3527,7 +3543,7 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Script to call when waitForEvents returns events...
         /// </summary>
-        private string m_szWaitForEventsCallback;
+        private string[] m_aszWaitForEventsCallback;
 
         /// <summary>
         /// Our object for discovering TWAIN Local scanners...
@@ -3545,6 +3561,11 @@ namespace TwainDirect.Certification
         /// doesn't include events...
         /// </summary>
         private ApiCmd.Transaction m_transactionLast;
+
+        /// <summary>
+        /// The event we're currently processing...
+        /// </summary>
+        private ApiCmd.Transaction m_transactionEvent;
 
         /// <summary>
         /// The list of key/value pairs created by the SET command...

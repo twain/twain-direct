@@ -2726,10 +2726,22 @@ namespace TwainDirect.Support
             // Loop until something stops us...
             for (;;)
             {
+                string szClientCreateCommandId = "";
+                string szSessionRevision = "0";
+                SessionState sessionstate = SessionState.noSession;
+
+                // Get data from our session...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionRevision = m_twainlocalsession.GetSessionRevision().ToString();
+                    sessionstate = m_twainlocalsession.GetSessionState();
+                }
+
                 // Update the data, first we need a new command id for this
                 // instance of the long poll...
                 string szData = m_waitforeventsinfo.m_szData;
-                szData = szData.Replace("@@@COMMANDID@@@", m_twainlocalsession.ClientCreateCommandId());
+                szData = szData.Replace("@@@COMMANDID@@@", szClientCreateCommandId);
 
                 // Session data is protected...
                 lock (m_waitforeventsinfo.m_objectlapicmdLock)
@@ -2737,13 +2749,44 @@ namespace TwainDirect.Support
                     // Report our current session id to the scanner, this
                     // will either be the revision from the session object
                     // or from the last event...
-                    szData = szData.Replace("@@@SESSIONREVISION@@@", (lSessionRevision == 0) ? m_twainlocalsession.GetSessionRevision().ToString() : lSessionRevision.ToString());
+                    szData = szData.Replace("@@@SESSIONREVISION@@@", (lSessionRevision == 0) ? szSessionRevision : lSessionRevision.ToString());
 
                     // If we've gone to noSession, we should scoot, since
                     // it's no longer possible to receive events...
-                    if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
+                    if ((m_twainlocalsession == null) || (sessionstate == SessionState.noSession))
                     {
-                        break;
+                        // Initialize the object, and that's it...
+                        apicmd.HttpRequest
+                        (
+                            m_waitforeventsinfo.m_szReason,
+                            m_waitforeventsinfo.m_szUri,
+                            m_waitforeventsinfo.m_szMethod,
+                            m_waitforeventsinfo.m_aszHeader,
+                            szData,
+                            m_waitforeventsinfo.m_szUploadFile,
+                            m_waitforeventsinfo.m_szOutputFile,
+                            m_waitforeventsinfo.m_iTimeout,
+                            m_waitforeventsinfo.m_httpreplystyle,
+                            true
+                        );
+                        apicmd.DeviceResponseSetStatus
+                        (
+                            false,
+                            "invalidSessionId",
+                            -1,
+                            "{" +
+                            "\"kind\":\"twainlocalscanner\"," +
+                            "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                            "\"method\":\"waitForEvents\"," +
+                            "\"results\":{" +
+                            "\"success\":false," +
+                            "\"code\":\"invalidSessionId\"" +
+                            "}" + // results
+                            "}", //root
+                            200
+                        );
+                        apicmd.WaitForEventsCallback();
+                        return;
                     }
                 }
 
@@ -2769,7 +2812,7 @@ namespace TwainDirect.Support
                         // Ruh-roh...
                         default:
                             Log.Error("ClientScannerWaitForEventsHelper: bad status..." + apicmd.HttpStatus());
-                            return;
+                            continue;
 
                         // Issue a new command...
                         case WebExceptionStatus.ReceiveFailure:

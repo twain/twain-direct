@@ -107,7 +107,7 @@ return 'fail'
 ; We're good...
 :CHECK.PASS
 echopassfail 'check ${arg:1}' 'pass'
-return 'PASS'
+return 'pass'
 
 
 
