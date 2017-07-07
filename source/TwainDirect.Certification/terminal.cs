@@ -978,14 +978,14 @@ namespace TwainDirect.Certification
             // Summary...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
-                Display("Discovery and Selection");
+                DisplayRed("Discovery and Selection");
                 Display("help.........................................this text");
                 Display("list.........................................list scanners");
                 Display("quit.........................................exit the program");
                 Display("select {pattern}.............................select a scanner");
                 Display("status.......................................status of the program");
                 Display("");
-                Display("Image Capture APIs (in order of use)");
+                DisplayRed("Image Capture APIs (in order of use)");
                 Display("info.........................................get baseline information about the scanner");
                 Display("infoex.......................................get extended information about the scanner");
                 Display("invalidCommand...............................see how scanner handles an invalid command");
@@ -1001,7 +1001,7 @@ namespace TwainDirect.Certification
                 Display("stopCapturing................................stop capturing new images");
                 Display("closeSession.................................close the current session");
                 Display("");
-                Display("Scripting");
+                DisplayRed("Scripting");
                 Display("help scripting...............................general discussion");
                 Display("call {label}.................................call function");
                 Display("cd [path]....................................shows or sets the current directory");
@@ -1032,7 +1032,7 @@ namespace TwainDirect.Certification
             // Help...
             if ((szCommand == "help"))
             {
-                Display("HELP [COMMAND]");
+                DisplayRed("HELP [COMMAND]");
                 Display("Provides assistence with command and their arguments.  It does not");
                 Display("go into detail on TWAIN Direct.  Please read the Specifications for");
                 Display("more information.");
@@ -1045,7 +1045,7 @@ namespace TwainDirect.Certification
             // List...
             if ((szCommand == "list"))
             {
-                Display("LIST");
+                DisplayRed("LIST");
                 Display("List the scanners that are advertising themselves.  Note that the");
                 Display("same scanner make be seen multiple times, if it's being advertised");
                 Display("on more than one network interface card.");
@@ -1055,7 +1055,7 @@ namespace TwainDirect.Certification
             // Quit...
             if ((szCommand == "quit"))
             {
-                Display("QUIT");
+                DisplayRed("QUIT");
                 Display("Exit from this program.");
                 return (false);
             }
@@ -1063,7 +1063,7 @@ namespace TwainDirect.Certification
             // Select...
             if ((szCommand == "select"))
             {
-                Display("SELECT {PATTERN}");
+                DisplayRed("SELECT {PATTERN}");
                 Display("Selects one of the scanners shown in the list command, which is");
                 Display("the scanner that will be accessed by the API commands.  The pattern");
                 Display("must match some or all of the name, the IP address, or the note.");
@@ -1078,7 +1078,7 @@ namespace TwainDirect.Certification
             // Status...
             if ((szCommand == "status"))
             {
-                Display("STATUS");
+                DisplayRed("STATUS");
                 Display("General information about the current operation of the program.");
                 return (false);
             }
@@ -1091,7 +1091,7 @@ namespace TwainDirect.Certification
             // infoex...
             if ((szCommand == "info"))
             {
-                Display("INFO");
+                DisplayRed("INFO");
                 Display("Issues an info command to the scanner that picked out using");
                 Display("the SELECT command.  The command must be issued before making");
                 Display("a call to CREATESESSION.");
@@ -1101,7 +1101,7 @@ namespace TwainDirect.Certification
             // infoex...
             if ((szCommand == "infoex"))
             {
-                Display("INFOEX");
+                DisplayRed("INFOEX");
                 Display("Issues an infoex command to the scanner that picked out using");
                 Display("the SELECT command.  The command must be issued before making");
                 Display("a call to CREATESESSION.");
@@ -1111,7 +1111,7 @@ namespace TwainDirect.Certification
             // invalidCommand...
             if ((szCommand == "invalidcommand"))
             {
-                Display("INVALIDCOMMAND");
+                DisplayRed("INVALIDCOMMAND");
                 Display("See how the scanner handles an invalid command.");
                 return (false);
             }
@@ -1119,7 +1119,7 @@ namespace TwainDirect.Certification
             // invalidUri...
             if ((szCommand == "invaliduri"))
             {
-                Display("INVALIDURI");
+                DisplayRed("INVALIDURI");
                 Display("See how the scanner handles an invalid uri.");
                 return (false);
             }
@@ -1127,7 +1127,7 @@ namespace TwainDirect.Certification
             // createSession...
             if ((szCommand == "createsession"))
             {
-                Display("CREATESESSION");
+                DisplayRed("CREATESESSION");
                 Display("Creates a session for the scanner picked out using the SELECT");
                 Display("command.  To end the session use CLOSESESSION.");
                 return (false);
@@ -1136,7 +1136,7 @@ namespace TwainDirect.Certification
             // getSession...
             if ((szCommand == "getsession"))
             {
-                Display("GETSESSION");
+                DisplayRed("GETSESSION");
                 Display("Gets infornation about the current session.");
                 return (false);
             }
@@ -1144,7 +1144,7 @@ namespace TwainDirect.Certification
             // waitForEvents...
             if ((szCommand == "waitforevents"))
             {
-                Display("WAITFOREVENTS [SCRIPT [argument1 [argument2[...]]]");
+                DisplayRed("WAITFOREVENTS [SCRIPT [argument1 [argument2[...]]]");
                 Display("TWAIN Direct is event driven.  The command creates the event");
                 Display("monitor used to detect updates to the session object.  It");
                 Display("should be called once after CREATESESSION.  If a script name");
@@ -1156,7 +1156,7 @@ namespace TwainDirect.Certification
             // sendTask...
             if ((szCommand == "sendtask"))
             {
-                Display("SENDTASK {TASK|FILE}");
+                DisplayRed("SENDTASK {TASK|FILE}");
                 Display("Sends a TWAIN Direct task.  The argument can either be the");
                 Display("task itself, or a file containing the task.");
                 return (false);
@@ -1165,7 +1165,7 @@ namespace TwainDirect.Certification
             // startCapturing...
             if ((szCommand == "startcapturing"))
             {
-                Display("STARTCAPTURING");
+                DisplayRed("STARTCAPTURING");
                 Display("Start capturing images from the scanner.");
                 return (false);
             }
@@ -1173,7 +1173,7 @@ namespace TwainDirect.Certification
             // readImageBlockMetadata...
             if ((szCommand == "readimageblockmetadata"))
             {
-                Display("READIMAGEBLOCKMETADATA {BLOCK} {INCLUDETHUMBNAIL}");
+                DisplayRed("READIMAGEBLOCKMETADATA {BLOCK} {INCLUDETHUMBNAIL}");
                 Display("Reads the metadata for the specified image BLOCK, and");
                 Display("optionally includes a thumbnail for that image.  The");
                 Display("value of BLOCK matches one of the numbers in the session");
@@ -1185,7 +1185,7 @@ namespace TwainDirect.Certification
             // readImageBlock...
             if ((szCommand == "readimageblock"))
             {
-                Display("READIMAGEBLOCK {BLOCK} {INCLUDEMETADATA}");
+                DisplayRed("READIMAGEBLOCK {BLOCK} {INCLUDEMETADATA}");
                 Display("Reads the image data for the specified image BLOCK, and");
                 Display("optionally includes the metadata for that image.  The");
                 Display("value of BLOCK matches one of the numbers in the session");
@@ -1197,7 +1197,7 @@ namespace TwainDirect.Certification
             // releaseImageBlocks...
             if ((szCommand == "releaseimageblocks"))
             {
-                Display("RELEASEIMAGEBLOCKS {FIRST} {LAST}");
+                DisplayRed("RELEASEIMAGEBLOCKS {FIRST} {LAST}");
                 Display("Releases the image blocks from FIRST to LAST inclusive.");
                 Display("The value of FIRST and LAST matches one of the numbers in");
                 Display("the session object's imageBlocks array.");
@@ -1207,7 +1207,7 @@ namespace TwainDirect.Certification
             // stopCapturing...
             if ((szCommand == "stopCapturing"))
             {
-                Display("STOPCAPTURING");
+                DisplayRed("STOPCAPTURING");
                 Display("Stop capturing images from the scanner, the scanner will");
                 Display("complete scanning the current image.");
                 return (false);
@@ -1216,7 +1216,7 @@ namespace TwainDirect.Certification
             // closeSession...
             if ((szCommand == "closeSession"))
             {
-                Display("CLOSESESSION");
+                DisplayRed("CLOSESESSION");
                 Display("Close the session, which unlocks the scanner.  The user");
                 Display("is responsible for releasing any remaining images.  The");
                 Display("scanner is not unlocked until all images are released.");
@@ -1232,7 +1232,7 @@ namespace TwainDirect.Certification
             if ((szCommand == "scripting"))
             {
                 /////////0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
-                Display("GENERAL DISCUSSION OF SCRIPTING");
+                DisplayRed("GENERAL DISCUSSION OF SCRIPTING");
                 Display("The TWAIN Direct Certification program is designed to test scanners and applications.  It looks");
                 Display("at header information, JSONS payloads, and image data.  It's script based to make it easier to");
                 Display("manage the tests.  Users can create and run their own tests, such as extracting key items from an");
@@ -1331,7 +1331,7 @@ namespace TwainDirect.Certification
             // Call...
             if ((szCommand == "call"))
             {
-                Display("CALL {FUNCTION [argument1 [argument2 [...]]}");
+                DisplayRed("CALL {FUNCTION [argument1 [argument2 [...]]}");
                 Display("Call a function with optional arguments.  Check '${ret:} to see what the");
                 Display("function send back with its RETURN command.  The function must be prefixed");
                 Display("with a colon.  For example...");
@@ -1359,7 +1359,7 @@ namespace TwainDirect.Certification
             // Cd...
             if ((szCommand == "cd"))
             {
-                Display("CD [PATH]");
+                DisplayRed("CD [PATH]");
                 Display("Show the current directory.  If a path is specified, change to that path.");
                 return (false);
             }
@@ -1367,7 +1367,7 @@ namespace TwainDirect.Certification
             // Clean...
             if ((szCommand == "clean"))
             {
-                Display("CLEAN");
+                DisplayRed("CLEAN");
                 Display("Delete all files and folders in the images folder.");
                 return (false);
             }
@@ -1383,7 +1383,7 @@ namespace TwainDirect.Certification
             // Echopassfail...
             if ((szCommand == "echopassfail"))
             {
-                Display("ECHOPASSFAIL [TITLE] [RESULT]");
+                DisplayRed("ECHOPASSFAIL [TITLE] [RESULT]");
                 Display("Echoes the title and result in a tabular format.");
                 return (false);
             }
@@ -1391,7 +1391,7 @@ namespace TwainDirect.Certification
             // Goto...
             if ((szCommand == "goto"))
             {
-                Display("GOTO {LABEL}");
+                DisplayRed("GOTO {LABEL}");
                 Display("Jump to the specified label in the script.  The label must be");
                 Display("prefixed with a colon.  For example...");
                 Display("  goto XYZ");
@@ -1402,16 +1402,24 @@ namespace TwainDirect.Certification
             // If...
             if ((szCommand == "if"))
             {
-                Display("IF {ITEM1} {OPERATOR} {ITEM2} GOTO {LABEL}");
+                DisplayRed("IF {ITEM1} {OPERATOR} {ITEM2} GOTO {LABEL}");
                 Display("If the operator for ITEM1 and ITEM2 is true, then goto the");
                 Display("label.  For the best experience get in the habit of putting");
                 Display("either single or double quotes around the items.");
                 Display("");
                 Display("Operators");
-                Display("==....values are equal (case sensitive)");
-                Display("~~....values are equal (case insensitive)");
-                Display("!=....values are not equal (case sensitive)");
-                Display("!~....values are not equal (case insensitive)");
+                Display("==...........values are equal (case sensitive)");
+                Display("<............item1 is less than item2 (must be numbers)");
+                Display("<=...........item1 is less than or equal to item2 (must be numbers)");
+                Display(">............item1 is greater than item2 (must be numbers)");
+                Display(">=...........item1 is greater than or equal to item2 (must be numbers)");
+                Display("~~...........values are equal (case insensitive)");
+                Display("contains.....item2 is contained in item1 (case sensitive)");
+                Display("~contains....item2 is contained in item1 (case insensitive)");
+                Display("!=...........values are not equal (case sensitive)");
+                Display("!~...........values are not equal (case insensitive)");
+                Display("!contains....item2 is not contained in item1 (case sensitive)");
+                Display("!~contains...item2 is not contained in item1 (case sensitive)");
                 Display("");
                 Display("Items");
                 Display("Items prefixed with 'rj:' indicate that the item is a JSON");
@@ -1426,7 +1434,7 @@ namespace TwainDirect.Certification
             // Increment...
             if ((szCommand == "increment"))
             {
-                Display("INCREMENT {DST} {SRC} [STEP]");
+                DisplayRed("INCREMENT {DST} {SRC} [STEP]");
                 Display("Increments SRC by STEP and stores in DST.  STEP defaults to 1.");
                 return (false);
             }
@@ -1434,7 +1442,7 @@ namespace TwainDirect.Certification
             // Return...
             if ((szCommand == "return"))
             {
-                Display("RETURN [STATUS]");
+                DisplayRed("RETURN [STATUS]");
                 Display("Return from a call function or a script invoked with RUN or RUNV.");
                 Display("The caller can examine this value with the '${ret:}' symbol.");
                 return (false);
@@ -1443,7 +1451,7 @@ namespace TwainDirect.Certification
             // Run...
             if ((szCommand == "run"))
             {
-                Display("RUN [SCRIPT]");
+                DisplayRed("RUN [SCRIPT]");
                 Display("Runs the specified script.  SCRIPT is the full path to the script");
                 Display("to be run.  If a SCRIPT is not specified, the scripts in the");
                 Display("current folder are listed.");
@@ -1463,7 +1471,7 @@ namespace TwainDirect.Certification
             // Set...
             if ((szCommand == "set"))
             {
-                Display("SET {KEY} {VALUE}");
+                DisplayRed("SET {KEY} {VALUE}");
                 Display("Set a key to the specified value.  If a KEY is not specified");
                 Display("all of the current keys are listed with their values.");
                 Display("");
@@ -1477,7 +1485,7 @@ namespace TwainDirect.Certification
             // Sleep...
             if ((szCommand == "sleep"))
             {
-                Display("SLEEP {MILLISECONDS}");
+                DisplayRed("SLEEP {MILLISECONDS}");
                 Display("Pause the thread for the specified number of milliseconds.");
                 return (false);
             }
@@ -1485,7 +1493,7 @@ namespace TwainDirect.Certification
             // Twainlocalsession...
             if ((szCommand == "twainlocalsession"))
             {
-                Display("TWAINLOCALSESSION {CREATE|DESTROY}");
+                DisplayRed("TWAINLOCALSESSION {CREATE|DESTROY}");
                 Display("Use this to test the behavior of commands called before");
                 Display("createSession.  They should return 'invalidSessionId'.");
                 return (false);
@@ -1494,7 +1502,7 @@ namespace TwainDirect.Certification
             // Waitforsessionupdate...
             if ((szCommand == "waitforsessionupdate"))
             {
-                Display("WAITFORSESSIONUPDATE {MILLISECONDS}");
+                DisplayRed("WAITFORSESSIONUPDATE {MILLISECONDS}");
                 Display("Wait MILLISECONDS for the session object to be updated, which");
                 Display("means that its revision number has been incremented.  The '${ret:}'");
                 Display("symbol is set to true if the command was signaled.  A value of");
@@ -2964,6 +2972,27 @@ namespace TwainDirect.Certification
             if (!m_blSilent || a_blForce)
             {
                 Console.Out.WriteLine(a_szText);
+            }
+        }
+
+        /// <summary>
+        /// Display text (if allowed)...
+        /// </summary>
+        /// <param name="a_szText">the text to display</param>
+        private void DisplayRed(string a_szText, bool a_blForce = false)
+        {
+            if (!m_blSilent || a_blForce)
+            {
+                if (Console.BackgroundColor == ConsoleColor.Black)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Out.WriteLine(a_szText);
+                    Console.ForegroundColor = ConsoleColor.White;
+                }
+                else
+                {
+                    Console.Out.WriteLine(a_szText);
+                }
             }
         }
 

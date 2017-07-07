@@ -115,7 +115,16 @@ namespace TwainDirect.Support
             while (true)
             {
                 // Write out the prompt...
-                Console.Out.Write(m_szPrompt);
+                if (Console.BackgroundColor == ConsoleColor.Black)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Out.Write(m_szPrompt);
+                    Console.ForegroundColor = ConsoleColor.White;
+                }
+                else
+                {
+                    Console.Out.Write(m_szPrompt);
+                }
 
                 // Read in a line...
                 szCmd = (a_streamreaderConsole == null) ? Console.In.ReadLine() : a_streamreaderConsole.ReadLine();
