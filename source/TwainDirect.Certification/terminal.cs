@@ -44,7 +44,7 @@ namespace TwainDirect.Certification
     /// The certification object that we'll use to test and exercise functions
     /// for TWAIN Direct.
     /// </summary>
-    class Terminal : IDisposable
+    internal sealed class Terminal : IDisposable
     {
         // Public Methods
         #region Public Methods

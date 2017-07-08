@@ -5438,6 +5438,8 @@ namespace TwainDirect.Support
                     if (m_autoreseteventWaitForSessionUpdate != null)
                     {
                         m_autoreseteventWaitForSessionUpdate.Set();
+                        m_autoreseteventWaitForSessionUpdate.Dispose();
+                        m_filesystemwatcherhelperImageBlocks = null;
                     }
                     if (m_filesystemwatcherhelperImageBlocks != null)
                     {
