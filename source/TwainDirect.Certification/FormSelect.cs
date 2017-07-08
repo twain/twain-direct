@@ -177,11 +177,11 @@ namespace TwainDirect.Certification
                     ListViewItem listviewitem = new ListViewItem
                     (
                         new string[] {
-                            dnssddeviceinfo.szTxtTy,
-                            dnssddeviceinfo.szServiceName.Split(new string[] { ".", "\\." },StringSplitOptions.None)[0],
-                            (dnssddeviceinfo.szTxtNote != null) ? dnssddeviceinfo.szTxtNote : "(no note)",
-                            dnssddeviceinfo.szLinkLocal,
-                            (dnssddeviceinfo.szIpv4 != null) ? dnssddeviceinfo.szIpv4 : (dnssddeviceinfo.szIpv6 != null) ? dnssddeviceinfo.szIpv6 : "(no ip)"
+                            dnssddeviceinfo.GetTxtTy(),
+                            dnssddeviceinfo.GetServiceName().Split(new string[] { ".", "\\." },StringSplitOptions.None)[0],
+                            (dnssddeviceinfo.GetTxtNote() != null) ? dnssddeviceinfo.GetTxtNote() : "(no note)",
+                            dnssddeviceinfo.GetLinkLocal(),
+                            (dnssddeviceinfo.GetIpv4() != null) ? dnssddeviceinfo.GetIpv4() : (dnssddeviceinfo.GetIpv6() != null) ? dnssddeviceinfo.GetIpv6() : "(no ip)"
                         }
                     );
                     m_listviewSelect.Items.Add(listviewitem);
@@ -208,11 +208,11 @@ namespace TwainDirect.Certification
                     bool blFound = false;
                     foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
                     {
-                        if (   (dnssddeviceinfo.szTxtTy == m_dnssddeviceinfoSelected.szTxtTy)
-                            && (dnssddeviceinfo.szServiceName == m_dnssddeviceinfoSelected.szServiceName)
-                            && (dnssddeviceinfo.szLinkLocal == m_dnssddeviceinfoSelected.szLinkLocal)
-                            && (dnssddeviceinfo.szIpv4 == m_dnssddeviceinfoSelected.szIpv4)
-                            && (dnssddeviceinfo.szIpv6 == m_dnssddeviceinfoSelected.szIpv6))
+                        if (   (dnssddeviceinfo.GetTxtTy() == m_dnssddeviceinfoSelected.GetTxtTy())
+                            && (dnssddeviceinfo.GetServiceName() == m_dnssddeviceinfoSelected.GetServiceName())
+                            && (dnssddeviceinfo.GetLinkLocal() == m_dnssddeviceinfoSelected.GetLinkLocal())
+                            && (dnssddeviceinfo.GetIpv4() == m_dnssddeviceinfoSelected.GetIpv4())
+                            && (dnssddeviceinfo.GetIpv6() == m_dnssddeviceinfoSelected.GetIpv6()))
                         {
                             m_listviewSelect.Items[ii].Selected = true;
                             blFound = true;

@@ -201,15 +201,15 @@ namespace TwainDirect.Support
             dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
 
             // Stock it...
-            dnssddeviceinfo.szLinkLocal = "";
-            dnssddeviceinfo.szServiceName = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName();
-            dnssddeviceinfo.szTxtCs = "offline";
-            dnssddeviceinfo.blTxtHttps = true;
-            dnssddeviceinfo.szTxtId = "";
-            dnssddeviceinfo.szTxtNote = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote();
-            dnssddeviceinfo.szTxtTxtvers = "1";
-            dnssddeviceinfo.szTxtTy = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy();
-            dnssddeviceinfo.szTxtType = "twaindirect";
+            dnssddeviceinfo.SetLinkLocal("");
+            dnssddeviceinfo.SetServiceName(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName());
+            dnssddeviceinfo.SetTxtCs("offline");
+            dnssddeviceinfo.SetTxtHttps(true);
+            dnssddeviceinfo.SetTxtId("");
+            dnssddeviceinfo.SetTxtNote(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote());
+            dnssddeviceinfo.SetTxtTxtvers("1");
+            dnssddeviceinfo.SetTxtTy(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
+            dnssddeviceinfo.SetTxtType("twaindirect");
 
             // Return it...
             return (dnssddeviceinfo);
@@ -3217,10 +3217,10 @@ namespace TwainDirect.Support
                 szResponse =
                     "{" +
                     "\"version\":\"1.0\"," +
-                    "\"name\":\"" + dnssddeviceinfo.szTxtTy + "\"," +
-                    "\"description\":\"" + dnssddeviceinfo.szTxtNote + "\"," +
+                    "\"name\":\"" + dnssddeviceinfo.GetTxtTy() + "\"," +
+                    "\"description\":\"" + dnssddeviceinfo.GetTxtNote() + "\"," +
                     "\"url\":\"\"," +
-                    "\"type\":\"" + dnssddeviceinfo.szTxtType + "\"," +
+                    "\"type\":\"" + dnssddeviceinfo.GetTxtType() + "\"," +
                     "\"id\":\"\"," +
                     "\"device_state\": \"" + szDeviceState + "\"," +
                     "\"connection_state\": \"offline\"," +

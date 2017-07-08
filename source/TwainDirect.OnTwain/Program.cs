@@ -293,7 +293,7 @@ namespace TwainDirect.OnTwain
                             {
                                 for (jj = 0; jj < adnssddeviceinfo.Length; jj++)
                                 {
-                                    Console.Out.WriteLine(adnssddeviceinfo[jj].lInterface + " " + adnssddeviceinfo[jj].szServiceName);
+                                    Console.Out.WriteLine(adnssddeviceinfo[jj].GetInterface() + " " + adnssddeviceinfo[jj].GetServiceName());
                                 }
                             }
                         }

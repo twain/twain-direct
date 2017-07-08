@@ -1365,12 +1365,12 @@ namespace TwainDirect.Certification
             // Find our entry...
             foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
             {
-                if (dnssddeviceinfo.szLinkLocal == szLinkLocal)
+                if (dnssddeviceinfo.GetLinkLocal() == szLinkLocal)
                 {
                     // Try for a match on Ipv6...
                     if (!string.IsNullOrEmpty(szIpv6))
                     {
-                        if (dnssddeviceinfo.szIpv6 == szIpv6)
+                        if (dnssddeviceinfo.GetIpv6() == szIpv6)
                         {
                             m_dnssddeviceinfo = dnssddeviceinfo;
                             break;
@@ -1382,7 +1382,7 @@ namespace TwainDirect.Certification
                     {
                         string szIpv4Tmp = szIpv4;
                         // XXX.XXX.XXX.XXX...
-                        if (dnssddeviceinfo.szIpv4 == szIpv4Tmp)
+                        if (dnssddeviceinfo.GetIpv4() == szIpv4Tmp)
                         {
                             m_dnssddeviceinfo = dnssddeviceinfo;
                             break;
@@ -1391,7 +1391,7 @@ namespace TwainDirect.Certification
                         if (szIpv4Tmp.Contains("."))
                         {
                             szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.szIpv4.StartsWith(szIpv4Tmp + "."))
+                            if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
@@ -1401,7 +1401,7 @@ namespace TwainDirect.Certification
                         if (szIpv4Tmp.Contains("."))
                         {
                             szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.szIpv4.StartsWith(szIpv4Tmp + "."))
+                            if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
@@ -1411,7 +1411,7 @@ namespace TwainDirect.Certification
                         if (szIpv4Tmp.Contains("."))
                         {
                             szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.szIpv4.StartsWith(szIpv4Tmp + "."))
+                            if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
@@ -1607,9 +1607,9 @@ namespace TwainDirect.Certification
                 (
                     Path.Combine(m_szWriteFolder, "selected"),
                     "{" +
-                    "    \"linkLocal\": \"" + m_dnssddeviceinfo.szLinkLocal + "\"," +
-                    "    \"ipv4\": \"" + m_dnssddeviceinfo.szIpv4 + "\"," +
-                    "    \"ipv6\": \"" + m_dnssddeviceinfo.szIpv6 + "\"" +
+                    "    \"linkLocal\": \"" + m_dnssddeviceinfo.GetLinkLocal() + "\"," +
+                    "    \"ipv4\": \"" + m_dnssddeviceinfo.GetIpv4() + "\"," +
+                    "    \"ipv6\": \"" + m_dnssddeviceinfo.GetIpv6() + "\"" +
                     "}"
                 );
             }
@@ -1634,7 +1634,7 @@ namespace TwainDirect.Certification
             SetButtons(EBUTTONSTATE.OPEN);
 
             // Update the title bar...
-            Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.szLinkLocal + ")";
+            Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.GetLinkLocal() + ")";
 
             // Create the setup form...
             m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscanner);

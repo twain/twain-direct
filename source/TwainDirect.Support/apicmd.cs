@@ -671,14 +671,14 @@ namespace TwainDirect.Support
             // name of the device...
             if (m_blUseHttps)
             {
-                string szLinkLocal = m_dnssddeviceinfo.szLinkLocal.Replace(".local.", ".local");
-                szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.lPort + a_szUri;
+                string szLinkLocal = m_dnssddeviceinfo.GetLinkLocal().Replace(".local.", ".local");
+                szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
             }
 
             // Build the URI, for HTTP we can use the IP address to get to our device...
             else
             {
-                szUri = "http://" + m_dnssddeviceinfo.szIpv4 + ":" + m_dnssddeviceinfo.lPort + a_szUri;
+                szUri = "http://" + m_dnssddeviceinfo.GetIpv4() + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
             }
             m_szMethod = a_szMethod;
             m_szUriFull = szUri;
@@ -2132,7 +2132,7 @@ namespace TwainDirect.Support
                 case "auto":
                     if (a_dnssddeviceinfo != null)
                     {
-                        m_blUseHttps = a_dnssddeviceinfo.blTxtHttps;
+                        m_blUseHttps = a_dnssddeviceinfo.GetTxtHttps();
                     }
                     break;
 

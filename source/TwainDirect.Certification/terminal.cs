@@ -1888,7 +1888,14 @@ namespace TwainDirect.Certification
                 {
                     foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
                     {
-                        Display(dnssddeviceinfo.szLinkLocal + " " + (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) ? dnssddeviceinfo.szIpv4 : dnssddeviceinfo.szIpv6) + " " + dnssddeviceinfo.szTxtNote);
+                        if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()))
+                        {
+                            Display(dnssddeviceinfo.GetLinkLocal() + " " + dnssddeviceinfo.GetIpv4() + " " + dnssddeviceinfo.GetTxtNote());
+                        }
+                        else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv6()))
+                        {
+                            Display(dnssddeviceinfo.GetLinkLocal() + " " + dnssddeviceinfo.GetIpv6() + " " + dnssddeviceinfo.GetTxtNote());
+                        }
                     }
                 }
             }
@@ -2325,21 +2332,21 @@ namespace TwainDirect.Certification
             foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
             {
                 // Check the name...
-                if (!string.IsNullOrEmpty(dnssddeviceinfo.szLinkLocal) && dnssddeviceinfo.szLinkLocal.Contains(a_functionarguments.aszCmd[1]))
+                if (!string.IsNullOrEmpty(dnssddeviceinfo.GetLinkLocal()) && dnssddeviceinfo.GetLinkLocal().Contains(a_functionarguments.aszCmd[1]))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
                 }
 
                 // Check the IPv4...
-                else if (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) && dnssddeviceinfo.szIpv4.Contains(a_functionarguments.aszCmd[1]))
+                else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()) && dnssddeviceinfo.GetIpv4().Contains(a_functionarguments.aszCmd[1]))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
                 }
 
                 // Check the note...
-                else if (!string.IsNullOrEmpty(dnssddeviceinfo.szTxtNote) && dnssddeviceinfo.szTxtNote.Contains(a_functionarguments.aszCmd[1]))
+                else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetTxtNote()) && dnssddeviceinfo.GetTxtNote().Contains(a_functionarguments.aszCmd[1]))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
@@ -2349,7 +2356,14 @@ namespace TwainDirect.Certification
             // Report the result...
             if (m_dnssddeviceinfoSelected != null)
             {
-                Display(m_dnssddeviceinfoSelected.szLinkLocal + " " + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : m_dnssddeviceinfoSelected.szIpv6) + " " + m_dnssddeviceinfoSelected.szTxtNote);
+                if (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv4()))
+                {
+                    Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv4() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
+                }
+                else if (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv6()))
+                {
+                    Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv6() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
+                }
                 m_twainlocalscanner = new TwainLocalScanner(null, 1, null, null, null, false);
                 SetReturnValue("true");
             }
@@ -2466,23 +2480,22 @@ namespace TwainDirect.Certification
         private bool CmdStatus(ref Interpreter.FunctionArguments a_functionarguments)
         {
             // Current scanner...
-            Display("SELECTED SCANNER");
-            Display("~~~~~~~~~~~~~~~~");
+            DisplayRed("SELECTED SCANNER");
             if (m_dnssddeviceinfoSelected == null)
             {
                 DisplayError("no selected scanner");
             }
             else
             {
-                Display("Hostname...." + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szLinkLocal) ? m_dnssddeviceinfoSelected.szLinkLocal : "(none)"));
-                Display("Service....."  + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szServiceName) ? m_dnssddeviceinfoSelected.szServiceName : "(none)"));
-                Display("Interface..." + m_dnssddeviceinfoSelected.lInterface);
-                Display("IPv4........" + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv4) ? m_dnssddeviceinfoSelected.szIpv4 : "(none)"));
-                Display("IPv6........" + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.szIpv6) ? m_dnssddeviceinfoSelected.szIpv6 : "(none)"));
-                Display("Port........" + m_dnssddeviceinfoSelected.lPort);
-                Display("TTL........." + m_dnssddeviceinfoSelected.lTtl);
+                Display("Hostname...." + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetLinkLocal()) ? m_dnssddeviceinfoSelected.GetLinkLocal() : "(none)"));
+                Display("Service....."  + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetServiceName()) ? m_dnssddeviceinfoSelected.GetServiceName() : "(none)"));
+                Display("Interface..." + m_dnssddeviceinfoSelected.GetInterface());
+                Display("IPv4........" + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv4()) ? m_dnssddeviceinfoSelected.GetIpv4() : "(none)"));
+                Display("IPv6........" + (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv6()) ? m_dnssddeviceinfoSelected.GetIpv6() : "(none)"));
+                Display("Port........" + m_dnssddeviceinfoSelected.GetPort());
+                Display("TTL........." + m_dnssddeviceinfoSelected.GetTtl());
                 Display("TXT Fields");
-                foreach (string sz in m_dnssddeviceinfoSelected.aszText)
+                foreach (string sz in m_dnssddeviceinfoSelected.GetTxt())
                 {
                     Display("  " + sz);
                 }
@@ -2490,8 +2503,7 @@ namespace TwainDirect.Certification
 
             // Current snapshot of scanners...
             Display("");
-            Display("LAST SCANNER LIST SNAPSHOT");
-            Display("~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            DisplayRed("LAST SCANNER LIST SNAPSHOT");
             if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
             {
                 DisplayError("no TWAIN Local scanners");
@@ -2500,7 +2512,14 @@ namespace TwainDirect.Certification
             {
                 foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
                 {
-                    Display(dnssddeviceinfo.szLinkLocal + " " + (!string.IsNullOrEmpty(dnssddeviceinfo.szIpv4) ? dnssddeviceinfo.szIpv4 : dnssddeviceinfo.szIpv6) + " " + dnssddeviceinfo.szTxtNote);
+                    if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()))
+                    {
+                        Display(dnssddeviceinfo.GetLinkLocal() + " " + dnssddeviceinfo.GetIpv4() + " " + dnssddeviceinfo.GetTxtNote());
+                    }
+                    else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv6()))
+                    {
+                        Display(dnssddeviceinfo.GetLinkLocal() + " " + dnssddeviceinfo.GetIpv6() + " " + dnssddeviceinfo.GetTxtNote());
+                    }
                 }
             }
 
@@ -3536,10 +3555,11 @@ namespace TwainDirect.Certification
                     // Check the mDNS text fields for the currently selected scanner...
                     else if (szSymbol.StartsWith("${txt:"))
                     {
-                        if ((m_dnssddeviceinfoSelected.aszText != null) && (m_dnssddeviceinfoSelected.aszText.Length > 0))
+                        string[] aszTxt = m_dnssddeviceinfoSelected.GetTxt();
+                        if ((aszTxt != null) && (aszTxt.Length > 0))
                         {
                             string szTxt = szSymbol.Substring(0, szSymbol.Length - 1).Substring(6) + "=";
-                            foreach (string sz in m_dnssddeviceinfoSelected.aszText)
+                            foreach (string sz in aszTxt)
                             {
                                 if (sz.StartsWith(szTxt))
                                 {
@@ -3554,10 +3574,11 @@ namespace TwainDirect.Certification
                     else if (szSymbol.StartsWith("${txtx:"))
                     {
                         szValue = "(null)";
-                        if ((m_dnssddeviceinfoSelected.aszText != null) && (m_dnssddeviceinfoSelected.aszText.Length > 0))
+                        string[] aszTxt = m_dnssddeviceinfoSelected.GetTxt();
+                        if ((aszTxt != null) && (aszTxt.Length > 0))
                         {
                             string szTxt = szSymbol.Substring(0, szSymbol.Length - 1).Substring(7) + "=";
-                            foreach (string sz in m_dnssddeviceinfoSelected.aszText)
+                            foreach (string sz in aszTxt)
                             {
                                 if (sz.StartsWith(szTxt))
                                 {

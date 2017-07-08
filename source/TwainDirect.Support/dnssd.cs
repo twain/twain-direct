@@ -169,13 +169,13 @@ namespace TwainDirect.Support
                 // They've been sorted, so they must exactly match, row for row...
                 for (ii = 0; ii < a_adnssddeviceinfoCompare.Length; ii++)
                 {
-                    if (    (a_adnssddeviceinfoCompare[ii].lInterface != dnssddeviceinfoCache[ii].lInterface)
-                        ||  (a_adnssddeviceinfoCompare[ii].szTxtTy != dnssddeviceinfoCache[ii].szTxtTy)
-                        ||  (a_adnssddeviceinfoCompare[ii].szServiceName != dnssddeviceinfoCache[ii].szServiceName)
-                        ||  (a_adnssddeviceinfoCompare[ii].szLinkLocal != dnssddeviceinfoCache[ii].szLinkLocal)
-                        ||  (a_adnssddeviceinfoCompare[ii].lPort != dnssddeviceinfoCache[ii].lPort)
-                        ||  (a_adnssddeviceinfoCompare[ii].szIpv4 != dnssddeviceinfoCache[ii].szIpv4)
-                        ||  (a_adnssddeviceinfoCompare[ii].szIpv6 != dnssddeviceinfoCache[ii].szIpv6))
+                    if (    (a_adnssddeviceinfoCompare[ii].GetInterface() != dnssddeviceinfoCache[ii].GetInterface())
+                        ||  (a_adnssddeviceinfoCompare[ii].GetTxtTy() != dnssddeviceinfoCache[ii].GetTxtTy())
+                        ||  (a_adnssddeviceinfoCompare[ii].GetServiceName() != dnssddeviceinfoCache[ii].GetServiceName())
+                        ||  (a_adnssddeviceinfoCompare[ii].GetLinkLocal() != dnssddeviceinfoCache[ii].GetLinkLocal())
+                        ||  (a_adnssddeviceinfoCompare[ii].GetPort() != dnssddeviceinfoCache[ii].GetPort())
+                        ||  (a_adnssddeviceinfoCompare[ii].GetIpv4() != dnssddeviceinfoCache[ii].GetIpv4())
+                        ||  (a_adnssddeviceinfoCompare[ii].GetIpv6() != dnssddeviceinfoCache[ii].GetIpv6()))
                     {
                         a_blUpdated = true;
                         break;
@@ -494,79 +494,97 @@ namespace TwainDirect.Support
         /// </summary>
         public class DnssdDeviceInfo : IComparable
         {
-            /// <summary>
-            /// Text ty, friendly name for the scanner...
-            /// </summary>
-            public string szTxtTy;
+            // Public Methods
+            #region Public Methods
 
             /// <summary>
-            /// The full, unique name of the device...
+            /// Init stuff...
             /// </summary>
-            public string szServiceName;
+            public DnssdDeviceInfo()
+            {
+                m_szTxtTy = "";
+                m_szServiceName = "";
+                m_szLinkLocal = "";
+                m_lInterface = 0;
+                m_szIpv4 = "";
+                m_szIpv6 = "";
+                m_lPort = 0;
+                m_lFlags = 0;
+                m_lTtl = 0;
+                m_szTxtTxtvers = "";
+                m_szTxtType = "";
+                m_szTxtId = "";
+                m_szTxtTy = "";
+                m_szTxtCs = "";
+                m_szTxtNote = "";
+                m_blTxtHttps = false;
+                m_aszTxt = null;
+            }
 
             /// <summary>
-            /// The link local name for where the service is running...
+            /// We need this so we can clone the object...
             /// </summary>
-            public string szLinkLocal;
+            /// <param name="a_dnssddeviceinfo">the beastie to copy</param>
+            public DnssdDeviceInfo(DnssdDeviceInfo a_dnssddeviceinfo)
+            {
+                m_szTxtTy = a_dnssddeviceinfo.m_szTxtTy;
+                m_szServiceName = a_dnssddeviceinfo.m_szServiceName;
+                m_szLinkLocal = a_dnssddeviceinfo.m_szLinkLocal;
+                m_lInterface = a_dnssddeviceinfo.m_lInterface;
+                m_szIpv4 = a_dnssddeviceinfo.m_szIpv4;
+                m_szIpv6 = a_dnssddeviceinfo.m_szIpv6;
+                m_lPort = a_dnssddeviceinfo.m_lPort;
+                m_lFlags = a_dnssddeviceinfo.m_lFlags;
+                m_lTtl = a_dnssddeviceinfo.m_lTtl;
+                m_szTxtTxtvers = a_dnssddeviceinfo.m_szTxtTxtvers;
+                m_szTxtType = a_dnssddeviceinfo.m_szTxtType;
+                m_szTxtId = a_dnssddeviceinfo.m_szTxtId;
+                m_szTxtTy = a_dnssddeviceinfo.m_szTxtTy;
+                m_szTxtCs = a_dnssddeviceinfo.m_szTxtCs;
+                m_szTxtNote = a_dnssddeviceinfo.m_szTxtNote;
+                m_blTxtHttps = a_dnssddeviceinfo.m_blTxtHttps;
 
-            // The interface it lives on...
-            public long lInterface;
+                // Handle the weird one...
+                if ((a_dnssddeviceinfo.m_aszTxt == null) || (a_dnssddeviceinfo.m_aszTxt.Length == 0))
+                {
+                    m_aszTxt = null;
+                }
+                else
+                {
+                    int ii;
+                    m_aszTxt = new string[a_dnssddeviceinfo.m_aszTxt.Length];
+                    for (ii = 0; ii < a_dnssddeviceinfo.m_aszTxt.Length; ii++)
+                    {
+                        m_aszTxt[ii] = a_dnssddeviceinfo.m_aszTxt[ii];
+                    }
+                }
+            }
 
             /// <summary>
-            /// The IPv4 address (if any)...
+            /// Add a text record to the TXT array...
             /// </summary>
-            public string szIpv4;
+            /// <param name="a_szTxt">record to add</param>
+            public void AddTxt(string a_szTxt)
+            {
+                if (m_aszTxt == null)
+                {
+                    m_aszTxt = new string[1];
+                    m_aszTxt[0] = a_szTxt;
+                }
+                else
+                {
+                    string[] asz = new string[m_aszTxt.Length + 1];
+                    Array.Copy(m_aszTxt, asz, m_aszTxt.Length);
+                    asz[m_aszTxt.Length] = a_szTxt;
+                    m_aszTxt = asz;
+                }
+            }
 
             /// <summary>
-            /// The IPv6 address (if any)...
+            /// Implement our IComparable interface...
             /// </summary>
-            public string szIpv6;
-
-            // The port to use...
-            public long lPort;
-
-            // The flags reported with it...
-            public long lFlags;
-
-            // Our time to live...
-            public long lTtl;
-
-            /// <summary>
-            /// Text version...
-            /// </summary>
-            public string szTxtTxtvers;
-
-            /// <summary>
-            /// Text type, comma separated services supported by the device...
-            /// </summary>
-            public string szTxtType;
-
-            /// <summary>
-            /// Text id, TWAIN Cloud id, empty if one isn't available...
-            /// </summary>
-            public string szTxtId;
-
-            /// <summary>
-            /// Text cs, TWAIN Cloud status...
-            /// </summary>
-            public string szTxtCs;
-
-            /// <summary>
-            /// Text note, optional, a note about the device, like its location...
-            /// </summary>
-            public string szTxtNote;
-
-            /// <summary>
-            /// true if the scanner wants us to use HTTPS...
-            /// </summary>
-            public bool blTxtHttps;
-
-            /// <summary>
-            /// The TXT records...
-            /// </summary>
-            public string[] aszText;
-
-            // Implement our IComparable interface...
+            /// <param name="obj">the object to compare against</param>
+            /// <returns>-1, 0, 1</returns>
             public int CompareTo(object obj)
             {
                 // Well, that's odd...
@@ -579,18 +597,18 @@ namespace TwainDirect.Support
                 if (obj is DnssdDeviceInfo)
                 {
                     int iResult;
-                    iResult = this.szTxtTy.CompareTo(((DnssdDeviceInfo)obj).szTxtTy);
+                    iResult = this.m_szTxtTy.CompareTo(((DnssdDeviceInfo)obj).m_szTxtTy);
                     if (iResult == 0)
                     {
-                        iResult = this.szServiceName.CompareTo(((DnssdDeviceInfo)obj).szServiceName);
+                        iResult = this.m_szServiceName.CompareTo(((DnssdDeviceInfo)obj).m_szServiceName);
                     }
                     if (iResult == 0)
                     {
-                        iResult = this.szLinkLocal.CompareTo(((DnssdDeviceInfo)obj).szLinkLocal);
+                        iResult = this.m_szLinkLocal.CompareTo(((DnssdDeviceInfo)obj).m_szLinkLocal);
                     }
                     if (iResult == 0)
                     {
-                        iResult = this.lInterface.CompareTo(((DnssdDeviceInfo)obj).lInterface);
+                        iResult = this.m_lInterface.CompareTo(((DnssdDeviceInfo)obj).m_lInterface);
                     }
                     return (iResult);
                 }
@@ -598,6 +616,411 @@ namespace TwainDirect.Support
                 // No joy...
                 return (0);
             }
+
+            /// <summary>
+            /// Get the flags reported with it...
+            /// </summary>
+            /// <returns>flags reported with it</returns>
+            public long GetFlags()
+            {
+                return (m_lFlags);
+            }
+
+            /// <summary>
+            /// Get the interface it lives on...
+            /// </summary>
+            /// <returns>interface it lives on</returns>
+            public long GetInterface()
+            {
+                return (m_lInterface);
+            }
+
+            /// <summary>
+            /// Get the IPv4 address (if any)...
+            /// </summary>
+            /// <returns>IPv4 address (if any)</returns>
+            public string GetIpv4()
+            {
+                return (m_szIpv4);
+            }
+
+            /// <summary>
+            /// Get the IPv6 address (if any)...
+            /// </summary>
+            /// <returns>IPv6 address (if any)</returns>
+            public string GetIpv6()
+            {
+                return (m_szIpv6);
+            }
+
+            /// <summary>
+            /// Get the link local name for where the service is running...
+            /// </summary>
+            /// <returns>link local name for where the service is running</returns>
+            public string GetLinkLocal()
+            {
+                return (m_szLinkLocal);
+            }
+
+            /// <summary>
+            /// Get the port to use...
+            /// </summary>
+            /// <returns>port to use</returns>
+            public long GetPort()
+            {
+                return (m_lPort);
+            }
+
+            /// <summary>
+            /// Get the full, unique name of the device...
+            /// </summary>
+            /// <returns>unique name of the device</returns>
+            public string GetServiceName()
+            {
+                return (m_szServiceName);
+            }
+
+            /// <summary>
+            /// Get our time to live...
+            /// </summary>
+            /// <returns>time to live</returns>
+            public long GetTtl()
+            {
+                return (m_lTtl);
+            }
+
+            /// <summary>
+            /// Get the array of TXT records...
+            /// </summary>
+            /// <returns>array of TXT records</returns>
+            public string[] GetTxt()
+            {
+                int ii;
+                string[] aszTxt;
+
+                // No data...
+                if ((m_aszTxt == null) || (m_aszTxt.Length == 0))
+                {
+                    return (null);
+                }
+
+                // Make a copy...
+                aszTxt = new string[m_aszTxt.Length];
+                for (ii = 0; ii < m_aszTxt.Length; ii++)
+                {
+                    aszTxt[ii] = m_aszTxt[ii];
+                }
+                return (aszTxt);
+            }
+
+            /// <summary>
+            /// Get our cloud status...
+            /// </summary>
+            /// <returns>cloud status</returns>
+            public string GetTxtCs()
+            {
+                return (m_szTxtCs);
+            }
+
+            /// <summary>
+            /// Get the HTTPS flag...
+            /// </summary>
+            /// <returns>https flag</returns>
+            public bool GetTxtHttps()
+            {
+                return (m_blTxtHttps);
+            }
+
+            /// <summary>
+            /// Get our text id, cloud id, empty if one isn't available...
+            /// </summary>
+            /// <returns>text id, cloud id, empty if one isn't available</returns>
+            public string GetTxtId()
+            {
+                return (m_szTxtId);
+            }
+
+            /// <summary>
+            /// Get a note about the device...
+            /// </summary>
+            /// <returns>a note about the device</returns>
+            public string GetTxtNote()
+            {
+                return (m_szTxtNote);
+            }
+
+            /// <summary>
+            /// Get our TXT version...
+            /// </summary>
+            /// <returns>our TXT version</returns>
+            public string GetTxtTxtvers()
+            {
+                return (m_szTxtTxtvers);
+            }
+
+            /// <summary>
+            /// Get the friendly name for the scanner...
+            /// </summary>
+            /// <returns>friendly name for the scanner</returns>
+            public string GetTxtTy()
+            {
+                return (m_szTxtTy);
+            }
+
+            /// <summary>
+            /// Get the text type, comma separated services supported by the device...
+            /// </summary>
+            /// <returns>text type, comma separated services supported by the device</returns>
+            public string GetTxtType()
+            {
+                return (m_szTxtType);
+            }
+
+            /// <summary>
+            /// Set the flags reported with it...
+            /// </summary>
+            /// <param name="a_lFlags">flags reported with it</param>
+            public void SetFlags(long a_lFlags)
+            {
+                m_lFlags = a_lFlags;
+            }
+
+            /// <summary>
+            /// Set the interface it lives on...
+            /// </summary>
+            /// <param name="a_lInterface">interface it lives on</param>
+            public void SetInterface(long a_lInterface)
+            {
+                m_lInterface = a_lInterface;
+            }
+
+            /// <summary>
+            /// Set the IPv4 address (if any)...
+            /// </summary>
+            /// <param name="a_szIpv4">IPv4 address (if any)</param>
+            public void SetIpv4(string a_szIpv4)
+            {
+                m_szIpv4 = a_szIpv4;
+            }
+
+            /// <summary>
+            /// Set the IPv6 address (if any)...
+            /// </summary>
+            /// <param name="a_szIpv6">IPv6 address (if any)</param>
+            public void SetIpv6(string a_szIpv6)
+            {
+                m_szIpv6 = a_szIpv6;
+            }
+
+            /// <summary>
+            /// Set link local name for where the service is running...
+            /// </summary>
+            /// <param name="a_szLinkLocal">link local name for where the service is running</param>
+            public void SetLinkLocal(string a_szLinkLocal)
+            {
+                m_szLinkLocal = a_szLinkLocal;
+            }
+
+            /// <summary>
+            /// Set the port to use...
+            /// </summary>
+            /// <param name="a_lPort">port to use</param>
+            public void SetPort(long a_lPort)
+            {
+                m_lPort = a_lPort;
+            }
+
+            /// <summary>
+            /// Set the full, unique name of the device...
+            /// </summary>
+            /// <param name="a_szServiceName">unique name of the device</param>
+            public void SetServiceName(string a_szServiceName)
+            {
+                m_szServiceName = a_szServiceName;
+            }
+
+            /// <summary>
+            /// Set our time to live...
+            /// </summary>
+            /// <param name="a_lTtl">time to live</param>
+            public void SetTtl(long a_lTtl)
+            {
+                m_lTtl = a_lTtl;
+            }
+
+            /// <summary>
+            /// Set the array of TXT records...
+            /// </summary>
+            /// <param name="a_aszTxt">set the array of TXT records</param>
+            public void SetTxt(string[] a_aszTxt)
+            {
+                int ii;
+
+                // No data...
+                if ((a_aszTxt == null) || (a_aszTxt.Length == 0))
+                {
+                    m_aszTxt = null;
+                    return;
+                }
+
+                // Make a copy...
+                m_aszTxt = new string[a_aszTxt.Length];
+                for (ii = 0; ii < a_aszTxt.Length; ii++)
+                {
+                    m_aszTxt[ii] = a_aszTxt[ii];
+                }
+            }
+
+            /// <summary>
+            /// Set our cloud status...
+            /// </summary>
+            /// <param name="a_szTxtCs">cloud status</param>
+            public void SetTxtCs(string a_szTxtCs)
+            {
+                m_szTxtCs = a_szTxtCs;
+            }
+
+            /// <summary>
+            /// Set the HTTPS flag...
+            /// </summary>
+            /// <param name="a_blTxtHttps">https flag</param>
+            public void SetTxtHttps(bool a_blTxtHttps)
+            {
+                m_blTxtHttps = a_blTxtHttps;
+            }
+
+            /// <summary>
+            /// Set our text id, cloud id, empty if one isn't available...
+            /// </summary>
+            /// <param name="a_szTxtId">text id, cloud id, empty if one isn't available</param>
+            public void SetTxtId(string a_szTxtId)
+            {
+                m_szTxtId = a_szTxtId;
+            }
+
+            /// <summary>
+            /// Set a note about the device...
+            /// </summary>
+            /// <param name="a_szTxtNote">a note about the device</param>
+            public void SetTxtNote(string a_szTxtNote)
+            {
+                m_szTxtNote = a_szTxtNote;
+            }
+
+            /// <summary>
+            /// Set our TXT verison...
+            /// </summary>
+            /// <param name="a_szTxtTxtvers">our TXT version</param>
+            public void SetTxtTxtvers(string a_szTxtTxtvers)
+            {
+                m_szTxtTxtvers = a_szTxtTxtvers;
+            }
+
+            /// <summary>
+            /// Set the friendly name for the scanner...
+            /// </summary>
+            /// <param name="a_szTxtTy">friendly name for the scanner</param>
+            public void SetTxtTy(string a_szTxtTy)
+            {
+                m_szTxtTy = a_szTxtTy;
+            }
+
+            /// <summary>
+            /// Set the text type, comma separated services supported by the device...
+            /// </summary>
+            /// <param name="a_szTxtType">text type, comma separated services supported by the device</param>
+            public void SetTxtType(string a_szTxtType)
+            {
+                m_szTxtType = a_szTxtType;
+            }
+
+            #endregion
+
+
+            // Private Attributes
+            #region Private Attributes
+
+            /// <summary>
+            /// The flags reported with it...
+            /// </summary>
+            private long m_lFlags;
+
+            /// <summary>
+            /// The interface it lives on...
+            /// </summary>
+            private long m_lInterface;
+
+            /// <summary>
+            /// The IPv4 address (if any)...
+            /// </summary>
+            private string m_szIpv4;
+
+            /// <summary>
+            /// The IPv6 address (if any)...
+            /// </summary>
+            private string m_szIpv6;
+
+            /// <summary>
+            /// The link local name for where the service is running...
+            /// </summary>
+            private string m_szLinkLocal;
+
+            /// <summary>
+            /// The port to use...
+            /// </summary>
+            private long m_lPort;
+
+            /// <summary>
+            /// The full, unique name of the device...
+            /// </summary>
+            private string m_szServiceName;
+
+            /// <summary>
+            /// Our time to live...
+            /// </summary>
+            private long m_lTtl;
+
+            /// <summary>
+            /// The array of TXT records...
+            /// </summary>
+            private string[] m_aszTxt;
+
+            /// <summary>
+            /// Text cs, cloud status...
+            /// </summary>
+            private string m_szTxtCs;
+
+            /// <summary>
+            /// true if the scanner wants us to use HTTPS...
+            /// </summary>
+            private bool m_blTxtHttps;
+
+            /// <summary>
+            /// Text id, cloud id, empty if one isn't available...
+            /// </summary>
+            private string m_szTxtId;
+
+            /// <summary>
+            /// Text note, optional, a note about the device, like its location...
+            /// </summary>
+            private string m_szTxtNote;
+
+            /// <summary>
+            /// Our TXT version...
+            /// </summary>
+            private string m_szTxtTxtvers;
+
+            /// <summary>
+            /// Text ty, friendly name for the scanner...
+            /// </summary>
+            private string m_szTxtTy;
+
+            /// <summary>
+            /// Text type, comma separated services supported by the device...
+            /// </summary>
+            private string m_szTxtType;
+
+            #endregion
         }
 
         #endregion
@@ -846,8 +1269,8 @@ namespace TwainDirect.Support
                     {
                         for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
                         {
-                            if (    (m_adnssddeviceinfoCache[ii].lInterface == a_i32Interface)
-                                &&  (m_adnssddeviceinfoCache[ii].szServiceName == (a_szName + "." + a_szType + a_szDomain)))
+                            if (    (m_adnssddeviceinfoCache[ii].GetInterface() == a_i32Interface)
+                                &&  (m_adnssddeviceinfoCache[ii].GetServiceName() == (a_szName + "." + a_szType + a_szDomain)))
                             {
                                 // Last item...
                                 if (m_adnssddeviceinfoCache.Length == 1)
@@ -907,8 +1330,8 @@ namespace TwainDirect.Support
             callbackcontext.dnssddeviceinfo = new DnssdDeviceInfo();
             GCHandle gchandle = GCHandle.Alloc(this);
             callbackcontext.dnssd = GCHandle.ToIntPtr(gchandle);
-            callbackcontext.dnssddeviceinfo.lInterface = a_i32Interface;
-            callbackcontext.dnssddeviceinfo.szServiceName = a_szName + "." + a_szType + a_szDomain;
+            callbackcontext.dnssddeviceinfo.SetInterface(a_i32Interface);
+            callbackcontext.dnssddeviceinfo.SetServiceName(a_szName + "." + a_szType + a_szDomain);
             Marshal.StructureToPtr(callbackcontext, pcallbackcontext, false);
 
             // Resolve the rest of the info...
@@ -1016,9 +1439,9 @@ namespace TwainDirect.Support
             // Grab simple stuff...
             // Apparently bonjour gives us stuff in network (big endian) order...
             u16Opaqueport = WX(a_u16Opaqueport);
-            callbackcontext.dnssddeviceinfo.lInterface = a_i32Interface;
-            callbackcontext.dnssddeviceinfo.lPort = u16Opaqueport;
-            callbackcontext.dnssddeviceinfo.szLinkLocal = a_szHosttarget;
+            callbackcontext.dnssddeviceinfo.SetInterface(a_i32Interface);
+            callbackcontext.dnssddeviceinfo.SetPort(u16Opaqueport);
+            callbackcontext.dnssddeviceinfo.SetLinkLocal(a_szHosttarget);
 
             // Handle the text data...
             // TXT stuff...
@@ -1033,60 +1456,49 @@ namespace TwainDirect.Support
 
                 // Add this to our TXT array...
                 string szTxt = a_pu8Txt.Substring(jj + 1, a_pu8Txt[jj]);
-                if (callbackcontext.dnssddeviceinfo.aszText == null)
-                {
-                    callbackcontext.dnssddeviceinfo.aszText = new string[1];
-                    callbackcontext.dnssddeviceinfo.aszText[0] = szTxt;
-                }
-                else
-                {
-                    string[] asz = new string[callbackcontext.dnssddeviceinfo.aszText.Length + 1];
-                    Array.Copy(callbackcontext.dnssddeviceinfo.aszText, asz, callbackcontext.dnssddeviceinfo.aszText.Length);
-                    asz[callbackcontext.dnssddeviceinfo.aszText.Length] = szTxt;
-                    callbackcontext.dnssddeviceinfo.aszText = asz;
-                }
+                callbackcontext.dnssddeviceinfo.AddTxt(szTxt);
 
                 // txtvers...
                 if (szTxt.StartsWith("txtvers="))
                 {
-                    callbackcontext.dnssddeviceinfo.szTxtTxtvers = szTxt.Remove(0,8);
+                    callbackcontext.dnssddeviceinfo.SetTxtTxtvers(szTxt.Remove(0,8));
                 }
 
                 // ty...
                 else if (szTxt.StartsWith("ty="))
                 {
-                    callbackcontext.dnssddeviceinfo.szTxtTy = szTxt.Remove(0, 3);
+                    callbackcontext.dnssddeviceinfo.SetTxtTy(szTxt.Remove(0, 3));
                 }
 
                 // type...
                 else if (szTxt.StartsWith("type="))
                 {
-                    callbackcontext.dnssddeviceinfo.szTxtType = szTxt.Remove(0, 5);
+                    callbackcontext.dnssddeviceinfo.SetTxtType(szTxt.Remove(0, 5));
                 }
 
                 // id...
                 else if (szTxt.StartsWith("id="))
                 {
-                    callbackcontext.dnssddeviceinfo.szTxtId = szTxt.Remove(0, 3);
+                    callbackcontext.dnssddeviceinfo.SetTxtId(szTxt.Remove(0, 3));
                 }
 
                 // cs...
                 else if (szTxt.StartsWith("cs="))
                 {
-                    callbackcontext.dnssddeviceinfo.szTxtCs = szTxt.Remove(0, 3);
+                    callbackcontext.dnssddeviceinfo.SetTxtCs(szTxt.Remove(0, 3));
                 }
 
                 // https...
                 else if (szTxt.StartsWith("https="))
                 {
-                    callbackcontext.dnssddeviceinfo.blTxtHttps = (szTxt.Remove(0, 6) != "0");
+                    callbackcontext.dnssddeviceinfo.SetTxtHttps(szTxt.Remove(0, 6) != "0");
                     blHttpsFound = true;
                 }
 
                 // note...
                 else if (szTxt.StartsWith("note="))
                 {
-                    callbackcontext.dnssddeviceinfo.szTxtNote = szTxt.Remove(0, 5);
+                    callbackcontext.dnssddeviceinfo.SetTxtNote(szTxt.Remove(0, 5));
                 }
 
                 // Point to the next spot for data...
@@ -1095,11 +1507,11 @@ namespace TwainDirect.Support
 
             // If we're missing anything critical, we're done, note that
             // note= is optional in the spec...
-            if (    (string.IsNullOrEmpty(callbackcontext.dnssddeviceinfo.szTxtTxtvers) || (callbackcontext.dnssddeviceinfo.szTxtTxtvers != "1"))
-                ||  (callbackcontext.dnssddeviceinfo.szTxtTy == null)
-                ||  (string.IsNullOrEmpty(callbackcontext.dnssddeviceinfo.szTxtType) || !callbackcontext.dnssddeviceinfo.szTxtType.Contains("twaindirect"))
-                ||  (callbackcontext.dnssddeviceinfo.szTxtId == null)
-                ||  (callbackcontext.dnssddeviceinfo.szTxtCs == null)
+            if (    (string.IsNullOrEmpty(callbackcontext.dnssddeviceinfo.GetTxtTxtvers()) || (callbackcontext.dnssddeviceinfo.GetTxtTxtvers() != "1"))
+                ||  (callbackcontext.dnssddeviceinfo.GetTxtTy() == null)
+                ||  (string.IsNullOrEmpty(callbackcontext.dnssddeviceinfo.GetTxtType()) || !callbackcontext.dnssddeviceinfo.GetTxtType().Contains("twaindirect"))
+                ||  (callbackcontext.dnssddeviceinfo.GetTxtId() == null)
+                ||  (callbackcontext.dnssddeviceinfo.GetTxtCs() == null)
                 ||  !blHttpsFound)
             {
 		        goto ABORT;
@@ -1133,7 +1545,7 @@ namespace TwainDirect.Support
                     pdnsserviceref,
                     0x4000, // kDNSServiceFlagsShareConnection
                     a_i32Interface, // kDNSServiceInterfaceIndexAny,
-                    callbackcontext.dnssddeviceinfo.szLinkLocal,
+                    callbackcontext.dnssddeviceinfo.GetLinkLocal(),
                     1, // kDNSServiceType_A
                     1, // kDNSServiceClass_IN
                     dnsservicequeryrecordreply,
@@ -1173,7 +1585,7 @@ namespace TwainDirect.Support
                     pdnsserviceref,
                     0x4000, // kDNSServiceFlagsShareConnection
                     a_i32Interface, // kDNSServiceInterfaceIndexAny,
-                    callbackcontext.dnssddeviceinfo.szLinkLocal,
+                    callbackcontext.dnssddeviceinfo.GetLinkLocal(),
                     28, // kDNSServiceType_AAAA
                     1, // kDNSServiceClass_IN
                     dnsservicequeryrecordreply,
@@ -1282,15 +1694,15 @@ namespace TwainDirect.Support
 
                 case 1: // kDNSServiceType_A
                     u32Ipv4 = (UInt32)Marshal.PtrToStructure(a_pvRdata, typeof(UInt32));
-                    callbackcontext.dnssddeviceinfo.szIpv4 = new IPAddress(u32Ipv4).ToString();
-                    callbackcontext.dnssddeviceinfo.lTtl = a_u32Ttl;
+                    callbackcontext.dnssddeviceinfo.SetIpv4(new IPAddress(u32Ipv4).ToString());
+                    callbackcontext.dnssddeviceinfo.SetTtl(a_u32Ttl);
                     break;
 
                 case 28: // kDNSServiceType_AAAA
                     abIpv6 = new byte[a_u16Rdlen];
                     Marshal.Copy(a_pvRdata, abIpv6, 0, a_u16Rdlen);
-                    callbackcontext.dnssddeviceinfo.szIpv6 = new IPAddress(abIpv6).ToString();
-                    callbackcontext.dnssddeviceinfo.lTtl = a_u32Ttl;
+                    callbackcontext.dnssddeviceinfo.SetIpv6(new IPAddress(abIpv6).ToString());
+                    callbackcontext.dnssddeviceinfo.SetTtl(a_u32Ttl);
                     break;
 	        }
 
@@ -1307,8 +1719,8 @@ namespace TwainDirect.Support
                 // Check if we already have this item...
                 for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
                 {
-                    if (    (m_adnssddeviceinfoCache[ii].lInterface == a_i32Interface)
-                        &&  (m_adnssddeviceinfoCache[ii].szLinkLocal == a_szFullname))
+                    if (    (m_adnssddeviceinfoCache[ii].GetInterface() == a_i32Interface)
+                        &&  (m_adnssddeviceinfoCache[ii].GetLinkLocal() == a_szFullname))
                     {
                         break;
                     }
@@ -1324,13 +1736,13 @@ namespace TwainDirect.Support
                             goto ABORT;
 
                         case 1: // kDNSServiceType_A
-                            m_adnssddeviceinfoCache[ii].szIpv4 = callbackcontext.dnssddeviceinfo.szIpv4;
-                            m_adnssddeviceinfoCache[ii].lTtl = callbackcontext.dnssddeviceinfo.lTtl;
+                            m_adnssddeviceinfoCache[ii].SetIpv4(callbackcontext.dnssddeviceinfo.GetIpv4());
+                            m_adnssddeviceinfoCache[ii].SetTtl(callbackcontext.dnssddeviceinfo.GetTtl());
                             break;
 
                         case 28: // kDNSServiceType_AAAA
-                            m_adnssddeviceinfoCache[ii].szIpv6 = callbackcontext.dnssddeviceinfo.szIpv6;
-                            m_adnssddeviceinfoCache[ii].lTtl = callbackcontext.dnssddeviceinfo.lTtl;
+                            m_adnssddeviceinfoCache[ii].SetIpv6(callbackcontext.dnssddeviceinfo.GetIpv6());
+                            m_adnssddeviceinfoCache[ii].SetTtl(callbackcontext.dnssddeviceinfo.GetTtl());
                             break;
                     }
                 }
@@ -1348,7 +1760,8 @@ namespace TwainDirect.Support
 
             // Cleanup...
             ABORT:
-                NativeMethods.free(a_pvContext);
+                //Freeing this memory is causing a crash on some systems...
+                //NativeMethods.free(a_pvContext);
 
             // All done...
             return;
