@@ -1933,7 +1933,7 @@ namespace TwainDirect.Support
             string szScanner = "scanners[" + a_iScanner + "]";
 
             // Collect our data...
-            string szDeviceName = a_jsonlookup.Get(szScanner + ".twidentity");
+            string szDeviceName = a_jsonlookup.Get(szScanner + ".twidentityProductName");
             if (string.IsNullOrEmpty(szDeviceName))
             {
                 szDeviceName = a_jsonlookup.Get(szScanner + ".sane");
@@ -3184,15 +3184,30 @@ namespace TwainDirect.Support
             if ((a_apicmd != null) && ((a_apicmd.GetUri() == "/privet/info") ||  (a_apicmd.GetUri() == "/privet/infoex")))
             {
                 string szDeviceState;
+                string szManufacturer;
+                string szModel;
+                string szSerialNumber;
+                string szFirmware;
+                long longUptime;
                 Dnssd.DnssdDeviceInfo dnssddeviceinfo = GetDnssdDeviceInfo();
+
+                // Our uptime is from when the process started...
+                longUptime = (long)(DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds;
 
                 // Device state...
                 if (m_twainlocalsession == null)
                 {
                     szDeviceState = "idle";
+                    szManufacturer = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalManufacturer();
+                    szModel = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalProductName();
+                    szSerialNumber = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalSerialNumber();
+                    szFirmware = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalVersion();
                 }
                 else
                 {
+                    // The user has been warned in the Privet docs not to rely
+                    // on this information.  However, it does have its uses, so
+                    // we'll check it out during certification...
                     switch (m_twainlocalsession.GetSessionState())
                     {
                         default: szDeviceState = "stopped"; break;
@@ -3201,6 +3216,26 @@ namespace TwainDirect.Support
                         case SessionState.closed: szDeviceState = "processing"; break;
                         case SessionState.draining: szDeviceState = "processing"; break;
                         case SessionState.ready: szDeviceState = "processing"; break;
+                    }
+
+                    // This is the best we can do for this info...
+                    szManufacturer = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalManufacturer();
+                    szModel = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalProductName();
+                    szSerialNumber = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalSerialNumber();
+                    szFirmware = m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalVersion();
+
+                    // Protection...
+                    if (string.IsNullOrEmpty(szManufacturer))
+                    {
+                        szManufacturer = "(no manufacturer)";
+                    }
+                    if (string.IsNullOrEmpty(szModel))
+                    {
+                        szModel = "(no model)";
+                    }
+                    if (string.IsNullOrEmpty(szSerialNumber))
+                    {
+                        szSerialNumber = "(no serial number)";
                     }
                 }
 
@@ -3223,13 +3258,13 @@ namespace TwainDirect.Support
                     "\"url\":\"\"," +
                     "\"type\":\"" + dnssddeviceinfo.GetTxtType() + "\"," +
                     "\"id\":\"\"," +
-                    "\"device_state\": \"" + szDeviceState + "\"," +
-                    "\"connection_state\": \"offline\"," +
-                    "\"manufacturer\":\"" + "" + "\"," +
-                    "\"model\":\"" + "" + "\"," +
-                    "\"serial_number\":\"" + "" + "\"," +
-                    "\"firmware\":\"" + "" + "\"," +
-                    "\"uptime\":\"" + "" + "\"," +
+                    "\"device_state\":\"" + szDeviceState + "\"," +
+                    "\"connection_state\":\"offline\"," +
+                    "\"manufacturer\":\"" + szManufacturer + "\"," +
+                    "\"model\":\"" + szModel + "\"," +
+                    "\"serial_number\":\"" + szSerialNumber + "\"," +
+                    "\"firmware\":\"" + szFirmware + "\"," +
+                    "\"uptime\":\"" + longUptime + "\"," +
                     "\"setup_url\":\"" + "" + "\"," +
                     "\"support_url\":\"" + "" + "\"," +
                     "\"update_url\":\"" + "" + "\"," +
@@ -5060,12 +5095,48 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the scanner's manufacturer...
+            /// </summary>
+            /// <returns>manufacturer</returns>
+            public string DeviceRegisterGetTwainLocalManufacturer()
+            {
+                return (m_deviceregister.GetTwainInquiryData().GetManufacturer());
+            }
+
+            /// <summary>
+            /// Get the scanner's product name...
+            /// </summary>
+            /// <returns>product name</returns>
+            public string DeviceRegisterGetTwainLocalProductName()
+            {
+                return (m_deviceregister.GetTwainInquiryData().GetProductName());
+            }
+
+            /// <summary>
             /// Get the contents of the register.txt file...
             /// </summary>
             /// <returns>everything we know about the scanner</returns>
             public string DeviceRegisterGetTwainLocalScanner()
             {
                 return (m_deviceregister.GetTwainLocalScanner());
+            }
+
+            /// <summary>
+            /// Get the scanner's serial number...
+            /// </summary>
+            /// <returns>serial number</returns>
+            public string DeviceRegisterGetTwainLocalSerialNumber()
+            {
+                return (m_deviceregister.GetTwainInquiryData().GetSerialNumber());
+            }
+
+            /// <summary>
+            /// Get the scanner's version info...
+            /// </summary>
+            /// <returns>version info</returns>
+            public string DeviceRegisterGetTwainLocalVersion()
+            {
+                return (m_deviceregister.GetTwainInquiryData().GetVersion());
             }
 
             /// <summary>

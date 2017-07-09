@@ -31,10 +31,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 // Helpers...
-using System;
 using System.IO;
 using System.Net;
-using System.Threading;
 
 namespace TwainDirect.Support
 {
@@ -76,6 +74,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Get the contents of the register.txt file...
+        /// </summary>
+        /// <returns>everything we know about the scanner</returns>
+        public string GetTwainLocalScanner()
+        {
+            return (m_device.szScanner);
+        }
+
+        /// <summary>
         /// What level of support do we have in the TWAIN driver?
         /// </summary>
         /// <returns>level of support</returns>
@@ -89,30 +96,12 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Get the contents of the register.txt file...
-        /// </summary>
-        /// <returns>everything we know about the scanner</returns>
-        public string GetTwainLocalScanner()
-        {
-            return (m_device.szScanner);
-        }
-
-        /// <summary>
         /// Return the TWAIN ty= field...
         /// </summary>
         /// <returns>the access token</returns>
         public string GetTwainLocalTy()
         {
             return (m_device.szTwainLocalTy);
-        }
-
-        /// <summary>
-        /// Return the TWAIN Local serial number...
-        /// </summary>
-        /// <returns>the serial number</returns>
-        public string GetTwainLocalSerialNumber()
-        {
-            return (m_device.szTwainLocalSerialNumber);
         }
 
         /// <summary>
@@ -394,8 +383,14 @@ namespace TwainDirect.Support
                     return (null);
                 }
 
+                // TW_IDENTITY.Manufacturer...
+                twaininquirydata.m_szTwidentityManufacturer = jsonlookup.Get("twidentityManufacturer", false);
+
                 // TW_IDENTITY.ProductName...
-                twaininquirydata.m_szTwidentity         = jsonlookup.Get("twidentity", false);
+                twaininquirydata.m_szTwidentityProductName = jsonlookup.Get("twidentityProductName", false);
+
+                // TW_IDENTITY.ProtocolVersion : TW_IDENTITY.Version...
+                twaininquirydata.m_szTwidentityVersion = jsonlookup.Get("twidentityVersion", false);
 
                 // TWAIN Direct Support...
                 szValue = jsonlookup.Get("twainDirectSupport", false);
@@ -713,6 +708,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the TW_IDENTITY.Manufacturer
+            /// </summary>
+            /// <returns>manufacturer name</returns>
+            public string GetManufacturer()
+            {
+                return (m_szTwidentityManufacturer);
+            }
+
+            /// <summary>
             /// Get JSON min,max offsetx
             /// </summary>
             /// <returns>[min,max]</returns>
@@ -776,6 +780,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the TW_IDENTITY.ProductName
+            /// </summary>
+            /// <returns>product name</returns>
+            public string GetProductName()
+            {
+                return (m_szTwidentityProductName);
+            }
+
+            /// <summary>
             /// Get a JSON array of resolutions...
             /// </summary>
             /// <returns>string or empty string</returns>
@@ -830,6 +843,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the TW_IDENTITY.ProtocolVersion : TW_IDENTITY.Version...
+            /// </summary>
+            /// <returns>protocol version : version</returns>
+            public string GetVersion()
+            {
+                return (m_szTwidentityVersion);
+            }
+
+            /// <summary>
             /// Get JSON min,max width
             /// </summary>
             /// <returns>[min,max]</returns>
@@ -841,16 +863,29 @@ namespace TwainDirect.Support
             /// <summary>
             /// Serialize the data into JSON...
             /// </summary>
-            /// <returns>a JSON object</returns>
-            public string Serialize(string a_szTwidentity)
+            /// <param name="a_szTwidentityManufacturer">manufacturer</param>
+            /// <param name="a_szTwidentityProductName">unique product name</param>
+            /// <param name="a_szTwidentityVersion">protocol version : version</param>
+            /// <returns>>a JSON string</returns>
+            /// <summary>
+            public string Serialize
+            (
+                string a_szTwidentityManufacturer,
+                string a_szTwidentityProductName,
+                string a_szTwidentityVersion
+            )
             {
                 string szJson = "";
-                m_szTwidentity = a_szTwidentity;
+                m_szTwidentityManufacturer = a_szTwidentityManufacturer;
+                m_szTwidentityProductName = a_szTwidentityProductName;
+                m_szTwidentityVersion = a_szTwidentityVersion;
                 m_szHostname = Dns.GetHostName();
 
                 // Start object...
                 szJson += "{";
-                szJson += "\"twidentity\":\"" + a_szTwidentity + "\",";
+                szJson += "\"twidentityManufacturer\":\"" + m_szTwidentityManufacturer + "\",";
+                szJson += "\"twidentityProductName\":\"" + m_szTwidentityProductName + "\",";
+                szJson += "\"twidentityVersion\":\"" + m_szTwidentityVersion + "\",";
                 szJson += "\"twainDirectSupport\":\"" + m_twaindirectsupport + "\",";
                 szJson += "\"isAutomaticSenseMedium\":" + m_blAutomaticSenseMedium.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isDatTwainDirectSupported\":" + m_blDatTwainDirect.ToString().ToLowerInvariant() + ",";
@@ -1220,9 +1255,19 @@ namespace TwainDirect.Support
             private bool m_blTweiTwainDirectMetadata;
 
             /// <summary>
-            /// The TW_IDENTITY.ProductName of our TWAIN driver...
+            /// The TW_IDENTITY.Manufacturer of our scanner...
             /// </summary>
-            private string m_szTwidentity;
+            private string m_szTwidentityManufacturer;
+
+            /// <summary>
+            /// The TW_IDENTITY.ProductName of our scanner...
+            /// </summary>
+            private string m_szTwidentityProductName;
+
+            /// <summary>
+            /// The TW_IDENTITY.ProtocolVersion : TW_IDENTITY.Version of our scanner...
+            /// </summary>
+            private string m_szTwidentityVersion;
 
             /// <summary>
             /// Can we control the UI?

@@ -1285,9 +1285,9 @@ namespace TwainDirect.App
                 (
                     Path.Combine(m_szWriteFolder, "selected"),
                     "{" +
-                    "    \"linkLocal\": \"" + m_dnssddeviceinfo.GetLinkLocal() + "\"," +
-                    "    \"ipv4\": \"" + m_dnssddeviceinfo.GetIpv4() + "\"," +
-                    "    \"ipv6\": \"" + m_dnssddeviceinfo.GetIpv6() + "\"" +
+                    "\"linkLocal\":\"" + m_dnssddeviceinfo.GetLinkLocal() + "\"," +
+                    "\"ipv4\":\"" + m_dnssddeviceinfo.GetIpv4() + "\"," +
+                    "\"ipv6\":\"" + m_dnssddeviceinfo.GetIpv6() + "\"" +
                     "}"
                 );
             }

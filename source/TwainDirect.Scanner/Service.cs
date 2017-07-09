@@ -122,7 +122,7 @@ namespace TwainDirect.Scanner
             for (iScanner = 0; ; iScanner++)
             {
                 // Get the next scanner...
-                string szScanner = jsonlookup.Get("scanners[" + iScanner + "].twidentity");
+                string szScanner = jsonlookup.Get("scanners[" + iScanner + "].twidentityProductName");
                 if (string.IsNullOrEmpty(szScanner))
                 {
                     szScanner = jsonlookup.Get("scanners[" + iScanner + "].sane");

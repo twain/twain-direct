@@ -1092,7 +1092,13 @@ namespace TwainDirect.OnTwain
 
                 // Serialize the object...
                 string szObject = (!szList.Contains("twidentity")) ? "" : ",";
-                szObject += twaininquirydata.Serialize(szTwidentityBits[11]);
+                szObject += twaininquirydata.Serialize
+                (
+                    szTwidentityBits[9],  // TW_IDENTITY.Manufacturer
+                    szTwidentityBits[11], // TW_IDENTITY.ProductName
+                    // Protocol Major.Minor : Version Major.Minor
+                    szTwidentityBits[6] + "." + szTwidentityBits[7] + ":" + szTwidentityBits[0] + "." + szTwidentityBits[1]
+                );
 
                 // We got this far, so add the object to the list we're building...
                 szList += szObject;
@@ -1591,7 +1597,7 @@ namespace TwainDirect.OnTwain
             long lJsonErrorIndex;
             string szScanner;
             string szTwainlist;
-            string szTwidentity;
+            string szTwidentityProductName;
             JsonLookup jsonlookup;
 
             // We've already done this...
@@ -1630,26 +1636,26 @@ namespace TwainDirect.OnTwain
             }
 
             // Find our scanner...
-            szTwidentity = "";
+            szTwidentityProductName = "";
             szScanner = Config.Get("scanner", null);
             for (ii = 0 ;; ii++)
             {
                 // Get the next scanner object from the scanners array...
-                szTwidentity = jsonlookup.Get("scanners[" + ii + "].twidentity", false);
-                if (string.IsNullOrEmpty(szTwidentity))
+                szTwidentityProductName = jsonlookup.Get("scanners[" + ii + "].twidentityProductName", false);
+                if (string.IsNullOrEmpty(szTwidentityProductName))
                 {
                     break;
                 }
 
                 // Bail if we have a match...
-                if (szTwidentity == szScanner)
+                if (szTwidentityProductName == szScanner)
                 {
                     break;
                 }
             }
 
             // No joy...
-            if (string.IsNullOrEmpty(szTwidentity))
+            if (string.IsNullOrEmpty(szTwidentityProductName))
             {
                 return (false);
             }
