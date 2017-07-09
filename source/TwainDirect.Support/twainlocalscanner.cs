@@ -341,6 +341,175 @@ namespace TwainDirect.Support
         #region Public Client Methods...
 
         /// <summary>
+        /// TWAIN Direct has four layers of error reporting: there's the HTTP status
+        /// codes; a security layer defined by Privet 1.0; a TWAIN Local protocol
+        /// layer, and a TWAIN Direct language layer.
+        /// 
+        /// This function checks out the health of the communication across all four
+        /// layers, and updates the ApiCmd object with the results.  It returns true
+        /// if no errors were found.
+        /// </summary>
+        /// <param name="a_szFunction">function we're reporting on</param>
+        /// <param name="a_apicmd">object to update if we find problems</param>
+        /// <returns>true on success, false if an error was detected</returns>
+        public bool ClientCheckForApiErrors(string a_szFunction, ref ApiCmd a_apicmd)
+        {
+            int ii;
+            bool blSuccess;
+            long lJsonErrorIndex;
+            string szReply;
+            string szAction;
+            string szSuccess;
+            string szCode;
+            string szJsonKey;
+            string szCharacterOffset;
+            string szDescription;
+            JsonLookup jsonlookup;
+
+            // First, let's check on the health of the HTTP communication.
+            // If this fails, close the session...
+            if (a_apicmd.HttpStatus() != System.Net.WebExceptionStatus.Success)
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.httpstatus);
+                a_apicmd.AddApiErrorCode("httpError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": httpError - " + a_apicmd.HttpStatus());
+                return (false);
+            }
+
+            // Check the response data, every command must come back with a JSON
+            // payload, so if we don't have one, that's a protocol error...
+            szReply = a_apicmd.GetResponseData();
+            if (string.IsNullOrEmpty(szReply))
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("protocolError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - data is missing from the HTTP response");
+                return (false);
+            }
+
+            // If the JSON format of the reply is damaged, we have a protocol
+            // error...
+            jsonlookup = new JsonLookup();
+            blSuccess = jsonlookup.Load(szReply, out lJsonErrorIndex);
+            if (!blSuccess)
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("invalidJson");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - JSON error in the HTTP response at character offset " + lJsonErrorIndex);
+                return (false);
+            }
+
+            // Do we have a security error?
+            szCode = jsonlookup.Get("error", false);
+            if (!string.IsNullOrEmpty(szCode))
+            {
+                szDescription = jsonlookup.Get("description", false);
+                if (string.IsNullOrEmpty(szDescription))
+                {
+                    szDescription = "(no description provided)";
+                }
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.security);
+                a_apicmd.AddApiErrorCode("invalidJson");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szDescription);
+                return (false);
+            }
+
+            // How about a protocol error?
+            szSuccess = jsonlookup.Get("results.success", false);
+            if (string.IsNullOrEmpty(szSuccess) || ((szSuccess != "false") && (szSuccess != "true")))
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("protocolError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - results.success is missing or invalid");
+                return (false);
+            }
+            else if (szSuccess == "false")
+            {
+                // Collect the data...
+                szCode = jsonlookup.Get("results.code", false);
+                if (string.IsNullOrEmpty(szCode))
+                {
+                    szCode = "invalidTask";
+                }
+                szJsonKey = jsonlookup.Get("results.jsonKey", false);
+                if (string.IsNullOrEmpty(szJsonKey))
+                {
+                    szJsonKey = "(n/a)";
+                }
+                szCharacterOffset = jsonlookup.Get("results.characterOffset", false);
+                if (string.IsNullOrEmpty(szCharacterOffset))
+                {
+                    szCharacterOffset = "(n/a)";
+                }
+
+                // Squirrel it away...
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("protocolError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - characterOffset=" + szCharacterOffset + " jsonKey=" + szJsonKey);
+                return (false);
+            }
+
+            // All that's left are language errors, and those are
+            // catagorized with each action.  Report all of them...
+            bool blErrorDetected = false;
+            for (ii = 0; true; ii++)
+            {
+                // If we run out of actions, scoot...
+                szAction = "results.session.task.actions[" + ii + "]";
+                szSuccess = jsonlookup.Get(szAction, false);
+                if (string.IsNullOrEmpty(szSuccess))
+                {
+                    break;
+                }
+
+                // We'd better have one of these...
+                szSuccess = jsonlookup.Get(szAction + ".results.success", false);
+
+                // We're good, check the next one...
+                if (!string.IsNullOrEmpty(szSuccess) && (szSuccess == "true"))
+                {
+                    continue;
+                }
+
+                // We've found a problem child...
+                blErrorDetected = true;
+
+                // The value better be false...
+                if (string.IsNullOrEmpty(szSuccess) || (szSuccess != "false"))
+                {
+                    a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
+                    a_apicmd.AddApiErrorCode("invalidTask");
+                    a_apicmd.AddApiErrorDescription(a_szFunction + ": invalidTask - " + szAction + ".results.success is missing or invalid");
+                    continue;
+                }
+
+                // Collect the data on it...
+                szCode = jsonlookup.Get(szAction + ".results.code", false);
+                if (string.IsNullOrEmpty(szCode))
+                {
+                    szCode = "invalidTask";
+                }
+                szJsonKey = jsonlookup.Get(szAction + ".results.jsonKey", false);
+                if (string.IsNullOrEmpty(szJsonKey))
+                {
+                    szJsonKey = "(n/a)";
+                }
+
+                // Add it to our list...
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
+                a_apicmd.AddApiErrorCode("invalidTask");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szAction + ", jsonKey=" + szJsonKey);
+            }
+            if (blErrorDetected)
+            {
+                return (false);
+            }
+
+            // Golly, it looks like we're in good shape...
+            return (true);
+        }
+
+        /// <summary>
         /// Return the current image blocks...
         /// </summary>
         /// <returns>array of image blocks</returns>
@@ -430,173 +599,6 @@ namespace TwainDirect.Support
             {
                 ClientReturnError(a_apicmd, false, "", 0, "");
                 return (false);
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// This is the serial version of the scan loop.  It has the benefit of being
-        /// fairly easy to understand and debug.  The downside is a lot of dead time
-        /// on the net, so it's really slow.
-        /// </summary>
-        /// <param name="a_apicmd">a command object</param>
-        /// <param name="a_blStopCapturing">a flag if capturing has been stopped</param>
-        /// <param name="a_blGetThumbnails">the caller would like thumbnails</param>
-        /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
-        /// <param name="a_scancallbackImageBlockMetadataCallback">a callback for metadata</param>
-        /// <param name="a_scancallbackImageBlockCallback">a callback for images</param>
-        /// <param name="a_szError">a string if there's an error</param>
-        /// <returns>true on success</returns>
-        public bool ClientScan
-        (
-            ref ApiCmd a_apicmd,
-            ref bool a_blStopCapturing,
-            bool a_blGetThumbnails,
-            bool a_blGetMetadataWithImage,
-            ScanCallback a_scancallbackImageBlockMetadataCallback,
-            ScanCallback a_scancallbackImageBlockCallback,
-            out string a_szError
-        )
-        {
-            long[] alImageBlocks;
-
-            // It is a message that can be shown to the caller...
-            a_szError = "";
-
-            // Get a session object until we have an image...
-            // TBD need better error handling here to avoid both hangs
-            // and locking the scanner forever...
-            while (true)
-            {
-                // Wait for an event...
-                if (!m_autoreseteventWaitForEvents.WaitOne())
-                {
-                    // Stop capturing...
-                    if (!a_blStopCapturing)
-                    {
-                        a_blStopCapturing = true;
-                        if (!ClientScannerStopCapturing(ref a_apicmd))
-                        {
-                            Log.Error("ClientScannerStopCapturing failed: " + a_apicmd.HttpResponseData());
-                            a_szError = "ClientScannerStopCapturing failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
-                            return (false);
-                        }
-                    }
-
-                    // All done...
-                    return (true);
-                }
-                Log.Info("ClientScan: event detected");
-
-                // If we have an image, then pop out...
-                alImageBlocks = ClientGetImageBlocks();
-                if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
-                {
-                    break;
-                }
-
-                // Wait a bit before trying again...
-                //Thread.Sleep(100);
-            }
-
-            // Loop on each image, until we exhaust the imageBlocks array...
-            while (true)
-            {
-                // We have the option to skip getting the metadata with this
-                // call.  An application should get metadata if it wants to
-                // examine it before getting the image.  If it always wants
-                // the image, it really doesn't need this step to be separate,
-                // which will save us a round-trip on the network...
-                if (!a_blGetMetadataWithImage)
-                {
-                    if (!ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, a_scancallbackImageBlockMetadataCallback, ref a_apicmd))
-                    {
-                        Log.Error("ClientScannerReadImageBlockMetadata failed: " + a_apicmd.HttpResponseData());
-                        a_szError = "ClientScannerReadImageBlockMetadata failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
-                        return (false);
-                    }
-                }
-
-                // Get the first image block in the array...
-                if (!ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, a_scancallbackImageBlockCallback, ref a_apicmd))
-                {
-                    Log.Error("ClientScannerReadImageBlock failed: " + a_apicmd.HttpResponseData());
-                    a_szError = "ClientScannerReadImageBlock failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
-                    return (false);
-                }
-
-                // Release the image...
-                if (!ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref a_apicmd))
-                {
-                    Log.Error("ClientScannerReleaseImageBlocks failed: " + a_apicmd.HttpResponseData());
-                    a_szError = "ClientScannerReleaseImageBlocks failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
-                    return (false);
-                }
-
-                // If we have an image, go back up and process it...
-                alImageBlocks = ClientGetImageBlocks();
-                if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
-                {
-                    continue;
-                }
-                alImageBlocks = null;
-
-                // Wait for another image, or evidence that we're done...
-                while (true)
-                {
-                    // Wait for an event...
-                    if (!m_autoreseteventWaitForEvents.WaitOne())
-                    {
-                        // Stop capturing...
-                        if (!a_blStopCapturing)
-                        {
-                            a_blStopCapturing = true;
-                            if (!ClientScannerStopCapturing(ref a_apicmd))
-                            {
-                                Log.Error("ClientScannerStopCapturing failed: " + a_apicmd.HttpResponseData());
-                                a_szError = "ClientScannerStopCapturing failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
-                                return (false);
-                            }
-                        }
-
-                        // All done...
-                        return (true);
-                    }
-                    Log.Info("ClientScan: event detected");
-
-                    // If we've run out of images, then pop out...
-                    if (ClientGetImageBlocksDrained())
-                    {
-                        break;
-                    }
-
-                    // Get our image list, if we got something, break out to process it...
-                    alImageBlocks = ClientGetImageBlocks();
-                    if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
-                    {
-                        break;
-                    }
-                }
-
-                // If we run out of images, then pop out...
-                if (ClientGetImageBlocksDrained())
-                {
-                    break;
-                }
-            }
-
-            // Stop capturing...
-            if (!a_blStopCapturing)
-            {
-                a_blStopCapturing = true;
-                if (!ClientScannerStopCapturing(ref a_apicmd))
-                {
-                    Log.Error("ClientScannerStopCapturing failed: " + a_apicmd.HttpResponseData());
-                    a_szError = "ClientScannerStopCapturing failed, the reason follows:\n\n" + a_apicmd.HttpResponseData();
-                    return (false);
-                }
             }
 
             // All done...

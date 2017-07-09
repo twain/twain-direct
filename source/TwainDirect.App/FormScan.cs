@@ -182,15 +182,13 @@ namespace TwainDirect.App
         /// <param name="a_blGetThumbnails">the caller would like thumbnails</param>
         /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
         /// <param name="a_apicmd">a command object</param>
-        /// <param name="a_szFunction">function that failed</param>
         /// <returns>true on success</returns>
         public bool ClientScan
         (
             ref bool a_blStopCapturing,
             bool a_blGetThumbnails,
             bool a_blGetMetadataWithImage,
-            out ApiCmd a_apicmd,
-            out string a_szFunction
+            out ApiCmd a_apicmd
         )
         {
             bool blSuccess;
@@ -198,7 +196,6 @@ namespace TwainDirect.App
 
             // Init stuff...
             m_blStopCapturing = false;
-            a_szFunction = "";
 
             // Clear the picture boxes, make sure we start with the left box...
             m_iUseBitmap = 0;
@@ -211,18 +208,18 @@ namespace TwainDirect.App
 
             // Send the task to the scanner... 
             a_apicmd = new ApiCmd(m_dnssddeviceinfo);
-            blSuccess = m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref a_apicmd);
+            m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref a_apicmd);
+            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
             if (!blSuccess)
             {
-                a_szFunction = "ClientScannerSendTask";
                 return (false);
             }
 
             // Start capturing...
-            blSuccess = m_twainlocalscanner.ClientScannerStartCapturing(ref a_apicmd);
+            m_twainlocalscanner.ClientScannerStartCapturing(ref a_apicmd);
+            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
             if (!blSuccess)
             {
-                a_szFunction = "ClientScannerStartCapturing";
                 return (false);
             }
 
@@ -276,24 +273,29 @@ namespace TwainDirect.App
                     // examine it before getting the image.  If it always wants
                     // the image, it really doesn't need this step to be separate,
                     // which will save us a round-trip on the network...
-                    if (    !a_blGetMetadataWithImage
-                        &&  !m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref a_apicmd))
+                    if (!a_blGetMetadataWithImage)
                     {
-                        a_szFunction = "ClientScannerReadImageBlockMetadata";
-                        return (false);
+                        m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref a_apicmd);
+                        blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+                        if (!blSuccess)
+                        {
+                            return (false);
+                        }
                     }
 
                     // Get the first image block in the array...
-                    if (!m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref a_apicmd))
+                    m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref a_apicmd);
+                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+                    if (!blSuccess)
                     {
-                        a_szFunction = "ClientScannerReadImageBlock";
                         return (false);
                     }
 
                     // Release the image...
-                    if (!m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref a_apicmd))
+                    m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref a_apicmd);
+                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+                    if (!blSuccess)
                     {
-                        a_szFunction = "ClientScannerReleaseImageBlocks";
                         return (false);
                     }
 
@@ -312,7 +314,6 @@ namespace TwainDirect.App
                 a_blStopCapturing = true;
                 if (!m_twainlocalscanner.ClientScannerStopCapturing(ref a_apicmd))
                 {
-                    a_szFunction = "ClientScannerStopCapturing";
                     return (false);
                 }
             }
@@ -547,20 +548,8 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void m_buttonScan_Click(object sender, EventArgs e)
         {
-            int ii;
             bool blSuccess;
-            long lJsonErrorIndex;
-            string szAction;
-            string szReply;
-            string szCode;
-            string szError;
-            string szJsonKey;
-            string szSuccess;
-            string szDescription;
-            string szCharacterOffset;
-            string szFunction;
             ApiCmd apicmd;
-            JsonLookup jsonlookup;
 
             // Turn the buttons off while we're sending a task to the
             // scanner, and starting the capture of images...
@@ -574,153 +563,58 @@ namespace TwainDirect.App
                 ref m_blStopCapturing,
                 m_formsetup.GetThumbnails(),
                 m_formsetup.GetMetadataWithImage(),
-                out apicmd,
-                out szFunction
+                out apicmd
             );
 
-            // We can run into a failure for more than one reason.  If it's a
-            // failure in communications, then we'll assume that we've lost the
-            // scanner session.  At the worst the scanner will remained locked
-            // for a short while until its session times out do in inactivity,
-            // but we will give control immediately back to the application.
-            // If the problem is less dire we'll report it and let the session
-            // continue on...
+            // Ruh-roh, something didn't work.  So let's figure out what happened
+            // and what we're going to do about it...
             if (!blSuccess)
             {
-                // First, let's check on the health of the HTTP communication.
-                // If this fails, close the session...
-                if (apicmd.HttpStatus() != System.Net.WebExceptionStatus.Success)
+                string[] aszCodes = apicmd.GetApiErrorCodes();
+                string[] aszDescriptions = apicmd.GetApiErrorDescriptions();
+
+                switch (apicmd.GetApiErrorFacility())
                 {
-                    szError = szFunction + ": HTTP Error - " + apicmd.HttpStatus() + ", closing the session";
-                    Log.Error(szError);
-                    m_buttonClose_Click(null, null);
-                    MessageBox.Show(szError);
-                    return;
-                }
-
-                // Persumably we have data.  There are three possible outcomes:
-                // - a security error, such as invalid_x_privet_token
-                // - a protocol error, such as bad JSON data
-                // - a language error, such as a fail exception in a task
-                //
-                // These have different formats that we have to watch for.  But
-                // in all cases we expect a JSON payload...
-                szReply = apicmd.GetResponseData();
-                if (string.IsNullOrEmpty(szReply))
-                {
-                    szError = szFunction + ": data appears to be missing, closing the session.";
-                    Log.Error(szError);
-                    m_buttonClose_Click(null, null);
-                    MessageBox.Show(szError);
-                    return;
-                }
-
-                // If the JSON format of the reply is damaged, we're done with this session...
-                jsonlookup = new JsonLookup();
-                blSuccess = jsonlookup.Load(szReply, out lJsonErrorIndex);
-                if (!blSuccess)
-                {
-                    szError = szFunction + ": invalid JSON at character offset " + lJsonErrorIndex + " - <" + szReply + ">, closing the session.";
-                    Log.Error(szError);
-                    m_buttonClose_Click(null, null);
-                    MessageBox.Show(szError);
-                    return;
-                }
-
-                // We're using the loop so we can break, not to loop...
-                while (true)
-                {
-                    // Do we have a security error?
-                    szError = jsonlookup.Get("error", false);
-                    if (!string.IsNullOrEmpty(szError))
-                    {
-                        szDescription = jsonlookup.Get("description", false);
-                        if (string.IsNullOrEmpty(szError))
-                        {
-                            szDescription = "(no additional info)";
-                        }
-                        szError = szFunction + ": " + szError + ">, " + szDescription;
-                        Log.Error(szError);
-                        MessageBox.Show(szError);
+                    // This should never happen, but if it does, end the session,
+                    // because we don't know what's going on...
+                    default:
+                    case ApiCmd.ApiErrorFacility.undefined:
+                        Log.Error(aszDescriptions[0]);
+                        m_buttonClose_Click(null, null);
+                        MessageBox.Show(aszDescriptions[0]);
                         break;
-                    }
-
-                    // How about a protocol error?
-                    szSuccess = jsonlookup.Get("results.success", false);
-                    if (string.IsNullOrEmpty(szSuccess) || ((szSuccess != "false") && (szSuccess != "true")))
-                    {
-                        szError = szFunction + ": unrecognized protocol error - <" + szReply + ">";
-                        Log.Error(szError);
-                        MessageBox.Show(szError);
+                    
+                    // All HTTP errors that get to this point end the session...
+                    case ApiCmd.ApiErrorFacility.httpstatus:
+                        Log.Error(aszDescriptions[0]);
+                        m_buttonClose_Click(null, null);
+                        MessageBox.Show(aszDescriptions[0]);
                         break;
-                    }
-                    else if (szSuccess == "false")
-                    {
-                        szCode = jsonlookup.Get("results.code", false);
-                        if (string.IsNullOrEmpty(szCode))
-                        {
-                            szCode = "(no code)";
-                        }
-                        szJsonKey = jsonlookup.Get("results.jsonKey", false);
-                        if (string.IsNullOrEmpty(szJsonKey))
-                        {
-                            szJsonKey = "(no JSON key)";
-                        }
-                        szCharacterOffset = jsonlookup.Get("results.characterOffset", false);
-                        if (string.IsNullOrEmpty(szCharacterOffset))
-                        {
-                            szCharacterOffset = "(no character offset)";
-                        }
-                        szDescription = jsonlookup.Get("description", false);
-                        if (string.IsNullOrEmpty(szCode))
-                        {
-                            szDescription = "(no additional info)";
-                        }
-                        szError = szFunction + ": code=" + szCode + " offset=" + szCharacterOffset + " key=" + szJsonKey;
-                        Log.Error(szError);
-                        MessageBox.Show(szError);
+
+                    // Somebody didn't code stuff properly, end the session, because
+                    // this kind of error could otherwise hang up the application...
+                    case ApiCmd.ApiErrorFacility.security:
+                        Log.Error(aszDescriptions[0]);
+                        m_buttonClose_Click(null, null);
+                        MessageBox.Show(aszDescriptions[0]);
                         break;
-                    }
 
-                    // All that's left are language errors, and those are
-                    // catagorized with each action.  Report all of them...
-                    bool blFoundOne = false;
-                    for (ii = 0; true; ii++)
-                    {
-                        // If we run out of actions, scoot...
-                        szAction = "actions[" + ii + "]";
-                        szSuccess = jsonlookup.Get(szAction + ".results.success", false);
-                        if (string.IsNullOrEmpty(szSuccess))
-                        {
-                            break;
-                        }
-                        blFoundOne = true;
-
-                        // Collect the data...
-                        szCode = jsonlookup.Get("results.code", false);
-                        if (string.IsNullOrEmpty(szCode))
-                        {
-                            szCode = "(no code)";
-                        }
-                        szJsonKey = jsonlookup.Get("results.jsonKey", false);
-                        if (string.IsNullOrEmpty(szJsonKey))
-                        {
-                            szJsonKey = "(no JSON key)";
-                        }
-                        szError = szFunction + ": " + szAction + ": code=" + szCode + " key=" + szJsonKey;
-                        Log.Error(szError);
-                        MessageBox.Show(szError);
-                    }
-                    if (blFoundOne)
-                    {
+                    // We have an error in the TWAIN Local procotol, it's up
+                    // to the ClientScan function to make sure we got back to
+                    // a ready state...
+                    case ApiCmd.ApiErrorFacility.protocol:
+                        Log.Error(aszDescriptions[0]);
+                        MessageBox.Show(aszDescriptions[0]);
                         break;
-                    }
 
-                    // Well, this is odd, we shouldn't be here...
-                    szError = szFunction + ": unrecognized error, go yell at a programmer - <" + szReply + ">";
-                    Log.Error(szError);
-                    MessageBox.Show(szError);
-                    break;
+                    // We have an error in the TWAIN Direct language...
+                    case ApiCmd.ApiErrorFacility.language:
+                        foreach (string sz in aszDescriptions)
+                        {
+                            Log.Error(sz);
+                            MessageBox.Show(sz);
+                        }
+                        break;
                 }
             }
 

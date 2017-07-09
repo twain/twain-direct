@@ -241,6 +241,34 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return the facility that threw an error for this
+        /// command...
+        /// </summary>
+        /// <returns>facility that detected an error</returns>
+        public ApiErrorFacility GetApiErrorFacility()
+        {
+            return (m_apierrorfacility);
+        }
+
+        /// <summary>
+        /// Return the error code(s)...
+        /// </summary>
+        /// <returns>error codes</returns>
+        public string[] GetApiErrorCodes()
+        {
+            return (m_aszApiErrorCodes);
+        }
+
+        /// <summary>
+        /// Return the error description(s)...
+        /// </summary>
+        /// <returns>error descriptions</returns>
+        public string[] GetApiErrorDescriptions()
+        {
+            return (m_aszApiErrorDescriptions);
+        }
+
+        /// <summary>
         /// Return the HTTP response status...
         /// </summary>
         /// <returns>the HTTP response status</returns>
@@ -500,6 +528,56 @@ namespace TwainDirect.Support
 
             // Return whatever we found...
             return (m_jsonlookupReceived.Get(a_szJsonKey));
+        }
+
+        /// <summary>
+        /// Set the facility that threw an error for this
+        /// command...
+        /// </summary>
+        /// <param name="a_apierrorfacility">facility that detected an error</param>
+        public void SetApiErrorFacility(ApiErrorFacility a_apierrorfacility)
+        {
+            m_apierrorfacility = a_apierrorfacility;
+        }
+
+        /// <summary>
+        /// Set the error codes...
+        /// </summary>
+        /// <param name="a_aszApiErrorCode">error code</param>
+        public void AddApiErrorCode(string a_aszApiErrorCode)
+        {
+            if (m_aszApiErrorCodes == null)
+            {
+                m_aszApiErrorCodes = new string[1];
+                m_aszApiErrorCodes[0] = a_aszApiErrorCode;
+            }
+            else
+            {
+                string[] asz = new string[m_aszApiErrorCodes.Length + 1];
+                Array.Copy(m_aszApiErrorCodes, asz, m_aszApiErrorCodes.Length);
+                asz[m_aszApiErrorCodes.Length] = a_aszApiErrorCode;
+                m_aszApiErrorCodes = asz;
+            }
+        }
+
+        /// <summary>
+        /// Set the error descriptions...
+        /// </summary>
+        /// <param name="a_aszApiErrorDescriptions">error description</param>
+        public void AddApiErrorDescription(string a_aszApiErrorDescription)
+        {
+            if (m_aszApiErrorDescriptions == null)
+            {
+                m_aszApiErrorDescriptions = new string[1];
+                m_aszApiErrorDescriptions[0] = a_aszApiErrorDescription;
+            }
+            else
+            {
+                string[] asz = new string[m_aszApiErrorDescriptions.Length + 1];
+                Array.Copy(m_aszApiErrorDescriptions, asz, m_aszApiErrorDescriptions.Length);
+                asz[m_aszApiErrorDescriptions.Length] = a_aszApiErrorDescription;
+                m_aszApiErrorDescriptions = asz;
+            }
         }
 
         /// <summary>
@@ -1789,6 +1867,23 @@ namespace TwainDirect.Support
         public const string c_szNonHttpError = "999999999";
 
         /// <summary>
+        /// TWAIN Direct errors can come from one of several facilities, it's
+        /// important to know which one reported a problem.
+        /// https - a bad HTTP status code was received
+        /// security - a security violation (ex: invalid_x_privet_token)
+        /// protocol - an error in TWAIN Local (invalidJson, invalidState, etc)
+        /// language - an error in the TWAIN Direct language (invalidTask, invalidValue, etc)
+        /// </summary>
+        public enum ApiErrorFacility
+        {
+            undefined,
+            httpstatus,
+            security,
+            protocol,
+            language
+        }
+
+        /// <summary>
         /// To make it a bit more obvious how the RESTful API commands complete
         /// we have this enumeration.  There are two basic flavors: a simple reply
         /// comes back immediately with the requested data.  A life cycle command
@@ -2299,6 +2394,29 @@ namespace TwainDirect.Support
         /// </summary>
         private JsonLookup m_jsonlookupReceived;
 
+        /// <summary>
+        /// The facility in the communication that generated an error,
+        /// such as http, or the TWAIN Direct language.  There can only
+        /// be one of these.
+        /// </summary>
+        private ApiErrorFacility m_apierrorfacility;
+
+        /// <summary>
+        /// Error codes.  We need the array because a task with multiple
+        /// actions can report more than one problem...
+        /// </summary>
+        private string[] m_aszApiErrorCodes;
+
+        /// <summary>
+        /// Brief messages about the problems we detected.  We need the
+        /// array because a task with multiple actions can report more
+        /// than one problem.
+        /// </summary>
+        private string[] m_aszApiErrorDescriptions;
+
+        /// <summary>
+        /// Event information...
+        /// </summary>
         private string m_szEventName;
         private string m_szSessionState;
         private long m_lSessionRevision;
