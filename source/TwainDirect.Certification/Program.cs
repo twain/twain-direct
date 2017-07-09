@@ -62,8 +62,7 @@ namespace TwainDirect.Certification
             szExecutableName = Config.Get("executableName", "");
 
             // Turn on logging...
-            Log.Open(szExecutableName, szWriteFolder, 1);
-            Log.SetLevel((int)Config.Get("logLevel", 0));
+            Log.Open(szExecutableName, szWriteFolder, (int)Config.Get("logLevel", 0));
             Log.Info(szExecutableName + " Log Started...");
 
             // Launch the terminal window...

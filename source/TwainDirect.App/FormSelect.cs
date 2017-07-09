@@ -40,7 +40,7 @@ using TwainDirect.Support;
 namespace TwainDirect.App
 {
     public partial class FormSelect : Form
-{
+    {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...
         ///////////////////////////////////////////////////////////////////////////////
@@ -112,232 +112,232 @@ namespace TwainDirect.App
             m_dnssd = null;
         }
 
-    #endregion
+        #endregion
 
 
-    ///////////////////////////////////////////////////////////////////////////////
-    // Private Methods...
-    ///////////////////////////////////////////////////////////////////////////////
-    #region Private Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Methods...
 
-    /// <summary>
-    /// Load the scanner names...
-    /// </summary>
-    /// <param name="a_blCompare">if true, compare to our last snapshot</param>
-    /// <returns>true if we updated</returns>
-    bool LoadScannerNames(bool a_blCompare)
-        {
-            int ii;
-            bool blUpdated = false;
-            Dnssd.DnssdDeviceInfo[] adnssddeviceinfo;
-
-            // Make a note of our current selection, if we have one, we expect our
-            // snapshot to exactly match what we have in the list, including the
-            // order of the data...
-            m_dnssddeviceinfoSelected = null;
-            if (m_adnssddeviceinfoCompare != null)
+        /// <summary>
+        /// Load the scanner names...
+        /// </summary>
+        /// <param name="a_blCompare">if true, compare to our last snapshot</param>
+        /// <returns>true if we updated</returns>
+        bool LoadScannerNames(bool a_blCompare)
             {
-                for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
+                int ii;
+                bool blUpdated = false;
+                Dnssd.DnssdDeviceInfo[] adnssddeviceinfo;
+
+                // Make a note of our current selection, if we have one, we expect our
+                // snapshot to exactly match what we have in the list, including the
+                // order of the data...
+                m_dnssddeviceinfoSelected = null;
+                if (m_adnssddeviceinfoCompare != null)
                 {
-                    if (m_listviewSelect.Items[ii].Selected)
+                    for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
                     {
-                        m_dnssddeviceinfoSelected = m_adnssddeviceinfoCompare[ii];
-                        break;
-                    }
-                }
-            }
-
-            // Take a snapshot...
-            adnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_adnssddeviceinfoCompare : null, out blUpdated);
-
-            // If we've been asked to compare to the previous snapshot,
-            // and if we detect that no change occurred, we can scoot...
-            if (a_blCompare && !blUpdated)
-            {
-                return (false);
-            }
-
-            // Suspend updating...
-            m_listviewSelect.BeginUpdate();
-
-            // Start with a clean slate...
-            m_listviewSelect.Items.Clear();
-
-            // We've no data...
-            if (adnssddeviceinfo == null)
-            {
-                m_listviewSelect.Items.Add("*none*");
-                SetButtons(ButtonState.Nodevices);
-            }
-            else
-            {
-                // Populate our driver list...
-                foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
-                {
-                    ListViewItem listviewitem = new ListViewItem
-                    (
-                        new string[] {
-                            dnssddeviceinfo.GetTxtTy(),
-                            dnssddeviceinfo.GetServiceName().Split(new string[] { ".", "\\." },StringSplitOptions.None)[0],
-                            (dnssddeviceinfo.GetTxtNote() != null) ? dnssddeviceinfo.GetTxtNote() : "(no note)",
-                            dnssddeviceinfo.GetLinkLocal(),
-                            (dnssddeviceinfo.GetIpv4() != null) ? dnssddeviceinfo.GetIpv4() : (dnssddeviceinfo.GetIpv6() != null) ? dnssddeviceinfo.GetIpv6() : "(no ip)"
-                        }
-                    );
-                    m_listviewSelect.Items.Add(listviewitem);
-                }
-
-                // Fix our columns...
-                m_listviewSelect.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                m_listviewSelect.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                m_listviewSelect.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                m_listviewSelect.Columns[3].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                m_listviewSelect.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-
-                // Select the first column, and make sure it has the focus...
-                if (m_dnssddeviceinfoSelected == null)
-                {
-                    m_listviewSelect.Items[0].Selected = true;
-                }
-
-                // Try to match the last item we had, if we can't, then go to the top
-                // of the list...
-                else
-                {
-                    ii = 0;
-                    bool blFound = false;
-                    foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
-                    {
-                        if (   (dnssddeviceinfo.GetTxtTy() == m_dnssddeviceinfoSelected.GetTxtTy())
-                            && (dnssddeviceinfo.GetServiceName() == m_dnssddeviceinfoSelected.GetServiceName())
-                            && (dnssddeviceinfo.GetLinkLocal() == m_dnssddeviceinfoSelected.GetLinkLocal())
-                            && (dnssddeviceinfo.GetIpv4() == m_dnssddeviceinfoSelected.GetIpv4())
-                            && (dnssddeviceinfo.GetIpv6() == m_dnssddeviceinfoSelected.GetIpv6()))
+                        if (m_listviewSelect.Items[ii].Selected)
                         {
-                            m_listviewSelect.Items[ii].Selected = true;
-                            blFound = true;
+                            m_dnssddeviceinfoSelected = m_adnssddeviceinfoCompare[ii];
                             break;
                         }
-                        ii += 1;
                     }
-                    if (!blFound)
+                }
+
+                // Take a snapshot...
+                adnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_adnssddeviceinfoCompare : null, out blUpdated);
+
+                // If we've been asked to compare to the previous snapshot,
+                // and if we detect that no change occurred, we can scoot...
+                if (a_blCompare && !blUpdated)
+                {
+                    return (false);
+                }
+
+                // Suspend updating...
+                m_listviewSelect.BeginUpdate();
+
+                // Start with a clean slate...
+                m_listviewSelect.Items.Clear();
+
+                // We've no data...
+                if (adnssddeviceinfo == null)
+                {
+                    m_listviewSelect.Items.Add("*none*");
+                    SetButtons(ButtonState.Nodevices);
+                }
+                else
+                {
+                    // Populate our driver list...
+                    foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
+                    {
+                        ListViewItem listviewitem = new ListViewItem
+                        (
+                            new string[] {
+                                dnssddeviceinfo.GetTxtTy(),
+                                dnssddeviceinfo.GetServiceName().Split(new string[] { ".", "\\." },StringSplitOptions.None)[0],
+                                (dnssddeviceinfo.GetTxtNote() != null) ? dnssddeviceinfo.GetTxtNote() : "(no note)",
+                                dnssddeviceinfo.GetLinkLocal(),
+                                (dnssddeviceinfo.GetIpv4() != null) ? dnssddeviceinfo.GetIpv4() : (dnssddeviceinfo.GetIpv6() != null) ? dnssddeviceinfo.GetIpv6() : "(no ip)"
+                            }
+                        );
+                        m_listviewSelect.Items.Add(listviewitem);
+                    }
+
+                    // Fix our columns...
+                    m_listviewSelect.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[3].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+
+                    // Select the first column, and make sure it has the focus...
+                    if (m_dnssddeviceinfoSelected == null)
                     {
                         m_listviewSelect.Items[0].Selected = true;
                     }
+
+                    // Try to match the last item we had, if we can't, then go to the top
+                    // of the list...
+                    else
+                    {
+                        ii = 0;
+                        bool blFound = false;
+                        foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
+                        {
+                            if (   (dnssddeviceinfo.GetTxtTy() == m_dnssddeviceinfoSelected.GetTxtTy())
+                                && (dnssddeviceinfo.GetServiceName() == m_dnssddeviceinfoSelected.GetServiceName())
+                                && (dnssddeviceinfo.GetLinkLocal() == m_dnssddeviceinfoSelected.GetLinkLocal())
+                                && (dnssddeviceinfo.GetIpv4() == m_dnssddeviceinfoSelected.GetIpv4())
+                                && (dnssddeviceinfo.GetIpv6() == m_dnssddeviceinfoSelected.GetIpv6()))
+                            {
+                                m_listviewSelect.Items[ii].Selected = true;
+                                blFound = true;
+                                break;
+                            }
+                            ii += 1;
+                        }
+                        if (!blFound)
+                        {
+                            m_listviewSelect.Items[0].Selected = true;
+                        }
+                    }
+
+                    // Fix our buttons...
+                    SetButtons(ButtonState.Devices);
                 }
 
-                // Fix our buttons...
-                SetButtons(ButtonState.Devices);
+                // Resume updating...
+                m_listviewSelect.EndUpdate();
+
+                // Rememeber this...
+                m_adnssddeviceinfoCompare = adnssddeviceinfo;
+
+                // All done...
+                return (true);
             }
 
-            // Resume updating...
-            m_listviewSelect.EndUpdate();
-
-            // Rememeber this...
-            m_adnssddeviceinfoCompare = adnssddeviceinfo;
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// See if we have a change in our device list...
-        /// </summary>
-        /// <param name="myObject"></param>
-        /// <param name="myEventArgs"></param>
-        private void TimerEventProcessor(Object a_object, EventArgs a_eventargs)
-        {
-            System.Windows.Forms.Timer timer = (System.Windows.Forms.Timer)a_object;
-            FormSelect formselect = (FormSelect)timer.Tag;
-            formselect.LoadScannerNames(true);
-        }
-
-        /// <summary>
-        /// Select this as our driver and close the dialog...
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void m_buttonOpen_Click(object sender, EventArgs e)
-        {
-            m_timerLoadScannerNames.Stop();
-            this.DialogResult = DialogResult.OK;
-        }
-
-        /// <summary>
-        /// Open the clicked item...
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void m_listviewSelect_MouseDoubleClick(object sender, MouseEventArgs e)
-        {
-            m_timerLoadScannerNames.Stop();
-            this.DialogResult = DialogResult.OK;
-        }
-
-        /// <summary>
-        /// Which device have we selected?
-        /// </summary>
-        /// <returns>the one we've selected</returns>
-        public Dnssd.DnssdDeviceInfo GetSelectedDevice()
-        {
-            int ii;
-
-            // Make a note of our current selection, if we have one, we expect our
-            // snapshot to exactly match what we have in the list, including the
-            // order of the data...
-            m_dnssddeviceinfoSelected = null;
-            if (m_adnssddeviceinfoCompare != null)
+            /// <summary>
+            /// See if we have a change in our device list...
+            /// </summary>
+            /// <param name="myObject"></param>
+            /// <param name="myEventArgs"></param>
+            private void TimerEventProcessor(Object a_object, EventArgs a_eventargs)
             {
-                for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
+                System.Windows.Forms.Timer timer = (System.Windows.Forms.Timer)a_object;
+                FormSelect formselect = (FormSelect)timer.Tag;
+                formselect.LoadScannerNames(true);
+            }
+
+            /// <summary>
+            /// Select this as our driver and close the dialog...
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e"></param>
+            private void m_buttonOpen_Click(object sender, EventArgs e)
+            {
+                m_timerLoadScannerNames.Stop();
+                this.DialogResult = DialogResult.OK;
+            }
+
+            /// <summary>
+            /// Open the clicked item...
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e"></param>
+            private void m_listviewSelect_MouseDoubleClick(object sender, MouseEventArgs e)
+            {
+                m_timerLoadScannerNames.Stop();
+                this.DialogResult = DialogResult.OK;
+            }
+
+            /// <summary>
+            /// Which device have we selected?
+            /// </summary>
+            /// <returns>the one we've selected</returns>
+            public Dnssd.DnssdDeviceInfo GetSelectedDevice()
+            {
+                int ii;
+
+                // Make a note of our current selection, if we have one, we expect our
+                // snapshot to exactly match what we have in the list, including the
+                // order of the data...
+                m_dnssddeviceinfoSelected = null;
+                if (m_adnssddeviceinfoCompare != null)
                 {
-                    if (m_listviewSelect.Items[ii].Selected)
+                    for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
                     {
-                        m_dnssddeviceinfoSelected = m_adnssddeviceinfoCompare[ii];
-                        break;
+                        if (m_listviewSelect.Items[ii].Selected)
+                        {
+                            m_dnssddeviceinfoSelected = m_adnssddeviceinfoCompare[ii];
+                            break;
+                        }
                     }
                 }
+
+                // Return what we found...
+                return (m_dnssddeviceinfoSelected);
             }
 
-            // Return what we found...
-            return (m_dnssddeviceinfoSelected);
-        }
-
-        /// <summary>
-        /// Select and accept...
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void m_listboxSelect_MouseDoubleClick(object sender, MouseEventArgs e)
-        {
-            m_timerLoadScannerNames.Stop();
-            this.DialogResult = DialogResult.OK;
-        }
-
-        /// <summary>
-        /// Configure our buttons to match our current state...
-        /// </summary>
-        /// <param name="a_ebuttonstate"></param>
-        private void SetButtons(ButtonState a_buttonstate)
-        {
-            // Fix the buttons...
-            switch (a_buttonstate)
+            /// <summary>
+            /// Select and accept...
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e"></param>
+            private void m_listboxSelect_MouseDoubleClick(object sender, MouseEventArgs e)
             {
-                default:
-                case ButtonState.Undefined:
-                    m_buttonOpen.Enabled = false;
-                    break;
-
-                case ButtonState.Nodevices:
-                    m_buttonOpen.Enabled = false;
-                    break;
-
-                case ButtonState.Devices:
-                    m_buttonOpen.Enabled = true;
-                    break;
+                m_timerLoadScannerNames.Stop();
+                this.DialogResult = DialogResult.OK;
             }
-        }
 
-        #endregion
+            /// <summary>
+            /// Configure our buttons to match our current state...
+            /// </summary>
+            /// <param name="a_ebuttonstate"></param>
+            private void SetButtons(ButtonState a_buttonstate)
+            {
+                // Fix the buttons...
+                switch (a_buttonstate)
+                {
+                    default:
+                    case ButtonState.Undefined:
+                        m_buttonOpen.Enabled = false;
+                        break;
+
+                    case ButtonState.Nodevices:
+                        m_buttonOpen.Enabled = false;
+                        break;
+
+                    case ButtonState.Devices:
+                        m_buttonOpen.Enabled = true;
+                        break;
+                }
+            }
+
+            #endregion
 
 
         ///////////////////////////////////////////////////////////////////////////////

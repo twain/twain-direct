@@ -167,6 +167,161 @@ namespace TwainDirect.App
         #region Private Methods...
 
         /// <summary>
+        /// This is the serial version of the scan loop.  It has the benefit of being
+        /// fairly easy to understand and debug.  The downside is a lot of dead time
+        /// on the net, so it's slow compared to what can be achieved if one transfers
+        /// multiple images at the same.
+        /// 
+        /// This program is intended as a template for application writers for any
+        /// language.  This function is arguably the most important one in the entire
+        /// program, so it's heavily commented.
+        /// 
+        /// a_apicmd will contain information about any bad things that happen.
+        /// </summary>
+        /// <param name="a_blStopCapturing">a flag if capturing has been stopped</param>
+        /// <param name="a_blGetThumbnails">the caller would like thumbnails</param>
+        /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
+        /// <param name="a_apicmd">a command object</param>
+        /// <param name="a_szFunction">function that failed</param>
+        /// <returns>true on success</returns>
+        public bool ClientScan
+        (
+            ref bool a_blStopCapturing,
+            bool a_blGetThumbnails,
+            bool a_blGetMetadataWithImage,
+            out ApiCmd a_apicmd,
+            out string a_szFunction
+        )
+        {
+            bool blSuccess;
+            long[] alImageBlocks;
+
+            // Init stuff...
+            m_blStopCapturing = false;
+            a_szFunction = "";
+
+            // Clear the picture boxes, make sure we start with the left box...
+            m_iUseBitmap = 0;
+            LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null);
+            LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null);
+
+            // You won't find FormSetup.SetupMode.capturingOptions being handled
+            // here, because its negotiation takes place entirely on the setup
+            // dialog, so when we get here there's nothing left to do...
+
+            // Send the task to the scanner... 
+            a_apicmd = new ApiCmd(m_dnssddeviceinfo);
+            blSuccess = m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref a_apicmd);
+            if (!blSuccess)
+            {
+                a_szFunction = "ClientScannerSendTask";
+                return (false);
+            }
+
+            // Start capturing...
+            blSuccess = m_twainlocalscanner.ClientScannerStartCapturing(ref a_apicmd);
+            if (!blSuccess)
+            {
+                a_szFunction = "ClientScannerStartCapturing";
+                return (false);
+            }
+
+            // We're in a capturing state now, reflect that in the buttons...
+            SetButtons(EBUTTONSTATE.SCANNING);
+
+            // This is the outermost loop, inside we're handling thing in
+            // two stages: first, we look for an event that tells us we
+            // have work to do; second, we do work...
+            while (true)
+            {
+                // Scoot if the scanner says it's done sending images...
+                if (m_twainlocalscanner.ClientGetImageBlocksDrained())
+                {
+                    break;
+                }
+
+                // Wait for the session object to be updated, after that we'll
+                // only need to wait for more events if we drain the scanner
+                // of images...
+                while (true)
+                {
+                    // Wait for the session object to be updated.  If this command
+                    // returns false, it means that somebody wants us to stop
+                    // scanning...
+                    blSuccess = m_twainlocalscanner.ClientWaitForSessionUpdate(long.MaxValue);
+                    if (!blSuccess)
+                    {
+                        return (true);
+                    }
+
+                    // If we have an imageBlock pop out, we're going to transfer it...
+                    alImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
+                    if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
+                    {
+                        break;
+                    }
+                }
+
+                // Scoot if the scanner says it's done sending images...
+                if (m_twainlocalscanner.ClientGetImageBlocksDrained())
+                {
+                    break;
+                }
+
+                // Loop on each image until we exhaust the imageBlocks array...
+                while (true)
+                {
+                    // We have the option to skip getting the metadata with this
+                    // call.  An application should get metadata if it wants to
+                    // examine it before getting the image.  If it always wants
+                    // the image, it really doesn't need this step to be separate,
+                    // which will save us a round-trip on the network...
+                    if (    !a_blGetMetadataWithImage
+                        &&  !m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref a_apicmd))
+                    {
+                        a_szFunction = "ClientScannerReadImageBlockMetadata";
+                        return (false);
+                    }
+
+                    // Get the first image block in the array...
+                    if (!m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref a_apicmd))
+                    {
+                        a_szFunction = "ClientScannerReadImageBlock";
+                        return (false);
+                    }
+
+                    // Release the image...
+                    if (!m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref a_apicmd))
+                    {
+                        a_szFunction = "ClientScannerReleaseImageBlocks";
+                        return (false);
+                    }
+
+                    // If we're out of imageBlocks, exit this loop...
+                    alImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
+                    if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // Stop capturing...
+            if (!a_blStopCapturing)
+            {
+                a_blStopCapturing = true;
+                if (!m_twainlocalscanner.ClientScannerStopCapturing(ref a_apicmd))
+                {
+                    a_szFunction = "ClientScannerStopCapturing";
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
         /// Event callback...
         /// </summary>
         /// <param name="a_object"></param>
@@ -392,64 +547,184 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void m_buttonScan_Click(object sender, EventArgs e)
         {
+            int ii;
             bool blSuccess;
+            long lJsonErrorIndex;
+            string szAction;
+            string szReply;
+            string szCode;
             string szError;
-            ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
+            string szJsonKey;
+            string szSuccess;
+            string szDescription;
+            string szCharacterOffset;
+            string szFunction;
+            ApiCmd apicmd;
+            JsonLookup jsonlookup;
 
-            // Init stuff...
-            m_blStopCapturing = false;
-
-            // Buttons off...
+            // Turn the buttons off while we're sending a task to the
+            // scanner, and starting the capture of images...
             SetButtons(EBUTTONSTATE.UNDEFINED);
 
-            // Clear the picture boxes, make sure we start with the left box...
-            m_iUseBitmap = 0;
-            LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null);
-            LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null);
-
-            // You won't find FormSetup.SetupMode.capturingOptions being handled
-            // here, because its negotiation takes place entirely on the setup
-            // dialog, so when we get here there's nothing left to do...
-
-            // Send down the task...
-            blSuccess = m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref apicmd);
-            if (!blSuccess)
-            {
-                Log.Error("ClientScannerSendTask failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerSendTask failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                m_buttonClose_Click(sender,e);
-                return;
-            }
-
-            // Start capturing...
-            if (!m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd))
-            {
-                Log.Error("ClientScannerStartCapturing failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerStartCapturing failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                m_buttonClose_Click(sender,e);
-                return;
-            }
-
-            // We're in a scanning state now...
-            SetButtons(EBUTTONSTATE.SCANNING);
-
-            // The serial capture loop...
-            blSuccess = m_twainlocalscanner.ClientScan
+            // This does all the interesting bits.  The next change
+            // to the buttons will occur in this function, if we
+            // successfully transition to the capturing state...
+            blSuccess = ClientScan
             (
-                ref apicmd,
                 ref m_blStopCapturing,
                 m_formsetup.GetThumbnails(),
                 m_formsetup.GetMetadataWithImage(),
-                ImageBlockMetadataCallback,
-                ImageBlockCallback,
-                out szError
+                out apicmd,
+                out szFunction
             );
-            if (!blSuccess && !string.IsNullOrEmpty(szError))
+
+            // We can run into a failure for more than one reason.  If it's a
+            // failure in communications, then we'll assume that we've lost the
+            // scanner session.  At the worst the scanner will remained locked
+            // for a short while until its session times out do in inactivity,
+            // but we will give control immediately back to the application.
+            // If the problem is less dire we'll report it and let the session
+            // continue on...
+            if (!blSuccess)
             {
-                MessageBox.Show(szError, "Error");
+                // First, let's check on the health of the HTTP communication.
+                // If this fails, close the session...
+                if (apicmd.HttpStatus() != System.Net.WebExceptionStatus.Success)
+                {
+                    szError = szFunction + ": HTTP Error - " + apicmd.HttpStatus() + ", closing the session";
+                    Log.Error(szError);
+                    m_buttonClose_Click(null, null);
+                    MessageBox.Show(szError);
+                    return;
+                }
+
+                // Persumably we have data.  There are three possible outcomes:
+                // - a security error, such as invalid_x_privet_token
+                // - a protocol error, such as bad JSON data
+                // - a language error, such as a fail exception in a task
+                //
+                // These have different formats that we have to watch for.  But
+                // in all cases we expect a JSON payload...
+                szReply = apicmd.GetResponseData();
+                if (string.IsNullOrEmpty(szReply))
+                {
+                    szError = szFunction + ": data appears to be missing, closing the session.";
+                    Log.Error(szError);
+                    m_buttonClose_Click(null, null);
+                    MessageBox.Show(szError);
+                    return;
+                }
+
+                // If the JSON format of the reply is damaged, we're done with this session...
+                jsonlookup = new JsonLookup();
+                blSuccess = jsonlookup.Load(szReply, out lJsonErrorIndex);
+                if (!blSuccess)
+                {
+                    szError = szFunction + ": invalid JSON at character offset " + lJsonErrorIndex + " - <" + szReply + ">, closing the session.";
+                    Log.Error(szError);
+                    m_buttonClose_Click(null, null);
+                    MessageBox.Show(szError);
+                    return;
+                }
+
+                // We're using the loop so we can break, not to loop...
+                while (true)
+                {
+                    // Do we have a security error?
+                    szError = jsonlookup.Get("error", false);
+                    if (!string.IsNullOrEmpty(szError))
+                    {
+                        szDescription = jsonlookup.Get("description", false);
+                        if (string.IsNullOrEmpty(szError))
+                        {
+                            szDescription = "(no additional info)";
+                        }
+                        szError = szFunction + ": " + szError + ">, " + szDescription;
+                        Log.Error(szError);
+                        MessageBox.Show(szError);
+                        break;
+                    }
+
+                    // How about a protocol error?
+                    szSuccess = jsonlookup.Get("results.success", false);
+                    if (string.IsNullOrEmpty(szSuccess) || ((szSuccess != "false") && (szSuccess != "true")))
+                    {
+                        szError = szFunction + ": unrecognized protocol error - <" + szReply + ">";
+                        Log.Error(szError);
+                        MessageBox.Show(szError);
+                        break;
+                    }
+                    else if (szSuccess == "false")
+                    {
+                        szCode = jsonlookup.Get("results.code", false);
+                        if (string.IsNullOrEmpty(szCode))
+                        {
+                            szCode = "(no code)";
+                        }
+                        szJsonKey = jsonlookup.Get("results.jsonKey", false);
+                        if (string.IsNullOrEmpty(szJsonKey))
+                        {
+                            szJsonKey = "(no JSON key)";
+                        }
+                        szCharacterOffset = jsonlookup.Get("results.characterOffset", false);
+                        if (string.IsNullOrEmpty(szCharacterOffset))
+                        {
+                            szCharacterOffset = "(no character offset)";
+                        }
+                        szDescription = jsonlookup.Get("description", false);
+                        if (string.IsNullOrEmpty(szCode))
+                        {
+                            szDescription = "(no additional info)";
+                        }
+                        szError = szFunction + ": code=" + szCode + " offset=" + szCharacterOffset + " key=" + szJsonKey;
+                        Log.Error(szError);
+                        MessageBox.Show(szError);
+                        break;
+                    }
+
+                    // All that's left are language errors, and those are
+                    // catagorized with each action.  Report all of them...
+                    bool blFoundOne = false;
+                    for (ii = 0; true; ii++)
+                    {
+                        // If we run out of actions, scoot...
+                        szAction = "actions[" + ii + "]";
+                        szSuccess = jsonlookup.Get(szAction + ".results.success", false);
+                        if (string.IsNullOrEmpty(szSuccess))
+                        {
+                            break;
+                        }
+                        blFoundOne = true;
+
+                        // Collect the data...
+                        szCode = jsonlookup.Get("results.code", false);
+                        if (string.IsNullOrEmpty(szCode))
+                        {
+                            szCode = "(no code)";
+                        }
+                        szJsonKey = jsonlookup.Get("results.jsonKey", false);
+                        if (string.IsNullOrEmpty(szJsonKey))
+                        {
+                            szJsonKey = "(no JSON key)";
+                        }
+                        szError = szFunction + ": " + szAction + ": code=" + szCode + " key=" + szJsonKey;
+                        Log.Error(szError);
+                        MessageBox.Show(szError);
+                    }
+                    if (blFoundOne)
+                    {
+                        break;
+                    }
+
+                    // Well, this is odd, we shouldn't be here...
+                    szError = szFunction + ": unrecognized error, go yell at a programmer - <" + szReply + ">";
+                    Log.Error(szError);
+                    MessageBox.Show(szError);
+                    break;
+                }
             }
 
-            // All done...
+            // We're in good shape, set the buttons to allow more scanning...
             SetButtons(EBUTTONSTATE.OPEN);
         }
 
@@ -620,14 +895,6 @@ namespace TwainDirect.App
 
             m_brushBackground = new SolidBrush(Color.DarkGray);
             m_rectangleBackground = new Rectangle(0, 0, m_bitmapGraphic1.Width, m_bitmapGraphic1.Height);
-        }
-
-        enum EBUTTONSTATE
-        {
-            UNDEFINED,
-            CLOSED,
-            OPEN,
-            SCANNING
         }
 
         /// <summary>
@@ -1049,6 +1316,25 @@ namespace TwainDirect.App
 
             // Create the setup form...
             m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscanner);
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Definitions...
+
+        /// <summary>
+        /// States for the buttons...
+        /// </summary>
+        private enum EBUTTONSTATE
+        {
+            UNDEFINED,
+            CLOSED,
+            OPEN,
+            SCANNING
         }
 
         #endregion

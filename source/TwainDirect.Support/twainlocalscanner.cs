@@ -1493,7 +1493,7 @@ namespace TwainDirect.Support
         /// session.revision from the last command or event.
         /// </summary>
         /// <param name="a_lMilliseconds">milliseconds to wait for the update</param>
-        /// <returns>true if an update was detected, false if the command timed out</returns>
+        /// <returns>true if an update was detected, false if the command timed out or was aborted</returns>
         public bool ClientWaitForSessionUpdate(long a_lMilliseconds)
         {
             bool blSignaled = false;
@@ -1505,6 +1505,7 @@ namespace TwainDirect.Support
             }
 
             // All done...
+            Log.Info("ClientWaitForSessionUpdate - " + (blSignaled ? "true" : "false"));
             return (blSignaled);
         }
 
