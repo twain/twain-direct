@@ -2199,6 +2199,13 @@ namespace TwainDirect.Support
                     m_twainlocalsession = null;
                 }
 
+                // Lose the timer...
+                if (m_timerSession != null)
+                {
+                    m_timerSession.Dispose();
+                    m_timerSession = null;
+                }
+
                 // Display what happened...
                 Display("Session ended...");
             }

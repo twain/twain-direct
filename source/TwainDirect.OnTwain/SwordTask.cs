@@ -80,6 +80,7 @@ namespace TwainDirect.OnTwain
             m_twaincstoolkitCaller = a_twaincstoolkit;
             m_deviceregister = (a_deviceregister != null) ? a_deviceregister : new DeviceRegister();
             m_blTwainLocal = true;
+            m_blDuplexEnabled = false;
 
             // Our response object for errors and success...
             m_swordtaskresponse = new SwordTaskResponse();
@@ -6312,7 +6313,7 @@ namespace TwainDirect.OnTwain
                     return;
                 }
 
-                // Non-zero stuff...
+                // Init stuff...
                 m_processswordtask = a_processswordtask;
                 m_swordtaskresponse = a_swordtaskresponse;
                 m_swordstatus = SwordStatus.Success;
@@ -6321,6 +6322,11 @@ namespace TwainDirect.OnTwain
                 m_szPixelFormat = a_szPixelFormat;
                 m_szException = a_szException;
                 m_szVendor = a_szVendor;
+                m_capabilityCompression = null;
+                m_capabilityPixeltype = null;
+                m_capabilityResolution = null;
+                m_capabilityXfercount = null;
+                m_aswordattribute = null;
 
                 // Our addressing attributes...
                 m_swordattributeAutomaticsensemedium = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_AUTOMATICSENSEMEDIUM", a_szException, a_szVendor);
@@ -8903,15 +8909,15 @@ namespace TwainDirect.OnTwain
             /// can't handle separate values for both...
             /// </summary>
             private CapabilityMap[] m_acapabilitymapMachine;
-            private CapabilityMap[] m_acapabilitymapFlatbedBw1;
-            private CapabilityMap[] m_acapabilitymapFlatbedGray8;
-            private CapabilityMap[] m_acapabilitymapFlatbedRgb24;
-            private CapabilityMap[] m_acapabilitymapFrontBw1;
-            private CapabilityMap[] m_acapabilitymapFrontGray8;
-            private CapabilityMap[] m_acapabilitymapFrontRgb24;
-            private CapabilityMap[] m_acapabilitymapRearBw1;
-            private CapabilityMap[] m_acapabilitymapRearGray8;
-            private CapabilityMap[] m_acapabilitymapRearRgb24;
+            //private CapabilityMap[] m_acapabilitymapFlatbedBw1;
+            //private CapabilityMap[] m_acapabilitymapFlatbedGray8;
+            //private CapabilityMap[] m_acapabilitymapFlatbedRgb24;
+            //private CapabilityMap[] m_acapabilitymapFrontBw1;
+            //private CapabilityMap[] m_acapabilitymapFrontGray8;
+            //private CapabilityMap[] m_acapabilitymapFrontRgb24;
+            //private CapabilityMap[] m_acapabilitymapRearBw1;
+            //private CapabilityMap[] m_acapabilitymapRearGray8;
+            //private CapabilityMap[] m_acapabilitymapRearRgb24;
         }
 
         #endregion
