@@ -176,12 +176,13 @@ namespace TwainDirect.App
         /// language.  This function is arguably the most important one in the entire
         /// program, so it's heavily commented.
         /// 
-        /// a_apicmd will contain information about any bad things that happen.
+        /// If bad things happen, a_apicmd will return information on the first
+        /// command that ran into issues.
         /// </summary>
         /// <param name="a_blStopCapturing">a flag if capturing has been stopped</param>
         /// <param name="a_blGetThumbnails">the caller would like thumbnails</param>
         /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
-        /// <param name="a_apicmd">a command object</param>
+        /// <param name="a_apicmd">if errors occur, this has information</param>
         /// <returns>true on success</returns>
         public bool ClientScan
         (
@@ -192,10 +193,20 @@ namespace TwainDirect.App
         )
         {
             bool blSuccess;
-            long[] alImageBlocks;
+            bool blSuccessClientScan;
+            long[] alImageBlocks = null;
+            ApiCmd apicmd;
 
-            // Init stuff...
+            // Capturing can be stopped by pressing the "stop" button, in which case
+            // we shouldn't do it a second time.  This variable helps with that.
             m_blStopCapturing = false;
+
+            // We want to return the first apicmd that has a problem, to do that we
+            // need a bait-and-switch scheme that starts with making an object that
+            // we'll return and then replace, if needed...
+            a_apicmd = null; // it'll never be null, but the compiler needs comforting...
+            apicmd = new ApiCmd(m_dnssddeviceinfo);
+            blSuccessClientScan = true;
 
             // Clear the picture boxes, make sure we start with the left box...
             m_iUseBitmap = 0;
@@ -207,19 +218,20 @@ namespace TwainDirect.App
             // dialog, so when we get here there's nothing left to do...
 
             // Send the task to the scanner... 
-            a_apicmd = new ApiCmd(m_dnssddeviceinfo);
-            m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref a_apicmd);
-            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+            m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref apicmd);
+            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref apicmd);
             if (!blSuccess)
             {
+                a_apicmd = apicmd;
                 return (false);
             }
 
             // Start capturing...
-            m_twainlocalscanner.ClientScannerStartCapturing(ref a_apicmd);
-            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+            m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd);
+            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerStartCapturing", ref apicmd);
             if (!blSuccess)
             {
+                a_apicmd = apicmd;
                 return (false);
             }
 
@@ -229,10 +241,12 @@ namespace TwainDirect.App
             // This is the outermost loop, inside we're handling thing in
             // two stages: first, we look for an event that tells us we
             // have work to do; second, we do work...
+            blSuccess = true;
             while (true)
             {
-                // Scoot if the scanner says it's done sending images...
-                if (m_twainlocalscanner.ClientGetImageBlocksDrained())
+                // Scoot if the scanner says it's done sending images, or if
+                // we've received a failure status...
+                if (!blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -248,7 +262,13 @@ namespace TwainDirect.App
                     blSuccess = m_twainlocalscanner.ClientWaitForSessionUpdate(long.MaxValue);
                     if (!blSuccess)
                     {
-                        return (true);
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        break;
                     }
 
                     // If we have an imageBlock pop out, we're going to transfer it...
@@ -259,8 +279,9 @@ namespace TwainDirect.App
                     }
                 }
 
-                // Scoot if the scanner says it's done sending images...
-                if (m_twainlocalscanner.ClientGetImageBlocksDrained())
+                // Scoot if the scanner says it's done sending images, or if
+                // we've received a failure status...
+                if (!blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -275,28 +296,46 @@ namespace TwainDirect.App
                     // which will save us a round-trip on the network...
                     if (!a_blGetMetadataWithImage)
                     {
-                        m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref a_apicmd);
-                        blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+                        m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref apicmd);
+                        blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref apicmd);
                         if (!blSuccess)
                         {
-                            return (false);
+                            if (blSuccessClientScan)
+                            {
+                                a_apicmd = apicmd;
+                                apicmd = new ApiCmd(m_dnssddeviceinfo);
+                            }
+                            blSuccessClientScan = false;
+                            break;
                         }
                     }
 
                     // Get the first image block in the array...
-                    m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref a_apicmd);
-                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+                    m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
+                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
                     if (!blSuccess)
                     {
-                        return (false);
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        break;
                     }
 
                     // Release the image...
-                    m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref a_apicmd);
-                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref a_apicmd);
+                    m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
+                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
                     if (!blSuccess)
                     {
-                        return (false);
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        break;
                     }
 
                     // If we're out of imageBlocks, exit this loop...
@@ -312,14 +351,46 @@ namespace TwainDirect.App
             if (!a_blStopCapturing)
             {
                 a_blStopCapturing = true;
-                if (!m_twainlocalscanner.ClientScannerStopCapturing(ref a_apicmd))
+                m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
+                blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                if (!blSuccess)
                 {
-                    return (false);
+                    if (blSuccessClientScan)
+                    {
+                        a_apicmd = apicmd;
+                        apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    }
+                    blSuccessClientScan = false;
                 }
             }
 
+            // As long as we're in the capturing or draining states, we need to
+            // keep releasing images.
+            while (   (m_twainlocalscanner.ClientGetSessionState() == "capturing")
+                   || (m_twainlocalscanner.ClientGetSessionState() == "draining"))
+            {
+                m_twainlocalscanner.ClientScannerReleaseImageBlocks(1, long.MaxValue, ref apicmd);
+                blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
+                if (!blSuccess)
+                {
+                    if (blSuccessClientScan)
+                    {
+                        a_apicmd = apicmd;
+                        apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    }
+                    blSuccessClientScan = false;
+                    break;
+                }
+            }
+
+            // Ideally, this is the point where we want to always be setting this...
+            if (blSuccessClientScan)
+            {
+                a_apicmd = apicmd;
+            }
+
             // All done...
-            return (true);
+            return (blSuccessClientScan);
         }
 
         /// <summary>
