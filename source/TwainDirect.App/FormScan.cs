@@ -167,6 +167,105 @@ namespace TwainDirect.App
         #region Private Methods...
 
         /// <summary>
+        /// We run our client scan in a thread so the UI remains responsive...
+        /// </summary>
+        private void ClientScanThread()
+        {
+            bool blSuccess;
+            ApiCmd apicmd;
+
+            // Turn the buttons off while we're sending a task to the
+            // scanner, and starting the capture of images...
+            SetButtons(EBUTTONSTATE.UNDEFINED);
+
+            // This does all the interesting bits.  The next change
+            // to the buttons will occur in this function, if we
+            // successfully transition to the capturing state...
+            blSuccess = ClientScan
+            (
+                m_formsetup.GetThumbnails(),
+                m_formsetup.GetMetadataWithImage(),
+                out apicmd
+            );
+
+            // Ruh-roh, something didn't work.  So let's figure out what happened
+            // and what we're going to do about it...
+            if (!blSuccess)
+            {
+                string[] aszCodes = apicmd.GetApiErrorCodes();
+                string[] aszDescriptions = apicmd.GetApiErrorDescriptions();
+
+                switch (apicmd.GetApiErrorFacility())
+                {
+                    // This should never happen, but if it does, end the session,
+                    // because we don't know what's going on...
+                    default:
+                    case ApiCmd.ApiErrorFacility.undefined:
+                        Log.Error(aszDescriptions[0]);
+                        m_buttonClose_Click(null, null);
+                        MessageBox.Show(aszDescriptions[0]);
+                        break;
+
+                    // All HTTP errors that get to this point end the session...
+                    case ApiCmd.ApiErrorFacility.httpstatus:
+                        Log.Error(aszDescriptions[0]);
+                        m_buttonClose_Click(null, null);
+                        MessageBox.Show(aszDescriptions[0]);
+                        break;
+
+                    // Somebody didn't code stuff properly, end the session, because
+                    // this kind of error could otherwise hang up the application...
+                    case ApiCmd.ApiErrorFacility.security:
+                        Log.Error(aszDescriptions[0]);
+                        m_buttonClose_Click(null, null);
+                        MessageBox.Show(aszDescriptions[0]);
+                        break;
+
+                    // We have an error in the TWAIN Local procotol, it's up
+                    // to the ClientScan function to make sure we got back to
+                    // a ready state...
+                    case ApiCmd.ApiErrorFacility.protocol:
+                        Log.Error(aszDescriptions[0]);
+                        MessageBox.Show(aszDescriptions[0]);
+                        break;
+
+                    // We have an error in the TWAIN Direct language...
+                    case ApiCmd.ApiErrorFacility.language:
+                        foreach (string sz in aszDescriptions)
+                        {
+                            Log.Error(sz);
+                            MessageBox.Show(sz);
+                        }
+                        break;
+                }
+            }
+
+            // A problem with scanning isn't an API error, which is why we're
+            // not checking it with all the other stuff.  Inatead, we're going
+            // to catch it at the very end to explain what's happened...
+            string szDetected;
+            if (!m_twainlocalscanner.ClientGetSessionStatusSuccess(out szDetected))
+            {
+                MessageBox.Show(szDetected);
+            }
+
+            // We're in good shape, set the buttons to allow more scanning...
+            SetButtons(EBUTTONSTATE.OPEN);
+
+            // Use the UI thread to finish closing us...
+            BeginInvoke(new MethodInvoker(ClientScanThreadClose));
+        }
+
+        /// <summary>
+        /// Cleanup our scan thread...
+        /// </summary>
+        private void ClientScanThreadClose()
+        {
+            m_threadClientScan.Join();
+            m_threadClientScan = null;
+        }
+
+        /// <summary>
         /// This is the serial version of the scan loop.  It has the benefit of being
         /// fairly easy to understand and debug.  The downside is a lot of dead time
         /// on the net, so it's slow compared to what can be achieved if one transfers
@@ -184,9 +283,8 @@ namespace TwainDirect.App
         /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
         /// <param name="a_apicmd">if errors occur, this has information</param>
         /// <returns>true on success</returns>
-        public bool ClientScan
+        private bool ClientScan
         (
-            ref bool a_blStopCapturing,
             bool a_blGetThumbnails,
             bool a_blGetMetadataWithImage,
             out ApiCmd a_apicmd
@@ -196,10 +294,6 @@ namespace TwainDirect.App
             bool blSuccessClientScan;
             long[] alImageBlocks = null;
             ApiCmd apicmd;
-
-            // Capturing can be stopped by pressing the "stop" button, in which case
-            // we shouldn't do it a second time.  This variable helps with that.
-            m_blStopCapturing = false;
 
             // We want to return the first apicmd that has a problem, to do that we
             // need a bait-and-switch scheme that starts with making an object that
@@ -226,6 +320,12 @@ namespace TwainDirect.App
                 return (false);
             }
 
+            // Last chance to bail before we start capturing...
+            if (m_blStopCapturing)
+            {
+                return (true);
+            }
+
             // Start capturing...
             m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd);
             blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerStartCapturing", ref apicmd);
@@ -246,7 +346,7 @@ namespace TwainDirect.App
             {
                 // Scoot if the scanner says it's done sending images, or if
                 // we've received a failure status...
-                if (!blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
+                if (m_blStopCapturing || !blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -260,7 +360,11 @@ namespace TwainDirect.App
                     // returns false, it means that somebody wants us to stop
                     // scanning...
                     blSuccess = m_twainlocalscanner.ClientWaitForSessionUpdate(long.MaxValue);
-                    if (!blSuccess)
+                    if (m_blStopCapturing)
+                    {
+                        break;
+                    }
+                    else if (!blSuccess)
                     {
                         if (blSuccessClientScan)
                         {
@@ -273,7 +377,7 @@ namespace TwainDirect.App
 
                     // If we have an imageBlock pop out, we're going to transfer it...
                     alImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
-                    if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
+                    if (m_twainlocalscanner.ClientGetImageBlocksDrained() || ((alImageBlocks != null) && (alImageBlocks.Length > 0)))
                     {
                         break;
                     }
@@ -281,7 +385,7 @@ namespace TwainDirect.App
 
                 // Scoot if the scanner says it's done sending images, or if
                 // we've received a failure status...
-                if (!blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
+                if (m_blStopCapturing || !blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -298,7 +402,11 @@ namespace TwainDirect.App
                     {
                         m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref apicmd);
                         blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref apicmd);
-                        if (!blSuccess)
+                        if (m_blStopCapturing)
+                        {
+                            break;
+                        }
+                        else if (!blSuccess)
                         {
                             if (blSuccessClientScan)
                             {
@@ -313,7 +421,11 @@ namespace TwainDirect.App
                     // Get the first image block in the array...
                     m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
                     blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
-                    if (!blSuccess)
+                    if (m_blStopCapturing)
+                    {
+                        break;
+                    }
+                    else if (!blSuccess)
                     {
                         if (blSuccessClientScan)
                         {
@@ -327,7 +439,11 @@ namespace TwainDirect.App
                     // Release the image...
                     m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
                     blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
-                    if (!blSuccess)
+                    if (m_blStopCapturing)
+                    {
+                        break;
+                    }
+                    else if (!blSuccess)
                     {
                         if (blSuccessClientScan)
                         {
@@ -348,20 +464,16 @@ namespace TwainDirect.App
             }
 
             // Stop capturing...
-            if (!a_blStopCapturing)
+            m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
+            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+            if (!blSuccess)
             {
-                a_blStopCapturing = true;
-                m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
-                blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
-                if (!blSuccess)
+                if (blSuccessClientScan)
                 {
-                    if (blSuccessClientScan)
-                    {
-                        a_apicmd = apicmd;
-                        apicmd = new ApiCmd(m_dnssddeviceinfo);
-                    }
-                    blSuccessClientScan = false;
+                    a_apicmd = apicmd;
+                    apicmd = new ApiCmd(m_dnssddeviceinfo);
                 }
+                blSuccessClientScan = false;
             }
 
             // As long as we're in the capturing or draining states, we need to
@@ -369,7 +481,17 @@ namespace TwainDirect.App
             while (   (m_twainlocalscanner.ClientGetSessionState() == "capturing")
                    || (m_twainlocalscanner.ClientGetSessionState() == "draining"))
             {
-                m_twainlocalscanner.ClientScannerReleaseImageBlocks(1, long.MaxValue, ref apicmd);
+                // Do we have anything to release?
+                alImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
+                if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
+                {
+                    Thread.Sleep(100);
+                    m_twainlocalscanner.ClientScannerGetSession(ref apicmd);
+                    continue;
+                }
+
+                // Release them...
+                m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[alImageBlocks.Length - 1], ref apicmd);
                 blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
                 if (!blSuccess)
                 {
@@ -519,34 +641,11 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         void FormScan_FormClosing(object sender, FormClosingEventArgs e)
         {
-            ApiCmd apicmd;
-
             // This will prevent ReportImage from doing anything stupid as we close...
             m_graphics1 = null;
 
-            // Cleanup...
-            SetButtons(EBUTTONSTATE.CLOSED);
-            if (m_formsetup != null)
-            {
-                m_formsetup.Dispose();
-                m_formsetup = null;
-            }
-
-            // Gracefully end our session with the scanner...
-            if (m_twainlocalscanner != null)
-            {
-                // Close the session...
-                apicmd = new ApiCmd(m_dnssddeviceinfo);
-                m_twainlocalscanner.ClientScannerCloseSession(ref apicmd);
-
-                // If we didn't go to nosession, blast the image blocks...
-                if (    !string.IsNullOrEmpty(apicmd.GetSessionState())
-                    &&  (apicmd.GetSessionState() == "draining"))
-                {
-                    apicmd = new ApiCmd(m_dnssddeviceinfo);
-                    m_twainlocalscanner.ClientScannerReleaseImageBlocks(0, 999999999, ref apicmd);
-                }
-            }
+            // Use our close function...
+            m_buttonClose_Click(sender, e);
 
             // Kill the monitor, if we have one...
             if (m_dnssd != null)
@@ -619,78 +718,18 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void m_buttonScan_Click(object sender, EventArgs e)
         {
-            bool blSuccess;
-            ApiCmd apicmd;
-
-            // Turn the buttons off while we're sending a task to the
-            // scanner, and starting the capture of images...
-            SetButtons(EBUTTONSTATE.UNDEFINED);
-
-            // This does all the interesting bits.  The next change
-            // to the buttons will occur in this function, if we
-            // successfully transition to the capturing state...
-            blSuccess = ClientScan
-            (
-                ref m_blStopCapturing,
-                m_formsetup.GetThumbnails(),
-                m_formsetup.GetMetadataWithImage(),
-                out apicmd
-            );
-
-            // Ruh-roh, something didn't work.  So let's figure out what happened
-            // and what we're going to do about it...
-            if (!blSuccess)
+            // If we already have one of these, scoot...
+            if (m_threadClientScan != null)
             {
-                string[] aszCodes = apicmd.GetApiErrorCodes();
-                string[] aszDescriptions = apicmd.GetApiErrorDescriptions();
-
-                switch (apicmd.GetApiErrorFacility())
-                {
-                    // This should never happen, but if it does, end the session,
-                    // because we don't know what's going on...
-                    default:
-                    case ApiCmd.ApiErrorFacility.undefined:
-                        Log.Error(aszDescriptions[0]);
-                        m_buttonClose_Click(null, null);
-                        MessageBox.Show(aszDescriptions[0]);
-                        break;
-                    
-                    // All HTTP errors that get to this point end the session...
-                    case ApiCmd.ApiErrorFacility.httpstatus:
-                        Log.Error(aszDescriptions[0]);
-                        m_buttonClose_Click(null, null);
-                        MessageBox.Show(aszDescriptions[0]);
-                        break;
-
-                    // Somebody didn't code stuff properly, end the session, because
-                    // this kind of error could otherwise hang up the application...
-                    case ApiCmd.ApiErrorFacility.security:
-                        Log.Error(aszDescriptions[0]);
-                        m_buttonClose_Click(null, null);
-                        MessageBox.Show(aszDescriptions[0]);
-                        break;
-
-                    // We have an error in the TWAIN Local procotol, it's up
-                    // to the ClientScan function to make sure we got back to
-                    // a ready state...
-                    case ApiCmd.ApiErrorFacility.protocol:
-                        Log.Error(aszDescriptions[0]);
-                        MessageBox.Show(aszDescriptions[0]);
-                        break;
-
-                    // We have an error in the TWAIN Direct language...
-                    case ApiCmd.ApiErrorFacility.language:
-                        foreach (string sz in aszDescriptions)
-                        {
-                            Log.Error(sz);
-                            MessageBox.Show(sz);
-                        }
-                        break;
-                }
+                return;
             }
 
-            // We're in good shape, set the buttons to allow more scanning...
-            SetButtons(EBUTTONSTATE.OPEN);
+            // Init stuff...
+            m_blStopCapturing = false;
+
+            // Make a new one, and get it going...
+            m_threadClientScan = new Thread(ClientScanThread);
+            m_threadClientScan.Start();
         }
 
         /// <summary>
@@ -1083,27 +1122,62 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void m_buttonClose_Click(object sender, EventArgs e)
         {
+            bool blSuccess;
             ApiCmd apicmd = new ApiCmd(m_dnssddeviceinfo);
-
-            // Init stuff...
-            m_blStopCapturing = false;
 
             // Buttons off...
             SetButtons(EBUTTONSTATE.UNDEFINED);
 
-            // Bye-bye to the form...
+            // If we're scanning, try to shut it down nicely...
+            if (m_threadClientScan != null)
+            {
+                // Ask it to stop...
+                m_buttonStop_Click(sender, e);
+
+                // Give it ten seconds to comply...
+                for (int iRetry = 0; iRetry < 10000; iRetry += 100)
+                {
+                    if (m_threadClientScan == null)
+                    {
+                        break;
+                    }
+                    Thread.Sleep(100);
+                }
+
+                // If it's still there, annihilate it, the user will
+                // probably have to wait for the session to timeout
+                // before they can use it again...
+                if (m_threadClientScan != null)
+                {
+                    m_threadClientScan.Abort();
+                    m_threadClientScan = null;
+                }
+            }
+
+            // Bye-bye to the setup form...
             if (m_formsetup != null)
             {
                 m_formsetup.Dispose();
                 m_formsetup = null;
             }
 
-            // Close session...
-            if (!m_twainlocalscanner.ClientScannerCloseSession(ref apicmd))
+            // Close session, if needed...
+            if ((m_twainlocalscanner != null) && (m_twainlocalscanner.ClientGetSessionState() != "noSession"))
             {
-                Log.Error("ClientScannerCloseSession failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerCloseSession failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                // We're going to close anyways...
+                blSuccess = m_twainlocalscanner.ClientScannerCloseSession(ref apicmd);
+                if (blSuccess)
+                {
+                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerCloseSession", ref apicmd);
+                    if (!blSuccess)
+                    {
+                        string[] aszDescriptions = apicmd.GetApiErrorDescriptions();
+                        if ((aszDescriptions != null) && (aszDescriptions.Length > 0))
+                        {
+                            Log.Error(aszDescriptions[0]);
+                            MessageBox.Show(aszDescriptions[0]);
+                        }
+                    }
+                }
             }
 
             // Buttons off...
@@ -1190,26 +1264,11 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void m_buttonStop_Click(object sender, EventArgs e)
         {
-            ApiCmd apicmd;
-
-            // Only do this once...
-            if (m_blStopCapturing)
-            {
-                return;
-            }
             m_blStopCapturing = true;
-
-            // Stop capturing...
-            apicmd = new ApiCmd(m_dnssddeviceinfo);
-            if (!m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd))
+            if (m_twainlocalscanner != null)
             {
-                Log.Error("ClientScannerStopCapturing failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerStopCapturing failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
-                return;
+                m_twainlocalscanner.ClientWaitForSessionUpdateForceSet();
             }
-
-            // Buttons off...
-            SetButtons(EBUTTONSTATE.UNDEFINED);
         }
 
         /// <summary>
@@ -1314,6 +1373,12 @@ namespace TwainDirect.App
         /// Our TWAIN Local interface to the scanning api...
         /// </summary>
         private TwainLocalScanner m_twainlocalscanner;
+
+        /// <summary>
+        /// The thread we'll scan in, so that our UI remains
+        /// responsive...
+        /// </summary>
+        private Thread m_threadClientScan;
 
         /// <summary>
         /// A place where we can write stuff...

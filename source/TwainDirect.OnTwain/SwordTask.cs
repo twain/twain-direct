@@ -1701,14 +1701,75 @@ namespace TwainDirect.OnTwain
             return (true);
         }
 
+        /// <summary>
+        /// When we reset all of the TWAIN capabilities, we really shouldn't be
+        /// resetting those caps that belong solely to the application.  However,
+        /// the spec doesn't clearly call this out, so to protect ourselves we
+        /// have to make sure those values are restored...
+        /// </summary>
+        /// <returns>true on success</returns>
+        private bool ResetAll(SwordAction a_swordaction)
+        {
+            string szStatus;
+            string szCapability;
+            TWAIN.STS sts;
 
+            // Reset everything...
+            szStatus = "";
+            szCapability = ""; // don't need valid data for this call...
+            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
+                // keep going...
+            }
+
+            // Memory transfer...
+            szStatus = "";
+            szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
+            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                return (false);
+            }
+
+            // No UI...
+            szStatus = "";
+            szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
+                m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                return (false);
+            }
+
+            // Ask for extended image info...
+            if (m_deviceregister.GetTwainInquiryData().GetExtImageInfo())
+            {
+                szStatus = "";
+                szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
+                    m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                    return (false);
+                }
+            }
+
+            // Life is good...
+            return (true);
+        }
 
         /// <summary>
         /// Run the current action with whatever data we collected...
         /// </summary>
         /// <param name="a_swordaction">the action to run</param>
         /// <returns>true on success</returns>
-        SwordStatus Run
+        private SwordStatus Run
         (
             SwordAction a_swordaction
         )
@@ -1778,9 +1839,6 @@ namespace TwainDirect.OnTwain
             SwordAction a_swordaction
         )
         {
-            string szStatus;
-            string szCapability;
-            TWAIN.STS sts;
             SwordStatus swordstatus;
             SwordStream swordstream;
             SwordSource swordsource;
@@ -1790,22 +1848,14 @@ namespace TwainDirect.OnTwain
             // power-on defaults.  So let's do that first...
             #region Reset all
 
-                // Clear the configure name lookup list, we'll built this on the fly...
-                m_configurenamelookup = null;
+            // Clear the configure name lookup list, we'll built this on the fly...
+            m_configurenamelookup = null;
 
-                // Reset the scanner.  This won't necessarily work for every device.
-                // We're not going to treat it as a failure, though, because the user
-                // should be able to get a factory default experience from their driver
-                // in other ways.  Like from the driver's GUI.
-                //
-                // TBD: make sure the rest of the group is okay with this plan.
-                szStatus = "";
-                szCapability = ""; // don't need valid data for this call...
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
-                }
+            // Reset the scanner.  This won't necessarily work for every device.
+            // We're not going to treat it as a failure, though, because the user
+            // should be able to get a factory default experience from their driver
+            // in other ways.  Like from the driver's GUI.
+            ResetAll(a_swordaction);
 
             #endregion
 
@@ -1813,22 +1863,22 @@ namespace TwainDirect.OnTwain
             // Handle a configure topology that's empty...
             #region Check for empties
 
-                // If we don't have a stream (which is fine) then we're done...
-                swordstream = a_swordaction.GetFirstStream();
-                if (swordstream == null)
-                {
-                    a_swordaction.SetSwordStatus(SwordStatus.Success);
-                    return (SwordStatus.Success);
-                }
+            // If we don't have a stream (which is fine) then we're done...
+            swordstream = a_swordaction.GetFirstStream();
+            if (swordstream == null)
+            {
+                a_swordaction.SetSwordStatus(SwordStatus.Success);
+                return (SwordStatus.Success);
+            }
 
-                // If we don't have a source in our stream, then we're done...
-                swordsource = swordstream.GetFirstSource();
-                if (swordsource == null)
-                {
-                    swordstream.SetSwordStatus(SwordStatus.Success);
-                    a_swordaction.SetSwordStatus(SwordStatus.Success);
-                    return (SwordStatus.Success);
-                }
+            // If we don't have a source in our stream, then we're done...
+            swordsource = swordstream.GetFirstSource();
+            if (swordsource == null)
+            {
+                swordstream.SetSwordStatus(SwordStatus.Success);
+                a_swordaction.SetSwordStatus(SwordStatus.Success);
+                return (SwordStatus.Success);
+            }
 
             #endregion
 
@@ -1836,48 +1886,42 @@ namespace TwainDirect.OnTwain
             // Walk the streams...
             #region Walk the streams
 
-                // Find the first stream we can try to use...
-                swordstatus = SwordStatus.Success;
-                for (swordstream = a_swordaction.GetFirstStream();
-                     swordstream != null;
-                     swordstream = swordstream.GetNextStream())
+            // Find the first stream we can try to use...
+            swordstatus = SwordStatus.Success;
+            for (swordstream = a_swordaction.GetFirstStream();
+                    swordstream != null;
+                    swordstream = swordstream.GetNextStream())
+            {
+                // Skip this stream...
+                if (swordstream.GetSwordStatus() != SwordStatus.Run)
                 {
-                    // Skip this stream...
-                    if (swordstream.GetSwordStatus() != SwordStatus.Run)
-                    {
-                        continue;
-                    }
-
-                    // Run the stream...
-                    swordstatus = RunConfigureStream(swordstream);
-
-                    // If the stream is successful, then we're done...
-                    if (swordstatus == SwordStatus.Success)
-                    {
-                        swordstream.SetSwordStatus(swordstatus);
-                        break;
-                    }
-
-                    // If we're not nextstream, then we're done...
-                    if (swordstatus != SwordStatus.NextStream)
-                    {
-                        a_swordaction.SetSwordStatus(swordstatus);
-                        return (swordstatus);
-                    }
-
-                    // We're going to try the next stream, but we
-                    // need to reset stuff first...
-                    szStatus = "";
-                    szCapability = ""; // don't need valid data for this call...
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
-                    }
+                    continue;
                 }
 
-                // We're good...
-                a_swordaction.SetSwordStatus(swordstatus);
+                // Run the stream...
+                swordstatus = RunConfigureStream(swordstream);
+
+                // If the stream is successful, then we're done...
+                if (swordstatus == SwordStatus.Success)
+                {
+                    swordstream.SetSwordStatus(swordstatus);
+                    break;
+                }
+
+                // If we're not nextstream, then we're done...
+                if (swordstatus != SwordStatus.NextStream)
+                {
+                    a_swordaction.SetSwordStatus(swordstatus);
+                    return (swordstatus);
+                }
+
+                // We're going to try the next stream, but we
+                // need to reset stuff first...
+                ResetAll(a_swordaction);
+            }
+
+            // We're good...
+            a_swordaction.SetSwordStatus(swordstatus);
 
             #endregion
 
@@ -1887,24 +1931,16 @@ namespace TwainDirect.OnTwain
             // produce the same results...
             #region Reset all (on failure)
 
-                // We ran into a problem...
-                if (    (swordstatus != SwordStatus.Success)
-                    &&  (swordstatus != SwordStatus.SuccessIgnore))
-                {
-                    // Reset the scanner.  This won't necessarily work for every device.
-                    // We're not going to treat it as a failure, though, because the user
-                    // should be able to get a factory default experience from their driver
-                    // in other ways.  Like from the driver's GUI.
-                    //
-                    // TBD: make sure the rest of the group is okay with this plan.
-                    szStatus = "";
-                    szCapability = ""; // don't need valid data for this call...
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
-                    }
-                }
+            // We ran into a problem...
+            if (    (swordstatus != SwordStatus.Success)
+                &&  (swordstatus != SwordStatus.SuccessIgnore))
+            {
+                // Reset the scanner.  This won't necessarily work for every device.
+                // We're not going to treat it as a failure, though, because the user
+                // should be able to get a factory default experience from their driver
+                // in other ways.  Like from the driver's GUI.
+                ResetAll(a_swordaction);
+            }
 
             #endregion
 
@@ -3460,8 +3496,6 @@ namespace TwainDirect.OnTwain
                 // We're not going to treat it as a failure, though, because the user
                 // should be able to get a factory default experience from their driver
                 // in other ways.  Like from the driver's GUI.
-                //
-                // TBD: make sure the rest of the group is okay with this plan.
                 szStatus = "";
                 szCapability = ""; // don't need valid data for this call...
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
@@ -3575,6 +3609,7 @@ namespace TwainDirect.OnTwain
             // We have no streams...
             if (a_swordaction.GetFirstStream() == null)
             {
+                ResetAll(a_swordaction);
                 TWAINWorkingGroup.Log.Info("TwainSelectStream: default scanning mode (task has no streams)");
                 a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(2,"");                              //  {
                 a_processswordtask.m_swordtaskresponse.JSON_STR_SET(3,"action","","configure");         //      "action":"configure"
@@ -3702,9 +3737,7 @@ namespace TwainDirect.OnTwain
                 }
 
                 // Reset the driver so we start from a clean slate...
-                szStatus = "";
-                string szCapability = ""; // don't need valid data for this call...
-                m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
+                ResetAll(a_swordaction);
             }
 
             // End the stream object and array...
@@ -3828,9 +3861,6 @@ namespace TwainDirect.OnTwain
             ref bool a_blSetAppCapabilities
         )
         {
-            string szStatus;
-            string szCapability;
-            TWAIN.STS sts;
             TWAINWorkingGroup.Log.Info("");
             TWAINWorkingGroup.Log.Info("Action...");
 
@@ -3854,40 +3884,6 @@ namespace TwainDirect.OnTwain
 
                 // Configure...
                 case "configure":
-                    // Memory transfer...
-                    szStatus = "";
-                    szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
-                        a_processswordtask.m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
-                        return (false);
-                    }
-
-                    // No UI...
-                    szStatus = "";
-                    szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
-                        a_processswordtask.m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
-                        return (false);
-                    }
-
-                    // Ask for extended image info...
-                    if (m_twaininquirydata.GetExtImageInfo())
-                    {
-                        szStatus = "";
-                        szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                        if (sts != TWAIN.STS.SUCCESS)
-                        {
-                            TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
-                            a_processswordtask.m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
-                        }
-                    }
 
                     // Make a note that we successfully set these capabilities, so that
                     // we won't have to do it again when scanning starts...

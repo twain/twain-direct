@@ -550,6 +550,22 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Tell us about the health of the session...
+        /// </summary>
+        /// <param name="a_szDetected"></param>
+        /// <returns></returns>
+        public bool ClientGetSessionStatusSuccess(out string a_szDetected)
+        {
+            if (m_twainlocalsession == null)
+            {
+                a_szDetected = "nominal";
+                return (true);
+            }
+            a_szDetected = m_twainlocalsession.GetSessionStatusDetected();
+            return (m_twainlocalsession.GetSessionStatusSuccess());
+        }
+
+        /// <summary>
         /// Get info about the device...
         /// </summary>
         /// <param name="a_apicmd">info about the command</param>
@@ -1327,6 +1343,8 @@ namespace TwainDirect.Support
                     szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
+                    m_twainlocalsession.SetSessionStatusSuccess(true);
+                    m_twainlocalsession.SetSessionStatusDetected("nominal");
                 }
 
                 // Send the RESTful API command...
@@ -1487,6 +1505,18 @@ namespace TwainDirect.Support
 
             // All done...
             return (true);
+        }
+
+        /// <summary>
+        /// Allow us to kick ourselves out of a wait...
+        /// </summary>
+        /// <returns></returns>
+        public void ClientWaitForSessionUpdateForceSet()
+        {
+            if (m_twainlocalsession != null)
+            {
+                m_twainlocalsession.ClientWaitForSessionUpdateForceSet();
+            }
         }
 
         /// <summary>
@@ -2477,6 +2507,21 @@ namespace TwainDirect.Support
                                             }
                                         }
                                     }
+
+                                    // See if we've detected any new problems...
+                                    if (m_twainlocalsession.GetSessionStatusSuccess())
+                                    {
+                                        string szSessionStatusSuccess = jsonlookup.Get(szEvent + ".session.status.success", false);
+                                        if (!string.IsNullOrEmpty(szSessionStatusSuccess) && (szSessionStatusSuccess == "false"))
+                                        {
+                                            string szSessionStatusDetected = jsonlookup.Get(szEvent + ".session.status.detected", false);
+                                            m_twainlocalsession.SetSessionStatusSuccess(false);
+                                            m_twainlocalsession.SetSessionStatusDetected(string.IsNullOrEmpty(szSessionStatusDetected) ? "misfeed" : szSessionStatusDetected);
+                                        }
+                                    }
+
+                                    // Wakeup anybody watching us...
+                                    ClientWaitForSessionUpdateForceSet();
                                 }
                                 break;
 
@@ -3048,6 +3093,10 @@ namespace TwainDirect.Support
                     "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                     "\"revision\":\"" + m_twainlocalsession.GetSessionRevision() + "\"," +
                     "\"state\":\"" + m_twainlocalsession.GetSessionState() + "\"," +
+                    "\"status\":{" +
+                    "\"success\":" + (m_twainlocalsession.GetSessionStatusSuccess() ? "true" : "false") + "," +
+                    "\"detected\":\"" + m_twainlocalsession.GetSessionStatusDetected() + "\"" +
+                    "}," + // status
                     "\"task\":" + a_szJsonKey + 
                     "}" + // session
                     "}" + // results
@@ -3303,12 +3352,25 @@ namespace TwainDirect.Support
                 // easy to understand.  The chief drawback is that it feels groadie with
                 // the if-statements...
 
+                // Update the session's status, but only once.  Put another way, after
+                // startCapturing is called, we'll record one boo-boo from a RESTful,
+                // command, and skip any others, until the next startCapturing is called...
+                if (m_twainlocalsession.GetSessionStatusSuccess() && !a_apicmd.GetSessionStatusSuccess())
+                {
+                    m_twainlocalsession.SetSessionStatusSuccess(a_apicmd.GetSessionStatusSuccess());
+                    m_twainlocalsession.SetSessionStatusDetected(a_apicmd.GetSessionStatusDetected());
+                }
+
                 // Start building the session object...
                 szSessionObjects =
                     "\"session\":{" +
                     "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                     "\"revision\":" + m_twainlocalsession.GetSessionRevision() + "," +
                     "\"state\":\"" + a_esessionstate.ToString() + "\"," +
+                    "\"status\":{" +
+                    "\"success\":" + (m_twainlocalsession.GetSessionStatusSuccess() ? "true" : "false") + "," +
+                    "\"detected\":\"" + m_twainlocalsession.GetSessionStatusDetected() + "\"" +
+                    "}," + // status
                     a_apicmd.GetImageBlocksJson(a_esessionstate.ToString());
 
                 // Add the TWAIN Direct options, if any...
@@ -3447,9 +3509,12 @@ namespace TwainDirect.Support
                             break;
                         }
 
-                        // Get the data for this event...
-                        // jsonlookup = new JsonLookup();
-                        //jsonlookup.Load(m_twainlocalsession.GetApicmdEvents()[ii]., out lJsonErrorIndex);
+                        // Update the session, if needed...
+                        if (m_twainlocalsession.GetSessionStatusSuccess() && !apicmd.GetSessionStatusSuccess())
+                        {
+                            m_twainlocalsession.SetSessionStatusSuccess(apicmd.GetSessionStatusSuccess());
+                            m_twainlocalsession.SetSessionStatusDetected(apicmd.GetSessionStatusDetected());
+                        }
 
                         // We're adding to existing stuff...
                         if (!string.IsNullOrEmpty(szSessionObjects))
@@ -3465,6 +3530,10 @@ namespace TwainDirect.Support
                             "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                             "\"revision\":" + apicmd.GetSessionRevision() + "," +
                             "\"state\":\"" + apicmd.GetSessionState() + "\"," +
+                            "\"status\":{" +
+                            "\"success\":" + (m_twainlocalsession.GetSessionStatusSuccess() ? "true" : "false") + "," +
+                            "\"detected\":\"" + m_twainlocalsession.GetSessionStatusDetected() + "\"" +
+                            "}," + // status
                             apicmd.GetImageBlocksJson(apicmd.GetSessionState());
                         if (szSessionObjects.EndsWith(","))
                         {
@@ -4285,28 +4354,29 @@ namespace TwainDirect.Support
                 }
 
                 // If we're out of imageBlocks, and can't get anymore,
-                // then transition to nosession or ready...
+                // then transition to noSession or ready...
                 if (string.IsNullOrEmpty(a_apicmd.GetImageBlocks()))
                 {
                     // Set the flag if we can't get any more images...
                     if ((m_twainlocalsession != null) && File.Exists(Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta")))
                     {
+                        // Make a note of this...
                         m_twainlocalsession.SetSessionImageBlocksDrained(true);
-                    }
 
-                    // Where we go next depends on our current state...
-                    switch (GetState())
-                    {
-                        default:
-                            // Ignore it...
-                            break;
-                        case "draining":
-                            SetSessionState(SessionState.ready);
-                            break;
-                        case "closed":
-                            SetSessionState(SessionState.noSession);
-                            DeviceShutdownTwainDirectOnTwain(false);
-                            break;
+                        // Where we go next depends on our current state...
+                        switch (GetState())
+                        {
+                            default:
+                                // Ignore it...
+                                break;
+                            case "draining":
+                                SetSessionState(SessionState.ready);
+                                break;
+                            case "closed":
+                                SetSessionState(SessionState.noSession);
+                                DeviceShutdownTwainDirectOnTwain(false);
+                                break;
+                        }
                     }
                 }
             }
@@ -4470,6 +4540,11 @@ namespace TwainDirect.Support
                     DeviceReturnError(szFunction, a_apicmd, "invalidState", null, -1);
                     return (false);
                 }
+
+                // We start by assuming that any problems with the scanner have
+                // been resoved by the user...
+                m_twainlocalsession.SetSessionStatusSuccess(true);
+                m_twainlocalsession.SetSessionStatusDetected("nominal");
 
                 // Start capturing...
                 m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
@@ -5004,6 +5079,10 @@ namespace TwainDirect.Support
                 SetSessionImageBlocksDrained(true); // we start empty and ready to scoot
                 m_szXPrivetToken = a_szXPrivetToken;
 
+                // We assume all is well until told otherwise...
+                m_blSessionStatusSuccess = true;
+                m_szSessionStatusDetected = "nominal";
+
                 // Metadata...
                 m_szMetadata = null;
 
@@ -5045,6 +5124,17 @@ namespace TwainDirect.Support
             public string ClientCreateCommandId()
             {
                 return (Guid.NewGuid().ToString());
+            }
+
+            /// <summary>
+            /// Allow the caller to kick us out of a wait...
+            /// </summary>
+            public void ClientWaitForSessionUpdateForceSet()
+            {
+                if (m_autoreseteventWaitForSessionUpdate != null)
+                {
+                    m_autoreseteventWaitForSessionUpdate.Set();
+                }
             }
 
             /// <summary>
@@ -5296,6 +5386,24 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// The status of the session (really the device)...
+            /// </summary>
+            /// <returns>false if we need user help</returns>
+            public bool GetSessionStatusSuccess()
+            {
+                return (m_blSessionStatusSuccess);
+            }
+
+            /// <summary>
+            /// The last detected boo-boo...
+            /// </summary>
+            /// <returns>the reason m_blSessionStatusSuccess is false</returns>
+            public string GetSessionStatusDetected()
+            {
+                return (m_szSessionStatusDetected);
+            }
+
+            /// <summary>
             /// We need to track the session revision that the client sends
             /// to use with waitForEvents, so that we can expire older events
             /// with a minimum of fuss.  This helps with that.
@@ -5471,6 +5579,24 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Set the status of the session (really the device)...
+            /// </summary>
+            /// <param name="a_blSessionStatusSuccess">false if the scanner needs attention</param>
+            public void SetSessionStatusSuccess(bool a_blSessionStatusSuccess)
+            {
+                m_blSessionStatusSuccess = a_blSessionStatusSuccess;
+            }
+
+            /// <summary>
+            /// Set the last detected boo-boo...
+            /// </summary>
+            /// <param name="a_szSessionStatusDetected">the reason the scanner needs attention</param>
+            public void SetSessionStatusDetected(string a_szSessionStatusDetected)
+            {
+                m_szSessionStatusDetected = a_szSessionStatusDetected;
+            }
+
+            /// <summary>
             /// We need to keep track of the session revision sent by the last
             /// waitForEvents, so that we can expire events old than that number.
             /// This allows us to keep our event list cleaner, without a lot of
@@ -5571,6 +5697,19 @@ namespace TwainDirect.Support
             /// imageBlocks data is being updated...
             /// </summary>
             private long m_lSessionRevision;
+
+            /// <summary>
+            /// False if the scanner needs some kind of user intervention...
+            /// </summary>
+            private bool m_blSessionStatusSuccess;
+
+            /// <summary>
+            /// If m_blSessionStatusSuccess is false, this value explains
+            /// what happened.  In theory one can have a detected value
+            /// without m_blSessionStatusSuccess being false, but we have
+            /// no plans to do anything like that in the TWAIN Bridge...
+            /// </summary>
+            private string m_szSessionStatusDetected;
 
             /// <summary>
             /// Triggered when the session object had been updated...

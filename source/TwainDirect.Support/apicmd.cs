@@ -431,11 +431,19 @@ namespace TwainDirect.Support
             return (m_szImageBlocks.Replace(" ",""));
         }
 
+        /// <summary>
+        /// Our session revision number...
+        /// </summary>
+        /// <returns>session revision number</returns>
         public long GetSessionRevision()
         {
             return (m_lSessionRevision);
         }
 
+        /// <summary>
+        /// The name of the event (ex: imageBlocks)
+        /// </summary>
+        /// <returns>name of the event</returns>
         public string GetEventName()
         {
             return (m_szEventName);
@@ -452,6 +460,24 @@ namespace TwainDirect.Support
                 return ("noSession");
             }
             return (m_szSessionState);
+        }
+
+        /// <summary>
+        /// False if we have a problem with the scanner...
+        /// </summary>
+        /// <returns>false if scanner has a boo-boo</returns>
+        public bool GetSessionStatusSuccess()
+        {
+            return (m_blSessionStatusSuccess);
+        }
+
+        /// <summary>
+        /// The reason the scanner is unhappy...
+        /// </summary>
+        /// <returns>the nature of the boo-boo</returns>
+        public string GetSessionStatusDetected()
+        {
+            return (m_szSessionStatusDetected);
         }
 
         /// <summary>
@@ -1799,6 +1825,7 @@ namespace TwainDirect.Support
         public void UpdateUsingIpcData(JsonLookup a_jsonlookup, bool a_blCapturing, string a_szImagesFolder)
         {
             string szMeta;
+            string szImageBlocksDrainedMeta;
 
             // Get the image blocks (if we have any)...
             m_szImageBlocks = a_jsonlookup.Get("session.imageBlocks",false);
@@ -1821,7 +1848,97 @@ namespace TwainDirect.Support
             {
                 m_blSessionImageBlocksDrained = false;
             }
-       
+
+            // Get a reason for there being no more images...
+            szImageBlocksDrainedMeta = Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta");
+            if (File.Exists(szImageBlocksDrainedMeta))
+            {
+                JsonLookup jsonlookupDrained = new JsonLookup();
+                try
+                {
+                    // Just using this to make the code nicer, not to loop...
+                    while (true)
+                    {
+                        // Read the file...
+                        long lJsonErrorIndex;
+                        string szReason = File.ReadAllText(szImageBlocksDrainedMeta);
+                        if (string.IsNullOrEmpty(szReason))
+                        {
+                            Log.Error("empty imageBlocksDrained.meta (we'd like a reason)...");
+                            break;
+                        }
+
+                        // Load the JSON...
+                        if (!jsonlookupDrained.Load(szReason, out lJsonErrorIndex))
+                        {
+                            Log.Error("bad JSON in imageBlocksDrained.meta - <" + szReason + ">");
+                            break;
+                        }
+
+                        // Get the "detected" property...
+                        Log.Info("imageBlocksDrained.meta: " + szReason);
+                        string szDetected = jsonlookupDrained.Get("detected");
+                        if (string.IsNullOrEmpty(szDetected))
+                        {
+                            Log.Error("detected not found in imageBlocksDrained.meta (we'd like a reason) - " + szReason);
+                            break;
+                        }
+
+                        // Convert the TWAIN status to TWAIN Direct...
+                        switch (szDetected.ToLowerInvariant())
+                        {
+                            // If we don't recognize it, use the misfeed option...
+                            default:
+                                m_blSessionStatusSuccess = false;
+                                m_szSessionStatusDetected = "misfeed";
+                                break;
+
+                            // Make no changes, we're initialized to true/nominal...
+                            case "success":
+                            case "cancel":
+                                break;
+
+                            // I wonder if anybody has actually implemented this...
+                            case "damagedcorner":
+                                m_blSessionStatusSuccess = false;
+                                m_szSessionStatusDetected = "foldedCorner";
+                                break;
+
+                            // It's funny how the old names got into TWAIN Direct...
+                            case "interlock":
+                                m_blSessionStatusSuccess = false;
+                                m_szSessionStatusDetected = "coverOpen";
+                                break;
+
+                            // We couldn't find the first sheet...
+                            case "nomedia":
+                                m_blSessionStatusSuccess = false;
+                                m_szSessionStatusDetected = "noMedia";
+                                break;
+
+                            // We scan faster if we slug feed all the docs... :)
+                            case "paperdoublefeed":
+                                m_blSessionStatusSuccess = false;
+                                m_szSessionStatusDetected = "multifeed";
+                                break;
+
+                            // The scanner is eating our docs...
+                            case "paperjam":
+                                m_blSessionStatusSuccess = false;
+                                m_szSessionStatusDetected = "paperJam";
+                                break;
+                        }
+
+                        // Bye-bye loop...
+                        break;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("trouble processing imageBlocksDrained.meta - " + exception.Message);
+                }
+            }
+
             // The task reply...
             m_szTaskReply = a_jsonlookup.Get("taskReply", false);
 
@@ -2260,6 +2377,8 @@ namespace TwainDirect.Support
             m_szUri = null;
             m_httplistenercontext = null;
             m_httplistenerresponse = null;
+            m_blSessionStatusSuccess = true;
+            m_szSessionStatusDetected = "nominal";
 
             // If this is null, we're the initiator, meaning that we're running
             // inside of the application (like TwainDirect.App), so we're
@@ -2444,6 +2563,16 @@ namespace TwainDirect.Support
 
         // End of job (true if we're not scanning)...
         private bool m_blSessionImageBlocksDrained;
+
+        /// <summary>
+        /// Set to false if we've detected a problem...
+        /// </summary>
+        private bool m_blSessionStatusSuccess;
+
+        /// <summary>
+        /// We have a problem, like a paper jam...
+        /// </summary>
+        private string m_szSessionStatusDetected;
 
         /// <summary>
         /// The way we want to respond to an HTTP command...

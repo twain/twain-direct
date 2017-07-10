@@ -780,7 +780,7 @@ namespace TwainDirect.OnTwain
                 (
                     szSessionImageBlocksDrained,
                     "{" +
-                    "\"status\":\"" + a_sts + "\"" +
+                    "\"detected\":\"" + a_sts + "\"" +
                     "}"
                 );
             }
@@ -1001,6 +1001,8 @@ namespace TwainDirect.OnTwain
             // that we're out of images...
             if (string.IsNullOrEmpty(szImageBlocks) && File.Exists(Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta")))
             {
+                string szReason = File.ReadAllText(Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta"));
+                TWAINWorkingGroup.Log.Info("imageBlocksDrained.meta: " + szReason);
                 m_blSessionImageBlocksDrained = true;
             }
 
