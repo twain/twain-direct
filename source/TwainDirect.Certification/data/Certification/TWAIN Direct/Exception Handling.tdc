@@ -24,10 +24,11 @@ if '${ret:}' != 'true' goto MAIN.ERROR
 ;
 set name    'TD.EXHN.001: fail, action'
 set test    '{"actions":[{"action":"someWeirdAction","exception":"fail","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action  'someWeirdAction'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].action'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
@@ -37,10 +38,11 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${g
 ;
 set name    'TD.EXHN.002: fail, attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"exception":"fail","attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]}]}]}'
+set action  'configure'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[1].attribute'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
@@ -50,10 +52,11 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${g
 ;
 set name    'TD.EXHN.003: fail, pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"exception":"fail","pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action  'configure'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].pixelFormats[0].pixelFormat'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
@@ -63,10 +66,11 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${g
 ;
 set name    'TD.EXHN.004: fail, source'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"exception":"fail","source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action  'configure'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].source'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
@@ -76,10 +80,11 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${g
 ;
 set name    'TD.EXHN.005: fail, stream'
 set test    '{"actions":[{"action":"configure","streams":[{"exception":"fail","sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action  'configure'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].source'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
@@ -89,10 +94,11 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${g
 ;
 set name    'TD.EXHN.006: fail, value'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"exception":"fail","value":-200}]}]}]}]}]}]}'
+set action  'configure'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[1].values[0].value'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
@@ -101,12 +107,14 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${g
 ; Demonstrate nextAction in an action.
 ;
 set name     'TD.EXHN.007: nextAction, action'
-set test     '{"actions":[{"action":"some WeirdAction","exception":"nextAction"},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set test     '{"actions":[{"action":"someWeirdAction","exception":"nextAction"},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action0  'someWeirdAction'
 set success0 'false'
 set code0    'invalidValue'
 set key0     'actions[0].action'
+set action1  'configure'
 set success1 'true'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:action1}' '${get:success1}'
 
 
 
@@ -116,11 +124,13 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '$
 ;
 set name     'TD.EXHN.008: nextAction, attribute'
 set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","exception":"nextAction","values":[{"value":200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action0  'configure'
 set success0 'false'
 set code0    'invalidValue'
 set key0     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].attribute'
+set action1  'configure'
 set success1 'true'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:action1}' '${get:success1}'
 
 
 
@@ -130,11 +140,13 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '$
 ;
 set name     'TD.EXHN.009: nextAction, pixelFormat'
 set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","exception":"nextAction"}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action0  'configure'
 set success0 'false'
 set code0    'invalidValue'
 set key0     'actions[0].streams[0].sources[0].pixelFormats[0].pixelFormat'
+set action1  'configure'
 set success1 'true'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:action1}' '${get:success1}'
 
 
 
@@ -144,11 +156,13 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '$
 ;
 set name     'TD.EXHN.010: nextAction, source'
 set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","exception":"nextAction"}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action0  'configure'
 set success0 'false'
 set code0    'invalidValue'
 set key0     'actions[0].streams[0].sources[0].source'
+set action1  'configure'
 set success1 'true'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:action1}' '${get:success1}'
 
 
 
@@ -158,11 +172,13 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '$
 ;
 set name     'TD.EXHN.011: nextAction, value'
 set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","exception":"nextAction","values":[{"value":-200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set action0  'configure'
 set success0 'false'
 set code0    'invalidValue'
 set key0     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
+set action1  'configure'
 set success1 'true'
-call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:action1}' '${get:success1}'
 
 
 
@@ -334,10 +350,11 @@ return 'fail'
 ; Function: Check Action
 ; arg:1 - name of the test
 ; arg:2 - task to test
-; arg:3 - action[0] expected value of results.success
-; arg:4 - action[0] expected code
-; arg:5 - action[0] expected jsonKey
-; arg:6 - (repeats), if needed
+; arg:3 - action[0] expected value of action
+; arg:4 - action[0] expected value of results.success
+; arg:5 - action[0] expected code
+; arg:6 - action[0] expected jsonKey
+; arg:7 - (repeats), if needed
 ; returns: pass or fail
 ;
 :CHECKACTION
@@ -349,6 +366,9 @@ log info '#Task:                        ${arg:2}'
 set nn 0
 set aa 3
 :CHECKACTION.LOGNEXT
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.LOGDONE
+	log info '#action[${get:nn}] expected action:  ${arg:${get:aa}}'
+	increment aa '${get:aa}' 1
 	if '${arg:${get:aa}}' == '' goto CHECKACTION.LOGDONE
 	log info '#action[${get:nn}] expected success:  ${arg:${get:aa}}'
 	increment aa '${get:aa}' 1
@@ -370,8 +390,12 @@ sendtask '${arg:2}'
 ; run out of actions first, that's bad...
 set nn 0
 set aa 3
-if '${rj:results.session.task.actions[${get:nn}].results.success}' == '' goto CHECKACTION.FAIL
+if '${rj:results.session.task.actions[${get:nn}].action}' == '' goto CHECKACTION.FAIL
 :CHECKACTION.ACTIONNEXT
+	if '${rj:results.session.task.actions[${get:nn}].action}' != '${arg:${get:aa}}' goto CHECKACTION.FAIL
+	increment aa '${get:aa}' 1
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.ACTIONDONE
+	;
 	if '${rj:results.session.task.actions[${get:nn}].results.success}' != '${arg:${get:aa}}' goto CHECKACTION.FAIL
 	increment aa '${get:aa}' 1
 	if '${arg:${get:aa}}' == '' goto CHECKACTION.ACTIONDONE

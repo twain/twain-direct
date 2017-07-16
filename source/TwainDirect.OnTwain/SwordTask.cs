@@ -83,7 +83,7 @@ namespace TwainDirect.OnTwain
             m_blDuplexEnabled = false;
 
             // Our response object for errors and success...
-            m_swordtaskresponse = new SwordTaskResponse();
+            m_swordtaskresponse = new SwordTaskResponse(this);
 
             /// The TWAIN Direct vendor id...
             m_szVendorTwainDirect = "211a1e90-11e1-11e5-9493-1697f925ec7b";
@@ -436,8 +436,8 @@ namespace TwainDirect.OnTwain
             string szFunction = "Deserialize";
 
             // Parse the JSON that we get back...
-            JsonLookup jsonlookup = new JsonLookup();
-            blSuccess = jsonlookup.Load(a_szTask, out lResponseCharacterOffset);
+            m_jsonlookupTask = new JsonLookup();
+            blSuccess = m_jsonlookupTask.Load(a_szTask, out lResponseCharacterOffset);
             if (!blSuccess)
             {
                 TWAINWorkingGroup.Log.Error(szFunction + ": Load failed...");
@@ -451,7 +451,7 @@ namespace TwainDirect.OnTwain
 
             // Check the type of actions (make sure we find actions), if this
             // fails we need to make a temporary action to carry the error...
-            epropertytype = jsonlookup.GetType("actions");
+            epropertytype = m_jsonlookupTask.GetType("actions");
             if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
             {
                 TWAINWorkingGroup.Log.Error("topology violation: actions isn't an array");
@@ -478,23 +478,23 @@ namespace TwainDirect.OnTwain
             {
                 // Break when we run out of actions...
                 szSwordAction = "actions[" + iAction + "]";
-                if (string.IsNullOrEmpty(jsonlookup.Get(szSwordAction,false)))
+                if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordAction,false)))
                 {
                     break;
                 }
 
                 // Add to the action array, skip vendor stuff we don't recognize...
-                string szActionException = jsonlookup.Get(szSwordAction + ".exception",false);
-                string szActionVendor = jsonlookup.Get(szSwordAction + ".vendor",false);
-                swordaction = m_swordtask.AppendAction(szSwordAction, jsonlookup.Get(szSwordAction + ".action", false), szActionException, szActionVendor);
+                string szActionException = m_jsonlookupTask.Get(szSwordAction + ".exception",false);
+                string szActionVendor = m_jsonlookupTask.Get(szSwordAction + ".vendor",false);
+                swordaction = m_swordtask.AppendAction(szSwordAction, m_jsonlookupTask.Get(szSwordAction + ".action", false), szActionException, szActionVendor);
                 if (swordaction == null)
                 {
                     continue;
                 }
 
                 // Check the topology...
-                if (    !CheckTopology(swordaction, "actions", "", jsonlookup)
-                    ||  !CheckTopology(swordaction, "action", szSwordAction, jsonlookup))
+                if (    !CheckTopology(swordaction, "actions", "")
+                    ||  !CheckTopology(swordaction, "action", szSwordAction))
                 {
                     m_swordtask.BuildTaskReply();
                     return (false);
@@ -504,7 +504,7 @@ namespace TwainDirect.OnTwain
                 swordaction.SetSwordStatus(SwordStatus.Ready);
 
                 // Check the type of streams (make sure we find streams)...
-                epropertytype = jsonlookup.GetType(szSwordAction + ".streams");
+                epropertytype = m_jsonlookupTask.GetType(szSwordAction + ".streams");
                 if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: streams isn't an array");
@@ -519,25 +519,25 @@ namespace TwainDirect.OnTwain
                 {
                     // Break when we run out of streams...
                     szSwordStream = szSwordAction + ".streams[" + iStream + "]";
-                    if (string.IsNullOrEmpty(jsonlookup.Get(szSwordStream,false)))
+                    if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordStream,false)))
                     {
                         break;
                     }
 
                     // Add to the stream array, skip vendor stuff we don't recognize...
-                    string szStreamException = jsonlookup.Get(szSwordStream + ".exception",false);
-                    string szStreamVendor = jsonlookup.Get(szSwordStream + ".vendor",false);
+                    string szStreamException = m_jsonlookupTask.Get(szSwordStream + ".exception",false);
+                    string szStreamVendor = m_jsonlookupTask.Get(szSwordStream + ".vendor",false);
                     if (string.IsNullOrEmpty(szStreamException)) szStreamException = swordaction.GetException();
                     if (string.IsNullOrEmpty(szStreamVendor)) szStreamVendor = swordaction.GetVendor();
-                    swordstream = swordaction.AppendStream(szSwordStream, jsonlookup.Get(szSwordStream + ".name",false), szStreamException, szStreamVendor);
+                    swordstream = swordaction.AppendStream(szSwordStream, m_jsonlookupTask.Get(szSwordStream + ".name",false), szStreamException, szStreamVendor);
                     if (swordstream == null)
                     {
                         continue;
                     }
 
                     // Check the topology...
-                    if (    !CheckTopology(swordaction, "streams", szSwordAction, jsonlookup)
-                        ||  !CheckTopology(swordaction, "stream", szSwordStream, jsonlookup))
+                    if (    !CheckTopology(swordaction, "streams", szSwordAction)
+                        ||  !CheckTopology(swordaction, "stream", szSwordStream))
                     {
                         m_swordtask.BuildTaskReply();
                         return (false);
@@ -547,7 +547,7 @@ namespace TwainDirect.OnTwain
                     swordstream.SetSwordStatus(SwordStatus.Ready);
 
                     // Check the type of sources (make sure we find sources)...
-                    epropertytype = jsonlookup.GetType(szSwordStream + ".sources");
+                    epropertytype = m_jsonlookupTask.GetType(szSwordStream + ".sources");
                     if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                     {
                         TWAINWorkingGroup.Log.Error("topology violation: sources isn't an array");
@@ -562,25 +562,25 @@ namespace TwainDirect.OnTwain
                     {
                         // Break when we run out of sources...
                         szSwordSource = szSwordStream + ".sources[" + iSource + "]";
-                        if (string.IsNullOrEmpty(jsonlookup.Get(szSwordSource,false)))
+                        if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordSource,false)))
                         {
                             break;
                         }
 
                         // Add to the source array, skip vendor stuff we don't recognize...
-                        string szSourceException = jsonlookup.Get(szSwordSource + ".exception",false);
-                        string szSourceVendor = jsonlookup.Get(szSwordSource + ".vendor",false);
+                        string szSourceException = m_jsonlookupTask.Get(szSwordSource + ".exception",false);
+                        string szSourceVendor = m_jsonlookupTask.Get(szSwordSource + ".vendor",false);
                         if (string.IsNullOrEmpty(szSourceException)) szSourceException = swordstream.GetException();
                         if (string.IsNullOrEmpty(szSourceVendor)) szSourceVendor = swordstream.GetVendor();
-                        swordsource = swordstream.AppendSource(szSwordSource, jsonlookup.Get(szSwordSource + ".name",false), jsonlookup.Get(szSwordSource + ".source",false), szSourceException, szSourceVendor);
+                        swordsource = swordstream.AppendSource(szSwordSource, m_jsonlookupTask.Get(szSwordSource + ".name",false), m_jsonlookupTask.Get(szSwordSource + ".source",false), szSourceException, szSourceVendor);
                         if (swordsource == null)
                         {
                             continue;
                         }
 
                         // Check the topology...
-                        if (    !CheckTopology(swordaction, "sources", szSwordStream, jsonlookup)
-                            ||  !CheckTopology(swordaction, "source", szSwordSource, jsonlookup))
+                        if (    !CheckTopology(swordaction, "sources", szSwordStream)
+                            ||  !CheckTopology(swordaction, "source", szSwordSource))
                         {
                             m_swordtask.BuildTaskReply();
                             return (false);
@@ -590,7 +590,7 @@ namespace TwainDirect.OnTwain
                         swordsource.SetSwordStatus(SwordStatus.Ready);
 
                         // Check the type of pixelFormats (make sure we find pixelFormats)...
-                        epropertytype = jsonlookup.GetType(szSwordSource + ".pixelFormats");
+                        epropertytype = m_jsonlookupTask.GetType(szSwordSource + ".pixelFormats");
                         if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                         {
                             TWAINWorkingGroup.Log.Error("topology violation: pixelFormats isn't an array");
@@ -605,25 +605,25 @@ namespace TwainDirect.OnTwain
                         {
                             // Break when we run out of pixelformats...
                             szSwordPixelformat = szSwordSource + ".pixelFormats[" + iPixelFormat + "]";
-                            if (string.IsNullOrEmpty(jsonlookup.Get(szSwordPixelformat,false)))
+                            if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordPixelformat,false)))
                             {
                                 break;
                             }
 
                             // Add to the pixelformat array, skip vendor stuff we don't recognize...
-                            string szPixelformatException = jsonlookup.Get(szSwordPixelformat + ".exception",false);
-                            string szPixelformatVendor = jsonlookup.Get(szSwordPixelformat + ".vendor",false);
+                            string szPixelformatException = m_jsonlookupTask.Get(szSwordPixelformat + ".exception",false);
+                            string szPixelformatVendor = m_jsonlookupTask.Get(szSwordPixelformat + ".vendor",false);
                             if (string.IsNullOrEmpty(szPixelformatException)) szPixelformatException = swordsource.GetException();
                             if (string.IsNullOrEmpty(szPixelformatVendor)) szPixelformatVendor = swordsource.GetVendor();
-                            swordpixelformat = swordsource.AppendPixelFormat(szSwordPixelformat, jsonlookup.Get(szSwordPixelformat + ".name",false), jsonlookup.Get(szSwordPixelformat + ".pixelFormat",false), szPixelformatException, szPixelformatVendor);
+                            swordpixelformat = swordsource.AppendPixelFormat(szSwordPixelformat, m_jsonlookupTask.Get(szSwordPixelformat + ".name",false), m_jsonlookupTask.Get(szSwordPixelformat + ".pixelFormat",false), szPixelformatException, szPixelformatVendor);
                             if (swordpixelformat == null)
                             {
                                 continue;
                             }
 
                             // Check the topology...
-                            if (    !CheckTopology(swordaction, "pixelFormats", szSwordSource, jsonlookup)
-                                ||  !CheckTopology(swordaction, "pixelFormat", szSwordPixelformat, jsonlookup))
+                            if (    !CheckTopology(swordaction, "pixelFormats", szSwordSource)
+                                ||  !CheckTopology(swordaction, "pixelFormat", szSwordPixelformat))
                             {
                                 m_swordtask.BuildTaskReply();
                                 return (false);
@@ -633,7 +633,7 @@ namespace TwainDirect.OnTwain
                             swordpixelformat.SetSwordStatus(SwordStatus.Ready);
 
                             // Check the type of attributes (make sure we find attributes)...
-                            epropertytype = jsonlookup.GetType(szSwordPixelformat + ".attributes");
+                            epropertytype = m_jsonlookupTask.GetType(szSwordPixelformat + ".attributes");
                             if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                             {
                                 TWAINWorkingGroup.Log.Error("topology violation: attributes isn't an array");
@@ -648,25 +648,25 @@ namespace TwainDirect.OnTwain
                             {
                                 // Break when we run out of attributes...
                                 szSwordAttribute = szSwordPixelformat + ".attributes[" + iAttribute + "]";
-                                if (string.IsNullOrEmpty(jsonlookup.Get(szSwordAttribute,false)))
+                                if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordAttribute,false)))
                                 {
                                     break;
                                 }
 
                                 // Add to the attribute array, skip vendor stuff we don't recognize...
-                                string szAttributeException = jsonlookup.Get(szSwordAttribute + ".exception",false);
-                                string szAttributeVendor = jsonlookup.Get(szSwordAttribute + ".vendor",false);
+                                string szAttributeException = m_jsonlookupTask.Get(szSwordAttribute + ".exception",false);
+                                string szAttributeVendor = m_jsonlookupTask.Get(szSwordAttribute + ".vendor",false);
                                 if (string.IsNullOrEmpty(szAttributeException)) szAttributeException = swordpixelformat.GetException();
                                 if (string.IsNullOrEmpty(szAttributeVendor)) szAttributeVendor = swordpixelformat.GetVendor();
-                                swordattribute = swordpixelformat.AddAttribute(szSwordAttribute, jsonlookup.Get(szSwordAttribute + ".attribute", false), szAttributeException, szAttributeVendor);
+                                swordattribute = swordpixelformat.AddAttribute(szSwordAttribute, m_jsonlookupTask.Get(szSwordAttribute + ".attribute", false), szAttributeException, szAttributeVendor);
                                 if (swordattribute == null)
                                 {
                                     continue;
                                 }
 
                                 // Check the topology...
-                                if (    !CheckTopology(swordaction, "attributes", szSwordPixelformat, jsonlookup)
-                                    ||  !CheckTopology(swordaction, "attribute", szSwordAttribute, jsonlookup))
+                                if (    !CheckTopology(swordaction, "attributes", szSwordPixelformat)
+                                    ||  !CheckTopology(swordaction, "attribute", szSwordAttribute))
                                 {
                                     m_swordtask.BuildTaskReply();
                                     return (false);
@@ -676,7 +676,7 @@ namespace TwainDirect.OnTwain
                                 swordattribute.SetSwordStatus(SwordStatus.Ready);
 
                                 // Check the type of values (make sure we find values)...
-                                epropertytype = jsonlookup.GetType(szSwordAttribute + ".values");
+                                epropertytype = m_jsonlookupTask.GetType(szSwordAttribute + ".values");
                                 if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                                 {
                                     TWAINWorkingGroup.Log.Error("topology violation: values isn't an array");
@@ -691,25 +691,25 @@ namespace TwainDirect.OnTwain
                                 {
                                     // Break when we run out of values...
                                     szSwordValue = szSwordAttribute + ".values[" + iValue + "]";
-                                    if (string.IsNullOrEmpty(jsonlookup.Get(szSwordValue,false)))
+                                    if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordValue,false)))
                                     {
                                         break;
                                     }
 
                                     // Add to the value array, skip vendor stuff we don't recognize...
-                                    string szValueException = jsonlookup.Get(szSwordValue + ".exception",false);
-                                    string szValueVendor = jsonlookup.Get(szSwordValue + ".vendor",false);
+                                    string szValueException = m_jsonlookupTask.Get(szSwordValue + ".exception",false);
+                                    string szValueVendor = m_jsonlookupTask.Get(szSwordValue + ".vendor",false);
                                     if (string.IsNullOrEmpty(szValueException)) szValueException = swordattribute.GetException();
                                     if (string.IsNullOrEmpty(szValueVendor)) szValueVendor = swordattribute.GetVendor();
-                                    swordvalue = swordattribute.AppendValue(szSwordValue, jsonlookup.Get(szSwordValue + ".value"), szValueException, szValueVendor);
+                                    swordvalue = swordattribute.AppendValue(szSwordValue, m_jsonlookupTask.Get(szSwordValue + ".value"), szValueException, szValueVendor);
                                     if (swordvalue == null)
                                     {
                                         continue;
                                     }
 
                                     // Check the topology...
-                                    if (    !CheckTopology(swordaction, "values", szSwordAttribute, jsonlookup)
-                                        ||  !CheckTopology(swordaction, "value", szSwordValue, jsonlookup))
+                                    if (    !CheckTopology(swordaction, "values", szSwordAttribute)
+                                        ||  !CheckTopology(swordaction, "value", szSwordValue))
                                     {
                                         m_swordtask.BuildTaskReply();
                                         return (false);
@@ -817,6 +817,15 @@ namespace TwainDirect.OnTwain
         public DeviceRegister GetDeviceRegister()
         {
             return (m_deviceregister);
+        }
+
+        /// <summary>
+        /// Get the JSON lookup object for this task...
+        /// </summary>
+        /// <returns>the object or null</returns>
+        public JsonLookup GetJsonlookupTask()
+        {
+            return (m_jsonlookupTask);
         }
 
         /// <summary>
@@ -1419,9 +1428,8 @@ namespace TwainDirect.OnTwain
         /// <param name="a_swordaction">the action where we'll record any problems</param>
         /// <param name="a_szKey">the current key in the topology (ex: action, stream)</param>
         /// <param name="a_szKey">the current path to the key</param>
-        /// <param name="a_jsonlookup">task that we're testing</param>
         /// <returns></returns>
-        private bool CheckTopology(SwordAction a_swordaction, string a_szKey, string a_szPath, JsonLookup a_jsonlookup)
+        private bool CheckTopology(SwordAction a_swordaction, string a_szKey, string a_szPath)
         {
             string szFullKey;
             SwordTaskResponse swordtaskresponse = a_swordaction.GetSwordTaskResponse();
@@ -1429,7 +1437,7 @@ namespace TwainDirect.OnTwain
             // If this is custom to a vendor, then skip this test, we can't
             // know what they're doing, so we shouldn't try to check it...
             szFullKey = a_szPath + ((a_szPath != "") ? ".vendor" : "vendor");
-            if (GetVendorOwner(a_jsonlookup.Get(szFullKey,false)) == VendorOwner.Unknown)
+            if (GetVendorOwner(m_jsonlookupTask.Get(szFullKey,false)) == VendorOwner.Unknown)
             {
                 return (true);
             }
@@ -1438,7 +1446,7 @@ namespace TwainDirect.OnTwain
             if (a_szKey != "actions")
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".actions" : "actions");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: actions");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1451,7 +1459,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "action") && (a_szKey != "streams"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".action" : "action");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: action");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1464,7 +1472,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "streams") && (a_szKey != "action"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".streams" : "streams");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: streams");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1477,7 +1485,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "stream") && (a_szKey != "sources"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".stream" : "stream");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: stream");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1490,7 +1498,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "sources") && (a_szKey != "stream"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".sources" : "sources");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: sources");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1503,7 +1511,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "source") && (a_szKey != "pixelFormats"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".source" : "source");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: source");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1516,7 +1524,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "pixelFormats") && (a_szKey != "source"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".pixelFormats" : "pixelFormats");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: pixelFormats");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1529,7 +1537,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "pixelFormat") && (a_szKey != "attributes"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".pixelFormat" : "pixelFormat");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: pixelFormat");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1542,7 +1550,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "attributes") && (a_szKey != "pixelFormat"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".attributes" : "attributes");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: attributes");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1555,7 +1563,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "attribute") && (a_szKey != "values"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".attribute" : "attribute");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: attribute");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1568,7 +1576,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "values") && (a_szKey != "attribute"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".values" : "values");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: values");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1581,7 +1589,7 @@ namespace TwainDirect.OnTwain
             if ((a_szKey != "value"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".value" : "value");
-                if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
+                if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: value");
                     swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
@@ -1746,6 +1754,7 @@ namespace TwainDirect.OnTwain
         /// the spec doesn't clearly call this out, so to protect ourselves we
         /// have to make sure those values are restored...
         /// </summary>
+        /// <param name="a_swordaction">action we're doing</param>
         /// <returns>true on success</returns>
         private bool ResetAll(SwordAction a_swordaction)
         {
@@ -3683,7 +3692,7 @@ namespace TwainDirect.OnTwain
 
             // The first successful stream wins...
             szStatus = "success";
-            swordtaskresponseStreams = new SwordTaskResponse();
+            swordtaskresponseStreams = new SwordTaskResponse(this);
             for (swordstream = a_swordaction.GetFirstStream();
                  swordstream != null;
                  swordstream = swordstream.GetNextStream())
@@ -5058,7 +5067,7 @@ namespace TwainDirect.OnTwain
                 // for the entire task that reports problems detected with the TWAIN Direct
                 // language.  Then there are task responses at the level of each of the
                 // actions.  These will be reported back in the task reply.
-                m_swordtaskresponse = new SwordTaskResponse();
+                m_swordtaskresponse = new SwordTaskResponse(a_processswordtask);
 
                 // Init stuff...
                 m_processswordtask = a_processswordtask;
@@ -5372,6 +5381,11 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Set a task error...
             /// </summary>
+            /// <param name="a_szException">the exception  we're processing</param>
+            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+            /// <param name="a_szCode">the error code</param>
+            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
             public void SetError
             (
                 string a_szException,
@@ -5724,6 +5738,11 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Set a task error...
             /// </summary>
+            /// <param name="a_szException">the exception  we're processing</param>
+            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+            /// <param name="a_szCode">the error code</param>
+            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
             public void SetError
             (
                 string a_szException,
@@ -6316,6 +6335,11 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Set a task error...
             /// </summary>
+            /// <param name="a_szException">the exception  we're processing</param>
+            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+            /// <param name="a_szCode">the error code</param>
+            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
             public void SetError
             (
                 string a_szException,
@@ -6978,6 +7002,11 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Set a task error...
             /// </summary>
+            /// <param name="a_szException">the exception  we're processing</param>
+            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+            /// <param name="a_szCode">the error code</param>
+            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
             public void SetError
             (
                 string a_szException,
@@ -7408,6 +7437,11 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Set a task error...
             /// </summary>
+            /// <param name="a_szException">the exception  we're processing</param>
+            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+            /// <param name="a_szCode">the error code</param>
+            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
             public void SetError
             (
                 string a_szException,
@@ -8536,6 +8570,11 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Set a task error...
             /// </summary>
+            /// <param name="a_szException">the exception  we're processing</param>
+            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+            /// <param name="a_szCode">the error code</param>
+            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
             public void SetError
             (
                 string a_szException,
@@ -9128,6 +9167,11 @@ namespace TwainDirect.OnTwain
         private SwordTask m_swordtask;
 
         /// <summary>
+        /// The JSON lookup object for the task...
+        /// </summary>
+        private JsonLookup m_jsonlookupTask;
+
+        /// <summary>
         /// The task response...
         /// </summary>
         private SwordTaskResponse m_swordtaskresponse;
@@ -9264,17 +9308,19 @@ namespace TwainDirect.OnTwain
     #region SwordTaskResponse
 
     // Our class...
-    public sealed class SwordTaskResponse
+    internal sealed class SwordTaskResponse
     {
         #region Public Methods
 
         /// <summary>
         /// Init stuff...
         /// </summary>
-        public SwordTaskResponse()
+        public SwordTaskResponse(ProcessSwordTask a_processswordtask)
         {
             // non-zero stuff...
             Clear();
+            m_processswordtask = a_processswordtask;
+
 
             // Pack our JSON output...
             m_blPack = (Config.Get("packJson", "true") == "true");
@@ -9315,6 +9361,12 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// Set a task error...
         /// </summary>
+        /// <param name="a_jsonlookup">json for the task, used to look up stuff</param>
+        /// <param name="a_szException">the exception  we're processing</param>
+        /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+        /// <param name="a_szCode">the error code</param>
+        /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+        /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
         public void SetError
         (
             string a_szException,
@@ -9324,6 +9376,8 @@ namespace TwainDirect.OnTwain
             bool a_blAddActionsArray = false
         )
         {
+            string szAction = "";
+
             // Ruh-roh, we've already done this...
             if (!m_blSuccess)
             {
@@ -9339,6 +9393,17 @@ namespace TwainDirect.OnTwain
             m_szLexiconValue = a_szCode;
             m_lJsonErrorIndex = a_lJsonErrorIndex;
 
+            // Attempt to get an action...
+            JsonLookup jsonlookupTask = m_processswordtask.GetJsonlookupTask();
+            if ((jsonlookupTask != null) && !string.IsNullOrEmpty(a_szJsonExceptionKey))
+            {
+                string[] asz = a_szJsonExceptionKey.Split(new char[] { '.' });
+                if ((asz != null) && (asz.Length > 0))
+                {
+                    szAction = jsonlookupTask.Get(asz[0] + ".action");
+                }
+            }
+
             // We're working with something that has no access to an action array...
             if (a_blAddActionsArray)
             {
@@ -9350,7 +9415,7 @@ namespace TwainDirect.OnTwain
             if (string.IsNullOrEmpty(a_szCode) || (a_szCode == "invalidJson"))
             {
                 JSON_OBJ_BGN(2, "");                                                 // start action object
-                JSON_STR_SET(3, "action", ",", "");                                  // action property,
+                JSON_STR_SET(3, "action", ",", szAction);                            // action property,
                 JSON_OBJ_BGN(3, "results");                                          // start results object
                 JSON_TOK_SET(4, "success", ",", "false");                            // success property,
                 JSON_STR_SET(4, "code", ",", "invalidJson");                         // code property,
@@ -9362,7 +9427,7 @@ namespace TwainDirect.OnTwain
             else if ((a_szCode == "invalidTask") || (a_szCode == "invalidValue"))
             {
                 JSON_OBJ_BGN(2, "");                                                 // start action object
-                JSON_STR_SET(3, "action", ",", "");                                  // action property,
+                JSON_STR_SET(3, "action", ",", szAction);                            // action property,
                 JSON_OBJ_BGN(3, "results");                                          // start results object
                 JSON_TOK_SET(4, "success", ",", "false");                            // success property,
                 JSON_STR_SET(4, "code", ",", a_szCode);                              // code property
@@ -9375,7 +9440,7 @@ namespace TwainDirect.OnTwain
             else
             {
                 JSON_OBJ_BGN(2, "");                                                 // start action object
-                JSON_STR_SET(3, "action", ",", "");                                  // action property,
+                JSON_STR_SET(3, "action", ",", szAction);                            // action property,
                 JSON_OBJ_BGN(3, "results");                                          // start results object
                 JSON_TOK_SET(4, "success", ",", "false");                            // success property,
                 JSON_STR_SET(4, "code", ",", a_szCode);                              // code property,
@@ -9617,30 +9682,49 @@ namespace TwainDirect.OnTwain
         /// </summary>
         #region Private Attributes
 
-        // True as long as the task is successful, we anticipate success, so that's
-        // our starting point.  If this value goes to false, then further processing
-        // must stop, and the error info at the point of failure is returned...
+        /// <summary>
+        /// True as long as the task is successful, we anticipate success, so that's
+        /// our starting point.  If this value goes to false, then further processing
+        /// must stop, and the error info at the point of failure is returned...
+        /// </summary>
         private bool m_blSuccess;
 
-        // The exception we're reporting on failure...
+        /// <summary>
+        /// The exception we're reporting on failure...
+        /// </summary>
         private string m_szException;
 
-        // The location in the task, returned in the dotted key notation
-        // (ex: action[0].stream[0].source[0]
+        /// <summary>
+        /// The location in the task, returned in the dotted key notation
+        /// (ex: action[0].stream[0].source[0]
+        /// </summary>
         private string m_szJsonExceptionKey;
 
-        // Lexicon value that we used...
+        /// <summary>
+        /// Lexicon value that we used...
+        /// </summary>
         private string m_szLexiconValue;
 
-        // If the JSON can't be parsed, this value will (hopefully) point to where
-        // the error occurred...
+        /// <summary>
+        /// If the JSON can't be parsed, this value will (hopefully) point to where
+        /// the error occurred...
+        /// </summary>
         private long m_lJsonErrorIndex;
 
-        // Our task reply buffer, and its size...
+        /// <summary>
+        /// Our task reply buffer, and its size...
+        /// </summary>
         private string m_szTaskResponse;
 
-        // Pack the data in our response...
+        /// <summary>
+        /// Pack the data in our response...
+        /// </summary>
         private bool m_blPack;
+
+        /// <summary>
+        /// Access to the root of the task...
+        /// </summary>
+        private ProcessSwordTask m_processswordtask;
 
         #endregion
     }
