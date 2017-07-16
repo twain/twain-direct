@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Vendor Handling v1.0 22-Jun-2017
+; Vendor Handling v1.0 13-Jul-2017
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
@@ -13,18 +13,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Vendor Handling v1.0 22-Jun-2017' '${arg:1}'
+call INITIALIZE 'Vendor Handling v1.0 13-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; VH.01.001 Vendor Handling - action
+; TD.VNHN.001: action
 ; Set up a failure condition in a non-existent vendor action.  The scanner must skip this action, and
 ; since the default exception is to ignore, the task succeeds.   However, this results in a null task,
 ; so no change is made to the scanner.  The task reply reports back a null task.
 ;
-set name    'VH.01.001 Vendor Handling - action'
+set name    'TD.VNHN.001: action'
 set test    '{"actions":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","action":"someWeirdAction","streams":[{"sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
 set success 'true'
 call CHECK '${get:name}' '${get:test}' '${get:success}'
@@ -32,12 +32,12 @@ call CHECK '${get:name}' '${get:test}' '${get:success}'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; VH.01.002 Vendor Handling - attribute
+; TD.VNHN.002: attribute
 ; Set up a failure condition in a non-existent vendor attribute.  The scanner must skip this attribute,
 ; and since the default exception is to ignore, the task succeeds.  The task reply reports back the
 ; action, source, and pixelFormat.
 ;
-set name    'VH.01.002 Vendor Handling - attribute'
+set name    'TD.VNHN.002: attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
 set success 'true'
 call CHECK '${get:name}' '${get:test}' '${get:success}'
@@ -45,12 +45,12 @@ call CHECK '${get:name}' '${get:test}' '${get:success}'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; VH.01.003 Vendor Handling - pixelFormat
+; TD.VNHN.003: pixelFormat
 ; Set up a failure condition in a non-existent vendor pixelFormat.  The scanner must skip this pixelFormat,
 ; and since the default exception is to ignore, the task succeeds.  The task reply reports back the action
 ; and the source.
 ;
-set name    'VH.01.003 Vendor Handling - pixelFormat'
+set name    'TD.VNHN.003: pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
 set success 'true'
 call CHECK '${get:name}' '${get:test}' '${get:success}'
@@ -58,11 +58,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; VH.01.004 Vendor Handling - source
+; TD.VNHN.004: source
 ; Set up a failure condition in a non-existent vendor source.  The scanner must skip this source, and since
 ; the default exception is to ignore, the task succeeds.  The task reply reports back the action.
 ;
-set name    'VH.01.004 Vendor Handling - source'
+set name    'TD.VNHN.004: source'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","source":"someWeirdSource","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
 set success 'true'
 call CHECK '${get:name}' '${get:test}' '${get:success}'
@@ -70,11 +70,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; VH.01.005 Vendor Handling - stream
+; TD.VNHN.005: stream
 ; Set up a failure condition in a non-existent vendor stream.  The scanner must skip this stream, and
 ; since the default exception is to ignore, the task succeeds.  The task reply reports back the action.
 ;
-set name    'VH.01.005 Vendor Handling - stream'
+set name    'TD.VNHN.005: stream'
 set test    '{"actions":[{"action":"configure","streams":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":-200}]}]}]}]}]}]}'
 set success 'true'
 call CHECK '${get:name}' '${get:test}' '${get:success}'
@@ -82,12 +82,12 @@ call CHECK '${get:name}' '${get:test}' '${get:success}'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; VH.01.006 Vendor Handling - value
+; TD.VNHN.006: value
 ; Set up a failure condition in a non-existent vendor value.  The scanner must skip this value and
 ; select the next one, and since the default exception is to ignore, the task succeeds.  The task reply
 ; reports back the action, source, pixelFormat and resolution.
 ;
-set name    'VH.01.006 Vendor Handling - value'
+set name    'TD.VNHN.006: value'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"vendor":"22423e20-3648-11e5-a2cb-0800200c9a66","exception":"fail","value":-200},{"value":200}]}]}]}]}]}]}'
 set success 'true'
 call CHECK '${get:name}' '${get:test}' '${get:success}'
@@ -101,7 +101,6 @@ call CHECK '${get:name}' '${get:test}' '${get:success}'
 echopassfail 'SUMMARY' '${get:localresult}'
 ;
 ; Close the session...
-echo
 echo 'CMD: closeSession'
 closeSession
 ;
@@ -151,7 +150,6 @@ waitForEvents
 ;
 ; Set our pass flag, and give us a blank line...
 set localresult pass
-echo
 return true
 ;
 ; Ruh-roh...

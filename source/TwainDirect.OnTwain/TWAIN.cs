@@ -9443,7 +9443,7 @@ namespace TWAINWorkingGroup
         /// <param name="a_szMessage">message to log</param>
         public static void Info(string a_szMessage)
         {
-            WriteEntry(".", a_szMessage, true);
+            WriteEntry(".", a_szMessage, ms_blFlush);
         }
 
         /// <summary>
@@ -9483,7 +9483,7 @@ namespace TWAINWorkingGroup
         /// <param name="a_szMessage">message to log</param>
         public static void Verbose(string a_szMessage)
         {
-            WriteEntry("V", a_szMessage, true);
+            WriteEntry("V", a_szMessage, ms_blFlush);
         }
 
         /// <summary>
@@ -9492,7 +9492,7 @@ namespace TWAINWorkingGroup
         /// <param name="a_szMessage">message to log</param>
         public static void Warn(string a_szMessage)
         {
-            WriteEntry("W", a_szMessage, true);
+            WriteEntry("W", a_szMessage, ms_blFlush);
         }
 
         #endregion

@@ -1,0 +1,125 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test waitForEvents callback v1.0 06-Jul-2017
+; arg:1 - test to run
+; arg:2 - variable to set with the result
+; arg:3 - variable to set if there's a syntax error
+; returns: pass or fail
+;
+; Exercise the waitForEvents command.  We're called by other scripts.  This script runs as a callback
+; when the waitForEvents thread processes a response.
+;
+; - confirm that we see fail/doubleFeed at some point
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; We don't have a banner, because we're called from other scripts...
+;
+set waitforeventsresultname '${arg:2}'
+set waitforeventssyntaxresultname '${arg:3}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Dispatch the test...
+;
+if '${arg:1}' == 'doublefeed' goto DOUBLEFEED
+echopassfail 'event waitForEvents - ${arg:1}' 'fail (no test specified)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; DOUBLEFEED, seeing false/doubleFeed once is good enough
+; so we assume fail until we see one.  If this call
+; doesn't see what we want we 'skip' it.  This is because
+; we don't want to anticipate what kind of events the
+; scanner may send.  There's no reason to expect that
+; over the long haul fail/doubleFeed will be the only one...
+;
+:DOUBLEFEED
+;
+; Analyze the result, we have to check all the events...
+set ii 0
+:DOUBLEFEED.EVENTSNEXT
+	;
+	; We've run out of events.
+	if '${ej:results.events[${get:ii}]}' == '' goto DOUBLEFEED.EVENTSEND
+	;
+	; Skip events that aren't imageBlocks...
+	if '${ej:results.events[${get:ii}]}.event' != 'imageBlocks' goto DOUBLEFEED.INCREMENT
+	;
+	; We're looking for success to be false, if it's
+	; missing that's a fail, if it's true we'll skip
+	; this event.
+	call CHECK 'results.events[${get:ii}].session.status.success' '==' 'false'
+	if '${ret:}' == 'SKIP' goto DOUBLEFEED.INCREMENT
+	if '${ret:}' == 'FAIL' goto DOUBLEFEED.FAIL
+	;
+	; We're looking for detected to be doubleFeed, if
+	; it's missing that's a fail, if it's not doubleFeed
+	; we'll skip this event.
+	call CHECK 'results.events[${get:ii}].session.status.detected' '==' 'doubleFeed'
+	if '${ret:}' == 'SKIP' goto DOUBLEFEED.INCREMENT
+	if '${ret:}' == 'FAIL' goto DOUBLEFEED.FAIL
+	if '${ret:}' == 'PASS' goto DOUBLEFEED.PASS
+	;
+	; Next event.
+	:DOUBLEFEED.INCREMENT
+	increment ii '${get:ii}' 1
+	goto DOUBLEFEED.EVENTSNEXT
+:DOUBLEFEED.EVENTSEND
+goto DOUBLEFEED.SKIP
+;
+; We're good, we found one...
+:DOUBLEFEED.PASS
+echopassfail 'event waitForEvents - ${arg:1}' 'pass'
+set '${get:waitforeventsresultname}' 'pass'
+return 'pass'
+;
+; We didn't see it this time...
+:DOUBLEFEED.SKIP
+echopassfail 'event waitForEvents - ${arg:1}' 'skip'
+return 'skip'
+;
+; There's a problem in the event...
+:DOUBLEFEED.FAIL
+echopassfail 'event waitForEvents - ${arg:1}' 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECK
+; arg1 - property
+; arg2 - if-statement operator (optional)
+; arg3 - value to check for if arg2 is specified
+; returns pass or fail
+;
+:CHECK
+;
+; Make sure the property exists...
+if '${ejx:${arg:1}}' == '(null)' goto CHECK.MISSING
+;
+; If we have no operator, we're done...
+if '${arg:2}' == '' goto CHECK.PASS
+;
+; Do the if-statement...
+if '${ej:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
+;
+; The if-statement failed, in this instance this is
+; a skip...
+echopassfail 'event check ${arg:1}' 'skip (if '<${ej:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
+return 'skip'
+;
+; The property is missing, we can't accept this, so mark
+; it as a syntax error...
+:CHECK.MISSING
+echopassfail 'event check ${arg:1}' 'fail (${arg:1} missing)'
+set '${get:waitforeventssyntaxresultname}' 'fail'
+return 'fail'
+;
+; We're good...
+:CHECK.PASS
+return 'pass'

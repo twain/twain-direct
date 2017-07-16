@@ -2015,26 +2015,6 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Queue an event for waitForEvents to send...
-        /// </summary>
-        /// <param name="a_szEvent"></param>
-        public void DeviceSendEvent(string a_szEvent)
-        {
-            // Guard us...
-            lock (m_objectLock)
-            {
-                // We only have an event if we have a session...
-                if (m_twainlocalsession != null)
-                {
-                    ApiCmd apicmd = new ApiCmd(null);
-                    m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
-                    apicmd.SetEvent(a_szEvent, m_twainlocalsession.GetSessionState().ToString(), m_twainlocalsession.GetSessionRevision());
-                    DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, m_twainlocalsession.GetSessionState(), m_twainlocalsession.GetSessionRevision(), a_szEvent);
-                }
-            }
-        }
-
-        /// <summary>
         /// The pending HTTP command for long poll events...
         /// </summary>
         /// <returns>the object</returns>
@@ -2163,8 +2143,13 @@ namespace TwainDirect.Support
         /// Set the session state, and do additional cleanup work, if needed...
         /// </summary>
         /// <param name="a_sessionstate">new session state</param>
+        /// <param name="a_szSessionEndedMessage">message to display when going to noSession</param>
         /// <returns>the previous session state</returns>
-        private SessionState SetSessionState(SessionState a_sessionstate)
+        private SessionState SetSessionState
+        (
+            SessionState a_sessionstate,
+            string a_szSessionEndedMessage = "Session ended..."
+        )
         {
             SessionState sessionstatePrevious = SessionState.noSession;
 
@@ -2202,12 +2187,11 @@ namespace TwainDirect.Support
                 // Lose the timer...
                 if (m_timerSession != null)
                 {
-                    m_timerSession.Dispose();
-                    m_timerSession = null;
+                    m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
                 }
 
                 // Display what happened...
-                Display("Session ended...");
+                Display(a_szSessionEndedMessage);
             }
 
             // Return the previous state...
@@ -2541,8 +2525,14 @@ namespace TwainDirect.Support
                                     m_eventcallback(m_objectEventCallback, "sessionTimedOut");
                                 }
 
+                                // Wake up anybody watching us...
+                                ClientWaitForSessionUpdateForceSet();
+
+                                // Give them a couple of seconds...
+                                //Thread.Sleep(2000);
+
                                 // Now we can zap it...
-                                SetSessionState(SessionState.noSession);
+                                //SetSessionState(SessionState.noSession);
 
                                 // All done...
                                 break;
@@ -2981,6 +2971,9 @@ namespace TwainDirect.Support
                         // it's no longer possible to receive events...
                         if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
                         {
+                            // Do the callback, if we have one...
+                            apicmd.WaitForEventsCallback();
+
                             // Tell the communication thread to stop...
                             m_waitforeventsinfo.m_apicmd.HttpAbort();
                             break;
@@ -3134,6 +3127,27 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Queue an event for waitForEvents to send...
+        /// </summary>
+        /// <param name="a_szEvent">the event to send</param>
+        /// <param name="a_sessionstate">the state to send</param>
+        private void DeviceSendEvent(string a_szEvent, SessionState a_sessionstate)
+        {
+            // Guard us...
+            lock (m_objectLock)
+            {
+                // We only have an event if we have a session...
+                if (m_twainlocalsession != null)
+                {
+                    ApiCmd apicmd = new ApiCmd(null);
+                    m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
+                    apicmd.SetEvent(a_szEvent, a_sessionstate.ToString(), m_twainlocalsession.GetSessionRevision());
+                    DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, a_sessionstate, m_twainlocalsession.GetSessionRevision(), a_szEvent);
+                }
+            }
+        }
+
+        /// <summary>
         /// Our device session timeout callback...
         /// </summary>
         /// <param name="a_objectState"></param>
@@ -3143,13 +3157,19 @@ namespace TwainDirect.Support
             TwainLocalScanner twainlocalscanner = (TwainLocalScanner)a_objectState;
 
             // Send an event to let the app know that it's tooooooo late...
-            twainlocalscanner.DeviceSendEvent("sessionTimedOut");
+            twainlocalscanner.DeviceSendEvent("sessionTimedOut", SessionState.noSession);
 
             // Make a note of what we're doing...
             Log.Error("DeviceSessionTimerCallback: session timeout...");
 
+            // Give the system two seconds to deliver the message, otherwise
+            // what will happen is the client will see that it's lost
+            // communication.  Which it should interpret as the loss of the
+            // session.  This is just a nicer way of getting there...
+            Thread.Sleep(2000);
+
             // Scrag the session...
-            twainlocalscanner.SetSessionState(SessionState.noSession);
+            twainlocalscanner.SetSessionState(SessionState.noSession, "Session timeout...");
         }
 
         /// <summary>

@@ -1,7 +1,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Check Values v1.0 22-Jun-2017
+; Check Values v1.0 13-Jul-2017
 ; arg:1 - scanner to test
 ; returns: pass or fail
+;
+; Prove that the scanner allows the task to override the stream, source, and pixelFormat names.
 ;
 ; Try various configurations to see if we can confirm that the scanner is capable of responding with
 ; a resolution in the reply task.  We assume fail unless we get a successful response.
@@ -12,16 +14,55 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Check Values v1.0 22-Jun-2017' '${arg:1}'
+call INITIALIZE 'Check Values v1.0 13-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CV.01.001 Check Value - any, bw1, 200
+; TD.CHVL.001: override stream name
+; Demonstrate that the stream name can be overridden (that it's not forced to be 'stream#').
+;
+set name    'TD.CHVL.001: override stream name'
+set test    '{"actions":[{"action":"configure","streams":[{"name":"override","sources":[{"source":"any"}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].name'
+set value   'override'
+call CHECKKEYVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TD.CHVL.002: override source name
+; Demonstrate that the source name can be overridden (that it's not forced to be 'source#').
+;
+set name    'TD.CHVL.002: override source name'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","name":"override"}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].sources[0].name'
+set value   'override'
+call CHECKKEYVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TD.CHVL.003: override pixelFormat name
+; Demonstrate that the pixelFormat name can be overridden (that it's not forced to be 'pixelFormat#').
+;
+set name    'TD.CHVL.003: override pixelFormat name'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","name":"override","pixelFormats":[{"pixelFormat":"any","name":"override"}]}]}]}]}'
+set success 'true'
+set key     'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].name'
+set value   'override'
+call CHECKKEYVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get:value}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TD.CHVL.004: any, bw1, 200
 ; Check resolution
 ;
-set name    'CV.01.001 Check Values - any, bw1, 200'
+set name    'TD.CHVL.004: any, bw1, 200'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"bw1","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
@@ -31,10 +72,10 @@ call CHECKVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CV.01.002 Check Values - any, gray8, 200
+; TD.CHVL.005: any, gray8, 200
 ; Check resolution
 ;
-set name    'CV.01.002 Check Values - any, gray8, 200'
+set name    'TD.CHVL.005: any, gray8, 200'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"gray8","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
@@ -44,10 +85,10 @@ call CHECKVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CV.01.003 Check Values - any, rgb24, 200
+; TD.CHVL.006: any, rgb24, 200
 ; Check resolution
 ;
-set name    'CV.01.003 Check Values - any, rgb24, 200'
+set name    'TD.CHVL.006: any, rgb24, 200'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
@@ -63,7 +104,6 @@ call CHECKVALUE '${get:name}' '${get:test}' '${get:success}' '${get:key}' '${get
 echopassfail 'SUMMARY' '${get:localresult}'
 ;
 ; Close the session...
-echo
 echo 'CMD: closeSession'
 closeSession
 ;
@@ -113,13 +153,52 @@ waitForEvents
 ;
 ; Set our pass flag, and give us a blank line...
 set localresult skip
-echo
 return true
 ;
 ; Ruh-roh...
 :INITIALIZE.ERROR
 echo 'check that the scanner is available with the list command, and that the name for it is correct.'
 return false
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check Key Value
+; arg:1 - name of the test
+; arg:2 - task to test
+; arg:3 - expected value of results.success
+; arg:4 - JSON key to check
+; arg:5 - value that JSON key must have
+; returns: pass or fail
+;
+:CHECKKEYVALUE
+;
+; Log it to make it easier to diagnose stuff...
+log info '#'
+log info '#Test:                        ${arg:1}'
+log info '#Task:                        ${arg:2}'
+log info '#Expected success:            ${arg:3}'
+log info '#Key to check:                ${arg:4}'
+log info '#Expected key value:          ${arg:5}'
+;
+; Send the command...
+sendtask '${arg:2}'
+;
+if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECKKEYVALUE.FAIL
+if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECKKEYVALUE.FAIL
+if '${rj:${arg:4}}' != '${arg:5}' goto CHECKKEYVALUE.FAIL
+;
+set result pass
+echopassfail '${arg:1}' 'pass'
+log info '#Test result:                 pass'
+return 'pass'
+;
+:CHECKKEYVALUE.FAIL
+set result fail
+set localresult fail
+echopassfail '${arg:1}' 'fail'
+log info '#Test result:                 fail'
+return 'fail'
 
 
 

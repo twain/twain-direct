@@ -236,7 +236,7 @@ return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg1:} missing)'
+echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
 set readimageblockmetadataresult 'fail'
 return 'fail'
 ;

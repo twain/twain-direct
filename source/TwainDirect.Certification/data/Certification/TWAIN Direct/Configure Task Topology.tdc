@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Task Topology v1.0 22-Jun-2017
+; Configure Task Topology v1.0 13-Jul-2017
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
@@ -13,16 +13,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Task Topology v1.0 22-Jun-2017' '${arg:1}'
+call INITIALIZE 'Configure Task Topology v1.0 13-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.001 Task Topology - action with actions
+; TD.CNTT.001: fail, action with actions
 ; Detect the presence of an actions array in an action object.
 ;
-set name    'TT.01.001 Task Topology - action with actions'
+set name    'TD.CNTT.001: fail, action with actions'
 set test    '{"actions":[{"action":"configure","actions":[]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -32,10 +32,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.002 Task Topology - action with attribute
+; TD.CNTT.002: fail, action with attribute
 ; Detect the presence of an attribute property in an action object.
 ;
-set name    'TT.01.002 Task Topology - action with attribute'
+set name    'TD.CNTT.002: fail, action with attribute'
 set test    '{"actions":[{"action":"configure","attribute":"resolution"}]}'
 set success 'false'
 set code    'invalidTask'
@@ -45,10 +45,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.003 Task Topology - action with attributes
+; TD.CNTT.003: fail, action with attributes
 ; Detect the presence of an attributes array in an action object.
 ;
-set name    'TT.01.003 Task Topology - action with attributes'
+set name    'TD.CNTT.003: fail, action with attributes'
 set test    '{"actions":[{"action":"configure","attributes":[]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -58,10 +58,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.004 Task Topology - action with pixelFormat
+; TD.CNTT.004: fail, action with pixelFormat
 ; Detect the presence of a pixelFormat property in an action object.
 ;
-set name    'TT.01.004 Task Topology - action with pixelFormat'
+set name    'TD.CNTT.004: fail, action with pixelFormat'
 set test    '{"actions":[{"action":"configure","pixelFormat":"rgb24"}]}'
 set success 'false'
 set code    'invalidTask'
@@ -71,10 +71,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.005 Task Topology - action with pixelFormats
+; TD.CNTT.005: fail, action with pixelFormats
 ; Detect the presence of a pixelFormats array in an action object.
 ;
-set name    'TT.01.005 Task Topology - action with pixelFormats'
+set name    'TD.CNTT.005: fail, action with pixelFormats'
 set test    '{"actions":[{"action":"configure","pixelFormats":[]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -84,10 +84,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.006 Task Topology - action with source
+; TD.CNTT.006: fail, action with source
 ; Detect the presence of a source property in an action object.
 ;
-set name    'TT.01.006 Task Topology - action with source'
+set name    'TD.CNTT.006: fail, action with source'
 set test    '{"actions":[{"action":"configure","source":"any"}]}'
 set success 'false'
 set code    'invalidTask'
@@ -97,10 +97,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.007 Task Topology - action with sources
+; TD.CNTT.007: fail, action with sources
 ; Detect the presence of a sources array in an action object.
 ;
-set name    'TT.01.007 Task Topology - action with sources'
+set name    'TD.CNTT.007: fail, action with sources'
 set test    '{"actions":[{"action":"configure","sources":[]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -110,10 +110,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.008 Task Topology - action with stream
+; TD.CNTT.008: fail, action with stream
 ; Detect the presence of a stream property in an action object.
 ;
-set name    'TT.01.008 Task Topology - action with stream'
+set name    'TD.CNTT.008: fail, action with stream'
 set test    '{"actions":[{"action":"configure","stream":"stream0"}]}'
 set success 'false'
 set code    'invalidTask'
@@ -123,10 +123,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.009 Task Topology - action with value
+; TD.CNTT.009: fail, action with value
 ; Detect the presence of a value property in an action object.
 ;
-set name    'TT.01.009 Task Topology - action with value'
+set name    'TD.CNTT.009: fail, action with value'
 set test    '{"actions":[{"action":"configure","value":200}]}'
 set success 'false'
 set code    'invalidTask'
@@ -136,10 +136,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.010 Task Topology - action with values
+; TD.CNTT.010: fail, action with values
 ; Detect the presence of a values array in an action object.
 ;
-set name    'TT.01.010 Task Topology - action with values'
+set name    'TD.CNTT.010: fail, action with values'
 set test    '{"actions":[{"action":"configure","values":[]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -149,10 +149,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.011 Task Topology - actions is object
+; TD.CNTT.011: fail, actions is object
 ; Detect if actions is not an array.
 ;
-set name    'TT.01.011 Task Topology - actions is object'
+set name    'TD.CNTT.011: fail, actions is object'
 set test    '{"actions":{}}'
 set success 'false'
 set code    'invalidTask'
@@ -162,10 +162,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.01.012 Task Topology - actions is string
+; TD.CNTT.012: fail, actions is string
 ; Detect if actions is not an array.
 ;
-set name    'TT.01.012 Task Topology - actions is string'
+set name    'TD.CNTT.012: fail, actions is string'
 set test    '{"actions":"string"}'
 set success 'false'
 set code    'invalidTask'
@@ -175,10 +175,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.001 Task Topology - attribute with action
+; TD.CNTT.013: fail, attribute with action
 ; Detect the presence of an action property in an attribute object.
 ;
-set name    'TT.02.001 Task Topology - attribute with action'
+set name    'TD.CNTT.013: fail, attribute with action'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"action":"configure"}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -188,10 +188,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.002 Task Topology - attributes with actions
+; TD.CNTT.014: fail, attributes with actions
 ; Detect the presence of an actions array in an attribute object.
 ;
-set name    'TT.02.002 Task Topology - attributes with actions'
+set name    'TD.CNTT.014: fail, attributes with actions'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"actions":[]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -201,10 +201,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.003 Task Topology - attribute with attributes
+; TD.CNTT.015: fail, attribute with attributes
 ; Detect the presence of a attributes array in an attribute object.
 ;
-set name    'TT.02.003 Task Topology - attribute with attributes'
+set name    'TD.CNTT.015: fail, attribute with attributes'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"attributes":[]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -214,10 +214,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.004 Task Topology - attribute with pixelFormat
+; TD.CNTT.016: fail, attribute with pixelFormat
 ; Detect the presence of a attribute property in an attribute object.
 ;
-set name    'TT.02.004 Task Topology - attribute with pixelFormat'
+set name    'TD.CNTT.016: fail, attribute with pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"pixelFormat":"rgb24"}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -227,10 +227,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.005 Task Topology - attribute with pixelFormats
+; TD.CNTT.017: fail, attribute with pixelFormats
 ; Detect the presence of a pixelFormats array in an attribute object.
 ;
-set name    'TT.02.005 Task Topology - attribute with pixelFormats'
+set name    'TD.CNTT.017: fail, attribute with pixelFormats'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"pixelFormats":[]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -240,10 +240,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.006 Task Topology - attribute with source
+; TD.CNTT.018: fail, attribute with source
 ; Detect the presence of a pixelFormats array in an attribute object.
 ;
-set name    'TT.02.006 Task Topology - attribute with source'
+set name    'TD.CNTT.018: fail, attribute with source'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"source":"any"}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -253,10 +253,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.007 Task Topology - attribute with sources
+; TD.CNTT.019: fail, attribute with sources
 ; Detect the presence of a sources array in an attribute object.
 ;
-set name    'TT.02.007 Task Topology - attribute with sources'
+set name    'TD.CNTT.019: fail, attribute with sources'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"sources":[]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -266,10 +266,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.008 Task Topology - attribute with stream
+; TD.CNTT.020: fail, attribute with stream
 ; Detect the presence of a stream property in an attribute object.
 ;
-set name    'TT.02.008 Task Topology - attribute with stream'
+set name    'TD.CNTT.020: fail, attribute with stream'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"stream":"stream0"}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -279,10 +279,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.009 Task Topology - attribute with streams
+; TD.CNTT.021: fail, attribute with streams
 ; Detect the presence of a streams array in an attribute object.
 ;
-set name    'TT.02.009 Task Topology - attribute with streams'
+set name    'TD.CNTT.021: fail, attribute with streams'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"streams":[]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -292,10 +292,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.010 Task Topology - attribute with value
+; TD.CNTT.022: fail, attribute with value
 ; Detect the presence of a value property in an attribute object.
 ;
-set name    'TT.02.010 Task Topology - attribute with value'
+set name    'TD.CNTT.022: fail, attribute with value'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"value":"200"}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -305,10 +305,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.011 Task Topology - attributes is object
+; TD.CNTT.023: fail, attributes is object
 ; Detect if attributes is not an array.
 ;
-set name    'TT.02.011 Task Topology - attributes is object'
+set name    'TD.CNTT.023: fail, attributes is object'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":{}}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -318,10 +318,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.02.012 Task Topology - attributes is string
+; TD.CNTT.024: fail, attributes is string
 ; Detect if attributes is not an array.
 ;
-set name    'TT.02.012 Task Topology - attributes is string'
+set name    'TD.CNTT.024: fail, attributes is string'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":"string"}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -331,10 +331,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.001 Task Topology - pixelFormat with action
+; TD.CNTT.025: fail, pixelFormat with action
 ; Detect the presence of an action property in a pixelFormat object.
 ;
-set name    'TT.03.001 Task Topology - pixelFormat with action'
+set name    'TD.CNTT.025: fail, pixelFormat with action'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"action":"configure"}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -344,10 +344,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.002 Task Topology - pixelFormat with actions
+; TD.CNTT.026: fail, pixelFormat with actions
 ; Detect the presence of an actions array in a pixelFormat object.
 ;
-set name    'TT.03.002 Task Topology - pixelFormat with actions'
+set name    'TD.CNTT.026: fail, pixelFormat with actions'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"actions":[]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -357,10 +357,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.003 Task Topology - pixelFormat with attribute
+; TD.CNTT.027: fail, pixelFormat with attribute
 ; Detect the presence of a attribute property in a pixelFormat object.
 ;
-set name    'TT.03.003 Task Topology - pixelFormat with attribute'
+set name    'TD.CNTT.027: fail, pixelFormat with attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attribute":"resolution"}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -370,10 +370,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.004 Task Topology - pixelFormat with pixelFormats
+; TD.CNTT.028: fail, pixelFormat with pixelFormats
 ; Detect the presence of a pixelFormats array in a pixelFormat object.
 ;
-set name    'TT.03.004 Task Topology - pixelFormat with pixelFormats'
+set name    'TD.CNTT.028: fail, pixelFormat with pixelFormats'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"pixelFormats":[]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -383,10 +383,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.005 Task Topology - pixelFormat with source
+; TD.CNTT.029: fail, pixelFormat with source
 ; Detect the presence of a source property in a pixelFormat object.
 ;
-set name    'TT.03.005 Task Topology - pixelFormat with source'
+set name    'TD.CNTT.029: fail, pixelFormat with source'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"source":"any"}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -396,10 +396,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.006 Task Topology - pixelFormat with sources
+; TD.CNTT.030: fail, pixelFormat with sources
 ; Detect the presence of a sources array in a pixelFormat object.
 ;
-set name    'TT.03.006 Task Topology - pixelFormat with sources'
+set name    'TD.CNTT.030: fail, pixelFormat with sources'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"sources":[]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -409,10 +409,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.007 Task Topology - pixelFormat with stream
+; TD.CNTT.031: fail, pixelFormat with stream
 ; Detect the presence of a stream property in a pixelFormat object.
 ;
-set name    'TT.03.007 Task Topology - pixelFormat with stream'
+set name    'TD.CNTT.031: fail, pixelFormat with stream'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"stream":"stream0"}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -422,10 +422,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.008 Task Topology - pixelFormat with streams
+; TD.CNTT.032: fail, pixelFormat with streams
 ; Detect the presence of a streams array in a pixelFormat object.
 ;
-set name    'TT.03.008 Task Topology - pixelFormat with streams'
+set name    'TD.CNTT.032: fail, pixelFormat with streams'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"streams":[]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -435,10 +435,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.009 Task Topology - pixelFormat with value
+; TD.CNTT.033: fail, pixelFormat with value
 ; Detect the presence of a value property in a pixelFormat object.
 ;
-set name    'TT.03.009 Task Topology - pixelFormat with value'
+set name    'TD.CNTT.033: fail, pixelFormat with value'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"value":"200"}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -448,10 +448,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.010 Task Topology - pixelFormat with values
+; TD.CNTT.034: fail, pixelFormat with values
 ; Detect the presence of a values array in a pixelFormat object.
 ;
-set name    'TT.03.010 Task Topology - pixelFormat with values'
+set name    'TD.CNTT.034: fail, pixelFormat with values'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"values":[]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -461,10 +461,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.011 Task Topology - pixelFormats is object
+; TD.CNTT.035: fail, pixelFormats is object
 ; Detect if pixelFormats is not an array.
 ;
-set name    'TT.03.011 Task Topology - pixelFormats is object'
+set name    'TD.CNTT.035: fail, pixelFormats is object'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":{}}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -474,10 +474,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.03.012 Task Topology - pixelFormats is string
+; TD.CNTT.036: fail, pixelFormats is string
 ; Detect if pixelFormats is not an array.
 ;
-set name    'TT.03.012 Task Topology - pixelFormats is string'
+set name    'TD.CNTT.036: fail, pixelFormats is string'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":"string"}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -487,10 +487,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.001 Task Topology - source with action
+; TD.CNTT.037: fail, source with action
 ; Detect the presence of an action property in a source object.
 ;
-set name    'TT.04.001 Task Topology - source with action'
+set name    'TD.CNTT.037: fail, source with action'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"action":"configure"}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -500,10 +500,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.002 Task Topology - source with actions
+; TD.CNTT.038: fail, source with actions
 ; Detect the presence of an actions array in a source object.
 ;
-set name    'TT.04.002 Task Topology - source with actions'
+set name    'TD.CNTT.038: fail, source with actions'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"actions":[]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -513,10 +513,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.003 Task Topology - source with attribute
+; TD.CNTT.039: fail, source with attribute
 ; Detect the presence of a attribute property in a source object.
 ;
-set name    'TT.04.003 Task Topology - source with attribute'
+set name    'TD.CNTT.039: fail, source with attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"attribute":"resolution"}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -526,10 +526,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.004 Task Topology - source with attributes
+; TD.CNTT.040: fail, source with attributes
 ; Detect the presence of an attributes array in a source object.
 ;
-set name    'TT.04.004 Task Topology - source with attributes'
+set name    'TD.CNTT.040: fail, source with attributes'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"attributes":[]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -539,10 +539,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.005 Task Topology - source with pixelFormat
+; TD.CNTT.041: fail, source with pixelFormat
 ; Detect the presence of a pixelFormat property in a source object.
 ;
-set name    'TT.04.005 Task Topology - source with pixelFormat'
+set name    'TD.CNTT.041: fail, source with pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormat":"rgb24"}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -552,10 +552,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.006 Task Topology - source with sources
+; TD.CNTT.042: fail, source with sources
 ; Detect the presence of a sources array in a source object.
 ;
-set name    'TT.04.006 Task Topology - source with sources'
+set name    'TD.CNTT.042: fail, source with sources'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"sources":[]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -565,10 +565,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.007 Task Topology - source with stream
+; TD.CNTT.043: fail, source with stream
 ; Detect the presence of a stream property in a source object.
 ;
-set name    'TT.04.007 Task Topology - source with stream'
+set name    'TD.CNTT.043: fail, source with stream'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"stream":"stream0"}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -578,10 +578,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.008 Task Topology - source with streams
+; TD.CNTT.044: fail, source with streams
 ; Detect the presence of a streams array in a source object.
 ;
-set name    'TT.04.008 Task Topology - source with streams'
+set name    'TD.CNTT.044: fail, source with streams'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"streams":[]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -591,10 +591,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.009 Task Topology - source with value
+; TD.CNTT.045: fail, source with value
 ; Detect the presence of a value property in a source object.
 ;
-set name    'TT.04.009 Task Topology - source with value'
+set name    'TD.CNTT.045: fail, source with value'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"value":"200"}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -604,10 +604,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.010 Task Topology - source with values
+; TD.CNTT.046: fail, source with values
 ; Detect the presence of a values array in a source object.
 ;
-set name    'TT.04.010 Task Topology - source with values'
+set name    'TD.CNTT.046: fail, source with values'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"values":[]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -617,10 +617,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.011 Task Topology - sources is string
+; TD.CNTT.047: fail, sources is string
 ; Detect if sources is not an array.
 ;
-set name    'TT.04.011 Task Topology - sources is string'
+set name    'TD.CNTT.047: fail, sources is string'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":{}}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -630,10 +630,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.04.012 Task Topology - sources is object
+; TD.CNTT.048: fail, sources is object
 ; Detect if sources is not an array.
 ;
-set name    'TT.04.012 Task Topology - sources is object'
+set name    'TD.CNTT.048: fail, sources is object'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":"string"}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -643,10 +643,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.001 Task Topology - stream with action
+; TD.CNTT.049: fail, stream with action
 ; Detect the presence of an action property in a stream object.
 ;
-set name    'TT.05.001 Task Topology - stream with action'
+set name    'TD.CNTT.049: fail, stream with action'
 set test    '{"actions":[{"action":"configure","streams":[{"action":"configure"}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -656,10 +656,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.002 Task Topology - stream with actions
+; TD.CNTT.050: fail, stream with actions
 ; Detect the presence of an actions array in a stream object.
 ;
-set name    'TT.05.002 Task Topology - stream with actions'
+set name    'TD.CNTT.050: fail, stream with actions'
 set test    '{"actions":[{"action":"configure","streams":[{"actions":[]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -669,10 +669,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.003 Task Topology - stream with attribute
+; TD.CNTT.051: fail, stream with attribute
 ; Detect the presence of a attribute property in a stream object.
 ;
-set name    'TT.05.003 Task Topology - stream with attribute'
+set name    'TD.CNTT.051: fail, stream with attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"attribute":"resolution"}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -682,10 +682,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.004 Task Topology - stream with attributes
+; TD.CNTT.052: fail, stream with attributes
 ; Detect the presence of an attributes array in a stream object.
 ;
-set name    'TT.05.004 Task Topology - stream with attributes'
+set name    'TD.CNTT.052: fail, stream with attributes'
 set test    '{"actions":[{"action":"configure","streams":[{"attributes":[]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -695,10 +695,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.005 Task Topology - stream with pixelFormat
+; TD.CNTT.053: fail, stream with pixelFormat
 ; Detect the presence of a pixelFormat property in a stream object.
 ;
-set name    'TT.05.005 Task Topology - stream with pixelFormat'
+set name    'TD.CNTT.053: fail, stream with pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"pixelFormat":"rgb24"}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -708,10 +708,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.006 Task Topology - stream with pixelFormats
+; TD.CNTT.054: fail, stream with pixelFormats
 ; Detect the presence of a pixelFormats array in a stream object.
 ;
-set name    'TT.05.006 Task Topology - stream with pixelFormats'
+set name    'TD.CNTT.054: fail, stream with pixelFormats'
 set test    '{"actions":[{"action":"configure","streams":[{"pixelFormats":[]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -721,10 +721,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.007 Task Topology - stream with source
+; TD.CNTT.055: fail, stream with source
 ; Detect the presence of a source property in a stream object.
 ;
-set name    'TT.05.007 Task Topology - stream with source'
+set name    'TD.CNTT.055: fail, stream with source'
 set test    '{"actions":[{"action":"configure","streams":[{"source":"any"}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -734,10 +734,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.008 Task Topology - stream with streams
+; TD.CNTT.056: fail, stream with streams
 ; Detect the presence of a streams array in a stream object.
 ;
-set name    'TT.05.008 Task Topology - stream with streams'
+set name    'TD.CNTT.056: fail, stream with streams'
 set test    '{"actions":[{"action":"configure","streams":[{"streams":[]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -747,10 +747,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.009 Task Topology - stream with value
+; TD.CNTT.057: fail, stream with value
 ; Detect the presence of a value property in a stream object.
 ;
-set name    'TT.05.009 Task Topology - stream with value'
+set name    'TD.CNTT.057: fail, stream with value'
 set test    '{"actions":[{"action":"configure","streams":[{"value":"200"}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -760,10 +760,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.010 Task Topology - stream with values
+; TD.CNTT.058: fail, stream with values
 ; Detect the presence of a values array in a stream object.
 ;
-set name    'TT.05.010 Task Topology - stream with values'
+set name    'TD.CNTT.058: fail, stream with values'
 set test    '{"actions":[{"action":"configure","streams":[{"values":[]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -773,10 +773,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.011 Task Topology - streams is object
+; TD.CNTT.059: fail, streams is object
 ; Detect if streams is not an array.
 ;
-set name    'TT.05.011 Task Topology - streams is object'
+set name    'TD.CNTT.059: fail, streams is object'
 set test    '{"actions":[{"action":"configure","streams":{}}]}'
 set success 'false'
 set code    'invalidTask'
@@ -786,10 +786,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.05.012 Task Topology - streams is string
+; TD.CNTT.060: fail, streams is string
 ; Detect if streams is not an array.
 ;
-set name    'TT.05.012 Task Topology - streams is string'
+set name    'TD.CNTT.060: fail, streams is string'
 set test    '{"actions":[{"action":"configure","streams":"string"}]}'
 set success 'false'
 set code    'invalidTask'
@@ -799,10 +799,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.001 Task Topology - value with action
+; TD.CNTT.061: fail, value with action
 ; Detect the presence of an action property in a value object.
 ;
-set name    'TT.06.001 Task Topology - value with action'
+set name    'TD.CNTT.061: fail, value with action'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"action":"configure"}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -812,10 +812,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.002 Task Topology - value with actions
+; TD.CNTT.062: fail, value with actions
 ; Detect the presence of an actions array in a value object.
 ;
-set name    'TT.06.002 Task Topology - value with actions'
+set name    'TD.CNTT.062: fail, value with actions'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"actions":[]}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -825,10 +825,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.003 Task Topology - value with attribute
+; TD.CNTT.063: fail, value with attribute
 ; Detect the presence of a attribute property in a value object.
 ;
-set name    'TT.06.003 Task Topology - value with attribute'
+set name    'TD.CNTT.063: fail, value with attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"attribute":"resolution"}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -838,10 +838,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.004 Task Topology - value with attributes
+; TD.CNTT.064: fail, value with attributes
 ; Detect the presence of a attributes array in a value object.
 ;
-set name    'TT.06.004 Task Topology - value with attributes'
+set name    'TD.CNTT.064: fail, value with attributes'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"attributes":[]}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -851,10 +851,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.005 Task Topology - value with pixelFormat
+; TD.CNTT.065: fail, value with pixelFormat
 ; Detect the presence of a pixelFormat property in a value object.
 ;
-set name    'TT.06.005 Task Topology - value with pixelFormat'
+set name    'TD.CNTT.065: fail, value with pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"pixelFormat":"rgb24"}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -864,10 +864,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.006 Task Topology - value with pixelFormats
+; TD.CNTT.066: fail, value with pixelFormats
 ; Detect the presence of a pixelFormats array in a value object.
 ;
-set name    'TT.06.006 Task Topology - value with pixelFormats'
+set name    'TD.CNTT.066: fail, value with pixelFormats'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"pixelFormats":[]}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -877,10 +877,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.007 Task Topology - value with source
+; TD.CNTT.067: fail, value with source
 ; Detect the presence of a source property in a value object.
 ;
-set name    'TT.06.007 Task Topology - value with source'
+set name    'TD.CNTT.067: fail, value with source'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"source":"any"}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -890,10 +890,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.008 Task Topology - value with sources
+; TD.CNTT.068: fail, value with sources
 ; Detect the presence of a sources array in a value object.
 ;
-set name    'TT.06.008 Task Topology - value with sources'
+set name    'TD.CNTT.068: fail, value with sources'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"sources":[]}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -903,10 +903,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.009 Task Topology - value with stream
+; TD.CNTT.069: fail, value with stream
 ; Detect the presence of a stream property in a value object.
 ;
-set name    'TT.06.009 Task Topology - value with stream'
+set name    'TD.CNTT.069: fail, value with stream'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"stream":"stream0"}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -916,10 +916,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.010 Task Topology - value with streams
+; TD.CNTT.070: fail, value with streams
 ; Detect the presence of a streams array in a value object.
 ;
-set name    'TT.06.010 Task Topology - value with streams'
+set name    'TD.CNTT.070: fail, value with streams'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"streams":[]}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -929,10 +929,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.011 Task Topology - value with values
+; TD.CNTT.071: fail, value with values
 ; Detect the presence of a values array in a value object.
 ;
-set name    'TT.06.011 Task Topology - value with values'
+set name    'TD.CNTT.071: fail, value with values'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":[{"values":[]}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -942,10 +942,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.012 Task Topology - values is object
+; TD.CNTT.072: fail, values is object
 ; Detect if values is not an array.
 ;
-set name    'TT.06.012 Task Topology - values is object'
+set name    'TD.CNTT.072: fail, values is object'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":{}}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -955,10 +955,10 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TT.06.013 Task Topology - values is string
+; TD.CNTT.073: fail, values is string
 ; Detect if values is not an array.
 ;
-set name    'TT.06.013 Task Topology - values is string'
+set name    'TD.CNTT.073: fail, values is string'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"pixelFormats":[{"attributes":[{"values":"string"}]}]}]}]}]}'
 set success 'false'
 set code    'invalidTask'
@@ -974,7 +974,6 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key
 echopassfail 'SUMMARY' '${get:localresult}'
 ;
 ; Close the session...
-echo
 echo 'CMD: closeSession'
 closeSession
 ;
@@ -1024,7 +1023,6 @@ waitForEvents
 ;
 ; Set our pass flag, and give us a blank line...
 set localresult pass
-echo
 return true
 ;
 ; Ruh-roh...

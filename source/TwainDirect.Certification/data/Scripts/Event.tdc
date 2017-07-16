@@ -1,1 +1,108 @@
-echo EVENT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Event v1.0 11-Jul-2017
+; arg:1 - scanner to use or 'handleevent'
+; arg:2 - exitscript variable, if arg:1 is 'handleevent'
+; returns: pass or fail
+;
+; Sit and wait for events...
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Handle an event...
+;
+echo '${arg:1} ${arg:2} ${arg:3}'
+if '${arg:1}' != 'handleevent' goto MAIN.SELECT
+echo 'EVENT - ${ej:}'
+set ii '0'
+:HANDLEEVENT.LOOP
+	if '${ej:results.events[${get:ii}]}' == '' goto HANDLEEVENT.DONE
+	if '${ej:results.events[${get:ii}]}.session.state' != 'noSession' goto HANDLEEVENT.INCREMENT
+	set '${arg:2}' 'true'
+	:HANDLEEVENT.INCREMENT
+	increment ii '${get:ii}' 1
+	goto HANDLEEVENT.LOOP
+:HANDLEEVENT.DONE
+return 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pick a scanner...
+;
+:MAIN.SELECT
+select '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.FAIL
+set exitscript 'false'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Get the scanner info, including its x-privet-token...
+;
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto MAIN.FAIL
+echo 'SCANNER:' '${rj:description}' / '${rj:name}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Create a new session...
+;
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Wait for events, we'll call ourselves when one pops up...
+;
+echo 'CMD: waitForEvents'
+waitForEvents 'Event' 'handleevent' 'exitscript'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Loop forever (gonna have to add a CTRL-C option)
+;
+:MAIN.WAIT
+
+	; Waiting...
+	echo
+	echo 'WaitForSessionUpdate 999999999'
+	waitforsessionupdate 999999999
+	echo 'signaled: ${ret:}'
+	if '${get:exitscript}' == 'true' goto MAIN.CLOSESESSION
+
+goto MAIN.WAIT
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Close the session...
+;
+:MAIN.CLOSESESSION
+echo 'CMD: closeSession'
+closeSession
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bye-bye...
+;
+echo 'Done...'
+return pass
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAIL
+;
+:MAIN.FAIL
+closeSession
+echo 'script failed...'
+return 'fail'

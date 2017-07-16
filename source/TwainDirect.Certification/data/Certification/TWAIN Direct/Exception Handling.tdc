@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Exception Handling v1.0 22-Jun-2017
+; Exception Handling v1.0 13-Jul-2017
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
@@ -13,110 +13,166 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Exception Handling v1.0 22-Jun-2017' '${arg:1}'
+call INITIALIZE 'Exception Handling v1.0 13-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.01.001 Exception Handling - fail, action
+; TD.EXHN: fail, action
 ; Demonstrate a failure in an action.
 ;
-set name    'EH.01.001 Exception Handling - fail, action'
+set name    'TD.EXHN.001: fail, action'
 set test    '{"actions":[{"action":"someWeirdAction","exception":"fail","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].action'
-call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.01.002 Exception Handling - fail, attribute
+; TD.EXHN.002: fail, attribute
 ; Demonstrate a failure in an attribute.
 ;
-set name    'EH.01.002 Exception Handling - fail, attribute'
+set name    'TD.EXHN.002: fail, attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"exception":"fail","attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[1].attribute'
-call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.01.003 Exception Handling - fail, pixelFormat
+; TD.EXHN.003: fail, pixelFormat
 ; Demonstrate a failure in a pixelFormat.
 ;
-set name    'EH.01.003 Exception Handling - fail, pixelFormat'
+set name    'TD.EXHN.003: fail, pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"exception":"fail","pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].pixelFormats[0].pixelFormat'
-call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.01.004 Exception Handling - fail, source
+; TD.EXHN.004: fail, source
 ; Demonstrate a failure in a source.
 ;
-set name    'EH.01.004 Exception Handling - fail, source'
+set name    'TD.EXHN.004: fail, source'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"exception":"fail","source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].source'
-call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.01.005 Exception Handling - fail, stream
+; TD.EXHN.005: fail, stream
 ; Demonstrate a failure in a stream (the actual failure is detected in the source).
 ;
-set name    'EH.01.005 Exception Handling - fail, stream'
+set name    'TD.EXHN.005: fail, stream'
 set test    '{"actions":[{"action":"configure","streams":[{"exception":"fail","sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].source'
-call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.01.006 Exception Handling - fail, value
+; TD.EXHN.006: fail, value
 ; Demonstrate a failure in a value.
 ;
-set name    'EH.01.006 Exception Handling - fail, value'
+set name    'TD.EXHN.006: fail, value'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"exception":"fail","value":-200}]}]}]}]}]}]}'
 set success 'false'
 set code    'invalidValue'
 set key     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[1].values[0].value'
-call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:key}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.02.001 Exception Handling - nextAction, attribute
-; Demonstrate nextAction in an attribute.
+; TD.EXHN.007: nextAction, action
+; Demonstrate nextAction in an action.
 ;
-set name     'EH.02.001 Exception Handling - nextAction, attribute'
-set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","exception":"nextAction","values":[{"value":200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name     'TD.EXHN.007: nextAction, action'
+set test     '{"actions":[{"action":"some WeirdAction","exception":"nextAction"},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success0 'false'
 set code0    'invalidValue'
 set key0     'actions[0].action'
 set success1 'true'
-call CHECKNEXTACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.03.001 Exception Handling - nextStream, attribute
+; TD.EXHN.008: nextAction, attribute
+; Demonstrate nextAction in an attribute.
+;
+set name     'TD.EXHN.008: nextAction, attribute'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","exception":"nextAction","values":[{"value":200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success0 'false'
+set code0    'invalidValue'
+set key0     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].attribute'
+set success1 'true'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TD.EXHN.009: nextAction, pixelFormat
+; Demonstrate nextAction in a pixelFormat
+;
+set name     'TD.EXHN.009: nextAction, pixelFormat'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","exception":"nextAction"}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success0 'false'
+set code0    'invalidValue'
+set key0     'actions[0].streams[0].sources[0].pixelFormats[0].pixelFormat'
+set success1 'true'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TD.EXHN.010: nextAction, source
+; Demonstrate nextAction in a source.
+;
+set name     'TD.EXHN.010: nextAction, source'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","exception":"nextAction"}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success0 'false'
+set code0    'invalidValue'
+set key0     'actions[0].streams[0].sources[0].source'
+set success1 'true'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TD.EXHN.011: nextAction, value
+; Demonstrate nextAction in a value
+;
+set name     'TD.EXHN.011: nextAction, value'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","exception":"nextAction","values":[{"value":-200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set success0 'false'
+set code0    'invalidValue'
+set key0     'actions[0].streams[0].sources[0].pixelFormats[0].attributes[0].values[0].value'
+set success1 'true'
+call CHECKACTION '${get:name}' '${get:test}' '${get:success0}' '${get:code0}' '${get:key0}' '${get:success1}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TD.EXHN.012: nextStream, attribute
 ; Demonstrate nextStream in an attribute (this is implicit in any stream save the last, so we don't have
 ; to have an exception property for it to work).  Note that rgb24 in the first stream could trigger the
 ; jump to the nextStream, while the second rgb24 must be ignored if it's not supported.
 ;
-set name    'EH.03.001 Exception Handling - nextStream, attribute'
+set name    'TD.EXHN.012: nextStream, attribute'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
@@ -126,11 +182,11 @@ call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.03.002 Exception Handling - nextStream, pixelFormat
+; TD.EXHN.013: nextStream, pixelFormat
 ; Demonstrate nextStream in a pixelFormat (this is implicit an any stream save the last, so we don't have
 ; to have an exception property for it to work).
 ;
-set name    'EH.03.002 Exception Handling - nextStream, pixelFormat'
+set name    'TD.EXHN.013: nextStream, pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
@@ -140,11 +196,11 @@ call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.03.003 Exception Handling - nextStream, source
+; TD.EXHN.014: nextStream, source
 ; Demonstrate nextStream in a source (this is implicit an any stream save the last, so we don't have to
 ; have an exception property for it to work).
 ;
-set name    'EH.03.003 Exception Handling - nextStream, source'
+set name    'TD.EXHN.014: nextStream, source'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
@@ -154,12 +210,12 @@ call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; EH.03.004 Exception Handling - nextStream, value
+; TD.EXHN.015: nextStream, value
 ; Demonstrate nextStream in a value (this is implicit an any stream save the last, so we don't have to
 ; have an exception property for it to work).  Note that rgb24 in the first stream could trigger the
 ; jump to the nextStream, while the second rgb24 must be ignored if it's not supported.
 ;
-set name    'EH.03.004 Exception Handling - nextStream, value'
+set name    'TD.EXHN.015: nextStream, value'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":-200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
@@ -175,7 +231,6 @@ call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '
 echopassfail 'SUMMARY' '${get:localresult}'
 ;
 ; Close the session...
-echo
 echo 'CMD: closeSession'
 closeSession
 ;
@@ -225,7 +280,6 @@ waitForEvents
 ;
 ; Set our pass flag, and give us a blank line...
 set localresult pass
-echo
 return true
 ;
 ; Ruh-roh...
@@ -277,42 +331,70 @@ return 'fail'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Function: Check Next Action
+; Function: Check Action
 ; arg:1 - name of the test
 ; arg:2 - task to test
 ; arg:3 - action[0] expected value of results.success
 ; arg:4 - action[0] expected code
 ; arg:5 - action[0] expected jsonKey
-; arg:6 - action[1] expected value of results.success
+; arg:6 - (repeats), if needed
 ; returns: pass or fail
 ;
-:CHECKNEXTACTION
+:CHECKACTION
 ;
 ; Log it to make it easier to diagnose stuff...
 log info '#'
 log info '#Test:                        ${arg:1}'
 log info '#Task:                        ${arg:2}'
-log info '#action[0] expected success:  ${arg:3}'
-log info '#action[0] expected code:     ${arg:4}'
-log info '#action[0] expected key:      ${arg:5}'
-log info '#action[1] expected success:  ${arg:6}'
+set nn 0
+set aa 3
+:CHECKACTION.LOGNEXT
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.LOGDONE
+	log info '#action[${get:nn}] expected success:  ${arg:${get:aa}}'
+	increment aa '${get:aa}' 1
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.LOGDONE
+	log info '#action[${get:nn}] expected code:     ${arg:${get:aa}}'
+	increment aa '${get:aa}' 1
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.LOGDONE
+	log info '#action[${get:nn}] expected key:      ${arg:${get:aa}}'
+	increment aa '${get:aa}' 1
+	increment nn '${get:nn}' 1
+	goto CHECKACTION.LOGNEXT
+:CHECKACTION.LOGDONE
 ;
 ; Send the command...
 sendtask '${arg:2}'
 ;
-if '${rj:results.session.task.actions[0].results.success}' == '' goto CHECKNEXTACTION.FAIL
-if '${rj:results.session.task.actions[0].results.success}' != '${arg:3}' goto CHECKNEXTACTION.FAIL
-if '${rj:results.session.task.actions[0].results.code}' != '${arg:4}' goto CHECKNEXTACTION.FAIL
-if '${rj:results.session.task.actions[0].results.jsonKey}' != '${arg:5}' goto CHECKNEXTACTION.FAIL
-if '${rj:results.session.task.actions[1].results.success}' == '' goto CHECKNEXTACTION.FAIL
-if '${rj:results.session.task.actions[1].results.success}' != '${arg:6}' goto CHECKNEXTACTION.FAIL
+; Loop through all the items we want to check, the first one
+; is mandatory.  When we run of arguments, we're done.  If we
+; run out of actions first, that's bad...
+set nn 0
+set aa 3
+if '${rj:results.session.task.actions[${get:nn}].results.success}' == '' goto CHECKACTION.FAIL
+:CHECKACTION.ACTIONNEXT
+	if '${rj:results.session.task.actions[${get:nn}].results.success}' != '${arg:${get:aa}}' goto CHECKACTION.FAIL
+	increment aa '${get:aa}' 1
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.ACTIONDONE
+	;
+	if '${rj:results.session.task.actions[${get:nn}].results.code}' != '${arg:${get:aa}}' goto CHECKACTION.FAIL
+	increment aa '${get:aa}' 1
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.ACTIONDONE
+	;
+	if '${rj:results.session.task.actions[${get:nn}].results.jsonKey}' != '${arg:${get:aa}}' goto CHECKACTION.FAIL
+	increment aa '${get:aa}' 1
+	if '${arg:${get:aa}}' == '' goto CHECKACTION.ACTIONDONE
+	;
+	increment nn '${get:nn}' 1
+	if '${rj:results.session.task.actions[${get:nn}]}' == '' goto CHECKACTION.FAIL
+	goto CHECKACTION.ACTIONNEXT
+:CHECKACTION.ACTIONDONE
 ;
 set result pass
 echopassfail '${arg:1}' 'pass'
 log info '#Test result:                 pass'
 return 'pass'
 ;
-:CHECKNEXTACTION.FAIL
+:CHECKACTION.FAIL
 set result fail
 set localresult fail
 echopassfail '${arg:1}' 'fail'

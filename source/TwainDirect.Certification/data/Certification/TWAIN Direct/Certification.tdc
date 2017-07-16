@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TWAIN Direct Certification v1.0 22-Jun-2017
+; TWAIN Direct Certification v1.0 13-Jul-2017
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
@@ -11,17 +11,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Run all of our tests, start by assuming success...
 ;
-echo 'TWAIN Direct Certification v1.0 22-Jun-2017'
+echo 'TWAIN Direct Certification v1.0 13-Jul-2017'
 echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-log info '#TWAIN Direct Certification v1.0 22-Jun-2017'
+log info '#TWAIN Direct Certification v1.0 13-Jul-2017'
 log info '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 echo
 set certifyresult pass
 call CERTIFY 'JSON Syntax' '${arg:1}'
-call CERTIFY 'Task Topology' '${arg:1}'
+call CERTIFY 'Configure Task Topology' '${arg:1}'
 call CERTIFY 'Exception Handling' '${arg:1}'
 call CERTIFY 'Vendor Handling' '${arg:1}'
-call CERTIFY 'Exercises' '${arg:1}'
 call CERTIFY 'Check Values' '${arg:1}'
 call CERTIFY 'Info Infoex' '${arg:1}'
 

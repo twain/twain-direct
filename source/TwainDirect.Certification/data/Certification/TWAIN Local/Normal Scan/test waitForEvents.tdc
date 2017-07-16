@@ -87,7 +87,7 @@ return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
-echopassfail 'event check ${arg:1}' 'fail (${arg1:} missing)'
+echopassfail 'event check ${arg:1}' 'fail (${arg:1} missing)'
 set '${get:waitforeventsresultname}' 'fail'
 return 'fail'
 ;

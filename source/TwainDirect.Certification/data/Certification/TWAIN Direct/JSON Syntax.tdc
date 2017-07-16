@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JSON Syntax v1.0 22-Jun-2017
+; JSON Syntax v1.0 13-Jul-2017
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
@@ -13,17 +13,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'JSON Syntax v1.0 22-Jun-2017' '${arg:1}'
+call INITIALIZE 'JSON Syntax v1.0 13-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.001 JSON Syntax - array, bad boolean
+; TD.JSON.001: array, bad boolean
 ; A JSON array can only support the naked values true, false and null.
 ; characterOffset is 167 + 21 = 188
 ;
-set name    'JS.01.001 JSON Syntax - array, bad boolean'
+set name    'TD.JSON.001: array, bad boolean'
 set test    '["boolean error", trudy]'
 set success 'false'
 set code    'invalidJson'
@@ -33,11 +33,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.002 JSON Syntax - array, comma after closing square bracket
+; TD.JSON.002: array, comma after closing square bracket
 ; A JSON array cannot have a comma (or any other textual data) after the closing square bracket.
 ; characterOffset is 167 + 40 = 207
 ;
-set name    'JS.01.002 JSON Syntax - array, comma after closing square bracket'
+set name    'TD.JSON.002: array, comma after closing square bracket'
 set test    '["trailing stuff outside of the array"],'
 set success 'false'
 set code    'invalidJson'
@@ -47,11 +47,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.003 JSON Syntax - array, comma seen instead of data
+; TD.JSON.003: array, comma seen instead of data
 ; A JSON array cannot include a comma as data, one solution is to put the second comma inside of quotes.
 ; characterOffset is 167 + 30 = 197
 ;
-set name    'JS.01.003 JSON Syntax - array, comma seen instead of data'
+set name    'TD.JSON.003: array, comma seen instead of data'
 set test    '["we have consecutive commas",,]'
 set success 'false'
 set code    'invalidJson'
@@ -61,11 +61,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.004 JSON Syntax - array, leading comma
+; TD.JSON.004: array, leading comma
 ; A JSON array must have valid data between the opening square bracket and the first comma.
 ; characterOffset is 167 + 3 = 170
 ;
-set name    'JS.01.004 JSON Syntax - array, leading comma'
+set name    'TD.JSON.004: array, leading comma'
 set test    '[  , "we have a leading comma"]'
 set success 'false'
 set code    'invalidJson'
@@ -75,11 +75,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.005 JSON Syntax - array, separate items with comma not colon
+; TD.JSON.005: array, separate items with comma not colon
 ; A JSON array must have valid data between the opening square bracket and the first comma.
 ; characterOffset is 167 + 39 = 206
 ;
-set name    'JS.01.005 JSON Syntax - array, separate items with comma not colon'
+set name    'TD.JSON.005: array, separate items with comma not colon'
 set test    '["separate items with comma, not colon": false]'
 set success 'false'
 set code    'invalidJson'
@@ -89,11 +89,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.006 JSON Syntax - array, square bracket after closing square bracket
+; TD.JSON.006: array, square bracket after closing square bracket
 ; A JSON array cannot have a square bracket (or any other textual data) after the closing square bracket.
 ; characterOffset is 167 + 28 = 195
 ;
-set name    'JS.01.006 JSON Syntax - array, square bracket after closing square bracket'
+set name    'TD.JSON.006: array, square bracket after closing square bracket'
 set test    '["too much of a good thing"]]'
 set success 'false'
 set code    'invalidJson'
@@ -103,11 +103,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.007 JSON Syntax - array, trailing comma
+; TD.JSON.007: array, trailing comma
 ; A JSON array cannot have a square bracket (or any other textual data) after the closing square bracket.
 ; characterOffset is 167 + 18 = 185
 ;
-set name    'JS.01.007 JSON Syntax - array, trailing comma'
+set name    'TD.JSON.007: array, trailing comma'
 set test    '["we have a tail",]'
 set success 'false'
 set code    'invalidJson'
@@ -117,11 +117,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.01.008 JSON Syntax - array, unterminated
+; TD.JSON.008: array, unterminated
 ; A JSON array must have both and open and a close square bracket [].
 ; characterOffset is 167 + 25 = 192
 ;
-set name    'JS.01.008 JSON Syntax - array, unterminated'
+set name    'TD.JSON.008: array, unterminated'
 set test    '["missing square bracket"'
 set success 'false'
 set code    'invalidJson'
@@ -131,11 +131,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.02.001 JSON Syntax - misc, must find array or object
+; TD.JSON.009: misc, must find array or object
 ; A JSON string must have an outermost type that is an array [] or an object {}.
 ; characterOffset is 167 + 0 = 167
 ;
-set name    'JS.02.001 JSON Syntax - misc, must find array or object'
+set name    'TD.JSON.009: misc, must find array or object'
 set test    '"this is not an object or an array"'
 set success 'false'
 set code    'invalidJson'
@@ -145,11 +145,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.02.002 JSON Syntax - misc, must terminate with matching bracket
+; TD.JSON.010: misc, must terminate with matching bracket
 ; A JSON array or object must terminate with the right kind of matching bracket.
 ; characterOffset is 167 + 11 = 178
 ;
-set name    'JS.02.002 JSON Syntax - misc, must terminate with matching bracket'
+set name    'TD.JSON.010: misc, must terminate with matching bracket'
 set test    '["mismatch"}'
 set success 'false'
 set code    'invalidJson'
@@ -159,11 +159,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.03.001 JSON Syntax - number, e notation missing exponent
+; TD.JSON.011: number, e notation missing exponent
 ; A JSON e notation numbers must include a coefficient and an exponent.
 ; characterOffset is 167 + 4 = 171
 ;
-set name    'JS.03.001 JSON Syntax - number, e notation missing exponent'
+set name    'TD.JSON.011: number, e notation missing exponent'
 set test    '[0e+]'
 set success 'false'
 set code    'invalidJson'
@@ -173,11 +173,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.03.002 JSON Syntax - number, e notation sign error on exponent
+; TD.JSON.012: number, e notation sign error on exponent
 ; A JSON e notation numbers may include a single + or a single - after the e and before the exponent.
 ; characterOffset is 167 + 4 = 171
 ;
-set name    'JS.03.002 JSON Syntax - number, e notation sign error on exponent'
+set name    'TD.JSON.012: number, e notation sign error on exponent'
 set test    '[0e+-1]'
 set success 'false'
 set code    'invalidJson'
@@ -187,11 +187,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.03.003 JSON Syntax - number, e notation truncated
+; TD.JSON.013: number, e notation truncated
 ; A JSON e notation numbers must include a coefficient and an exponent.
 ; characterOffset is 167 + 3 = 170
 ;
-set name    'JS.03.003 JSON Syntax - number, e notation truncated'
+set name    'TD.JSON.013: number, e notation truncated'
 set test    '[0e]'
 set success 'false'
 set code    'invalidJson'
@@ -201,11 +201,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.03.004 JSON Syntax - number, no hexadecimal
+; TD.JSON.014: number, no hexadecimal
 ; A JSON integer cannot be in a radix other than base 10.
 ; characterOffset is 167 + 19 = 186
 ;
-set name    'JS.03.004 JSON Syntax - number, no hexadecimal'
+set name    'TD.JSON.014: number, no hexadecimal'
 set test    '{"no hex please": 0x1}'
 set success 'false'
 set code    'invalidJson'
@@ -215,11 +215,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.03.005 JSON Syntax - number, no leading zeros
+; TD.JSON.015: number, no leading zeros
 ; A JSON integer value cannot have a leading zero.
 ; characterOffset is 167 + 33 = 200
 ;
-set name    'JS.03.005 JSON Syntax - number, no leading zeros'
+set name    'TD.JSON.015: number, no leading zeros'
 set test    '{"no padding please, or octal": 01}'
 set success 'false'
 set code    'invalidJson'
@@ -229,11 +229,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.04.001 JSON Syntax - object, comma instead of closing curly bracket
+; TD.JSON.016: object, comma instead of closing curly bracket
 ; A JSON object must close with a curly bracket.
 ; characterOffset is 167 + 27 = 194
 ;
-set name    'JS.04.001 JSON Syntax - object, comma instead of closing curly bracket'
+set name    'TD.JSON.016: object, comma instead of closing curly bracket'
 set test    '{"we are incomplete": true,'
 set success 'false'
 set code    'invalidJson'
@@ -243,11 +243,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.04.002 JSON Syntax - object, string after closing curly bracket
+; TD.JSON.017: object, string after closing curly bracket
 ; A JSON object cannot have a string (or any other textual data) after the closing curly bracket.
 ; characterOffset is 167 + 28 = 195
 ;
-set name    'JS.04.002 JSON Syntax - object, string after closing curly bracket'
+set name    'TD.JSON.017: object, string after closing curly bracket'
 set test    '{"this part is okay": true} "this bit is not"'
 set success 'false'
 set code    'invalidJson'
@@ -257,11 +257,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.04.003 JSON Syntax - object, trailing comma
+; TD.JSON.018: object, trailing comma
 ; A JSON object must have valid data between the last comma and the closing curly bracket.
 ; characterOffset is 167 + 24 = 191
 ;
-set name    'JS.04.003 JSON Syntax - object, trailing comma'
+set name    'TD.JSON.018: object, trailing comma'
 set test    '{"we have a tail": true,}'
 set success 'false'
 set code    'invalidJson'
@@ -271,11 +271,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.04.004 JSON Syntax - object, unterminated
+; TD.JSON.019: object, unterminated
 ; A JSON object must have both and open and a close curly bracket {}.
 ; characterOffset is 167 + 33 = 200
 ;
-set name    'JS.04.004 JSON Syntax - object, unterminated'
+set name    'TD.JSON.019: object, unterminated'
 set test    '{"we are missing a curly bracket"'
 set success 'false'
 set code    'invalidJson'
@@ -285,11 +285,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.05.001 JSON Syntax - property, extra colon
+; TD.JSON.020: property, extra colon
 ; A JSON key must separated from its value by a single colon.
 ; characterOffset is 167 + 15 = 182
 ;
-set name    'JS.05.001 JSON Syntax - property, extra colon'
+set name    'TD.JSON.020: property, extra colon'
 set test    '{"extra colon":: null}'
 set success 'false'
 set code    'invalidJson'
@@ -299,11 +299,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.05.002 JSON Syntax - property, missing colon
+; TD.JSON.021: property, missing colon
 ; A JSON key must separated from its value by a single colon.
 ; characterOffset is 167 + 17 = 184
 ;
-set name    'JS.05.002 JSON Syntax - property, missing colon'
+set name    'TD.JSON.021: property, missing colon'
 set test    '{"missing colon" null}'
 set success 'false'
 set code    'invalidJson'
@@ -313,11 +313,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.05.003 JSON Syntax - property, not a colon
+; TD.JSON.022: property, not a colon
 ; A JSON key must separated from its value by a single colon.
 ; characterOffset is 167 + 20 = 187
 ;
-set name    'JS.05.003 JSON Syntax - property, not a colon'
+set name    'TD.JSON.022: property, not a colon'
 set test    '{"we expect a colon", null}'
 set success 'false'
 set code    'invalidJson'
@@ -327,11 +327,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.05.004 JSON Syntax - property, value must be quoted
+; TD.JSON.023: property, value must be quoted
 ; A JSON value must appear in quotes.
 ; characterOffset is 167 + 30 = 197
 ;
-set name    'JS.05.004 JSON Syntax - property, value must be quoted'
+set name    'TD.JSON.023: property, value must be quoted'
 set test    '{"we are not a calculator": 1 + 2}'
 set success 'false'
 set code    'invalidJson'
@@ -341,11 +341,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.06.001 JSON Syntax - string, badly formed escape character
+; TD.JSON.024: string, badly formed escape character
 ; A JSON string uses backslash-#### or a small set of recognized escape characters.
 ; characterOffset is 167 + 44 = 211
 ;
-set name    'JS.06.001 JSON Syntax - string, badly formed escape character'
+set name    'TD.JSON.024: string, badly formed escape character'
 set test    '["illegal escape, return to the game grid: \x15"]'
 set success 'false'
 set code    'invalidJson'
@@ -355,11 +355,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.06.002 JSON Syntax - string, escaped characters must be in strings
+; TD.JSON.025: string, escaped characters must be in strings
 ; A JSON escaped character can only be used in a string.
 ; characterOffset is 167 + 1 = 168
 ;
-set name    'JS.06.002 JSON Syntax - string, escaped characters must be in strings'
+set name    'TD.JSON.025: string, escaped characters must be in strings'
 set test    '[\naked]'
 set success 'false'
 set code    'invalidJson'
@@ -369,11 +369,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.06.003 JSON Syntax - string, incomplete escape character
+; TD.JSON.026: string, incomplete escape character
 ; A JSON escape character that uses hexadecimal must have four hexits and start with 'u' (ex: (backslash)uABCD).
 ; characterOffset is 167 + 29 = 196
 ;
-set name    'JS.06.003 JSON Syntax - string, incomplete escape character'
+set name    'TD.JSON.026: string, incomplete escape character'
 set test    '["Illegal backslash escape: \017"]'
 set success 'false'
 set code    'invalidJson'
@@ -383,11 +383,11 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; JS.06.004 JSON Syntax - string, no tab characters allowed
+; TD.JSON.027: string, no tab characters allowed
 ; A JSON string must consist of printable characters and escape characters.
 ; characterOffset is 167 + 2 = 169
 ;
-set name    'JS.06.004 JSON Syntax - string, no tab characters allowed'
+set name    'TD.JSON.027: string, no tab characters allowed'
 set test    '["	tab	character	in	string	"]'
 set success 'false'
 set code    'invalidJson'
@@ -403,7 +403,6 @@ call CHECK '${get:name}' '${get:test}' '${get:success}' '${get:code}' '${get:off
 echopassfail 'SUMMARY' '${get:localresult}'
 ;
 ; Close the session...
-echo
 echo 'CMD: closeSession'
 closeSession
 ;
@@ -453,7 +452,6 @@ waitForEvents
 ;
 ; Set our pass flag, and give us a blank line...
 set localresult pass
-echo
 return true
 ;
 ; Ruh-roh...

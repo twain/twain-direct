@@ -447,14 +447,16 @@ namespace TwainDirect.OnTwain
 
             // Instantiate the sword object...
             m_szVendor = a_szVendor;
-            m_swordtask = new SwordTask(this, m_swordtaskresponse);
+            m_swordtask = new SwordTask(this);
 
-            // Check the type of actions (make sure we find actions)...
+            // Check the type of actions (make sure we find actions), if this
+            // fails we need to make a temporary action to carry the error...
             epropertytype = jsonlookup.GetType("actions");
             if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
             {
                 TWAINWorkingGroup.Log.Error("topology violation: actions isn't an array");
-                m_swordtaskresponse.SetError("fail", "actions", "invalidTask", -1);
+                m_swordtaskresponse.SetError("fail", "actions", "invalidTask", -1, true);
+                m_swordtask.BuildTaskReply();
                 return (false);
             }
 
@@ -491,9 +493,10 @@ namespace TwainDirect.OnTwain
                 }
 
                 // Check the topology...
-                if (    !CheckTopology("actions", "", jsonlookup)
-                    ||  !CheckTopology("action", szSwordAction, jsonlookup))
+                if (    !CheckTopology(swordaction, "actions", "", jsonlookup)
+                    ||  !CheckTopology(swordaction, "action", szSwordAction, jsonlookup))
                 {
+                    m_swordtask.BuildTaskReply();
                     return (false);
                 }
 
@@ -505,7 +508,8 @@ namespace TwainDirect.OnTwain
                 if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: streams isn't an array");
-                    m_swordtaskresponse.SetError("fail", szSwordAction + ".streams", "invalidTask", -1);
+                    swordaction.SetError("fail", szSwordAction + ".streams", "invalidTask", -1);
+                    m_swordtask.BuildTaskReply();
                     return (false);
                 }
 
@@ -532,9 +536,10 @@ namespace TwainDirect.OnTwain
                     }
 
                     // Check the topology...
-                    if (    !CheckTopology("streams", szSwordAction, jsonlookup)
-                        ||  !CheckTopology("stream", szSwordStream, jsonlookup))
+                    if (    !CheckTopology(swordaction, "streams", szSwordAction, jsonlookup)
+                        ||  !CheckTopology(swordaction, "stream", szSwordStream, jsonlookup))
                     {
+                        m_swordtask.BuildTaskReply();
                         return (false);
                     }
 
@@ -546,7 +551,8 @@ namespace TwainDirect.OnTwain
                     if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                     {
                         TWAINWorkingGroup.Log.Error("topology violation: sources isn't an array");
-                        m_swordtaskresponse.SetError("fail", szSwordStream + ".sources", "invalidTask", -1);
+                        swordstream.SetError("fail", szSwordStream + ".sources", "invalidTask", -1);
+                        m_swordtask.BuildTaskReply();
                         return (false);
                     }
 
@@ -573,9 +579,10 @@ namespace TwainDirect.OnTwain
                         }
 
                         // Check the topology...
-                        if (    !CheckTopology("sources", szSwordStream, jsonlookup)
-                            ||  !CheckTopology("source", szSwordSource, jsonlookup))
+                        if (    !CheckTopology(swordaction, "sources", szSwordStream, jsonlookup)
+                            ||  !CheckTopology(swordaction, "source", szSwordSource, jsonlookup))
                         {
+                            m_swordtask.BuildTaskReply();
                             return (false);
                         }
 
@@ -587,7 +594,8 @@ namespace TwainDirect.OnTwain
                         if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                         {
                             TWAINWorkingGroup.Log.Error("topology violation: pixelFormats isn't an array");
-                            m_swordtaskresponse.SetError("fail", szSwordSource + ".pixelFormats", "invalidTask", -1);
+                            swordsource.SetError("fail", szSwordSource + ".pixelFormats", "invalidTask", -1);
+                            m_swordtask.BuildTaskReply();
                             return (false);
                         }
 
@@ -614,9 +622,10 @@ namespace TwainDirect.OnTwain
                             }
 
                             // Check the topology...
-                            if (    !CheckTopology("pixelFormats", szSwordSource, jsonlookup)
-                                ||  !CheckTopology("pixelFormat", szSwordPixelformat, jsonlookup))
+                            if (    !CheckTopology(swordaction, "pixelFormats", szSwordSource, jsonlookup)
+                                ||  !CheckTopology(swordaction, "pixelFormat", szSwordPixelformat, jsonlookup))
                             {
+                                m_swordtask.BuildTaskReply();
                                 return (false);
                             }
 
@@ -628,7 +637,8 @@ namespace TwainDirect.OnTwain
                             if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                             {
                                 TWAINWorkingGroup.Log.Error("topology violation: attributes isn't an array");
-                                m_swordtaskresponse.SetError("fail", szSwordPixelformat + ".attributes", "invalidTask", -1);
+                                swordpixelformat.SetError("fail", szSwordPixelformat + ".attributes", "invalidTask", -1);
+                                m_swordtask.BuildTaskReply();
                                 return (false);
                             }
 
@@ -655,9 +665,10 @@ namespace TwainDirect.OnTwain
                                 }
 
                                 // Check the topology...
-                                if (    !CheckTopology("attributes", szSwordPixelformat, jsonlookup)
-                                    ||  !CheckTopology("attribute", szSwordAttribute, jsonlookup))
+                                if (    !CheckTopology(swordaction, "attributes", szSwordPixelformat, jsonlookup)
+                                    ||  !CheckTopology(swordaction, "attribute", szSwordAttribute, jsonlookup))
                                 {
+                                    m_swordtask.BuildTaskReply();
                                     return (false);
                                 }
 
@@ -669,7 +680,8 @@ namespace TwainDirect.OnTwain
                                 if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                                 {
                                     TWAINWorkingGroup.Log.Error("topology violation: values isn't an array");
-                                    m_swordtaskresponse.SetError("fail", szSwordAttribute + ".values", "invalidTask", -1);
+                                    swordattribute.SetError("fail", szSwordAttribute + ".values", "invalidTask", -1);
+                                    m_swordtask.BuildTaskReply();
                                     return (false);
                                 }
 
@@ -696,9 +708,10 @@ namespace TwainDirect.OnTwain
                                     }
 
                                     // Check the topology...
-                                    if (    !CheckTopology("values", szSwordAttribute, jsonlookup)
-                                        ||  !CheckTopology("value", szSwordValue, jsonlookup))
+                                    if (    !CheckTopology(swordaction, "values", szSwordAttribute, jsonlookup)
+                                        ||  !CheckTopology(swordaction, "value", szSwordValue, jsonlookup))
                                     {
+                                        m_swordtask.BuildTaskReply();
                                         return (false);
                                     }
 
@@ -807,6 +820,15 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// Get our SWORD Task Response object...
+        /// </summary>
+        /// <returns>the object</returns>
+        public SwordTaskResponse GetSwordTaskResponse()
+        {
+            return (m_swordtaskresponse);
+        }
+
+        /// <summary>
         /// Get the task reply...
         /// </summary>
         /// <returns></returns>
@@ -868,11 +890,12 @@ namespace TwainDirect.OnTwain
                 {
                     default:
                     case SwordStatus.Fail:
+                        m_swordtask.BuildTaskReply();
                         return (false);
                     case SwordStatus.NextAction:
-                        continue;
+                        break;
                     case SwordStatus.VendorMismatch:
-                        continue;
+                        break;
                     case SwordStatus.Run:
                     case SwordStatus.Success:
                     case SwordStatus.SuccessIgnore:
@@ -891,11 +914,12 @@ namespace TwainDirect.OnTwain
                 {
                     default:
                     case SwordStatus.Fail:
-                    case SwordStatus.NextAction:
                         m_swordtask.BuildTaskReply();
                         return (false);
+                    case SwordStatus.NextAction:
+                        break;
                     case SwordStatus.VendorMismatch:
-                        continue;
+                        break;
                     case SwordStatus.Success:
                     case SwordStatus.SuccessIgnore:
                         break;
@@ -1390,15 +1414,17 @@ namespace TwainDirect.OnTwain
 
         /// <summary>
         /// We want to make sure that tasks follow a strict topology order, this
-        /// means that terms in that topology cannot appear out od sequence...
+        /// means that terms in that topology cannot appear out of sequence...
         /// </summary>
+        /// <param name="a_swordaction">the action where we'll record any problems</param>
         /// <param name="a_szKey">the current key in the topology (ex: action, stream)</param>
         /// <param name="a_szKey">the current path to the key</param>
         /// <param name="a_jsonlookup">task that we're testing</param>
         /// <returns></returns>
-        private bool CheckTopology(string a_szKey, string a_szPath, JsonLookup a_jsonlookup)
+        private bool CheckTopology(SwordAction a_swordaction, string a_szKey, string a_szPath, JsonLookup a_jsonlookup)
         {
             string szFullKey;
+            SwordTaskResponse swordtaskresponse = a_swordaction.GetSwordTaskResponse();
 
             // If this is custom to a vendor, then skip this test, we can't
             // know what they're doing, so we shouldn't try to check it...
@@ -1415,7 +1441,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: actions");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1427,7 +1454,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: action");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1439,7 +1467,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: streams");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1451,7 +1480,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: stream");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1463,7 +1493,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: sources");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1475,7 +1506,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: source");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1487,7 +1519,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: pixelFormats");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1499,7 +1532,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: pixelFormat");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1511,7 +1545,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: attributes");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1523,7 +1558,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: attribute");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1535,7 +1571,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: values");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1547,7 +1584,8 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(a_jsonlookup.Get(szFullKey,false)))
                 {
                     TWAINWorkingGroup.Log.Error("topology violation: value");
-                    m_swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    swordtaskresponse.SetError("fail", szFullKey, "invalidTask", -1);
+                    a_swordaction.SetSwordStatus(SwordStatus.Fail);
                     return (false);
                 }
             }
@@ -1732,7 +1770,7 @@ namespace TwainDirect.OnTwain
             if (sts != TWAIN.STS.SUCCESS)
             {
                 TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
-                m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
                 return (false);
             }
 
@@ -1743,7 +1781,7 @@ namespace TwainDirect.OnTwain
             if (sts != TWAIN.STS.SUCCESS)
             {
                 TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
-                m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
                 return (false);
             }
 
@@ -1756,7 +1794,7 @@ namespace TwainDirect.OnTwain
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
-                    m_swordtaskresponse.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                    a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
                     return (false);
                 }
             }
@@ -1788,43 +1826,34 @@ namespace TwainDirect.OnTwain
             szAction = a_swordaction.GetAction();
             if (string.IsNullOrEmpty(szAction))
             {
-                goto ABORT;
-            }
-            TWAINWorkingGroup.Log.Info("td> action: " + szAction);
-
-            // Configure...
-            if (szAction == "configure")
-            {
-                swordstatus = RunConfigure(a_swordaction);
-                return (swordstatus);
+                szAction = "";
             }
 
-        // Handle problems...
-        ABORT:
+            // Dispatch the action...
+            switch (szAction)
+            {
+                // Ruh-roh...
+                default:
+                    // Apply our exceptions...
+                    switch (a_swordaction.GetException())
+                    {
+                        default:
+                            return (SwordStatus.SuccessIgnore);
+                        case "nextAction":
+                            a_swordaction.SetError("nextAction", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                            return (SwordStatus.NextAction);
+                        case "nextStream":
+                            return (SwordStatus.NextStream);
+                        case "fail":
+                            a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                            return (SwordStatus.Fail);
+                    }
 
-            // Apply our exceptions...
-            string szException = a_swordaction.GetException();
-            if (szException == "nextAction")
-            {
-                swordstatus = SwordStatus.NextAction;
-                return (swordstatus);
+                // Configure...
+                case "configure":
+                    swordstatus = RunConfigure(a_swordaction);
+                    return (swordstatus);
             }
-            if (szException == "nextStream")
-            {
-                swordstatus = SwordStatus.NextAction;
-                return (swordstatus);
-            }
-            if (szException == "fail")
-            {
-                string szJsonKey;
-                szJsonKey = a_swordaction.GetJsonKey() + ".action";
-                m_swordtaskresponse.SetError("fail", szJsonKey, "invalidValue", -1);
-                swordstatus = SwordStatus.Fail;
-                return (swordstatus);
-            }
-
-            // We're successful, we're going to ignore it...
-            return (SwordStatus.SuccessIgnore);
         }
 
         /// <summary>
@@ -2102,6 +2131,38 @@ namespace TwainDirect.OnTwain
                     // Set the pixelformat...
                     string szCapPixelType;
                     string szPixelformt = swordpixelformat.GetPixelFormat();
+                    if (string.IsNullOrEmpty(szPixelformt) || (szPixelformt == "any"))
+                    {
+                        szCapPixelType = "ICAP_PIXELTYPE";
+                        szStatus = "";
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapPixelType, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            TWAINWorkingGroup.Log.Error("Couldn't get ICAP_PIXELTYPE for 'any'");
+                            return (SwordStatus.Fail);
+                        }
+                        string[] aszContainer = CSV.Parse(szCapPixelType);
+                        if ((aszContainer == null) || (aszContainer.Length < 3) || (aszContainer[1] != "TWON_ONEVALUE"))
+                        {
+                            TWAINWorkingGroup.Log.Error("Couldn't parse ICAP_PIXELTYPE for 'any'");
+                            return (SwordStatus.Fail);
+                        }
+                        switch (aszContainer[3])
+                        {
+                            default:
+                                TWAINWorkingGroup.Log.Error("Unsupported ICAP_PIXELTYPE for 'any' <" + aszContainer[3] + ">");
+                                return (SwordStatus.Fail);
+                            case "0":
+                                szPixelformt = "bw1";
+                                break;
+                            case "1":
+                                szPixelformt = "gray8";
+                                break;
+                            case "2":
+                                szPixelformt = "rgb24";
+                                break;
+                        }
+                    }
                     switch (szPixelformt)
                     {
                         default:
@@ -2194,19 +2255,21 @@ namespace TwainDirect.OnTwain
                                         // We want to try the next value, if we have one...
                                         swordstatus = SwordStatus.BadValue;
                                         break;
-                                    case "fail":
-                                        // Whoops, time to empty the pool...
-                                        swordstatus = SwordStatus.Fail;
-                                        TWAINWorkingGroup.Log.Error("Set error: " + szCapabilityFail + szStatus);
-                                        m_swordtaskresponse.SetError("fail", swordvalue.GetJsonKey() + ".value", "invalidValue", -1);
-                                        break;
                                     case "nextAction":
                                         // We're out of here...
                                         swordstatus = SwordStatus.NextAction;
+                                        TWAINWorkingGroup.Log.Error("Set error: " + szCapabilityFail + szStatus);
+                                        swordvalue.SetError("nextAction", swordvalue.GetJsonKey() + ".value", "invalidValue", -1);
                                         break;
                                     case "nextStream":
                                         // We're out of here...
                                         swordstatus = SwordStatus.NextStream;
+                                        break;
+                                    case "fail":
+                                        // Whoops, time to empty the pool...
+                                        swordstatus = SwordStatus.Fail;
+                                        TWAINWorkingGroup.Log.Error("Set error: " + szCapabilityFail + szStatus);
+                                        swordvalue.SetError("fail", swordvalue.GetJsonKey() + ".value", "invalidValue", -1);
                                         break;
                                 }
                             }
@@ -4834,13 +4897,11 @@ namespace TwainDirect.OnTwain
             /// <param name="a_swordtaskresponse">The object to use for responses</param>
             public SwordTask
             (
-                ProcessSwordTask a_processswordtask,
-                SwordTaskResponse a_swordtaskresponse
+                ProcessSwordTask a_processswordtask
             )
             {
                 // Init stuff...
                 m_processswordtask = a_processswordtask;
-                m_swordtaskresponse = a_swordtaskresponse;
                 m_swordaction = null;
             }
 
@@ -4863,7 +4924,7 @@ namespace TwainDirect.OnTwain
                 SwordAction swordaction = null;
 
                 // Allocate us and init with the info we have...
-                swordaction = new SwordAction(m_processswordtask, m_swordtaskresponse, m_swordaction, a_szJsonKey, a_szAction, a_szException, a_szVendor);
+                swordaction = new SwordAction(m_processswordtask, m_swordaction, a_szJsonKey, a_szAction, a_szException, a_szVendor);
 
                 // We're not supported by this scanner, so discard us...
                 if (swordaction.GetSwordStatus() == SwordStatus.VendorMismatch)
@@ -4889,11 +4950,12 @@ namespace TwainDirect.OnTwain
             {
                 bool blSuccess;
                 SwordAction swordaction;
+                SwordTaskResponse swordtaskresponse = m_processswordtask.GetSwordTaskResponse();
 
                 // Bail if we already have data, this should be error
                 // data, since this is the only function that should
                 // be constructing the response on success...
-                if (!string.IsNullOrEmpty(m_swordtaskresponse.GetTaskResponse()))
+                if (!string.IsNullOrEmpty(swordtaskresponse.GetTaskResponse()))
                 {
                     return (true);
                 }
@@ -4902,24 +4964,24 @@ namespace TwainDirect.OnTwain
                 // array with success...
                 if (GetFirstAction() == null)
                 {
-                    m_swordtaskresponse.JSON_OBJ_BGN(0, "");
-                    m_swordtaskresponse.JSON_ARR_BGN(1, "actions");
-                    m_swordtaskresponse.JSON_OBJ_BGN(2, "");
-                    m_swordtaskresponse.JSON_STR_SET(3, "action", ",", "");
-                    m_swordtaskresponse.JSON_OBJ_BGN(3, "results");
-                    m_swordtaskresponse.JSON_TOK_SET(4, "success", "", "true");
-                    m_swordtaskresponse.JSON_OBJ_END(3, ""); // results
-                    m_swordtaskresponse.JSON_OBJ_END(2, ""); // action
-                    m_swordtaskresponse.JSON_ARR_END(1, ""); // actions
-                    m_swordtaskresponse.JSON_OBJ_END(0, ""); // root
+                    swordtaskresponse.JSON_OBJ_BGN(0, "");
+                    swordtaskresponse.JSON_ARR_BGN(1, "actions");
+                    swordtaskresponse.JSON_OBJ_BGN(2, "");
+                    swordtaskresponse.JSON_STR_SET(3, "action", ",", "");
+                    swordtaskresponse.JSON_OBJ_BGN(3, "results");
+                    swordtaskresponse.JSON_TOK_SET(4, "success", "", "true");
+                    swordtaskresponse.JSON_OBJ_END(3, ""); // results
+                    swordtaskresponse.JSON_OBJ_END(2, ""); // action
+                    swordtaskresponse.JSON_ARR_END(1, ""); // actions
+                    swordtaskresponse.JSON_OBJ_END(0, ""); // root
                     return (true);
                 }
 
                 // Start of the root...
-                m_swordtaskresponse.JSON_OBJ_BGN(0, "");
+                swordtaskresponse.JSON_OBJ_BGN(0, "");
 
                 // Start of the actions array...
-                m_swordtaskresponse.JSON_ARR_BGN(1, "actions");
+                swordtaskresponse.JSON_ARR_BGN(1, "actions");
 
                 // List our actions...
                 for (swordaction = GetFirstAction();
@@ -4927,7 +4989,7 @@ namespace TwainDirect.OnTwain
                      swordaction = swordaction.GetNextAction())
                 {
                     // List an action...
-                    blSuccess = swordaction.BuildTaskReply();
+                    blSuccess = swordaction.BuildTaskReply(swordaction == GetFirstAction());
                     if (!blSuccess)
                     {
                         break;
@@ -4935,10 +4997,10 @@ namespace TwainDirect.OnTwain
                 }
 
                 // End of the actions array...
-                m_swordtaskresponse.JSON_ARR_END(1, "");
+                swordtaskresponse.JSON_ARR_END(1, "");
 
                 // End of the root...
-                m_swordtaskresponse.JSON_OBJ_END(0, "");
+                swordtaskresponse.JSON_OBJ_END(0, "");
 
                 // All done...
                 return (true);
@@ -4959,11 +5021,6 @@ namespace TwainDirect.OnTwain
             private ProcessSwordTask m_processswordtask;
 
             /// <summary>
-            /// Our response...
-            /// </summary>
-            private SwordTaskResponse m_swordtaskresponse;
-
-            /// <summary>
             /// The head of the actions list...
             /// </summary>
             private SwordAction m_swordaction;
@@ -4981,7 +5038,6 @@ namespace TwainDirect.OnTwain
             public SwordAction
             (
                 ProcessSwordTask a_processswordtask,
-	            SwordTaskResponse a_swordtaskresponse,
                 SwordAction a_swordactionHead,
 	            string a_szJsonKey,
                 string a_szAction,
@@ -4998,9 +5054,14 @@ namespace TwainDirect.OnTwain
 		            return;
 	            }
 
+                // There are two categories of task responses in the system.  There's one
+                // for the entire task that reports problems detected with the TWAIN Direct
+                // language.  Then there are task responses at the level of each of the
+                // actions.  These will be reported back in the task reply.
+                m_swordtaskresponse = new SwordTaskResponse();
+
                 // Init stuff...
                 m_processswordtask = a_processswordtask;
-                m_swordtaskresponse = a_swordtaskresponse;
 	            m_swordstatus = SwordStatus.Success;
                 m_szJsonKey = a_szJsonKey;
                 m_szException = a_szException;
@@ -5074,42 +5135,37 @@ namespace TwainDirect.OnTwain
             /// <summary>
             /// Build the task reply...
             /// </summary>
+            /// <param name="a_blFirstAction">true for the first action</param>
             /// <returns>true on success</returns>
-            public bool BuildTaskReply()
+            public bool BuildTaskReply(bool a_blFirstAction)
             {
                 bool blSuccess;
                 SwordStream swordstream;
+                SwordTaskResponse swordtaskresponse = m_processswordtask.GetSwordTaskResponse();
 
                 // Only report on success or successignore...
                 if (   (m_swordstatus != SwordStatus.Success)
                     && (m_swordstatus != SwordStatus.SuccessIgnore)
                     && (m_swordstatus != SwordStatus.NextAction))
                 {
+                    swordtaskresponse.AppendTaskResponse
+                    (
+                        (a_blFirstAction ? "" : ",") +
+                        m_swordtaskresponse.GetTaskResponse()
+                    );
                     return (true);
                 }
 
-                // Handle success ignore...
+                // Handle successignore and nextaction...
                 if (    (m_swordstatus == SwordStatus.SuccessIgnore)
                     ||  (m_swordstatus == SwordStatus.NextAction))
                 {
-                    // Start of the action...
-                    m_swordtaskresponse.JSON_OBJ_BGN(2, "");
-
-                    // The vendor (if any) and the action...
-                    if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(3, "vendor", ",", m_szVendor);
-                    m_swordtaskresponse.JSON_STR_SET(3, "action", ",", m_szAction);
-
-                    // The response...
-                    m_swordtaskresponse.JSON_OBJ_BGN(3, "results");
-                    m_swordtaskresponse.JSON_TOK_SET(4, "success", ",", "false");
-                    m_swordtaskresponse.JSON_STR_SET(4, "code", ",", "invalidValue");
-                    m_swordtaskresponse.JSON_STR_SET(4, "jsonKey", "", GetJsonKey() + ".action");
-                    m_swordtaskresponse.JSON_OBJ_END(3, "");
-
-                    // End of the action...
-                    m_swordtaskresponse.JSON_OBJ_END(2, ",");
-
-                    // All done...
+                    // Add this action's response to the one for the task...
+                    swordtaskresponse.AppendTaskResponse
+                    (
+                        (a_blFirstAction ? "" : ",") +
+                        m_swordtaskresponse.GetTaskResponse()
+                    );
                     return (true);
                 }
 
@@ -5155,6 +5211,13 @@ namespace TwainDirect.OnTwain
 
                 // End of the action...
                 m_swordtaskresponse.JSON_OBJ_END(2, ",");
+
+                // Add this action's response to the one for the task...
+                swordtaskresponse.AppendTaskResponse
+                (
+                    (a_blFirstAction ? "" : ",") +
+                    m_swordtaskresponse.GetTaskResponse()
+                );
 
                 // All done...
                 return (true);
@@ -5215,6 +5278,15 @@ namespace TwainDirect.OnTwain
             }
 
             /// <summary>
+            /// Get the sword task response object...
+            /// </summary>
+            /// <returns>the object</returns>
+            public SwordTaskResponse GetSwordTaskResponse()
+            {
+                return (m_swordtaskresponse);
+            }
+
+            /// <summary>
             /// Get the vendor for this action...
             /// </summary>
             /// <returns>the vendor</returns>
@@ -5235,42 +5307,80 @@ namespace TwainDirect.OnTwain
                 // Assume success...
                 m_swordstatus = SwordStatus.Run;
 
-                // Handle configure...
-                if (GetAction() == "configure")
+                // Switch
+                switch (GetAction())
                 {
-                    // Invoke the process function for each of our streams...
-                    for (swordstream = m_swordstream;
-                         swordstream != null;
-                         swordstream = swordstream.GetNextStream())
-                    {
-                        // Process this stream (and all of its contents)...
-                        swordstatus = swordstream.Process();
-
-                        // We've been asked to go to the next stream...
-                        if (swordstatus == SwordStatus.NextStream)
+                    // We have no idea what this is...
+                    default:
+                        // Apply our exceptions...
+                        switch (m_szException)
                         {
-                            continue;
+                            default:
+                            case "ignore":
+                                // Keep going...
+                                m_swordstatus = SwordStatus.SuccessIgnore;
+                                break;
+                            case "nextAction":
+                                // We're out of here...
+                                m_swordstatus = SwordStatus.NextAction;
+                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".action", "invalidValue", -1);
+                                return (m_swordstatus);
+                            case "nextStream":
+                                // We're out of here...
+                                m_swordstatus = SwordStatus.NextStream;
+                                return (m_swordstatus);
+                            case "fail":
+                                // Whoops, time to empty the pool...
+                                m_swordstatus = SwordStatus.Fail;
+                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".action", "invalidValue", -1);
+                                return (m_swordstatus);
                         }
+                        break;
 
-                        // Check the result...
-                        if (    (swordstatus != SwordStatus.Run)
-                            &&  (swordstatus != SwordStatus.Success)
-                            &&  (swordstatus != SwordStatus.SuccessIgnore))
+                    // Handle the configure action...
+                    case "configure":
+                        // Invoke the process function for each of our streams...
+                        for (swordstream = m_swordstream;
+                             swordstream != null;
+                             swordstream = swordstream.GetNextStream())
                         {
-                            m_swordstatus = swordstatus;
-                            return (m_swordstatus);
-                        }
-                    }
-                }
+                            // Process this stream (and all of its contents)...
+                            swordstatus = swordstream.Process();
 
-                // Handle unrecognized actions...
-                else
-                {
-                    m_swordstatus = SwordStatus.SuccessIgnore;
+                            // We've been asked to go to the next stream...
+                            if (swordstatus == SwordStatus.NextStream)
+                            {
+                                continue;
+                            }
+
+                            // Check the result...
+                            if (    (swordstatus != SwordStatus.Run)
+                                &&  (swordstatus != SwordStatus.Success)
+                                &&  (swordstatus != SwordStatus.SuccessIgnore))
+                            {
+                                m_swordstatus = swordstatus;
+                                return (m_swordstatus);
+                            }
+                        }
+                        break;
                 }
 
                 // All done...
                 return (m_swordstatus);
+            }
+
+            /// <summary>
+            /// Set a task error...
+            /// </summary>
+            public void SetError
+            (
+                string a_szException,
+                string a_szJsonExceptionKey,
+                string a_szCode,
+                long a_lJsonErrorIndex
+            )
+            {
+                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
             }
 
             /// <summary>
@@ -5609,6 +5719,20 @@ namespace TwainDirect.OnTwain
 
                 // All done...
                 return (m_swordstatus);
+            }
+
+            /// <summary>
+            /// Set a task error...
+            /// </summary>
+            public void SetError
+            (
+                string a_szException,
+                string a_szJsonExceptionKey,
+                string a_szCode,
+                long a_lJsonErrorIndex
+            )
+            {
+                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
             }
 
             /// <summary>
@@ -5998,24 +6122,26 @@ namespace TwainDirect.OnTwain
                 {
                     // So much for that idea...
                     default:
+                        // Apply our exceptions...
                         switch (m_szException)
                         {
                             default:
                             case "ignore":
                                 // Keep going...
                                 break;
-                            case "fail":
-                                // Whoops, time to empty the pool...
-                                m_swordstatus = SwordStatus.Fail;
-                                m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
-                                return (m_swordstatus);
                             case "nextAction":
                                 // We're out of here...
                                 m_swordstatus = SwordStatus.NextAction;
+                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".source", "invalidValue", -1);
                                 return (m_swordstatus);
                             case "nextStream":
                                 // We're out of here...
                                 m_swordstatus = SwordStatus.NextStream;
+                                return (m_swordstatus);
+                            case "fail":
+                                // Whoops, time to empty the pool...
+                                m_swordstatus = SwordStatus.Fail;
+                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
                                 return (m_swordstatus);
                         }
                         break;
@@ -6127,23 +6253,23 @@ namespace TwainDirect.OnTwain
                 if (m_swordstatus != SwordStatus.Run)
                 {
                     // Apply our exceptions...
-                    if (m_szException == "nextAction")
+                    switch (m_szException)
                     {
-                        m_swordstatus = SwordStatus.NextAction;
-                        return (SwordStatus.NextAction);
+                        default:
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        case "nextAction":
+                            m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".source", "invalidValue", -1);
+                            m_swordstatus = SwordStatus.NextAction;
+                            return (m_swordstatus);
+                        case "nextStream":
+                            m_swordstatus = SwordStatus.NextStream;
+                            return (m_swordstatus);
+                        case "fail":
+                            m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
+                            m_swordstatus = SwordStatus.Fail;
+                            return (m_swordstatus);
                     }
-                    if (m_szException == "nextStream")
-                    {
-                        m_swordstatus = SwordStatus.NextStream;
-                        return (SwordStatus.NextStream);
-                    }
-                    if (m_szException == "fail")
-                    {
-                        m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", 0);
-                        m_swordstatus = SwordStatus.Fail;
-                        return (SwordStatus.Fail);
-                    }
-                    m_swordstatus = SwordStatus.SuccessIgnore;
                 }
 
                 // Force the name to "any", we do this down here so
@@ -6185,6 +6311,20 @@ namespace TwainDirect.OnTwain
 
                 // Return with whatever we currently have for a status...
                 return (m_swordstatus);
+            }
+
+            /// <summary>
+            /// Set a task error...
+            /// </summary>
+            public void SetError
+            (
+                string a_szException,
+                string a_szJsonExceptionKey,
+                string a_szCode,
+                long a_lJsonErrorIndex
+            )
+            {
+                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
             }
 
             /// <summary>
@@ -6652,29 +6792,32 @@ namespace TwainDirect.OnTwain
                 {
                     // So much for that idea...
                     default:
+                        // Apply our exceptions...
                         switch (m_szException)
                         {
                             default:
                             case "ignore":
                                 // Keep going...
                                 break;
-                            case "fail":
-                                // Whoops, time to empty the pool...
-                                m_swordstatus = SwordStatus.Fail;
-                                m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
-                                return (m_swordstatus);
                             case "nextAction":
                                 // We're out of here...
                                 m_swordstatus = SwordStatus.NextAction;
+                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
                                 return (m_swordstatus);
                             case "nextStream":
                                 // We're out of here...
                                 m_swordstatus = SwordStatus.NextStream;
                                 return (m_swordstatus);
+                            case "fail":
+                                // Whoops, time to empty the pool...
+                                m_swordstatus = SwordStatus.Fail;
+                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
+                                return (m_swordstatus);
                         }
                         break;
 
                     // We're good, keep going...
+                    case "any":
                     case "bw1":
                     case "gray8":
                     case "rgb24":
@@ -6741,34 +6884,30 @@ namespace TwainDirect.OnTwain
                 // Handle problems...
                 #region Handle problems
 
-                // Decide if we need to bail...
-                //ABORT:
-
-                    // Only if not successful...
-                    if (m_swordstatus != SwordStatus.Run)
+                // Only if not successful...
+                if (m_swordstatus != SwordStatus.Run)
+                {
+                    // Apply our exceptions...
+                    switch (m_szException)
                     {
-                        // Apply our exceptions...
-                        if (m_szException == "nextAction")
-                        {
+                        default:
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        case "nextAction":
+                            m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
                             m_swordstatus = SwordStatus.NextAction;
-                            return (SwordStatus.NextAction);
-                        }
-                        if (m_szException == "nextStream")
-                        {
+                            return (m_swordstatus);
+                        case "nextStream":
                             m_swordstatus = SwordStatus.NextStream;
-                            return (SwordStatus.NextStream);
-                        }
-                        if (m_szException == "fail")
-                        {
-                            m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", 0);
+                            return (m_swordstatus);
+                        case "fail":
+                            m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
                             m_swordstatus = SwordStatus.Fail;
-                            return (SwordStatus.Fail);
-                        }
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        return (m_swordstatus);
+                            return (m_swordstatus);
                     }
+                }
 
-                    #endregion
+                #endregion
 
 
                 // Process attributes...
@@ -6834,6 +6973,20 @@ namespace TwainDirect.OnTwain
 
                 // Return with whatever we currently have for a status...
                 return (m_swordstatus);
+            }
+
+            /// <summary>
+            /// Set a task error...
+            /// </summary>
+            public void SetError
+            (
+                string a_szException,
+                string a_szJsonExceptionKey,
+                string a_szCode,
+                long a_lJsonErrorIndex
+            )
+            {
+                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
             }
 
             /// <summary>
@@ -7198,24 +7351,26 @@ namespace TwainDirect.OnTwain
                 {
                     // So much for that idea...
                     default:
+                        // Apply our exceptions...
                         switch (m_szException)
                         {
                             default:
                             case "ignore":
                                 // Keep going...
                                 break;
-                            case "fail":
-                                // Whoops, time to empty the pool...
-                                m_swordstatus = SwordStatus.Fail;
-                                m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".attribute", "invalidValue", -1);
-                                return (m_swordstatus);
                             case "nextAction":
                                 // We're out of here...
                                 m_swordstatus = SwordStatus.NextAction;
+                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".attribute", "invalidValue", -1);
                                 return (m_swordstatus);
                             case "nextStream":
                                 // We're out of here...
                                 m_swordstatus = SwordStatus.NextStream;
+                                return (m_swordstatus);
+                            case "fail":
+                                // Whoops, time to empty the pool...
+                                m_swordstatus = SwordStatus.Fail;
+                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".attribute", "invalidValue", -1);
                                 return (m_swordstatus);
                         }
                         break;
@@ -7248,6 +7403,20 @@ namespace TwainDirect.OnTwain
 
 	            // Return with whatever we currently have for a status...
 	            return (m_swordstatus);
+            }
+
+            /// <summary>
+            /// Set a task error...
+            /// </summary>
+            public void SetError
+            (
+                string a_szException,
+                string a_szJsonExceptionKey,
+                string a_szCode,
+                long a_lJsonErrorIndex
+            )
+            {
+                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
             }
 
             /// <summary>
@@ -7494,24 +7663,26 @@ namespace TwainDirect.OnTwain
 		            switch (a_szAttribute)
 		            {
 			            default:
+                            // Apply our exceptions...
                             switch (m_szException)
                             {
                                 default:
                                 case "ignore":
                                     // Keep going...
                                     break;
-                                case "fail":
-                                    // Whoops, time to empty the pool...
-                                    m_swordstatus = SwordStatus.Fail;
-                                    m_processswordtask.m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
-                                    return (m_swordstatus);
                                 case "nextAction":
                                     // We're out of here...
                                     m_swordstatus = SwordStatus.NextAction;
+                                    m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".value", "invalidValue", -1);
                                     return (m_swordstatus);
                                 case "nextStream":
                                     // We're out of here...
                                     m_swordstatus = SwordStatus.NextStream;
+                                    return (m_swordstatus);
+                                case "fail":
+                                    // Whoops, time to empty the pool...
+                                    m_swordstatus = SwordStatus.Fail;
+                                    m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
                                     return (m_swordstatus);
                             }
                             break;
@@ -7622,24 +7793,24 @@ namespace TwainDirect.OnTwain
 	            // Only if not successful...
 	            if (m_swordstatus != SwordStatus.Run)
 	            {
-		            // Apply our exceptions...
-		            if (m_szException == "nextAction")
-		            {
-			            m_swordstatus = SwordStatus.NextAction;
-			            return (SwordStatus.NextAction);
-		            }
-		            if (m_szException == "nextStream")
-		            {
-			            m_swordstatus = SwordStatus.NextStream;
-			            return (SwordStatus.NextStream);
-		            }
-		            if (m_szException == "fail")
-		            {
-                        m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
-			            m_swordstatus = SwordStatus.Fail;
-			            return (SwordStatus.Fail);
-		            }
-		            m_swordstatus = SwordStatus.SuccessIgnore;
+                    // Apply our exceptions...
+                    switch (m_szException)
+                    {
+                        default:
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        case "nextAction":
+                            m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".value", "invalidValue", -1);
+                            m_swordstatus = SwordStatus.NextAction;
+                            return (m_swordstatus);
+                        case "nextStream":
+                            m_swordstatus = SwordStatus.NextStream;
+                            return (m_swordstatus);
+                        case "fail":
+                            m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
+                            m_swordstatus = SwordStatus.Fail;
+                            return (m_swordstatus);
+                    }         
 	            }
 
 	            // Return with whatever we currently have for a status...
@@ -7704,6 +7875,7 @@ namespace TwainDirect.OnTwain
 		            switch (a_szPixelFormat)
 		            {
 			            default:
+                        case "any":
 				            m_swordstatus = SwordStatus.SuccessIgnore;
 				            return (SwordStatus.SuccessIgnore);
 			            case "bw1":
@@ -8361,6 +8533,20 @@ namespace TwainDirect.OnTwain
 	            return (SwordStatus.Success);
             }
 
+            /// <summary>
+            /// Set a task error...
+            /// </summary>
+            public void SetError
+            (
+                string a_szException,
+                string a_szJsonExceptionKey,
+                string a_szCode,
+                long a_lJsonErrorIndex
+            )
+            {
+                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+            }
+
             ////////////////////////////////////////////////////////////////////////////////
             //	Description:
             //		Set the exception for this value....
@@ -8619,7 +8805,7 @@ namespace TwainDirect.OnTwain
                         return ("success");
 
                     // Pass the item up...
-                    case "fail":
+                    case "nextAction":
                         if (string.IsNullOrEmpty(szTwainValue))
                         {
                             a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), null, -1);
@@ -8631,11 +8817,19 @@ namespace TwainDirect.OnTwain
                         return (m_acapabilityvalue[iTryValue].GetException());
 
                     // Pass the item up...
-                    case "nextAction":
+                    case "nextStream":
                         return (m_acapabilityvalue[iTryValue].GetException());
 
                     // Pass the item up...
-                    case "nextStream":
+                    case "fail":
+                        if (string.IsNullOrEmpty(szTwainValue))
+                        {
+                            a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), null, -1);
+                        }
+                        else
+                        {
+                            a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), szTwainValue, -1);
+                        }
                         return (m_acapabilityvalue[iTryValue].GetException());
                 }
             }
@@ -9087,6 +9281,15 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// Append task response...
+        /// </summary>
+        /// <param name="a_szTaskResponse">data to append</param>
+        public void AppendTaskResponse(string a_szTaskResponse)
+        {
+            m_szTaskResponse += a_szTaskResponse;
+        }
+
+        /// <summary>
         /// Clear any current error information...
         /// </summary>
         public void Clear()
@@ -9110,15 +9313,6 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
-        /// Set the task response...
-        /// </summary>
-        /// <param name="a_szTaskResponse">the reply</param>
-        public void SetTaskResponse(string a_szTaskResponse)
-        {
-            m_szTaskResponse = a_szTaskResponse;
-        }
-
-        /// <summary>
         /// Set a task error...
         /// </summary>
         public void SetError
@@ -9126,7 +9320,8 @@ namespace TwainDirect.OnTwain
             string a_szException,
             string a_szJsonExceptionKey,
             string a_szCode,
-            long a_lJsonErrorIndex
+            long a_lJsonErrorIndex,
+            bool a_blAddActionsArray = false
         )
         {
             // Ruh-roh, we've already done this...
@@ -9144,11 +9339,16 @@ namespace TwainDirect.OnTwain
             m_szLexiconValue = a_szCode;
             m_lJsonErrorIndex = a_lJsonErrorIndex;
 
+            // We're working with something that has no access to an action array...
+            if (a_blAddActionsArray)
+            {
+                JSON_OBJ_BGN(0, "");                                                // start root
+                JSON_ARR_BGN(1, "actions");                                         // start actions array
+            }
+
             // Handle a JSON error...
             if (string.IsNullOrEmpty(a_szCode) || (a_szCode == "invalidJson"))
             {
-                JSON_ROOT_BGN();                                                     // start root
-                JSON_ARR_BGN(1, "actions");                                          // start actions array
                 JSON_OBJ_BGN(2, "");                                                 // start action object
                 JSON_STR_SET(3, "action", ",", "");                                  // action property,
                 JSON_OBJ_BGN(3, "results");                                          // start results object
@@ -9156,16 +9356,11 @@ namespace TwainDirect.OnTwain
                 JSON_STR_SET(4, "code", ",", "invalidJson");                         // code property,
                 JSON_NUM_SET(4, "characterOffset", "", (int)m_lJsonErrorIndex);      // characterOffset property
                 JSON_OBJ_END(3, "");                                                 // end response object
-                JSON_OBJ_END(2, "");                                                 // end action object
-                JSON_ARR_END(1, "");                                                 // end actions array
-                JSON_ROOT_END();                                                     // end root
             }
 
             // If it's an invalidTask or an invalidValue, then include the jsonKey...
             else if ((a_szCode == "invalidTask") || (a_szCode == "invalidValue"))
             {
-                JSON_ROOT_BGN();                                                     // start root
-                JSON_ARR_BGN(1, "actions");                                          // start actions array
                 JSON_OBJ_BGN(2, "");                                                 // start action object
                 JSON_STR_SET(3, "action", ",", "");                                  // action property,
                 JSON_OBJ_BGN(3, "results");                                          // start results object
@@ -9174,15 +9369,11 @@ namespace TwainDirect.OnTwain
                 JSON_STR_SET(4, "jsonKey", "", m_szJsonExceptionKey);                // jsonKey property
                 JSON_OBJ_END(3, "");                                                 // end response object
                 JSON_OBJ_END(2, "");                                                 // end action object
-                JSON_ARR_END(1, "");                                                 // end actions array
-                JSON_ROOT_END();                                                     // end root
             }
 
             // Anything else comes here...
             else
             {
-                JSON_ROOT_BGN();                                                     // start root
-                JSON_ARR_BGN(1, "actions");                                          // start actions array
                 JSON_OBJ_BGN(2, "");                                                 // start action object
                 JSON_STR_SET(3, "action", ",", "");                                  // action property,
                 JSON_OBJ_BGN(3, "results");                                          // start results object
@@ -9190,8 +9381,13 @@ namespace TwainDirect.OnTwain
                 JSON_STR_SET(4, "code", ",", a_szCode);                              // code property,
                 JSON_OBJ_END(3, "");                                                 // end response object
                 JSON_OBJ_END(2, "");                                                 // end action object
-                JSON_ARR_END(1, "");                                                 // end actions array
-                JSON_ROOT_END();                                                     // end root
+            }
+
+            // We're working with something that has no access to an action array...
+            if (a_blAddActionsArray)
+            {
+                JSON_ARR_END(1, "");                                                // end actions array
+                JSON_OBJ_END(0, "");                                                // end root
             }
         }
 
@@ -9207,22 +9403,42 @@ namespace TwainDirect.OnTwain
             m_blPack = a_blPack;
         }
 
-        // A standalone newline marker...
+        /// <summary>
+        /// Set the task response...
+        /// </summary>
+        /// <param name="a_szTaskResponse">the reply</param>
+        public void SetTaskResponse(string a_szTaskResponse)
+        {
+            m_szTaskResponse = a_szTaskResponse;
+        }
+
+        /// <summary>
+        /// A standalone newline marker...
+        /// </summary>
         public void JSONEOLN()
         {
             m_szTaskResponse += (m_blPack ? "" : Environment.NewLine);
         }
 
+        /// <summary>
+        /// Clear the response...
+        /// </summary>
         public void JSON_CLEAR()
         {
             m_szTaskResponse = "";
         }
 
-        // Root begin / end...
+        /// <summary>
+        /// Root begin...
+        /// </summary>
         public void JSON_ROOT_BGN()
         {
             m_szTaskResponse = m_blPack ? "{" : ("{" + Environment.NewLine);
         }
+
+        /// <summary>
+        /// Root end...
+        /// </summary>
         public void JSON_ROOT_END()
         {
             // Remove the comma from the previous line...
@@ -9234,12 +9450,22 @@ namespace TwainDirect.OnTwain
             m_szTaskResponse += "}";
         }
 
-        // Array begin / end...
-        public void JSON_ARR_BGN(int tab, string name)
+        /// <summary>
+        /// Array begin...
+        /// </summary>
+        /// <param name="a_iTab">depth</param>
+        /// <param name="a_szName">array name</param>
+        public void JSON_ARR_BGN(int a_iTab, string a_szName)
         {
-            m_szTaskResponse += !string.IsNullOrEmpty(name) ? (m_blPack ? ("\"" + name + "\":[") : (Tabs(tab) + "\"" + name + "\": [" + Environment.NewLine)) : (m_blPack ? "[" : (Tabs(tab) + "[" + Environment.NewLine));
+            m_szTaskResponse += !string.IsNullOrEmpty(a_szName) ? (m_blPack ? ("\"" + a_szName + "\":[") : (Tabs(a_iTab) + "\"" + a_szName + "\": [" + Environment.NewLine)) : (m_blPack ? "[" : (Tabs(a_iTab) + "[" + Environment.NewLine));
         }
-        public void JSON_ARR_END(int tab, string comma)
+
+        /// <summary>
+        /// Array end...
+        /// </summary>
+        /// <param name="a_iTab">depth</param>
+        /// <param name="a_szComma">comma or empty string</param>
+        public void JSON_ARR_END(int a_iTab, string a_szComma)
         {
             // Remove the comma from the previous line...
             if (m_szTaskResponse.EndsWith(",") || m_szTaskResponse.EndsWith("," + Environment.NewLine))
@@ -9247,15 +9473,25 @@ namespace TwainDirect.OnTwain
                 m_szTaskResponse = m_szTaskResponse.Remove(m_szTaskResponse.LastIndexOf(","));
                 if (!m_blPack) m_szTaskResponse += Environment.NewLine;
             }
-            m_szTaskResponse += m_blPack ? ("]" + comma) : (Tabs(tab) + "]" + comma + Environment.NewLine);
+            m_szTaskResponse += m_blPack ? ("]" + a_szComma) : (Tabs(a_iTab) + "]" + a_szComma + Environment.NewLine);
         }
 
-        // Object begin / end...
-        public void JSON_OBJ_BGN(int tab, string name)
+        /// <summary>
+        /// Object begin...
+        /// </summary>
+        /// <param name="a_iTab">depth</param>
+        /// <param name="a_szName">object name</param>
+        public void JSON_OBJ_BGN(int a_iTab, string a_szName)
         {
-            m_szTaskResponse += !string.IsNullOrEmpty(name) ? (m_blPack ? ("\"" + name + "\":{") : (Tabs(tab) + "\"" + name + "\": {" + Environment.NewLine)) : (m_blPack ? "{" : (Tabs(tab) + "{" + Environment.NewLine));
+            m_szTaskResponse += !string.IsNullOrEmpty(a_szName) ? (m_blPack ? ("\"" + a_szName + "\":{") : (Tabs(a_iTab) + "\"" + a_szName + "\": {" + Environment.NewLine)) : (m_blPack ? "{" : (Tabs(a_iTab) + "{" + Environment.NewLine));
         }
-        public void JSON_OBJ_END(int tab, string comma)
+
+        /// <summary>
+        /// Object end...
+        /// </summary>
+        /// <param name="a_iTab">depth</param>
+        /// <param name="a_szComma">comma or empty string</param>
+        public void JSON_OBJ_END(int a_iTab, string a_szComma)
         {
             // Remove the comma from the previous line...
             if (m_szTaskResponse.EndsWith(",") || m_szTaskResponse.EndsWith("," + Environment.NewLine))
@@ -9263,21 +9499,43 @@ namespace TwainDirect.OnTwain
                 m_szTaskResponse = m_szTaskResponse.Remove(m_szTaskResponse.LastIndexOf(","));
                 if (!m_blPack) m_szTaskResponse += Environment.NewLine;
             }
-            m_szTaskResponse += m_blPack ? ("}" + comma) : (Tabs(tab) + "}" + comma + Environment.NewLine);
+            m_szTaskResponse += m_blPack ? ("}" + a_szComma) : (Tabs(a_iTab) + "}" + a_szComma + Environment.NewLine);
         }
 
-        // Strings, tokens (null,true,false), and numbers...
-        public void JSON_STR_SET(int tab, string name, string comma, string str)
+        /// <summary>
+        /// Strings...
+        /// </summary>
+        /// <param name="a_iTab">depth</param>
+        /// <param name="a_szName">string name</param>
+        /// <param name="a_szComma">comma or empty string</param>
+        /// <param name="a_szStr">value</param>
+        public void JSON_STR_SET(int a_iTab, string a_szName, string a_szComma, string a_szStr)
         {
-            m_szTaskResponse += m_blPack ? ("\"" + name + "\":\"" + str + "\"" + comma) : (Tabs(tab) + "\"" + name + "\": \"" + str + "\"" + comma + Environment.NewLine);
+            m_szTaskResponse += m_blPack ? ("\"" + a_szName + "\":\"" + a_szStr + "\"" + a_szComma) : (Tabs(a_iTab) + "\"" + a_szName + "\": \"" + a_szStr + "\"" + a_szComma + Environment.NewLine);
         }
-        public void JSON_TOK_SET(int tab, string name, string comma, string str)
+
+        /// <summary>
+        /// Tokens...
+        /// </summary>
+        /// <param name="a_iTab">depth</param>
+        /// <param name="a_szName">token name</param>
+        /// <param name="a_szComma">comma or empty string</param>
+        /// <param name="a_szStr">value</param>
+        public void JSON_TOK_SET(int a_iTab, string a_szName, string a_szComma, string a_szStr)
         {
-            m_szTaskResponse += m_blPack ? ("\"" + name + "\":" + str + comma) : (Tabs(tab) + "\"" + name + "\": " + str + comma + Environment.NewLine);
+            m_szTaskResponse += m_blPack ? ("\"" + a_szName + "\":" + a_szStr + a_szComma) : (Tabs(a_iTab) + "\"" + a_szName + "\": " + a_szStr + a_szComma + Environment.NewLine);
         }
-        public void JSON_NUM_SET(int tab, string name, string comma, int num)
+
+        /// <summary>
+        /// Numbers...
+        /// </summary>
+        /// <param name="a_iTab">depth</param>
+        /// <param name="a_szName">token name</param>
+        /// <param name="a_szComma">comma or empty string</param>
+        /// <param name="a_iNum">value</param>
+        public void JSON_NUM_SET(int a_iTab, string a_szName, string a_szComma, int a_iNum)
         {
-            m_szTaskResponse += m_blPack ? ("\"" + name + "\":" + num + comma) : (Tabs(tab) + "\"" + name + "\": " + num + comma + Environment.NewLine);
+            m_szTaskResponse += m_blPack ? ("\"" + a_szName + "\":" + a_iNum + a_szComma) : (Tabs(a_iTab) + "\"" + a_szName + "\": " + a_iNum + a_szComma + Environment.NewLine);
         }
 
         #endregion

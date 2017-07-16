@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Info Infoex v1.0 23-Jun-2017
+; Info Infoex v1.0 13-Jul-2017
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
@@ -12,34 +12,34 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Info Infoex v1.0 23-Jun-2017' '${arg:1}'
+call INITIALIZE 'Info Infoex v1.0 13-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; RP.01.001 Info Infoex - mDNS
+; TD.ININ.001: mDNS
 ; Examine the TXT fields in the mDNS data.
 ;
-set name 'II.01.001 Info Infoex - mDNS'
+set name 'TD.ININ.001: mDNS'
 call CHECKMDNSTXT '${get:name}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; RP.01.002 Info Infoex - info
+; TD.ININ.002: info
 ; Examine the properties returned by info, and compare them to the mDNS TXT fields.
 ;
-set name 'II.01.002 Info Infoex - info'
+set name 'TD.ININ.002: info'
 call CHECKINFO '${get:name}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; RP.01.003 Info Infoex - infoex
+; TD.ININ.003: infoex
 ; Examine the properties returned by infoex, and compare them to the mDNS TXT fields.
 ;
-set name 'II.01.003 Info Infoex - infoex'
+set name 'TD.ININ.003: infoex'
 call CHECKINFOEX '${get:name}'
 
 
@@ -51,7 +51,6 @@ call CHECKINFOEX '${get:name}'
 echopassfail 'SUMMARY' '${get:localresult}'
 ;
 ; Close the session...
-echo
 echo 'CMD: closeSession'
 closeSession
 ;
@@ -85,7 +84,6 @@ if '${ret:}' != 'true' goto INITIALIZE.ERROR
 ;
 ; Set our pass flag, and give us a blank line...
 set localresult pass
-echo
 return true
 ;
 ; Ruh-roh...

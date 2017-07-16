@@ -1,0 +1,244 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; DoubleFeed v1.0 11-Jul-2017
+; arg:1 - scanner to use
+; arg:2 - task (optional)
+; returns: pass or fail
+;
+; Scan looking for a doubleFeed error, this is to confirm that
+; the scanner correctly reports doubleFeed's when they happen.
+; If the scanner is incapable of experiencing a doubleFeed, this
+; test may be skipped.
+;
+; We're looking for the doubleFeed to first show up as an event
+; responding to waitForEvents and then we'll confirm that
+; getSession also sees it.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'DoubleFeed v1.0 12-Jul-2017'
+set doublefeedgetsessionresult 'pass'
+set doublefeedwaitforeventsresult 'fail'
+set doublefeedwaitforeventssyntaxresult 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pick a scanner...
+;
+select '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Get the scanner info, including its x-privet-token...
+;
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Create a new session...
+;
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Wait for events, we're passing in the test we want to
+; perform, and the variable we want to be set when it's
+; complete.  We need two result variables, because we
+; need to make sure the waitForSession content is correctly
+; constructed...
+;
+echo 'CMD: waitForEvents'
+waitForEvents 'test waitForEvents' 'doublefeed' 'doublefeedwaitforeventsresult' 'doublefeedwaitforeventssyntaxresult'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Send a task...
+;
+set task '${arg:2}'
+if '${get:task}' != '' goto MAIN.SENDTASK
+set task '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"attributes":[{"attribute":"doubleFeedDetection","values":[{"value":"on"}]}]}]}]}]}]}'
+:MAIN.SENDTASK
+echo 'CMD: sendTask'
+sendTask '${get:task}'
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Start capturing images...
+;
+echo 'CMD: startCapturing'
+startCapturing
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Scan until the scanner stops giving us images...
+;
+; Loop here until we see an image, or scanning ends...
+:MAIN.WAIT
+
+	; We should only wait if more images could be coming...
+	if '${session:imageBlocksDrained}' == 'false' goto MAIN.WAITFORSESSIONUPDATE
+	goto MAIN.DONE
+
+	; Wait for the session object to be updated...
+	:MAIN.WAITFORSESSIONUPDATE
+	waitforsessionupdate 5000
+	echo 'signaled: ${ret:}'
+
+	; If we have an image, get it...
+	set firstimageblock '${session:imageBlocks[0]}'
+	if '${get:firstimageblock}' != '' goto MAIN.GETIMAGE
+	goto MAIN.WAIT
+
+goto MAIN.WAITNEXT
+
+; Keep releasing images as long as we have some...
+:MAIN.GETIMAGE
+
+	; release the first image block...
+	releaseImageBlocks '${get:firstimageblock}' '${get:firstimageblock}'
+	set firstimageblock '${rj:results.session.imageBlocks[0]}'
+	if '${rj:results.success}' != 'true' goto MAIN.FAIL
+	if '${rj:results.session.imageBlocksDrained}' != 'false' goto MAIN.DONE
+	if '${get:firstimageblock}' == '' goto MAIN.WAIT
+
+goto MAIN.GETIMAGE
+:MAIN.DONE
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Get session, if we see false/doubleFeed, we pass...
+;
+echo 'CMD: getSession'
+getSession
+;
+; Check success...
+call CHECK 'results.session.status.success' '==' 'false'
+call CHECK 'results.session.status.detected' '==' 'doubleFeed'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Stop capturing images...
+;
+:MAIN.STOPCAPTURING
+echo 'CMD: stopCapturing'
+stopCapturing
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Close the session...
+;
+echo 'CMD: closeSession'
+closeSession
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; How did we do?
+;
+if '${get:doublefeedgetsessionresult}' != 'pass' goto MAIN.FAILGETSESSION
+if '${get:doublefeedgetsessionresult}' != 'pass' goto MAIN.FAILWAITFOREVENTS
+if '${get:doublefeedgetsessionsyntaxresult}' != 'pass' goto MAIN.FAILWAITFOREVENTSSYNTAX
+echopassfail 'DoubleFeed' 'pass'
+log info '#Test result:                 pass'
+return pass
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAIL
+;
+:MAIN.FAIL
+stopCapturing
+closeSession
+echopassfail 'DoubleFeed' 'fail (problem during scanning)'
+log info '#Test result:                 fail (problem during scanning)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAILGETSESSION
+;
+:MAIN.FAILGETSESSION
+echopassfail 'DoubleFeed' 'fail (getSession did not see doubleFeed)'
+log info '#Test result:                 fail (getSession did not see doubleFeed)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAILWAITFOREVENTS
+;
+:MAIN.FAILWAITFOREVENTS
+echopassfail 'DoubleFeed' 'fail (waitForEvents did not see doubleFeed)'
+log info '#Test result:                 fail (waitForEvents did not see doubleFeed)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAILWAITFOREVENTSSYNTAX
+;
+:MAIN.FAILWAITFOREVENTSSYNTAX
+echopassfail 'DoubleFeed' 'fail (waitForEvents was missing fields)'
+log info '#Test result:                 fail (waitForEvents was missing fields)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECK
+; arg1 - property
+; arg2 - if-statement operator (optional)
+; arg3 - value to check for if arg2 is specified
+; returns pass or fail
+;
+:CHECK
+;
+; Make sure the property exists...
+if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
+;
+; If we have no operator, we're done...
+if '${arg:2}' == '' goto CHECK.PASS
+;
+; Do the if-statement...
+if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
+;
+; The if-statement failed...
+echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
+set doublefeedgetsessionresult 'fail'
+return 'fail'
+;
+; The property is missing...
+:CHECK.MISSING
+echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
+set doublefeedgetsessionresult 'fail'
+return 'fail'
+;
+; We're good...
+:CHECK.PASS
+echopassfail 'event check ${arg:1}' 'pass'
+return 'pass'

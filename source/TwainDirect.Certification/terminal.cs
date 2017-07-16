@@ -956,7 +956,14 @@ namespace TwainDirect.Certification
             szLine += a_functionarguments.aszCmd[2];
 
             // Spit it out...
-            Display(szLine, true);
+            if (a_functionarguments.aszCmd[2].Contains("fail"))
+            {
+                DisplayRed(szLine, true);
+            }
+            else
+            {
+                Display(szLine, true);
+            }
 
             // All done...
             return (false);
@@ -2562,7 +2569,15 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
-        /// Return when the session is update, or after the timeout expires...
+        /// Return when the session is updated, or after the timeout expires.  Note
+        /// that we're not handling the callback here.  This is because we want the
+        /// processing of events to be independent of waiting to be told when they
+        /// happen.  This will be the case for most applications, especially as we
+        /// add more asynchronous events, such as low power.
+        /// 
+        /// Check out ClientScannerWaitForEventsCommunicationHelper() and
+        /// ClientScannerWaitForEventsProcessingHelper() for the rest of the event
+        /// processing implementation.
         /// </summary>
         /// <param name="a_functionarguments">>tokenized command and anything needed</param>
         /// <returns></returns>
@@ -2587,7 +2602,14 @@ namespace TwainDirect.Certification
 
             // Update the return value...
             callstack = m_lcallstack[m_lcallstack.Count - 1];
-            callstack.functionarguments.szReturnValue = blSignaled ? "true" : "false";
+            if (blSignaled)
+            {
+                callstack.functionarguments.szReturnValue = "true";
+            }
+            else
+            {
+                callstack.functionarguments.szReturnValue = "false";
+            }
             m_lcallstack[m_lcallstack.Count - 1] = callstack;
 
             // All done...
@@ -3344,6 +3366,7 @@ namespace TwainDirect.Certification
                             // Get the key...
                             else
                             {
+                                // Return the whole thing...
                                 if (!string.IsNullOrEmpty(szResponseData))
                                 {
                                     bool blSuccess;
@@ -3372,6 +3395,7 @@ namespace TwainDirect.Certification
                         if (transaction != null)
                         {
                             string szResponseData = transaction.GetResponseData();
+                            // Return the whole thing...
                             if (!string.IsNullOrEmpty(szResponseData))
                             {
                                 bool blSuccess;
