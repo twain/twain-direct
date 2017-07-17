@@ -1,12 +1,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test readImageBlockMetadata v1.0 24-Jun-2017
+; Test readImageBlockMetadata
+; Exercise the readImageBlockMetadata command.  We're going to do the following:
+; - confirm that readImageBlockMetadata succeeds, and contains all required properties
+;
+; Arguments
 ; arg:1 - image block to read
 ; arg:2 - thumbnail flag (true/false)
+; arg:3 - expected state
+;
+; Locals
+; readimageblockmetadataresult - result of the test
+;
 ; returns: pass or fail
-;
-; Exercise the readImageBlockMetadata command.  We're going to do the following:
-;
-; - confirm that readImageBlockMetadata succeeds, and contains all required properties
 ;
 
 
@@ -15,7 +20,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test readImageBlockMetadata v1.0 24-Jun-2017'
+echo 'Test readImageBlockMetadata v1.0 17-Jul-2017'
 set readimageblockmetadataresult 'pass'
 
 
@@ -23,7 +28,7 @@ set readimageblockmetadataresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call readImageBlockMetadata, and check the return properties...
 ;
-call READIMAGEBLOCKMETADATA '${arg:1}' '${arg:2}'
+call READIMAGEBLOCKMETADATA '${arg:1}' '${arg:2}' '${arg:3}'
 
 
 
@@ -37,6 +42,9 @@ return '${get:readimageblockmetadataresult}'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; READIMAGEBLOCKMETADATA
+; arg:1 - image block to read
+; arg:2 - thumbnail flag (true/false)
+; arg:3 - expected state
 ; returns pass or fail
 ;
 :READIMAGEBLOCKMETADATA
@@ -48,43 +56,43 @@ readImageBlockMetadata '${arg:1}' '${arg:2}'
 call CHECKREPONSEHEADERS '${arg:2}'
 ;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'readImageBlockMetadata'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' 'capturing'
-call CHECK 'results.metadata'
-call CHECK 'results.metadata.status'
-call CHECK 'results.metadata.status.success' == 'true'
-call CHECK 'results.metadata.address'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'commandId'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'method' == 'readImageBlockMetadata'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.session'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.session.state' == '${arg:3}'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.status'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.status.success' == 'true'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address'
 if '${arg:1}' > '1' goto READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
-	call CHECK 'results.metadata.address.imageNumber' '==' '1'
-	call CHECK 'results.metadata.address.imagePart' '==' '1'
-	call CHECK 'results.metadata.address.sheetNumber' '==' '1'
-goto READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
+	run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.imageNumber' '==' '1'
+	run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '==' '1'
+	run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '==' '1'
+	goto READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
 :READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
-	call CHECK 'results.metadata.address.imageNumber' '!=' ''
-	call CHECK 'results.metadata.address.imagePart' '!=' ''
-	call CHECK 'results.metadata.address.sheetNumber' '!=' ''
+	run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.imageNumber' '!=' ''
+	run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '!=' ''
+	run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '!=' ''
 :READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
-call CHECK 'results.metadata.address.moreParts' '==' 'false' 'true'
-call CHECK 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
-call CHECK 'results.metadata.address.streamName' '==' 'stream0'
-call CHECK 'results.metadata.address.sourceName' '==' 'source0'
-call CHECK 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
-call CHECK 'results.metadata.image'
-call CHECK 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
-call CHECK 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
-call CHECK 'results.metadata.image.pixelHeight' != ''
-call CHECK 'results.metadata.image.pixelOffsetX' != ''
-call CHECK 'results.metadata.image.pixelOffsetY' != ''
-call CHECK 'results.metadata.image.pixelWidth' != ''
-call CHECK 'results.metadata.image.resolution' != ''
-call CHECK 'results.metadata.image.size' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.moreParts' '==' 'false' 'true'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.streamName' '==' 'stream0'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.sourceName' '==' 'source0'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.pixelHeight' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetX' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetY' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.pixelWidth' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.resolution' != ''
+run 'function CheckJsonProperty' 'readimageblockmetadataresult' 'results.metadata.image.size' != ''
 if '${get:readimageblockmetadataresult}' != 'pass' goto READIMAGEBLOCKMETADATA.FAIL
 ;
 ; We're good...
@@ -107,9 +115,8 @@ return 'fail'
 ;
 ; Handle a normal header...
 if '${arg:1}' == 'true' goto CHECKREPONSEHEADERS.MULTIPART
-call CHECKHEADER 'content-type' '~contains' 'application/json'
-call CHECKHEADER 'content-type' '~contains' 'charset=utf-8'
-call CHECKHEADER 'content-length' '==' '${rj:#}'
+run 'function CheckHeader' 'readimageblockmetadataresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'readimageblockmetadataresult' 'Content-Length' == '${rdata:#}'
 return '${get:readimageblockmetadataresult}'
 ;
 ; Handle a multipart header...
@@ -118,46 +125,6 @@ call CHECKJSONHEADER 'content-type' '~contains' 'application/json'
 call CHECKJSONHEADER 'content-type' '~contains' 'charset=utf-8'
 call CHECKJSONHEADER 'content-length' '==' '${rj:#}'
 return '${get:readimageblockmetadataresult}'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECKHEADER
-; arg:1 - header name
-; arg:2 - if-statement operation
-; arg:3 - required value
-; returns pass or fail
-;
-:CHECKHEADER
-;
-; Look for the header key...
-set iHeader 0
-:CHECKHEADER.NEXT
-	;
-	; We've run out of keys to check...
-	if '${get:iHeader}' >= '${hdrkey:#}' goto CHECKHEADER.FAIL
-	;
-	; We have a match (note that we're insensitive to case)...
-	if '${hdrkey:${get:iHeader}}' ~~ '${arg:1}' goto CHECKHEADER.FOUND
-	;
-	; Next key...
-	increment 'iHeader' '${get:iHeader}' '1'
-goto CHECKHEADER.NEXT
-;
-; We found something, so check for a match...
-:CHECKHEADER.FOUND
-if '${hdrvalue:${get:iHeader}}' '${arg:2}' '${arg:3}' goto CHECKHEADER.PASS
-;
-; No joy...
-:CHECKHEADER.FAIL
-echopassfail 'check header ${arg:1}' 'fail (<${hdrvalue:${get:iHeader}}> ${arg:2} <${arg:3}>)'
-set readimageblockmetadataresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECKHEADER.PASS
-echopassfail 'check header ${arg:1}' 'pass'
-return 'pass'
 
 
 
@@ -197,50 +164,4 @@ return 'fail'
 ; We're good...
 :CHECKJSONHEADER.PASS
 echopassfail 'check json header ${arg:1}' 'pass'
-return 'pass'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg:1 - property
-; arg:2 - if-statement operator (optional)
-; arg:3 - value to check for if arg2 is specified
-; arg:4 - value to check for if arg2 is specified
-; arg:5 - ...
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; if we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement (init at 2, we'll start at 3), we are
-; successful if we find an item, unsuccessful if we exhaust
-; the list without finding a match...
-set ifindex 2
-:CHECK.NEXTIF
-increment ifindex ${get:ifindex} 1
-if '${get:ifindex}' > '${arg:#}' goto CHECK.FAILEDIF
-if '${rj:${arg:1}}' '${arg:2}' '${arg:${get:ifindex}}' goto CHECK.PASS
-goto CHECK.NEXTIF
-;
-; An if-statement failed...
-:CHECK.FAILEDIF
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:${get:ifindex}}>')'
-set readimageblockmetadataresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set readimageblockmetadataresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
 return 'pass'

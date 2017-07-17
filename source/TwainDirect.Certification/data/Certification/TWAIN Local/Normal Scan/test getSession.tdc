@@ -1,13 +1,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test getSession v1.0 24-Jun-2017
+; Test getSession
+; Exercise the getSession command.  We're going to do the following:
+; - confirm that getSession succeeds, and contains all required properties
+;
+; Arguments
 ; arg:1 - state to test for
 ; arg:2 - [OUT] set tag to true, if done
 ; arg:3 - [OUT] set tag to first imaage block, if we have one
+;
+; Locals
+; getsessionresult - result of the test
+;
 ; returns: pass or fail
-;
-; Exercise the getSession command.  We're going to do the following:
-;
-; - confirm that getSession succeeds, and contains all required properties
 ;
 
 
@@ -16,7 +20,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test getSession v1.0 24-Jun-2017'
+echo 'Test getSession v1.0 17-Jul-2017'
 set getsessionresult 'pass'
 
 
@@ -46,16 +50,20 @@ return '${get:getsessionresult}'
 ; Send the command...
 getSession
 ;
+; Check the headers...
+run 'function CheckHeader' 'getsessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'getsessionresult' 'Content-Length' == '${rdata:#}'
+;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'getSession'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' '${arg:1}'
+run 'function CheckJsonProperty' 'getsessionresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'getsessionresult' 'commandId'
+run 'function CheckJsonProperty' 'getsessionresult' 'method' == 'getSession'
+run 'function CheckJsonProperty' 'getsessionresult' 'results'
+run 'function CheckJsonProperty' 'getsessionresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'getsessionresult' 'results.session'
+run 'function CheckJsonProperty' 'getsessionresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'getsessionresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'getsessionresult' 'results.session.state' == '${arg:1}'
 if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
 ;
 ; We're good, check if we need to output values...
@@ -68,42 +76,6 @@ return 'pass'
 set getsessionresult 'fail'
 echopassfail 'getSession call' 'fail'
 return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
-;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set getsessionresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set getsessionresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
-return 'pass'
 
 
 

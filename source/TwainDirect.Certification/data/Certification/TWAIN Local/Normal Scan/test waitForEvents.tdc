@@ -1,18 +1,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test waitForEvents callback v1.0 06-Jul-2017
-; arg:1 - test to run
-; arg:2 - variable to set with the result
-; arg:3 - timeout in milliseconds
-; returns: pass or fail
-;
+; Test waitForEvents callback v1.0 17-Jul-2017
 ; Exercise the waitForEvents command.  We're called by other scripts.  This script runs as a callback
 ; when the waitForEvents thread processes a response.
-;
 ; - confirm that commands report invalidState when called before createSession
-;
 ; - confirm that createSession succeeds, and contains all required properties
-;
 ; - confirm that createSession reports busy now, and others report invalidState
+;
+; Arguments
+; arg:1 - test to run
+; arg:2 - [REF] variable to set with the result
+; arg:3 - timeout in milliseconds
+;
+; Locals
+; (none)
+;
+; returns: pass or fail
 ;
 
 
@@ -20,7 +22,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; We don't have a banner, because we're called from other scripts...
 ;
-set waitforeventsresultname '${arg:2}'
 
 
 
@@ -82,13 +83,13 @@ if '${ej:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
 ;
 ; The if-statement failed...
 echopassfail 'event check ${arg:1}' 'fail (if '<${ej:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set '${get:waitforeventsresultname}' 'fail'
+set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
 echopassfail 'event check ${arg:1}' 'fail (${arg:1} missing)'
-set '${get:waitforeventsresultname}' 'fail'
+set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; We're good...

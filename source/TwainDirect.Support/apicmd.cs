@@ -377,6 +377,16 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return the total number of bytes tranferred in this
+        /// response...
+        /// </summary>
+        /// <returns>the number of bytes we got</returns>
+        public long GetResponseBytesXferred()
+        {
+            return (m_lResponseBytesXferred);
+        }
+
+        /// <summary>
         /// Return the HTTP response headers...
         /// </summary>
         /// <returns>string with all the data or null</returns>
@@ -1041,6 +1051,10 @@ namespace TwainDirect.Support
                         Buffer.BlockCopy(abBuffer, 0, abReply, 0, iXfer);
                         szReply = Encoding.UTF8.GetString(abReply, 0, iXfer);
                     }
+
+                    // The total number of bytes transferred.  We want this number
+                    // to be identical to the Content-Length for the response...
+                    m_lResponseBytesXferred = iXfer;
                 }
 
                 // Else we have a multipart response, and we need to collect
@@ -1138,7 +1152,10 @@ namespace TwainDirect.Support
                             // Read data...
                             try
                             {
-                                lRead += stream.Read(abBuffer, (int)lRead, (int)(abBuffer.Length - lRead));
+                                iXfer = stream.Read(abBuffer, (int)lRead, (int)(abBuffer.Length - lRead));
+                                lRead += iXfer;
+                                m_lResponseBytesXferred += iXfer;
+
                             }
                             catch
                             {
@@ -1377,7 +1394,9 @@ namespace TwainDirect.Support
                                 {
                                     try
                                     {
-                                        lRead = stream.Read(abBuffer, (int)0, (int)((lRemainder > abBuffer.Length) ? abBuffer.Length : lRemainder));
+                                        iXfer = stream.Read(abBuffer, (int)0, (int)((lRemainder > abBuffer.Length) ? abBuffer.Length : lRemainder));
+                                        lRead = iXfer;
+                                        m_lResponseBytesXferred += iXfer;
                                     }
                                     catch
                                     {
@@ -1395,7 +1414,9 @@ namespace TwainDirect.Support
                                 {
                                     while (lRemainder > 0)
                                     {
-                                        lRead = stream.Read(abBuffer, (int)lRead, (int)lRemainder);
+                                        iXfer = stream.Read(abBuffer, (int)lRead, (int)lRemainder);
+                                        lRead = iXfer;
+                                        m_lResponseBytesXferred += iXfer;
                                         lRemainder -= lRead;
                                         if (lRead == 0)
                                         {
@@ -2036,6 +2057,7 @@ namespace TwainDirect.Support
                 m_szUriFull = a_apicmd.m_szUriFull;
                 m_aszRequestHeaders = a_apicmd.GetRequestHeaders();
                 m_szRequestData = a_apicmd.GetSendCommand();
+                m_lResponseBytesXferred = a_apicmd.GetResponseBytesXferred();
                 m_szResponseStatus = a_apicmd.HttpStatus().ToString();
                 m_iResponseStatus = a_apicmd.GetResponseStatus();
                 m_aszResponseHeaders = a_apicmd.GetResponseHeaders();
@@ -2114,6 +2136,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the total number of bytes in the response payload...
+            /// </summary>
+            /// <returns>total bytes xferred</returns>
+            public long GetResponseBytesXferred()
+            {
+                return (m_lResponseBytesXferred);
+            }
+
+            /// <summary>
             /// Get the response data for this transaction, this should
             /// usually be JSON, or include JSON data...
             /// </summary>
@@ -2155,6 +2186,11 @@ namespace TwainDirect.Support
             /// Request headers, or null...
             /// </summary>
             private string[] m_aszRequestHeaders;
+
+            /// <summary>
+            /// The total number of bytes in the response payload...
+            /// </summary>
+            private long m_lResponseBytesXferred;
 
             /// <summary>
             /// Request data or null...
@@ -2578,6 +2614,11 @@ namespace TwainDirect.Support
         /// The way we want to respond to an HTTP command...
         /// </summary>
         private HttpReplyStyle m_httpreplystyle;
+
+        /// <summary>
+        /// The number of bytes transferred in the response...
+        /// </summary>
+        private long m_lResponseBytesXferred;
 
         /// <summary>
         /// The reply task or an empty string...

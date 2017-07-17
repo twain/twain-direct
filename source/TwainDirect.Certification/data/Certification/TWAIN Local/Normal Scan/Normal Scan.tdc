@@ -1,13 +1,27 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TWAIN Direct Scan v1.0 22-Jun-2017
-; arg:1 - scanner to use
-; arg:2 - task (optional)
-; arg:3 - get thumbnail with readImageBlockMetadata (default false)
-; arg:4 - get metadata with readImageBlock (default false)
-; returns: pass or fail
-;
+; TWAIN Direct Scan
 ; Scan using TWAIN Direct, exercise and test as much of the system as possible...
 ;
+; Arguments
+; arg:1 - scanner to use
+; arg:2 - [OPTIONAL] task (default task is used)
+; arg:3 - [OPTIONAL] get thumbnail with readImageBlockMetadata (default false)
+; arg:4 - [OPTIONAL] get metadata with readImageBlock (default false)
+;
+; Locals
+; getThumbnail - true if we should ask for thumbnails with the metadata
+; getMetadata - true if we should ask for metadata with the image
+;
+; returns: pass or fail
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'Normal Scan v1.0 17-Jul-2017'
 
 
 
@@ -54,7 +68,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check that info and infoex are supported, and their values match the mDNS TXT fields...
 ;
-run 'test info and infoex' true
+run 'test mDNS, info and infoex' true
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -62,7 +76,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test createSession...
 ;
-run 'test createsession'
+run 'test createSession'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -70,7 +84,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test getSession...
 ;
-run 'test getsession' 'ready'
+run 'test getSession' 'ready'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -78,7 +92,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test sendTask...
 ;
-run 'test sendtask' '${arg:2}'
+run 'test sendTask' '${arg:2}'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -86,7 +100,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test startCapturing...
 ;
-run 'test startcapturing'
+run 'test startCapturing'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -103,7 +117,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Test getSession...
 	;
-	run 'test getsession' 'capturing' 'outDone' 'outNextimageblock'
+	run 'test getSession' 'capturing' 'outDone' 'outNextimageblock'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 	if '${get:outDone}' == 'true' goto MAIN.DONE
 	if '${get:outNextimageblock}' != '' goto MAIN.GETIMAGE
@@ -119,20 +133,20 @@ goto MAIN.WAITNEXT
 	; Test readImageBlockMetadata, unless we're told to skip it...
 	;
 	if '${get:getMetadata}' == 'true' goto MAIN.SKIPREADBLOCKMETADATA
-	run 'test readImageBlockMetadata' '${get:outNextimageblock}' '${get:getThumbnail}'
+	run 'test readImageBlockMetadata' '${get:outNextimageblock}' '${get:getThumbnail}' 'capturing'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 	:MAIN.SKIPREADBLOCKMETADATA
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Test readImageBlock...
 	;
-	run 'test readImageBlock' '${get:outNextimageblock}' '${get:getMetadata}'
+	run 'test readImageBlock' '${get:outNextimageblock}' '${get:getMetadata}' 'capturing'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Test releaseImageBlocks...
 	;
-	run 'test releaseImageBlocks' '${get:outNextimageblock}' '${get:outNextimageblock}' 'outDone' 'outNextimageblock'
+	run 'test releaseImageBlocks' '${get:outNextimageblock}' '${get:outNextimageblock}' 'outDone' 'outNextimageblock' 'capturing'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 	if '${get:outDone}' == 'true' goto MAIN.DONE
 	if '${get:outNextimageblock}' == '' goto MAIN.WAIT
@@ -145,7 +159,7 @@ goto MAIN.GETIMAGE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test stopCapturing...
 ;
-run 'test stopcapturing' 'ready'
+run 'test stopCapturing' 'ready'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 

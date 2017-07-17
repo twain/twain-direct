@@ -1,61 +1,337 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test info and infoex v1.0 24-Jun-2017
-; arg:1 - true to display the banner
+; Test mDNS, Info and Infoex
+; Run the info and infoex commands, and check the results for mandatory
+; properties, and those properties that must match mDNS content.
+;
+; Arguments
+; (none)
+;
+; Locals
+; mdnsinfoinfoexresult - result of the test
+;
 ; returns: pass or fail
 ;
-; Issue info and infoex commands.  We expect these to work in all states where the scanner is online.
+; This script checks the RESTful API calls, confirming that required fields are present, and where
+; possible that values conform to the Specification.  This script will scan one sheet of paper.
 ;
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Display the banner?
+; Display the banner...
 ;
-if '${arg:1}' != 'true' goto MAIN.SKIPBANNER
 echo
-echo 'Test info and infoex v1.0 24-Jun-2017'
-:MAIN.SKIPBANNER
+echo 'Test mDNS, Info and Infoex v1.0 17-Jul-2017'
+set mdnsinfoinfoexresult pass
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Send the scanner info command...
+; TD.MDIN.001: mDNS
+; Examine the TXT fields in the mDNS data.
 ;
-info
-if '${rj:x-privet-token}' == '' goto MAIN.FAILINFO
-echopassfail 'test info' 'pass'
+call CHECKMDNSTXT 'TD.MDIN.001: mDNS'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Send the scanner infoex command...
+; TD.MDIN.002: info
+; Examine the properties returned by info, and compare them to the mDNS TXT fields.
 ;
-infoex
-if '${rj:x-privet-token}' == '' goto MAIN.FAILINFOX
-echopassfail 'test infoex' 'pass'
+call CHECKINFO 'TD.MDIN.002: info'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Bye-bye...
+; TD.MDIN.003: infoex
+; Examine the properties returned by infoex, and compare them to the mDNS TXT fields.
 ;
-echopassfail 'SUMMARY' 'pass'
+call CHECKINFOEX 'TD.MDIN.003: infoex'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summary and return...
+;
+; Did we pass?
+echopassfail 'SUMMARY' '${get:mdnsinfoinfoexresult}'
+return '${get:mdnsinfoinfoexresult}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check mDNS TXT
+; arg:1 - name of test
+; returns: pass or fail
+;
+:CHECKMDNSTXT
+;
+; Check for the presence of mandatory mDNS txt fields...
+if '${txtx:txtvers}' == '(null)' goto CHECKMDNSTXT.MISSINGTXTTXTVERS
+if '${txtx:ty}' == '(null)' goto CHECKMDNSTXT.MISSINGTXTTY
+if '${txtx:url}' == '(null)' goto CHECKMDNSTXT.MISSINGTXTURL
+if '${txtx:type}' == '(null)' goto CHECKMDNSTXT.MISSINGTXTTYPE
+if '${txtx:id}' == '(null)' goto CHECKMDNSTXT.MISSINGTXTID
+if '${txtx:cs}' == '(null)' goto CHECKMDNSTXT.MISSINGCS
+;
+; Validate txtvers...
+if '${txt:txtvers}' != '1' goto CHECKMDNSTXT.BADTXTTXTVERS
+;
+; Validate type contains twaindirect...
+if '${txt:type}' !contains 'twaindirect' goto CHECKMDNSTXT.BADTXTTYPE
+;
+; Validate cs...
+if '${txt:cs}' == 'online' goto CHECKMDNSTXT.GOODTXTCS
+if '${txt:cs}' == 'offline' goto CHECKMDNSTXT.GOODTXTCS
+if '${txt:cs}' == 'connecting' goto CHECKMDNSTXT.GOODTXTCS
+if '${txt:cs}' == 'not-configured' goto CHECKMDNSTXT.GOODTXTCS
+goto CHECKMDNSTXT.BADTXTCS
+:CHECKMDNSTXT.GOODTXTCS
+;
+; We're good...
+echopassfail '${arg:1}' 'pass'
 return 'pass'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; MAIN.FAILINFO
 ;
-:MAIN.FAILINFO
-echopassfail 'test info' 'fail (info)'
+:CHECKMDNSTXT.MISSINGTXTTXTVERS
+set error 'fail (missing mdns txt txtvers)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.BADTXTTXTVERS
+set error 'fail (mdns txt txtvers must be 1)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.MISSINGTXTTY
+set error 'fail (missing mdns txt ty)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.MISSINGTXTURL
+set error 'fail (missing mdns txt url)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.MISSINGTXTTYPE
+set error 'fail (missing mdns txt type)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.BADTXTTYPE
+set error 'fail (mdns txt type must contain twaindirect)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.MISSINGTXTID
+set error 'fail (missing mdns txt id)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.MISSINGTXTCS
+set error 'fail (missing mdns txt cs)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.BADTXTCS
+set error 'fail (mdns txt cs is invalid)'
+goto CHECKMDNSTXT.FAIL
+;
+:CHECKMDNSTXT.FAIL
+set mdnsinfoinfoexresult fail
+echopassfail '${arg:1}' '${get:error}'
 return 'fail'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; MAIN.FAILINFOEX
+; Function: Check Info
+; arg:1 - name of test
+; returns: pass or fail
 ;
-:MAIN.FAILINFOEX
-echopassfail 'test infoex' 'fail (infoex)'
+:CHECKINFO
+;
+; Log it to make it easier to diagnose stuff...
+log info '#'
+log info '#Test:                        ${arg:1}'
+;
+; Issue the command...
+info
+;
+; Check for the presence of mandatory properties...
+if '${rjx:version}' == '(null)' goto CHECKINFO.MISSINGVERSION
+if '${rjx:name}' == '(null)' goto CHECKINFO.MISSINGNAME
+if '${rjx:url}' == '(null)' goto CHECKINFO.MISSINGURL
+if '${rjx:type}' == '(null)' goto CHECKINFO.MISSINGTYPE
+if '${rjx:id}' == '(null)' goto CHECKINFO.MISSINGID
+if '${rjx:device_state}' == '(null)' goto CHECKINFO.MISSINGDEVICESTATE
+if '${rjx:connection_state}' == '(null)' goto CHECKINFO.MISSINGCONNECTIONSTATE
+if '${rjx:manufacturer}' == '(null)' goto CHECKINFO.MISSINGMANUFACTURER
+if '${rjx:model}' == '(null)' goto CHECKINFO.MISSINGMODEL
+if '${rjx:serial_number}' == '(null)' goto CHECKINFO.MISSINGSERIALNUMBER
+if '${rjx:uptime}' == '(null)' goto CHECKINFO.MISSINGUPTIME
+if '${rjx:x-privet-token}' == '(null)' goto CHECKINFO.MISSINGXPRIVETTOKEN
+if '${rjx:api[0]}' == '(null)' goto CHECKINFO.MISSINGAPI
+;
+; Validate version...
+if '${rj:version}' != '1.0' goto CHECKINFO.BADVERSION
+;
+; Validate name...
+if '${rj:name}' != '${txt:ty}' goto CHECKINFO.BADNAME
+;
+; Validate description...
+if '${rj:description}' != '${txt:note}' goto CHECKINFO.BADDESCRIPTION
+;
+; Validate url...
+if '${rj:url}' != '${txt:url}' goto CHECKINFO.BADURL
+;
+; Validate type...
+if '${rj:type}' != '${txt:type}' goto CHECKINFO.BADTYPE
+;
+; Validate id...
+if '${rj:id}' != '${txt:id}' goto CHECKINFO.BADID
+;
+; Validate device_state...
+if '${rj:device_state}' == 'idle' goto CHECKINFO.GOODDEVICESTATE
+if '${rj:device_state}' == 'processing' goto CHECKINFO.GOODDEVICESTATE
+if '${rj:device_state}' == 'stopped' goto CHECKINFO.GOODDEVICESTATE
+goto CHECKINFO.BADDEVICESTATE
+:CHECKINFO.GOODDEVICESTATE
+;
+; Validate connection_state...
+if '${rj:connection_state}' != '${txt:cs}' goto CHECKINFO.BADCONNECTIONSTATE
+if '${rj:connection_state}' == 'online' goto CHECKINFO.GOODCONNECTIONSTATE
+if '${rj:connection_state}' == 'offline' goto CHECKINFO.GOODCONNECTIONSTATE
+if '${rj:connection_state}' == 'connecting' goto CHECKINFO.GOODCONNECTIONSTATE
+if '${rj:connection_state}' == 'not-configured' goto CHECKINFO.GOODCONNECTIONSTATE
+goto CHECKINFO.BADCONNECTIONSTATE
+:CHECKINFO.GOODCONNECTIONSTATE
+;
+; Validate x-privet-token...
+if '${rj:x-privet-token}' == '' goto CHECKINFO.BADXPRIVETTOKEN
+;
+; Validate API...
+set index 0
+:LOOPAPI
+	if '${rjx:api[${get:index}]}' == '' goto CHECKINFO.BADAPI
+	if '${rjx:api[${get:index}]}' == '/privet/twaindirect/session' goto CHECKINFO.GOODAPI
+	increment index '${get:index}' 1
+goto LOOPAPI
+:CHECKINFO.GOODAPI
+;
+; We're good...
+echopassfail '${arg:1}' 'pass'
+log info '#Test result:                 pass'
+return 'pass'
+;
+:CHECKINFO.MISSINGVERSION
+set error 'fail (version missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADVERSION
+set error 'fail (version must be 1.0)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGNAME
+set error 'fail (name missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADNAME
+set error 'fail (name must match mdns txt ty)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADDESCRIPTION
+set error 'fail (description must match ndns txt note)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGURL
+set error 'fail (url missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGTYPE
+set error 'fail (type missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADTYPE
+set error 'fail (type must match ndns txt type)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGID
+set error 'fail (id missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADID
+set error 'fail (id must match ndns txt id)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGDEVICESTATE
+set error 'fail (device_state missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADDEVICESTATE
+set error 'fail (device_state invalid)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGCONNECTIONSTATE
+set error 'fail (connection_state missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADCONNECTIONSTATE
+set error 'fail (device_state invalid)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGMANUFACTURER
+set error 'fail (manufacturer missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGMODEL
+set error 'fail (model missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGSERIALNUMBER
+set error 'fail (serial_number missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGUPTIME
+set error 'fail (uptime missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.MISSINGXPRIVETTOKEN
+set error 'fail (x-privet-token missing)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.BADXPRIVETTOKEN
+set error 'fail (x-privet-token invalid)'
+goto CHECKINFO.FAIL
+;
+:CHECKINFO.FAIL
+set mdnsinfoinfoexresult fail
+echopassfail '${arg:1}' 'fail'
+log info '#Test result:                 fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Check Infoex
+; arg:1 - name of test
+; returns: pass or fail
+;
+:CHECKINFOEX
+;
+; Issue the command...
+infoex
+;
+; Check for the presence of mandatory properties...
+if '${rjx:clouds}' == '(null)' goto CHECKINFOEX.MISSINGCLOUDS
+;
+; Everything else matches info...
+call CHECKINFO '${arg:1}'
+if '${ret:}' != 'pass' goto CHECKINFOEX.FAILINFO
+;
+; We're good, don't add anything CHECKINFO already did all the work...
+return 'pass'
+;
+:CHECKINFOEX.MISSINGCLOUDS
+set error 'fail (clouds missing)'
+goto CHECKINFOEX.FAIL
+;
+:CHECKINFOEX.FAIL
+set mdnsinfoinfoexresult fail
+echopassfail '${arg:1}' 'fail'
+return 'fail'
+;
+; Don't add anything, CHECKINFO already did all the work...
+:CHECKINFOEX.FAILINFO
 return 'fail'

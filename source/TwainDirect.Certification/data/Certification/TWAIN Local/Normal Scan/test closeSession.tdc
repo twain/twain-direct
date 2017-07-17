@@ -1,11 +1,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test closeSession v1.0 24-Jun-2017
-; arg:1 - state to check for
-; returns: pass or fail
-;
+; Test closeSession
 ; Exercise the closeSession command.  We're going to do the following:
-;
 ; - confirm that closeSession succeeds, and contains all required properties
+;
+; Arguments
+; arg:1 - state to check for
+;
+; Locals
+; closesessionresult - result of the test
+;
+; returns: pass or fail
 ;
 
 
@@ -14,7 +18,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test closeSession v1.0 24-Jun-2017'
+echo 'Test closeSession v1.0 17-Jul-2017'
 set closesessionresult 'pass'
 
 
@@ -44,16 +48,20 @@ return '${get:closesessionresult}'
 ; Send the command...
 closeSession
 ;
+; Check the headers...
+run 'function CheckHeader' 'closesessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'closesessionresult' 'Content-Length' == '${rdata:#}'
+;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'closeSession'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' '${arg:1}'
+run 'function CheckJsonProperty' 'closesessionresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'closesessionresult' 'commandId'
+run 'function CheckJsonProperty' 'closesessionresult' 'method' == 'closeSession'
+run 'function CheckJsonProperty' 'closesessionresult' 'results'
+run 'function CheckJsonProperty' 'closesessionresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'closesessionresult' 'results.session'
+run 'function CheckJsonProperty' 'closesessionresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'closesessionresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'closesessionresult' 'results.session.state' == '${arg:1}'
 if '${get:closesessionresult}' != 'pass' goto CLOSESESSION.FAIL
 ;
 ; We're good...
@@ -65,39 +73,3 @@ return 'pass'
 set closesessionresult 'fail'
 echopassfail 'closeSession call' 'fail'
 return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
-;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set closesessionresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set closesessionresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
-return 'PASS'

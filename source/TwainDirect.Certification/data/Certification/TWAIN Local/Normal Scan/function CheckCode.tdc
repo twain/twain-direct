@@ -1,0 +1,39 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check Code v1.0 17-Jul-2017
+; Check that the command we send results in the expected code.  Only
+; use this function when errors are required, such as invalidState...
+;
+; Arguments
+; arg:1 - [REF] status (only set to fail, if needed)
+; arg:2 - command to run
+; arg:3 - code to check for
+; arg:4 - argument for command, if needed
+; arg:5 - argument for command, if needed
+; arg:6 - argument for command, if needed
+;
+; Locals
+; (none)
+;
+; returns pass or fail
+
+;
+; Send the command...
+'${arg:2}' '${arg:4}' '${arg:5}' '${arg:6}'
+;
+; Check the result...
+if '${rj:results.success}' != 'false' goto CHECKCODE.FAILSTATUS
+if '${rj:results.code}' != '${arg:3}' goto CHECKCODE.FAILCODE
+;
+; We're good...
+echopassfail 'check ${arg:3}: ${arg:2}' 'pass'
+return 'pass'
+;
+:CHECKCODE.FAILSTATUS
+echopassfail 'check ${arg:3}: ${arg:2}' 'fail (success not false)'
+set '${arg:1}' 'fail'
+return 'fail'
+;
+:CHECKCODE.FAILCODE
+echopassfail 'check ${arg:3}: ${arg:2}' 'fail (code not ${arg:3})'
+set '${arg:1}' 'fail'
+return 'fail'

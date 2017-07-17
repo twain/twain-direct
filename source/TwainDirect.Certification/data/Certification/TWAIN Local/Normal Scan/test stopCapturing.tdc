@@ -1,11 +1,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test stopCapturing v1.0 24-Jun-2017
-; arg:1 - state to check for
-; returns: pass or fail
-;
+; Test stopCapturing
 ; Exercise the stopCapturing command.  We're going to do the following:
-;
 ; - confirm that stopCapturing succeeds, and contains all required properties
+;
+; Arguments
+; arg:1 - state to check for
+;
+; Locals
+; stopcapturingresult - result of the test
+;
+; returns: pass or fail
 ;
 
 
@@ -14,7 +18,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test stopCapturing v1.0 24-Jun-2017'
+echo 'Test stopCapturing v1.0 17-Jul-2017'
 set stopcapturingresult 'pass'
 
 
@@ -44,16 +48,20 @@ return '${get:stopcapturingresult}'
 ; Send the command...
 stopCapturing
 ;
+; Check the headers...
+run 'function CheckHeader' 'stopcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'stopcapturingresult' 'Content-Length' == '${rdata:#}'
+;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'stopCapturing'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' '${arg:1}'
+run 'function CheckJsonProperty' 'stopcapturingresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'stopcapturingresult' 'commandId'
+run 'function CheckJsonProperty' 'stopcapturingresult' 'method' == 'stopCapturing'
+run 'function CheckJsonProperty' 'stopcapturingresult' 'results'
+run 'function CheckJsonProperty' 'stopcapturingresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'stopcapturingresult' 'results.session'
+run 'function CheckJsonProperty' 'stopcapturingresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'stopcapturingresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'stopcapturingresult' 'results.session.state' == '${arg:1}'
 if '${get:stopcapturingresult}' != 'pass' goto STOPCAPTURING.FAIL
 ;
 ; We're good...
@@ -65,39 +73,3 @@ return 'pass'
 set stopcapturingresult 'fail'
 echopassfail 'stopCapturing call' 'fail'
 return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
-;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set stopcapturingresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set stopcapturingresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
-return 'pass'

@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test x-privet-token error v1.0 24-Jun-2017
+; Test x-privet-token error
 ; returns: pass or fail
 ;
 ; Issue each of the valid RESTful commands and one invalid command before we have a valid x-privet-token,
@@ -17,7 +17,7 @@
 ; asynchronously, so we'll have to detect it in the events...
 ;
 echo
-echo 'Test x-privet-token error v1.0 24-Jun-2017'
+echo 'Test x-privet-token error v1.0 17-Jul-2017'
 set localresult 'pass'
 call SENDCOMMAND 'createSession'
 call SENDCOMMAND 'getSession'

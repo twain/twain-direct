@@ -1,11 +1,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test sendTask v1.0 24-Jun-2017
-; arg:1 - test task (optional)
-; returns: pass or fail
-;
+; Test sendTask
 ; Exercise the sendTask command.  We're going to do the following:
-;
 ; - confirm that sendTask succeeds, and contains all required properties
+;
+; Arguments
+; arg:1 - test task (optional)
+;
+; Locals
+; sendtaskresult - result of the test
+;
+; returns: pass or fail
 ;
 
 
@@ -14,7 +18,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test sendTask v1.0 24-Jun-2017'
+echo 'Test sendTask v1.0 17-Jul-2017'
 set sendtaskresult 'pass'
 
 
@@ -41,30 +45,38 @@ return '${get:sendtaskresult}'
 :SENDTASK
 ;
 ; Send the command...
-sendTask '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any"}]}]}]}'
+sendTask '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any"}]}]}]}]}'
+;
+; Check the headers...
+run 'function CheckHeader' 'sendtaskresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'sendtaskresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'sendTask'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' 'ready'
-call CHECK 'results.session.task'
-call CHECK 'results.session.task.actions[0]'
-call CHECK 'results.session.task.actions[0].action' '==' 'configure'
-call CHECK 'results.session.task.actions[0].results'
-call CHECK 'results.session.task.actions[0].results.success' '==' 'true'
-call CHECK 'results.session.task.actions[0].streams'
-call CHECK 'results.session.task.actions[0].streams[0]'
-call CHECK 'results.session.task.actions[0].streams[0].name' '==' 'stream0'
-call CHECK 'results.session.task.actions[0].streams[0].sources'
-call CHECK 'results.session.task.actions[0].streams[0].sources[0]'
-call CHECK 'results.session.task.actions[0].streams[0].sources[0].source' '==' 'any'
-call CHECK 'results.session.task.actions[0].streams[0].sources[0].name' '==' 'source0'
+run 'function CheckJsonProperty' 'sendtaskresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'sendtaskresult' 'commandId'
+run 'function CheckJsonProperty' 'sendtaskresult' 'method' == 'sendTask'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.state' == 'ready'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0]'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].action' '==' 'configure'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].results'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].results.success' '==' 'true'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0]'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].name' '==' 'stream0'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources[0]'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources[0].source' '==' 'any'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources[0].name' '==' 'source0'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources[0].pixelFormats'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0]'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].pixelFormat' '==' 'any'
+run 'function CheckJsonProperty' 'sendtaskresult' 'results.session.task.actions[0].streams[0].sources[0].pixelFormats[0].name' '==' 'pixelFormat0'
 if '${get:sendtaskresult}' != 'pass' goto SENDTASK.FAIL
 ;
 ; We're good...
@@ -75,39 +87,3 @@ return 'pass'
 set sendtaskresult 'fail'
 echopassfail 'sendTask call' 'fail'
 return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
-;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set sendtaskresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set sendtaskresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
-return 'pass'

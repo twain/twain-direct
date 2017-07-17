@@ -408,7 +408,7 @@ namespace TwainDirect.OnTwain
         /// metadata that goes with the image.
         /// </summary>
         /// <param name="a_szTask">task to process</param>
-        /// <param name="a_szVendor">this scanner's guid</param>
+        /// <param name="a_szVendor">this scanner's vendor id</param>
         /// <returns>true on success</returns>
         public bool Deserialize(string a_szTask, string a_szVendor)
         {
@@ -1605,7 +1605,7 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// Returns the owner of the vendor id...
         /// </summary>
-        /// <param name="a_szGuid">vendor id to test</param>
+        /// <param name="a_szVendor">vendor id to test</param>
         /// <returns>who owns it</returns>
         public VendorOwner GetVendorOwner(string a_szVendor)
         {
@@ -1615,13 +1615,13 @@ namespace TwainDirect.OnTwain
                 return (VendorOwner.TwainDirect);
             }
 
-            // The standard guid...
+            // The TWAIN Direct vendor...
             if (a_szVendor == m_szVendorTwainDirect)
             {
                 return (VendorOwner.TwainDirect);
             }
 
-            // The scanner's guid...
+            // The scanner's vendor...
             if (a_szVendor == m_szVendor)
             {
                 return (VendorOwner.Scanner);
@@ -8746,10 +8746,10 @@ namespace TwainDirect.OnTwain
             /// Set the scanner...
             /// </summary>
             /// <param name="a_twaincstoolkit">toolkit object</param>
-            /// <param name="a_guid">vendor GUID</param>
             /// <param name="a_szSwordName">the SWORD name we picked</param>
             /// <param name="a_szSwordValue">the SWORD value we picked</param>
             /// <param name="a_szTwainValue">the TWAIN value we picked</param>
+            /// <param name="a_szVendor">vendor id</param>
             /// <param name="a_swordtaskresponse">the task response object</param>
             /// <returns></returns>
             public string SetScanner

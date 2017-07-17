@@ -1,14 +1,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test createSession v1.0 24-Jun-2017
-; returns: pass or fail
-;
+; Test createSession
 ; Exercise the createSession command.  We're going to do the following:
-;
 ; - confirm that commands report invalidState when called before createSession
-;
 ; - confirm that createSession succeeds, and contains all required properties
-;
 ; - confirm that createSession reports busy now, and others report invalidState
+;
+; Arguments
+; (none)
+;
+; Locals
+; createsessionresult - result of the test
+; waitforeventsresult - result of waitForEvents command
+;
+; returns: pass or fail
 ;
 
 
@@ -17,7 +21,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test createSession v1.0 24-Jun-2017'
+echo 'Test createSession v1.0 17-Jul-2017'
 set createsessionresult 'pass'
 
 
@@ -57,11 +61,11 @@ call CREATESESSION
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-call CHECKCODE 'createSession' 'busy'
-call CHECKCODE 'readImageBlockMetadata' 'invalidState' '1' 'false'
-call CHECKCODE 'readImageBlock' 'invalidState' '1' 'false'
-call CHECKCODE 'releaseImageBlocks' 'invalidState' '1' '1'
-call CHECKCODE 'stopCapturing' 'invalidState'
+run 'function CheckCode' 'createsessionresult' 'createSession' 'busy'
+run 'function CheckCode' 'createsessionresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
+run 'function CheckCode' 'createsessionresult' 'readImageBlock' 'invalidState' '1' 'false'
+run 'function CheckCode' 'createsessionresult' 'releaseImageBlocks' 'invalidState' '1' '1'
+run 'function CheckCode' 'createsessionresult' 'stopCapturing' 'invalidState'
 
 
 
@@ -139,16 +143,20 @@ return 'fail'
 ; Send the command...
 createSession
 ;
+; Check the headers...
+run 'function CheckHeader' 'createsessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'createsessionresult' 'Content-Length' == '${rdata:#}'
+;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'createSession'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '==' '1'
-call CHECK 'results.session.state' '==' 'ready'
+run 'function CheckJsonProperty' 'createsessionresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'createsessionresult' 'commandId'
+run 'function CheckJsonProperty' 'createsessionresult' 'method' == 'createSession'
+run 'function CheckJsonProperty' 'createsessionresult' 'results'
+run 'function CheckJsonProperty' 'createsessionresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'createsessionresult' 'results.session'
+run 'function CheckJsonProperty' 'createsessionresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'createsessionresult' 'results.session.revision' == '1'
+run 'function CheckJsonProperty' 'createsessionresult' 'results.session.state' == 'ready'
 if '${get:createsessionresult}' != 'pass' goto CREATESESSION.FAIL
 ;
 ; We're good...
@@ -158,74 +166,4 @@ return 'pass'
 :CREATESESSION.FAIL
 set createsessionresult 'fail'
 echopassfail 'createSession call' 'fail'
-return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
-;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set createsessionresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set createsessionresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
-return 'pass'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECKCODE
-; arg:1 - command to run
-; arg:2 - code to check for
-; arg:3 - argument for command, if needed
-; arg:4 - argument for command, if needed
-; arg:5 - argument for command, if needed
-; returns pass or fail
-;
-:CHECKCODE
-;
-; Send the command...
-'${arg:1}' '${arg:3}' '${arg:4}' '${arg:5}'
-;
-; Check the result...
-if '${rj:results.success}' != 'false' goto CHECKCODE.FAILSTATUS
-if '${rj:results.code}' != '${arg:2}' goto CHECKCODE.FAILCODE
-;
-; We're good...
-echopassfail 'check ${arg:2}: ${arg:1}' 'pass'
-return 'pass'
-;
-:CHECKCODE.FAILSTATUS
-echopassfail 'check ${arg:2}: ${arg:1}' 'fail (success not false)'
-set createsessionresult 'fail'
-return 'fail'
-;
-:CHECKCODE.FAILCODE
-echopassfail 'check ${arg:2}: ${arg:1}' 'fail (code not ${arg:2})'
-set createsessionresult 'fail'
 return 'fail'

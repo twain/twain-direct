@@ -1,12 +1,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test startCapturing v1.0 24-Jun-2017
-; returns: pass or fail
-;
+; Test startCapturing
 ; Exercise the startCapturing command.  We're going to do the following:
-;
 ; - confirm that startCapturing, and contains all required properties
-;
 ; - confirm that startCapturing reports invalidState now
+;
+; Arguments
+; (none)
+;
+; Locals
+; startcapturingresult - result of the test
+;
+; returns: pass or fail
 ;
 
 
@@ -15,7 +19,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test startCapturing v1.0 24-Jun-2017'
+echo 'Test startCapturing v1.0 17-Jul-2017'
 set startcapturingresult 'pass'
 
 
@@ -23,11 +27,11 @@ set startcapturingresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-call CHECKCODE 'createSession' 'busy'
-call CHECKCODE 'readImageBlockMetadata' 'invalidState' '1' 'false'
-call CHECKCODE 'readImageBlock' 'invalidState' '1' 'false'
-call CHECKCODE 'releaseImageBlocks' 'invalidState' '1' '1'
-call CHECKCODE 'stopCapturing' 'invalidState'
+run 'function CheckCode' 'startcapturingresult' 'createSession' 'busy'
+run 'function CheckCode' 'startcapturingresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
+run 'function CheckCode' 'startcapturingresult' 'readImageBlock' 'invalidState' '1' 'false'
+run 'function CheckCode' 'startcapturingresult' 'releaseImageBlocks' 'invalidState' '1' '1'
+run 'function CheckCode' 'startcapturingresult' 'stopCapturing' 'invalidState'
 
 
 
@@ -41,8 +45,8 @@ call STARTCAPTURING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-call CHECKCODE 'createSession' 'busy'
-call CHECKCODE 'startCapturing' 'invalidState'
+run 'function CheckCode' 'startcapturingresult' 'createSession' 'busy'
+run 'function CheckCode' 'startcapturingresult' 'startCapturing' 'invalidState'
 
 
 
@@ -63,16 +67,20 @@ return '${get:startcapturingresult}'
 ; Send the command...
 startCapturing
 ;
+; Check the headers...
+run 'function CheckHeader' 'startcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'startcapturingresult' 'Content-Length' == '${rdata:#}'
+;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'startCapturing'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' 'capturing'
+run 'function CheckJsonProperty' 'startcapturingresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'startcapturingresult' 'commandId'
+run 'function CheckJsonProperty' 'startcapturingresult' 'method' == 'startCapturing'
+run 'function CheckJsonProperty' 'startcapturingresult' 'results'
+run 'function CheckJsonProperty' 'startcapturingresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'startcapturingresult' 'results.session'
+run 'function CheckJsonProperty' 'startcapturingresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'startcapturingresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'startcapturingresult' 'results.session.state' == 'capturing'
 if '${get:startcapturingresult}' != 'pass' goto STARTCAPTURING.FAIL
 ;
 ; We're good...
@@ -81,74 +89,4 @@ return 'pass'
 ;
 :STARTCAPTURING.FAIL
 echopassfail 'startCapturing call' 'fail'
-return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
-;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set startcapturingresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set startcapturingresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
-return 'pass'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECKCODE
-; arg:1 - command to run
-; arg:2 - code to check for
-; arg:3 - argument for command, if needed
-; arg:4 - argument for command, if needed
-; arg:5 - argument for command, if needed
-; returns pass or fail
-;
-:CHECKCODE
-;
-; Send the command...
-'${arg:1}' '${arg:3}' '${arg:4}' '${arg:5}'
-;
-; Check the result...
-if '${rj:results.success}' != 'false' goto CHECKCODE.FAILSTATUS
-if '${rj:results.code}' != '${arg:2}' goto CHECKCODE.FAILCODE
-;
-; We're good...
-echopassfail 'check ${arg:2}: ${arg:1}' 'pass'
-return 'pass'
-;
-:CHECKCODE.FAILSTATUS
-echopassfail 'check ${arg:2}: ${arg:1}' 'fail (success not false)'
-set startcapturingresult 'fail'
-return 'fail'
-;
-:CHECKCODE.FAILCODE
-echopassfail 'check ${arg:2}: ${arg:1}' 'fail (code not ${arg:2})'
-set startcapturingresult 'fail'
 return 'fail'

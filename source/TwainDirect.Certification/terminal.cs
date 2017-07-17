@@ -3307,9 +3307,11 @@ namespace TwainDirect.Certification
                     // Expand the stuff to the right of the source, so if we have
                     // ${rj:x} we'll get x back, but if we have ${rj:${arg:1}}, we'll
                     // get the value of ${arg:1} back...
-                    if (    szSymbol.StartsWith("${rj:")
+                    if (    szSymbol.StartsWith("${rdata:")
+                        ||  szSymbol.StartsWith("${rj:")
                         ||  szSymbol.StartsWith("${rjx:")
                         ||  szSymbol.StartsWith("${rsts:")
+                        ||  szSymbol.StartsWith("${edata:")
                         ||  szSymbol.StartsWith("${ej:")
                         ||  szSymbol.StartsWith("${ejx:")
                         ||  szSymbol.StartsWith("${ests:")
@@ -3340,6 +3342,23 @@ namespace TwainDirect.Certification
 
                     // Assume the worse...
                     szValue = "";
+
+                    // Use the value as a JSON key to get data from the response data, if we
+                    // don't find the value treat it as an empty string.  In most cases this
+                    // will be good enough for testing purposes...
+                    if (szSymbol.StartsWith("${rdata:") && szSymbol.StartsWith("${edata:"))
+                    {
+                        ApiCmd.Transaction transaction = szSymbol.StartsWith("${rdata:") ? m_transactionLast : m_transactionEvent;
+                        if (transaction != null)
+                        {
+                            string szTarget = szSymbol.Substring(0, szSymbol.Length - 1).Substring(8);
+                            // Report the number of bytes of data...
+                            if (szTarget == "#")
+                            {
+                                szValue = transaction.GetResponseBytesXferred().ToString();
+                            }
+                        }
+                    }
 
                     // Use the value as a JSON key to get data from the response data, if we
                     // don't find the value treat it as an empty string.  In most cases this

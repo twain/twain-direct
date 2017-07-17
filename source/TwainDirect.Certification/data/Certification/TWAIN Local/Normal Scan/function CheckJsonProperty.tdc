@@ -1,0 +1,52 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check Property v1.0 17-Jul-2017
+; Check that the specified JSON property passes the test(s). If the
+; property is the only thing specified, we just check if it exists.
+; If an if-statement operator is included, then we also check it
+; against one or more values...
+;
+; Arguments
+; arg:1 - [REF] status (only set to fail, if needed)
+; arg:2 - property to check
+; arg:3 - if-statement operation to perform
+; arg:4 - first item to check against the operation
+; arg:n - arguments repeat as needed
+;
+; Locals
+; checkproperty.aa - argument counter
+;
+; returns pass or fail
+
+;
+; Make sure the property exists...
+if '${rjx:${arg:2}}' == '(null)' goto CHECK.MISSING
+;
+; if we have no operator, we're done...
+if '${arg:3}' == '' goto CHECK.PASS
+;
+; Do the if-statement (init at 3, we'll start at 4), we are
+; successful if we find an item, unsuccessful if we exhaust
+; the list without finding a match...
+set checkproperty.aa 3
+:CHECK.NEXTIF
+	increment checkproperty.aa ${get:checkproperty.aa} 1
+	if '${get:checkproperty.aa}' > '${arg:#}' goto CHECK.FAILEDIF
+	if '${rj:${arg:2}}' '${arg:3}' '${arg:${get:checkproperty.aa}}' goto CHECK.PASS
+	goto CHECK.NEXTIF
+;
+; An if-statement failed...
+:CHECK.FAILEDIF
+echopassfail 'check ${arg:2}' 'fail (if '<${rj:${arg:2}}>' '${arg:3}' '<${arg:${get:ifindex}}>')'
+set '${arg:1}' 'fail'
+return 'fail'
+;
+; The property is missing...
+:CHECK.MISSING
+echopassfail 'check ${arg:2}' 'fail (${arg:2} missing)'
+set '${arg:1}' 'fail'
+return 'fail'
+;
+; We're good...
+:CHECK.PASS
+echopassfail 'check ${arg:2}' 'pass'
+return 'pass'

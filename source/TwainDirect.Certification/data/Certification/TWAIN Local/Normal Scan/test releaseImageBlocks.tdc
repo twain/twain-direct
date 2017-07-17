@@ -1,14 +1,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test releaseImageBlocks v1.0 24-Jun-2017
+; Test releaseImageBlocks
+; Exercise the releaseImageBlocks command.  We're going to do the following:
+; - confirm that releaseImageBlocks succeeds, and contains all required properties
+;
+; Arguments
 ; arg:1 - first imageblock to remove, inclusive
 ; arg:2 - last imageblock to remvoe, inclusive
 ; arg:3 - [OUT] set tag to true, if done
-; arg:4 - [OUT] set tag to first imaage block, if we have one
+; arg:4 - [OUT] set tag to first image block, if we have one
+; arg:5 - expected session state
+;
+; Locals
+; releaseimageblocksresult - result of the test
+;
 ; returns: pass or fail
-;
-; Exercise the releaseImageBlocks command.  We're going to do the following:
-;
-; - confirm that releaseImageBlocks succeeds, and contains all required properties
 ;
 
 
@@ -17,7 +22,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test releaseImageBlocks v1.0 24-Jun-2017'
+echo 'Test releaseImageBlocks v1.0 17-Jul-2017'
 set releaseimageblocksresult 'pass'
 
 
@@ -25,7 +30,7 @@ set releaseimageblocksresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call releaseImageBlocks, and check the return properties...
 ;
-call RELEASEIMAGEBLOCKS '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
+call RELEASEIMAGEBLOCKS '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
 
 
 
@@ -43,6 +48,7 @@ return '${get:releaseimageblocksresult}'
 ; arg:2 - last imageblock to remvoe, inclusive
 ; arg:3 - [OUT] set tag to true, if done
 ; arg:4 - [OUT] set tag to first imaage block, if we have one
+; arg:5 - expected session state
 ; returns pass or fail
 ;
 :RELEASEIMAGEBLOCKS
@@ -50,16 +56,20 @@ return '${get:releaseimageblocksresult}'
 ; Send the command...
 releaseImageBlocks '${arg:1}' '${arg:2}'
 ;
+; Check the headers...
+run 'function CheckHeader' 'releaseimageblocksresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'releaseimageblocksresult' 'Content-Length' == '${rdata:#}'
+;
 ; Check the mandatory properties...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'releaseImageBlocks'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'true'
-call CHECK 'results.session'
-call CHECK 'results.session.sessionId' '!=' ''
-call CHECK 'results.session.revision' '!=' ''
-call CHECK 'results.session.state' '==' 'capturing'
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'commandId'
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'method' == 'releaseImageBlocks'
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results'
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session'
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session.state' == '${arg:5}'
 if '${get:releaseimageblocksresult}' != 'pass' goto RELEASEIMAGEBLOCKS.FAIL
 ;
 ; We're good, check if we need to output values...
@@ -72,42 +82,6 @@ return 'pass'
 set releaseimageblocksresult 'fail'
 echopassfail 'releaseImageBlocks call' 'fail'
 return 'fail'
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
-; returns pass or fail
-;
-:CHECK
-;
-; Make sure the property exists...
-if '${rjx:${arg:1}}' == '(null)' goto CHECK.MISSING
-;
-; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
-;
-; Do the if-statement...
-if '${rj:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
-;
-; The if-statement failed...
-echopassfail 'check ${arg:1}' 'fail (if '<${rj:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set releaseimageblocksresult 'fail'
-return 'fail'
-;
-; The property is missing...
-:CHECK.MISSING
-echopassfail 'check ${arg:1}' 'fail (${arg:1} missing)'
-set releaseimageblocksresult 'fail'
-return 'fail'
-;
-; We're good...
-:CHECK.PASS
-echopassfail 'check ${arg:1}' 'pass'
-return 'pass'
 
 
 

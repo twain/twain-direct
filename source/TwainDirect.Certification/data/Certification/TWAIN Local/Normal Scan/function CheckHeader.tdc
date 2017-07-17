@@ -1,0 +1,53 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check Header v1.0 17-Jul-2017
+; Check that the specified header passes the test(s)...
+;
+; Arguments
+; arg:1 - [REF] status (only set to fail, if needed)
+; arg:2 - header to check
+; arg:3 - if-statement operation to perform
+; arg:4 - first item to check against the operation
+; arg:n - arguments repeat as needed
+;
+; Locals
+; checkheader.hh - counts headers
+; checkheader.aa - counts arg:3 - arg:n
+;
+; returns pass or fail
+
+;
+; Start with -1 so the first header checked is 0...
+set checkheader.hh -1
+:CHECKHEADER.NEXT
+	;
+	; Look for the header we're trying to match (case insensitive)...
+	increment checkheader.hh '${get:checkheader.hh}' 1
+	if '${hdrkey:${get:checkheader.hh}}' == '' goto CHECKHEADER.FAILMISSING
+	if '${hdrkey:${get:checkheader.hh}}' !~ '${arg:2}' goto CHECKHEADER.NEXT
+	; If we find our header, we'll drop down to the next loop...
+;
+; We found our header, all of our arguments must be accounted for; we'll
+; start with an index one less than needed, because we'll increment it
+; before we check it.  This allows us to do a positive check for the
+; presence of the items we're matching...
+set checkheader.aa '3'
+:CHECKHEADER.NEXTARG
+	increment checkheader.aa '${get:checkheader.aa}' 1
+	if '${arg:${get:checkheader.aa}}' == '' goto CHECKHEADER.PASS
+	if '${hdrvalue:${get:checkheader.hh}}' '${arg:3}' '${arg:${get:checkheader.aa}}' goto CHECKHEADER.NEXTARG
+	goto CHECKHEADER.FAILVALUE
+;
+; We're good...
+:CHECKHEADER.PASS
+echopassfail 'check header ${arg:2}' 'pass'
+return 'pass'
+;
+:CHECKHEADER.FAILMISSING
+echopassfail 'check header ${arg:2}' 'fail (missing header)'
+set '${arg:1}' 'fail'
+return 'fail'
+;
+:CHECKHEADER.FAILVALUE
+echopassfail 'check header ${arg:2}' 'fail (incorrect header value(s))'
+set '${arg:1}' 'fail'
+return 'fail'
