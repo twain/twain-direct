@@ -1,12 +1,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Check Values v1.0 13-Jul-2017
-; arg:1 - scanner to test
-; returns: pass or fail
-;
+; Check Values
 ; Prove that the scanner allows the task to override the stream, source, and pixelFormat names.
 ;
 ; Try various configurations to see if we can confirm that the scanner is capable of responding with
 ; a resolution in the reply task.  We assume fail unless we get a successful response.
+;
+; Arguments
+; arg:1 - scanner to test
+;
+; Locals
+; name - name of the test
+; test - task to test
+; success - expected value of success
+; key - key to test
+; value - expected value of key
+; localresult - result of test
+;
+; returns: pass or fail
 ;
 
 
@@ -14,7 +24,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Check Values v1.0 13-Jul-2017' '${arg:1}'
+call INITIALIZE 'Check Values v1.0 17-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 

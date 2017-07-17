@@ -49,27 +49,25 @@ return '${get:closesessionresult}'
 closeSession
 ;
 ; Check the headers...
-run 'function CheckHeader' 'closesessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'closesessionresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.CLSS.001' 'closesessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.CLSS.002' 'closesessionresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'closesessionresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'closesessionresult' 'commandId'
-run 'function CheckJsonProperty' 'closesessionresult' 'method' == 'closeSession'
-run 'function CheckJsonProperty' 'closesessionresult' 'results'
-run 'function CheckJsonProperty' 'closesessionresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'closesessionresult' 'results.session'
-run 'function CheckJsonProperty' 'closesessionresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'closesessionresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'closesessionresult' 'results.session.state' == '${arg:1}'
+run 'function CheckJsonProperty' 'TL.CLSS.003' 'closesessionresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.CLSS.004' 'closesessionresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.CLSS.005' 'closesessionresult' 'method' == 'closeSession'
+run 'function CheckJsonProperty' 'TL.CLSS.006' 'closesessionresult' 'results'
+run 'function CheckJsonProperty' 'TL.CLSS.007' 'closesessionresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.CLSS.008' 'closesessionresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.CLSS.009' 'closesessionresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.CLSS.010' 'closesessionresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.CLSS.011' 'closesessionresult' 'results.session.state' == '${arg:1}'
 if '${get:closesessionresult}' != 'pass' goto CLOSESESSION.FAIL
 ;
 ; We're good...
-echopassfail 'closeSession call' 'pass'
 return 'pass'
 ;
 ; No joy...
 :CLOSESESSION.FAIL
 set closesessionresult 'fail'
-echopassfail 'closeSession call' 'fail'
 return 'fail'

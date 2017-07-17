@@ -6,10 +6,11 @@
 ; against one or more values...
 ;
 ; Arguments
-; arg:1 - [REF] status (only set to fail, if needed)
-; arg:2 - property to check
-; arg:3 - if-statement operation to perform
-; arg:4 - first item to check against the operation
+; arg:1 - title for this test
+; arg:2 - [REF] status (only set to fail, if needed)
+; arg:3 - property to check
+; arg:4 - if-statement operation to perform
+; arg:5 - first item to check against the operation
 ; arg:n - arguments repeat as needed
 ;
 ; Locals
@@ -19,10 +20,10 @@
 
 ;
 ; Make sure the property exists...
-if '${rjx:${arg:2}}' == '(null)' goto CHECK.MISSING
+if '${rjx:${arg:3}}' == '(null)' goto CHECK.MISSING
 ;
 ; if we have no operator, we're done...
-if '${arg:3}' == '' goto CHECK.PASS
+if '${arg:4}' == '' goto CHECK.PASS
 ;
 ; Do the if-statement (init at 3, we'll start at 4), we are
 ; successful if we find an item, unsuccessful if we exhaust
@@ -31,22 +32,22 @@ set checkproperty.aa 3
 :CHECK.NEXTIF
 	increment checkproperty.aa ${get:checkproperty.aa} 1
 	if '${get:checkproperty.aa}' > '${arg:#}' goto CHECK.FAILEDIF
-	if '${rj:${arg:2}}' '${arg:3}' '${arg:${get:checkproperty.aa}}' goto CHECK.PASS
+	if '${rj:${arg:3}}' '${arg:4}' '${arg:${get:checkproperty.aa}}' goto CHECK.PASS
 	goto CHECK.NEXTIF
 ;
 ; An if-statement failed...
 :CHECK.FAILEDIF
-echopassfail 'check ${arg:2}' 'fail (if '<${rj:${arg:2}}>' '${arg:3}' '<${arg:${get:ifindex}}>')'
-set '${arg:1}' 'fail'
+echopassfail '${arg:1}: check ${arg:3}' 'fail (if '<${rj:${arg:3}}>' '${arg:4}' '<${arg:${get:ifindex}}>')'
+set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
-echopassfail 'check ${arg:2}' 'fail (${arg:2} missing)'
-set '${arg:1}' 'fail'
+echopassfail '${arg:1}: ${arg:3}' 'fail (${arg:3} missing)'
+set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; We're good...
 :CHECK.PASS
-echopassfail 'check ${arg:2}' 'pass'
+echopassfail '${arg:1}: ${arg:3}' 'pass'
 return 'pass'

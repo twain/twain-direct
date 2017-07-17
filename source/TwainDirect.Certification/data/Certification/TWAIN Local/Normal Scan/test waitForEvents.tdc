@@ -43,21 +43,19 @@ return 'fail'
 set '${arg:2}' 'pass'
 ;
 ; Analyze the result...
-call CHECK 'kind'
-call CHECK 'commandId'
-call CHECK 'method' '==' 'waitForEvents'
-call CHECK 'results'
-call CHECK 'results.success' '==' 'false'
-call CHECK 'results.code' == 'invalidSessionId'
+call CHECK 'TL.WTEV.001' 'kind'
+call CHECK 'TL.WTEV.002' 'commandId'
+call CHECK 'TL.WTEV.003' 'method' '==' 'waitForEvents'
+call CHECK 'TL.WTEV.004' 'results'
+call CHECK 'TL.WTEV.005' 'results.success' '==' 'false'
+call CHECK 'TL.WTEV.006' 'results.code' == 'invalidSessionId'
 if '${get:${arg:2}}' != 'pass' goto CHECKINVALIDSESSIONID.FAIL
 ;
 ; We're good...
-echopassfail 'event waitForEvents - ${arg:1}' 'pass'
 return 'pass'
 ;
 ; We're not good...
 :CHECKINVALIDSESSIONID.FAIL
-echopassfail 'event waitForEvents - ${arg:1}' 'fail'
 set '${arg:2}' 'fail'
 return 'fail'
 
@@ -65,34 +63,35 @@ return 'fail'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; CHECK
-; arg1 - property
-; arg2 - if-statement operator (optional)
-; arg3 - value to check for if arg2 is specified
+; arg:1 - title of the test
+; arg:2 - property
+; arg:3 - if-statement operator (optional)
+; arg:4 - value to check for if arg2 is specified
 ; returns pass or fail
 ;
 :CHECK
 ;
 ; Make sure the property exists...
-if '${ejx:${arg:1}}' == '(null)' goto CHECK.MISSING
+if '${ejx:${arg:2}}' == '(null)' goto CHECK.MISSING
 ;
 ; If we have no operator, we're done...
-if '${arg:2}' == '' goto CHECK.PASS
+if '${arg:3}' == '' goto CHECK.PASS
 ;
 ; Do the if-statement...
-if '${ej:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
+if '${ej:${arg:2}}' '${arg:3}' '${arg:4}' goto CHECK.PASS
 ;
 ; The if-statement failed...
-echopassfail 'event check ${arg:1}' 'fail (if '<${ej:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
-set '${arg:2}' 'fail'
+echopassfail '${arg:1}: event check ${arg:2}' 'fail (if '<${ej:${arg:2}}>' '${arg:3}' '<${arg:4}>')'
+set '${arg:3}' 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
-echopassfail 'event check ${arg:1}' 'fail (${arg:1} missing)'
-set '${arg:2}' 'fail'
+echopassfail '${arg:1}: event check ${arg:2}' 'fail (${arg:2} missing)'
+set '${arg:3}' 'fail'
 return 'fail'
 ;
 ; We're good...
 :CHECK.PASS
-echopassfail 'event check ${arg:1}' 'pass'
+echopassfail '${arg:1}: event check ${arg:2}' 'pass'
 return 'pass'

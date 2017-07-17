@@ -1,0 +1,54 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check JSON Header v1.0 17-Jul-2017
+; Check that the specified multipart/mixed header passes the test(s)...
+;
+; Arguments
+; arg:1 - title of the test
+; arg:2 - [REF] status (only set to fail, if needed)
+; arg:3 - header to check
+; arg:4 - if-statement operation to perform
+; arg:5 - first item to check against the operation
+; arg:n - arguments repeat as needed
+;
+; Locals
+; checkjsonheader.hh - counts headers
+; checkjsonheader.aa - counts arg:5 - arg:n
+;
+; returns pass or fail
+
+;
+; Start with -1 so the first header checked is 0...
+set checkjsonheader.hh -1
+:CHECKJSONHEADER.NEXT
+	;
+	; Look for the header we're trying to match (case insensitive)...
+	increment checkjsonheader.hh '${get:checkjsonheader.hh}' 1
+	if '${hdrjsonkey:${get:checkjsonheader.hh}}' == '' goto CHECKJSONHEADER.FAILMISSING
+	if '${hdrjsonkey:${get:checkjsonheader.hh}}' !~ '${arg:3}' goto CHECKJSONHEADER.NEXT
+	; If we find our header, we'll drop down to the next loop...
+;
+; We found our header, all of our arguments must be accounted for; we'll
+; start with an index one less than needed, because we'll increment it
+; before we check it.  This allows us to do a positive check for the
+; presence of the items we're matching...
+set checkjsonheader.aa '4'
+:CHECKJSONHEADER.NEXTARG
+	increment checkjsonheader.aa '${get:checkjsonheader.aa}' 1
+	if '${arg:${get:checkjsonheader.aa}}' == '' goto CHECKJSONHEADER.PASS
+	if '${hdrjsonvalue:${get:checkjsonheader.hh}}' '${arg:4}' '${arg:${get:checkjsonheader.aa}}' goto CHECKJSONHEADER.NEXTARG
+	goto CHECKJSONHEADER.FAILVALUE
+;
+; We're good...
+:CHECKJSONHEADER.PASS
+echopassfail '${arg:1}: json header ${arg:3}' 'pass'
+return 'pass'
+;
+:CHECKJSONHEADER.FAILMISSING
+echopassfail '${arg:1}: json header ${arg:3}' 'fail (missing header)'
+set '${arg:2}' 'fail'
+return 'fail'
+;
+:CHECKJSONHEADER.FAILVALUE
+echopassfail '${arg:1}: json header ${arg:3}' 'fail (incorrect header value(s))'
+set '${arg:2}' 'fail'
+return 'fail'

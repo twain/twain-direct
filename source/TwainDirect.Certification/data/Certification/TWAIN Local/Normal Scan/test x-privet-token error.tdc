@@ -1,13 +1,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test x-privet-token error
-; returns: pass or fail
-;
 ; Issue each of the valid RESTful commands and one invalid command before we have a valid x-privet-token,
 ; in each case the scanner must respond with an HTTP error of 400, and a payload of the following form:
 ; {"error":"invalid_x_privet_token","description":"X-Privet-Token missing or invalid..."}
 ;
 ; This script is not standalone, it must be issued after a scanner has been selected, but before a call
 ; to info or infoex.
+;
+; Arguments
+; (none)
+;
+; Locals
+; xprivettokenerrorresult - result for this test
+;
+; returns: pass or fail
 ;
 
 
@@ -18,31 +24,35 @@
 ;
 echo
 echo 'Test x-privet-token error v1.0 17-Jul-2017'
-set localresult 'pass'
-call SENDCOMMAND 'createSession'
-call SENDCOMMAND 'getSession'
-call SENDCOMMAND 'sendTask' 'x'
-call SENDCOMMAND 'startCapturing'
-call SENDCOMMAND 'readImageBlockMetadata' '1' 'false'
-call SENDCOMMAND 'readImageBlock' '1' 'false'
-call SENDCOMMAND 'releaseImageBlocks' '1' '1'
-call SENDCOMMAND 'stopCapturing'
-call SENDCOMMAND 'closeSession'
-call SENDCOMMAND 'invalidCommand'
-echopassfail 'SUMMARY' '${get:localresult}'
-return '${get:localresult}'
+set xprivettokenerrorresult 'pass'
+call SENDCOMMAND 'TL.XPRT.001' 'createSession'
+call SENDCOMMAND 'TL.XPRT.002' 'getSession'
+call SENDCOMMAND 'TL.XPRT.003' 'sendTask' 'x'
+call SENDCOMMAND 'TL.XPRT.004' 'startCapturing'
+call SENDCOMMAND 'TL.XPRT.005' 'readImageBlockMetadata' '1' 'false'
+call SENDCOMMAND 'TL.XPRT.006' 'readImageBlock' '1' 'false'
+call SENDCOMMAND 'TL.XPRT.007' 'releaseImageBlocks' '1' '1'
+call SENDCOMMAND 'TL.XPRT.008' 'stopCapturing'
+call SENDCOMMAND 'TL.XPRT.009' 'closeSession'
+call SENDCOMMAND 'TL.XPRT.010' 'invalidCommand'
+echopassfail 'SUMMARY' '${get:xprivettokenerrorresult}'
+return '${get:xprivettokenerrorresult}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; SENDCOMMAND
-; arg:1 - command to run
+; arg:1 - title of the test
+; arg:2 - command to run
+; arg:3 - argument to the command
+; arg:4 - argument to the command
+; arg:5 - argument to the command
 ; returns pass or fail
 ;
 :SENDCOMMAND
 ;
 ; Send the command...
-'${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
+'${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
 ;
 ; Check the result...
 if '${rsts:}' != '400' goto SENDCOMMAND.FAILSTS
@@ -52,20 +62,20 @@ if '${rj:description}' !contains 'missing' goto SENDCOMMAND.FAILDESCRIPTION
 if '${rj:description}' !contains 'invalid' goto SENDCOMMAND.FAILDESCRIPTION
 ;
 ; We're good...
-echopassfail 'x-privet-token test: ${arg:1}' 'pass'
+echopassfail '${arg:1}: x-privet-token ${arg:2}' 'pass'
 return 'pass'
 ;
 :SENDCOMMAND.FAILSTS
-echopassfail 'x-privet-token test: ${arg:1}' 'fail (http status not 400)'
-set localresult 'fail'
+echopassfail '${arg:1}: x-privet-token ${arg:2}' 'fail (http status not 400)'
+set xprivettokenerrorresult 'fail'
 return 'fail'
 ;
 :SENDCOMMAND.FAILERROR
-echopassfail 'x-privet-token test: ${arg:1}' 'fail (error not invalid_x_privet_token)'
-set localresult 'fail'
+echopassfail '${arg:1}: x-privet-token ${arg:2}' 'fail (error not invalid_x_privet_token)'
+set xprivettokenerrorresult 'fail'
 return 'fail'
 ;
 :SENDCOMMAND.FAILDESCRIPTION
-echopassfail 'x-privet-token test: ${arg:1}' 'fail (error bad description)'
-set localresult 'fail'
+echopassfail '${arg:1}: x-privet-token ${arg:2}' 'fail (error bad description)'
+set xprivettokenerrorresult 'fail'
 return 'fail'

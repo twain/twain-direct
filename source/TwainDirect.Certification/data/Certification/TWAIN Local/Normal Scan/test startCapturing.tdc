@@ -27,11 +27,11 @@ set startcapturingresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-run 'function CheckCode' 'startcapturingresult' 'createSession' 'busy'
-run 'function CheckCode' 'startcapturingresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
-run 'function CheckCode' 'startcapturingresult' 'readImageBlock' 'invalidState' '1' 'false'
-run 'function CheckCode' 'startcapturingresult' 'releaseImageBlocks' 'invalidState' '1' '1'
-run 'function CheckCode' 'startcapturingresult' 'stopCapturing' 'invalidState'
+run 'function CheckCode' 'TL.STCP.001' 'startcapturingresult' 'createSession' 'busy'
+run 'function CheckCode' 'TL.STCP.002' 'startcapturingresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
+run 'function CheckCode' 'TL.STCP.003' 'startcapturingresult' 'readImageBlock' 'invalidState' '1' 'false'
+run 'function CheckCode' 'TL.STCP.004' 'startcapturingresult' 'releaseImageBlocks' 'invalidState' '1' '1'
+run 'function CheckCode' 'TL.STCP.005' 'startcapturingresult' 'stopCapturing' 'invalidState'
 
 
 
@@ -45,8 +45,8 @@ call STARTCAPTURING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-run 'function CheckCode' 'startcapturingresult' 'createSession' 'busy'
-run 'function CheckCode' 'startcapturingresult' 'startCapturing' 'invalidState'
+run 'function CheckCode' 'TL.STCP.017' 'startcapturingresult' 'createSession' 'busy'
+run 'function CheckCode' 'TL.STCP.018' 'startcapturingresult' 'startCapturing' 'invalidState'
 
 
 
@@ -68,25 +68,17 @@ return '${get:startcapturingresult}'
 startCapturing
 ;
 ; Check the headers...
-run 'function CheckHeader' 'startcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'startcapturingresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.STCP.006' 'startcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.STCP.007' 'startcapturingresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'startcapturingresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'startcapturingresult' 'commandId'
-run 'function CheckJsonProperty' 'startcapturingresult' 'method' == 'startCapturing'
-run 'function CheckJsonProperty' 'startcapturingresult' 'results'
-run 'function CheckJsonProperty' 'startcapturingresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'startcapturingresult' 'results.session'
-run 'function CheckJsonProperty' 'startcapturingresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'startcapturingresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'startcapturingresult' 'results.session.state' == 'capturing'
-if '${get:startcapturingresult}' != 'pass' goto STARTCAPTURING.FAIL
-;
-; We're good...
-echopassfail 'startCapturing call' 'pass'
-return 'pass'
-;
-:STARTCAPTURING.FAIL
-echopassfail 'startCapturing call' 'fail'
-return 'fail'
+run 'function CheckJsonProperty' 'TL.STCP.008' 'startcapturingresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.STCP.009' 'startcapturingresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.STCP.010' 'startcapturingresult' 'method' == 'startCapturing'
+run 'function CheckJsonProperty' 'TL.STCP.011' 'startcapturingresult' 'results'
+run 'function CheckJsonProperty' 'TL.STCP.012' 'startcapturingresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.STCP.013' 'startcapturingresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.STCP.014' 'startcapturingresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.STCP.015' 'startcapturingresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.STCP.016' 'startcapturingresult' 'results.session.state' == 'capturing'
+return '${get:startcapturingresult}'

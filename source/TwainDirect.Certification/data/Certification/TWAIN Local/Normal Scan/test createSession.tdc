@@ -32,15 +32,15 @@ set createsessionresult 'pass'
 ; precedence over invalidState, because in order to figure out what state we're in, we have to know
 ; what session we belong to.
 ;
-call CHECKINVALIDSESSIONID 'getSession'
-call CHECKINVALIDSESSIONID 'sendTask' '{}'
-call CHECKINVALIDSESSIONID 'startCapturing'
-call CHECKINVALIDSESSIONID 'readImageBlockMetadata' '1' 'false'
-call CHECKINVALIDSESSIONID 'readImageBlock' '1' 'false'
-call CHECKINVALIDSESSIONID 'releaseImageBlocks' '1' '1'
-call CHECKINVALIDSESSIONID 'stopCapturing'
-call CHECKINVALIDSESSIONID 'closeSession'
-call CHECKINVALIDSESSIONID 'invalidCommand'
+call CHECKINVALIDSESSIONID 'TL.CRSS.001' 'getSession'
+call CHECKINVALIDSESSIONID 'TL.CRSS.002' 'sendTask' '{}'
+call CHECKINVALIDSESSIONID 'TL.CRSS.003' 'startCapturing'
+call CHECKINVALIDSESSIONID 'TL.CRSS.004' 'readImageBlockMetadata' '1' 'false'
+call CHECKINVALIDSESSIONID 'TL.CRSS.005' 'readImageBlock' '1' 'false'
+call CHECKINVALIDSESSIONID 'TL.CRSS.006' 'releaseImageBlocks' '1' '1'
+call CHECKINVALIDSESSIONID 'TL.CRSS.007' 'stopCapturing'
+call CHECKINVALIDSESSIONID 'TL.CRSS.008' 'closeSession'
+call CHECKINVALIDSESSIONID 'TL.CRSS.009' 'invalidCommand'
 
 
 
@@ -61,11 +61,11 @@ call CREATESESSION
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-run 'function CheckCode' 'createsessionresult' 'createSession' 'busy'
-run 'function CheckCode' 'createsessionresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
-run 'function CheckCode' 'createsessionresult' 'readImageBlock' 'invalidState' '1' 'false'
-run 'function CheckCode' 'createsessionresult' 'releaseImageBlocks' 'invalidState' '1' '1'
-run 'function CheckCode' 'createsessionresult' 'stopCapturing' 'invalidState'
+run 'function CheckCode' 'TL.CRSS.021' 'createsessionresult' 'createSession' 'busy'
+run 'function CheckCode' 'TL.CRSS.022' 'createsessionresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
+run 'function CheckCode' 'TL.CRSS.023' 'createsessionresult' 'readImageBlock' 'invalidState' '1' 'false'
+run 'function CheckCode' 'TL.CRSS.024' 'createsessionresult' 'releaseImageBlocks' 'invalidState' '1' '1'
+run 'function CheckCode' 'TL.CRSS.025' 'createsessionresult' 'stopCapturing' 'invalidState'
 
 
 
@@ -79,14 +79,19 @@ return '${get:createsessionresult}'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; CHECKINVALIDSESSIONID
-; arg:1 - command to run
+; arg:1 - title of the test
+; arg:2 - command to run
+; arg:3 - argument to the command
+; arg:4 - argument to the command
+; arg:5 - argument to the command
+; arg:6 - argument to the command
 ; returns pass or fail
 ;
 :CHECKINVALIDSESSIONID
 ;
 ; Send the command...
 twainlocalsession 'create'
-'${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
+'${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}' '${arg:6}'
 twainlocalsession 'destroy'
 ;
 ; Check the result...
@@ -94,16 +99,16 @@ if '${rj:results.success}' != 'false' goto CHECKINVALIDSESSIONID.FAILSTATUS
 if '${rj:results.code}' != 'invalidSessionId' goto CHECKINVALIDSESSIONID.FAILCODE
 ;
 ; We're good...
-echopassfail 'check invalidSessionId: ${arg:1}' 'pass'
+echopassfail '${arg:1}: invalidSessionId ${arg:2}' 'pass'
 return 'pass'
 ;
 :CHECKINVALIDSESSIONID.FAILSTATUS
-echopassfail 'check invalidSessionId: ${arg:1}' 'fail (success not false)'
+echopassfail '${arg:1}: invalidSessionId ${arg:2}' 'fail (success not false)'
 set createsessionresult 'fail'
 return 'fail'
 ;
 :CHECKINVALIDSESSIONID.FAILCODE
-echopassfail 'check invalidSessionId: ${arg:1}' 'fail (code not invalidSessionId)'
+echopassfail '${arg:1}: invalidSessionId ${arg:2}' 'fail (code not invalidSessionId)'
 set createsessionresult 'fail'
 return 'fail'
 
@@ -111,6 +116,7 @@ return 'fail'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; WAITFOREVENTSCHECKINVALIDSESSIONID
+; arg:1 - title of the test
 ; returns pass or fail
 ;
 :WAITFOREVENTSCHECKINVALIDSESSIONID
@@ -123,12 +129,10 @@ sleep 5000
 twainlocalsession 'destroy'
 if '${get:waitforeventsresult}' != 'pass' goto WAITFOREVENTSCHECKINVALIDSESSIONID.FAIL
 ; We're good...
-echopassfail 'check invalidSessionId: waitForEvents' 'pass'
 return 'pass'
 ;
 ; We're not so good...
 :WAITFOREVENTSCHECKINVALIDSESSIONID.FAIL
-echopassfail 'check invalidSessionId: waitForEvents' 'fail'
 set createsessionresult 'fail'
 return 'fail'
 
@@ -144,26 +148,17 @@ return 'fail'
 createSession
 ;
 ; Check the headers...
-run 'function CheckHeader' 'createsessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'createsessionresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.CRSS.010' 'createsessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.CRSS.011' 'createsessionresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'createsessionresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'createsessionresult' 'commandId'
-run 'function CheckJsonProperty' 'createsessionresult' 'method' == 'createSession'
-run 'function CheckJsonProperty' 'createsessionresult' 'results'
-run 'function CheckJsonProperty' 'createsessionresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'createsessionresult' 'results.session'
-run 'function CheckJsonProperty' 'createsessionresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'createsessionresult' 'results.session.revision' == '1'
-run 'function CheckJsonProperty' 'createsessionresult' 'results.session.state' == 'ready'
-if '${get:createsessionresult}' != 'pass' goto CREATESESSION.FAIL
-;
-; We're good...
-echopassfail 'createSession call' 'pass'
-return 'pass'
-;
-:CREATESESSION.FAIL
-set createsessionresult 'fail'
-echopassfail 'createSession call' 'fail'
-return 'fail'
+run 'function CheckJsonProperty' 'TL.CRSS.012' 'createsessionresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.CRSS.013' 'createsessionresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.CRSS.014' 'createsessionresult' 'method' == 'createSession'
+run 'function CheckJsonProperty' 'TL.CRSS.015' 'createsessionresult' 'results'
+run 'function CheckJsonProperty' 'TL.CRSS.016' 'createsessionresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.CRSS.017' 'createsessionresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.CRSS.018' 'createsessionresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.CRSS.019' 'createsessionresult' 'results.session.revision' == '1'
+run 'function CheckJsonProperty' 'TL.CRSS.020' 'createsessionresult' 'results.session.state' == 'ready'
+return '${get:createsessionresult}'

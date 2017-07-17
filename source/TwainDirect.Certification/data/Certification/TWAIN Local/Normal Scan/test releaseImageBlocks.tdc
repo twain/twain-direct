@@ -57,30 +57,28 @@ return '${get:releaseimageblocksresult}'
 releaseImageBlocks '${arg:1}' '${arg:2}'
 ;
 ; Check the headers...
-run 'function CheckHeader' 'releaseimageblocksresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'releaseimageblocksresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.RLIB.001' 'releaseimageblocksresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.RLIB.002' 'releaseimageblocksresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'commandId'
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'method' == 'releaseImageBlocks'
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results'
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session'
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'releaseimageblocksresult' 'results.session.state' == '${arg:5}'
+run 'function CheckJsonProperty' 'TL.RLIB.003' 'releaseimageblocksresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.RLIB.004' 'releaseimageblocksresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.RLIB.005' 'releaseimageblocksresult' 'method' == 'releaseImageBlocks'
+run 'function CheckJsonProperty' 'TL.RLIB.006' 'releaseimageblocksresult' 'results'
+run 'function CheckJsonProperty' 'TL.RLIB.007' 'releaseimageblocksresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.RLIB.008' 'releaseimageblocksresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.RLIB.009' 'releaseimageblocksresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.RLIB.010' 'releaseimageblocksresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.RLIB.011' 'releaseimageblocksresult' 'results.session.state' == '${arg:5}'
 if '${get:releaseimageblocksresult}' != 'pass' goto RELEASEIMAGEBLOCKS.FAIL
 ;
 ; We're good, check if we need to output values...
 call RETURNVALUES '${arg:3}' '${arg:4}'
-echopassfail 'releaseImageBlocks call' 'pass'
 return 'pass'
 ;
 ; No joy...
 :RELEASEIMAGEBLOCKS.FAIL
 set releaseimageblocksresult 'fail'
-echopassfail 'releaseImageBlocks call' 'fail'
 return 'fail'
 
 

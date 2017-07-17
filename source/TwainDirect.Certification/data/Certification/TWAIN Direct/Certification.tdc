@@ -1,9 +1,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TWAIN Direct Certification v1.0 13-Jul-2017
-; arg:1 - scanner to test
-; returns: pass or fail
-;
+; TWAIN Direct Certification
 ; This runs all of the tests needed to pass certification for TWAIN Direct.
+;
+; Arguments
+; arg:1 - scanner to test
+;
+; Locals
+; (none)
+;
+; returns: pass or fail
 ;
 
 
@@ -11,9 +16,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Run all of our tests, start by assuming success...
 ;
-echo 'TWAIN Direct Certification v1.0 13-Jul-2017'
+echo 'TWAIN Direct Certification v1.0 17-Jul-2017'
 echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-log info '#TWAIN Direct Certification v1.0 13-Jul-2017'
+log info '#TWAIN Direct Certification v1.0 17-Jul-2017'
 log info '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 echo
 set certifyresult pass
@@ -22,7 +27,6 @@ call CERTIFY 'Configure Task Topology' '${arg:1}'
 call CERTIFY 'Exception Handling' '${arg:1}'
 call CERTIFY 'Vendor Handling' '${arg:1}'
 call CERTIFY 'Check Values' '${arg:1}'
-call CERTIFY 'Info Infoex' '${arg:1}'
 
 
 
@@ -64,6 +68,7 @@ return 'fail'
 run '${arg:1}' '${arg:2}'
 if '${ret:}' != 'pass' goto CERTIFY.ERROR
 return 'pass'
+;
 :CERTIFY.ERROR
 set certifyresult fail
 return 'fail'

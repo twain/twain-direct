@@ -3152,7 +3152,7 @@ namespace TwainDirect.Certification
         internal string GetTransactionAtIndex(string[] a_szHeaders, string a_szTarget, bool a_blKey)
         {
             // There's no chance of getting data...
-            if (m_transactionLast == null)
+            if ((a_szHeaders == null) || (m_transactionLast == null))
             {
                 return ("(null)");
             }
