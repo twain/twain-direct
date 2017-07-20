@@ -94,7 +94,6 @@ if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
 ;
 ; Loop here until we see an image, or scanning ends...
 :MAIN.WAIT
-
 	; We should only wait if more images could be coming...
 	if '${session:imageBlocksDrained}' == 'false' goto MAIN.WAITFORSESSIONUPDATE
 	goto MAIN.DONE
@@ -109,19 +108,15 @@ if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
 	if '${get:firstimageblock}' != '' goto MAIN.GETIMAGE
 	goto MAIN.WAIT
 
-goto MAIN.WAITNEXT
-
 ; Keep releasing images as long as we have some...
 :MAIN.GETIMAGE
-
 	; release the first image block...
 	releaseImageBlocks '${get:firstimageblock}' '${get:firstimageblock}'
 	set firstimageblock '${rj:results.session.imageBlocks[0]}'
-	if '${rj:results.success}' != 'true' goto MAIN.FAIL
+	if '${rj:results.success}' != 'true' goto MAIN.DONE
 	if '${rj:results.session.imageBlocksDrained}' != 'false' goto MAIN.DONE
 	if '${get:firstimageblock}' == '' goto MAIN.WAIT
-
-goto MAIN.GETIMAGE
+	goto MAIN.GETIMAGE
 :MAIN.DONE
 
 
@@ -141,9 +136,16 @@ call CHECK 'results.session.status.detected' '==' 'paperJam'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Stop capturing images...
 ;
-:MAIN.STOPCAPTURING
 echo 'CMD: stopCapturing'
 stopCapturing
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Release any images that might still be pending...
+;
+echo 'CMD: releaseImageBlocks'
+releaseImageBlocks 1 999999999
 
 
 
@@ -159,8 +161,8 @@ closeSession
 ; How did we do?
 ;
 if '${get:paperjamgetsessionresult}' != 'pass' goto MAIN.FAILGETSESSION
-if '${get:paperjamgetsessionresult}' != 'pass' goto MAIN.FAILWAITFOREVENTS
-if '${get:paperjamgetsessionsyntaxresult}' != 'pass' goto MAIN.FAILWAITFOREVENTSSYNTAX
+;if '${get:paperjamwaitforeventsresult}' != 'pass' goto MAIN.FAILWAITFOREVENTS
+;if '${get:paperjamwaitforeventssyntaxresult}' != 'pass' goto MAIN.FAILWAITFOREVENTSSYNTAX
 echopassfail 'PaperJam' 'pass'
 log info '#Test result:                 pass'
 return pass

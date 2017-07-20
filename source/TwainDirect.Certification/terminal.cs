@@ -106,7 +106,7 @@ namespace TwainDirect.Certification
 
             // Scripting...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCall,                         new string[] { "call" }));
-            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCd,                           new string[] { "cd" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCd,                           new string[] { "cd", "pwd" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdClean,                        new string[] { "clean" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdDir,                          new string[] { "dir", "ls" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
@@ -129,8 +129,8 @@ namespace TwainDirect.Certification
             AssemblyName assemblyname = assembly.GetName();
             Version version = assemblyname.Version;
             DateTime datetime = new DateTime(2000, 1, 1).AddDays(version.Build).AddSeconds(version.MinorRevision * 2);
-
-            Display("TWAIN Direct Certification v" + version.Major + "." + version.Minor + " " + datetime.Day + "-" + datetime.ToString("MMM") + "-" + datetime.Year + " " + ((IntPtr.Size == 4) ? "(32-bit)" : "(64-bit)"));
+            m_szBanner = "TWAIN Direct Certification v" + version.Major + "." + version.Minor + " " + datetime.Day + "-" + datetime.ToString("MMM") + "-" + datetime.Year + " " + ((IntPtr.Size == 4) ? "(32-bit)" : "(64-bit)");
+            Display(m_szBanner);
             Display("Enter \"help\" for more info.");
         }
 
@@ -807,7 +807,7 @@ namespace TwainDirect.Certification
         private bool CmdCd(ref Interpreter.FunctionArguments a_functionarguments)
         {
             // No data...
-            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null) || (a_functionarguments.aszCmd[0].ToLowerInvariant() == "pwd"))
             {
                 Display(Directory.GetCurrentDirectory(), true);
                 return (false);
@@ -1019,6 +1019,8 @@ namespace TwainDirect.Certification
             // Summary...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
+                Display(m_szBanner);
+                Display("");
                 DisplayRed("Discovery and Selection");
                 Display("help [command]...............................this text or info about a command");
                 Display("list.........................................list scanners");
@@ -1488,6 +1490,14 @@ namespace TwainDirect.Certification
             {
                 DisplayRed("INCREMENT {DST} {SRC} [STEP]");
                 Display("Increments SRC by STEP and stores in DST.  STEP defaults to 1.");
+                return (false);
+            }
+
+            // pwd...
+            if ((szCommand == "pwd"))
+            {
+                DisplayRed("PWD");
+                Display("Show the path to the current working directory.");
                 return (false);
             }
 
@@ -3824,6 +3834,11 @@ namespace TwainDirect.Certification
         /// A last in first off stack of function calls...
         /// </summary>
         private List<CallStack> m_lcallstack;
+
+        /// <summary>
+        /// The opening banner (program, version, etc)...
+        /// </summary>
+        private string m_szBanner;
 
         #endregion
     }
