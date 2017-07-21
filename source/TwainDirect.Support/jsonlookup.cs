@@ -671,7 +671,7 @@ namespace TwainDirect.Support
         ///             "address": {
         ///	                "imageNumber": 1,
         ///	                "imagePart": 1,
-        ///	                "moreParts": false,
+        ///	                "moreParts": lastPartInFile,
         ///	                "sheetNumber": 1,
         ///	                "source": "feederFront",
         ///	                "streamName": "stream0",
@@ -694,34 +694,34 @@ namespace TwainDirect.Support
 	    ///        }
         ///    }
         ///    
-        /// Will appear in XML as:
-        ///    <twaindirect>
-        ///        <metadata>
-        ///             <address>
-        ///	                <imageNumber>1</imageNumber>
-        ///	                <imagePart>1</imagePart>
-        ///	                <moreParts>false</moreParts>
-        ///	                <sheetNumber>1</sheetNumber>
-        ///	                <source>feederFront</source>
-        ///	                <streamName>stream0</streamName>
-        ///	                <sourceName>source0</sourceName>
-        ///	                <pixelFormatName>pixelFormat0</pixelFormatName>
-        ///             </address>
-        ///             <image>
-        ///	                <compression>none</compression>
-        ///	                <pixelFormat>bw1</pixelFormat>
-        ///	                <pixelHeight>2200</pixelHeight>
-        ///	                <pixelOffsetX>0</pixelOffsetX>
-        ///	                <pixelOffsetY>0</pixelOffsetY>
-        ///	                <pixelWidth>1728</pixelWidth>
-        ///	                <resolution>200</resolution>
-        ///	                <size>476279</size>
-        ///             </image>
-		///             <status>
-		///	                 <success>true</success>
-		///             </status>
-	    ///        </metadata>
-        ///    </twaindirect>
+        /// Appears in XML as:
+        ///    <o>
+        ///        <o:metadata>
+        ///             <o:address>
+        ///	                <n:imageNumber>1</n:imageNumber>
+        ///	                <n:imagePart>1</n:imagePart>
+        ///	                <s:moreParts>lastPartInFile</s:moreParts>
+        ///	                <n:sheetNumber>1</n:sheetNumber>
+        ///	                <s:source>feederFront</s:source>
+        ///	                <s:streamName>stream0</s:streamName>
+        ///	                <s:sourceName>source0</s:sourceName>
+        ///	                <s:pixelFormatName>pixelFormat0</s:pixelFormatName>
+        ///             </o:address>
+        ///             <o:image>
+        ///	                <s:compression>none</s:compression>
+        ///	                <pixelFormat>bw1</n:pixelFormat>
+        ///	                <n:pixelHeight>2200</n:pixelHeight>
+        ///	                <n:pixelOffsetX>0</n:pixelOffsetX>
+        ///	                <n:pixelOffsetY>0</n:pixelOffsetY>
+        ///	                <n:pixelWidth>1728</n:pixelWidth>
+        ///	                <n:resolution>200</n:resolution>
+        ///	                <n:size>476279</n:size>
+        ///             </o:image>
+		///             <o:status>
+		///	                 <s:success>true</s:success>
+		///             </o:status>
+	    ///        </o:metadata>
+        ///    </o>
         ///    
         /// Arrays are handle like so:
         /// 
@@ -729,13 +729,13 @@ namespace TwainDirect.Support
         ///         "array": [1, 2, 3]
         ///     }
         ///     
-        ///     <twaindirect>
-        ///         <array>
-        ///             <item>1</item>
-        ///             <item>2</item>
-        ///             <item>3</item>
-        ///         </array>
-        ///     </twaindirect>
+        ///     <o>
+        ///         <a:array>
+        ///             <n:item>1</n:item>
+        ///             <n:item>2</n:item>
+        ///             <n:item>3</n:item>
+        ///         </a:array>
+        ///     </o>
         /// 
         /// </summary>
         /// <param name="a_property">property to emit</param>

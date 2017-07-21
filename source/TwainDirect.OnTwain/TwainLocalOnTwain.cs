@@ -658,7 +658,7 @@ namespace TwainDirect.OnTwain
             szMeta += "\"imagePart\":" + "1" + ",";
 
             // Segmentlast (long document or huge document)...
-            szMeta += "\"moreParts\":" + "false,";
+            szMeta += "\"moreParts\":" + "\"lastPartInFile\",";
 
             // Sheetcount (counts sheets, including ones lost to blank image dropout)...
             szMeta += "\"sheetNumber\":" + "1" + ",";

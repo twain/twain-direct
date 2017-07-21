@@ -1066,7 +1066,7 @@ namespace TwainDirect.OnSane
                     szMeta += "                \"imagePart\": " + "1" + ",\n";
 
                     // Segmentlast (long document or huge document)...
-                    szMeta += "                \"moreParts\": " + "false" + "\n";
+                    szMeta += "                \"moreParts\": " + "\"lastPartInFile\"" + "\n";
 
                     // TWAIN Direct metadata.address end...
                     szMeta += "            },\n";
