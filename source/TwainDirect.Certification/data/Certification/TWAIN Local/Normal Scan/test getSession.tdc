@@ -20,7 +20,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test getSession v1.0 17-Jul-2017'
+echo 'Test getSession v1.0 21-Jul-2017'
 set getsessionresult 'pass'
 
 
@@ -51,19 +51,19 @@ return '${get:getsessionresult}'
 getSession
 ;
 ; Check the headers...
-run 'function CheckHeader' 'TL.GTSS.001' 'getsessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'TL.GTSS.002' 'getsessionresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.NSCN.GTSS.001' 'getsessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.NSCN.GTSS.002' 'getsessionresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'TL.GTSS.003' 'getsessionresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'TL.GTSS.004' 'getsessionresult' 'commandId'
-run 'function CheckJsonProperty' 'TL.GTSS.005' 'getsessionresult' 'method' == 'getSession'
-run 'function CheckJsonProperty' 'TL.GTSS.006' 'getsessionresult' 'results'
-run 'function CheckJsonProperty' 'TL.GTSS.007' 'getsessionresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'TL.GTSS.008' 'getsessionresult' 'results.session'
-run 'function CheckJsonProperty' 'TL.GTSS.009' 'getsessionresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'TL.GTSS.010' 'getsessionresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.GTSS.011' 'getsessionresult' 'results.session.state' == '${arg:1}'
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.003' 'getsessionresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.004' 'getsessionresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.005' 'getsessionresult' 'method' == 'getSession'
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.006' 'getsessionresult' 'results'
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.007' 'getsessionresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.008' 'getsessionresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.009' 'getsessionresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.010' 'getsessionresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.GTSS.011' 'getsessionresult' 'results.session.state' == '${arg:1}'
 if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
 ;
 ; We're good, check if we need to output values...

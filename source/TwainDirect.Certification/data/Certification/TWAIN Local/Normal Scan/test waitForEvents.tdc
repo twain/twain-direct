@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test waitForEvents callback v1.0 17-Jul-2017
+; Test waitForEvents callback v1.0 21-Jul-2017
 ; Exercise the waitForEvents command.  We're called by other scripts.  This script runs as a callback
 ; when the waitForEvents thread processes a response.
 ; - confirm that commands report invalidState when called before createSession
@@ -43,12 +43,12 @@ return 'fail'
 set '${arg:2}' 'pass'
 ;
 ; Analyze the result...
-call CHECK 'TL.WTEV.001' 'kind'
-call CHECK 'TL.WTEV.002' 'commandId'
-call CHECK 'TL.WTEV.003' 'method' '==' 'waitForEvents'
-call CHECK 'TL.WTEV.004' 'results'
-call CHECK 'TL.WTEV.005' 'results.success' '==' 'false'
-call CHECK 'TL.WTEV.006' 'results.code' == 'invalidSessionId'
+call CHECK 'TL.NSCN.WTEV.001' 'kind'
+call CHECK 'TL.NSCN.WTEV.002' 'commandId'
+call CHECK 'TL.NSCN.WTEV.003' 'method' '==' 'waitForEvents'
+call CHECK 'TL.NSCN.WTEV.004' 'results'
+call CHECK 'TL.NSCN.WTEV.005' 'results.success' '==' 'false'
+call CHECK 'TL.NSCN.WTEV.006' 'results.code' == 'invalidSessionId'
 if '${get:${arg:2}}' != 'pass' goto CHECKINVALIDSESSIONID.FAIL
 ;
 ; We're good...

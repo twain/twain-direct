@@ -20,7 +20,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test readImageBlock v1.0 17-Jul-2017'
+echo 'Test readImageBlock v1.0 21-Jul-2017'
 set readimageblockresult 'pass'
 
 
@@ -53,57 +53,57 @@ return '${get:readimageblockresult}'
 readImageBlock '${arg:1}' '${arg:2}'
 ;
 ; Check the headers...
-run 'function CheckHeader' 'TL.RDIB.001' 'readimageblockresult' 'Content-Type' ~contains 'multipart/mixed' 'boundary='
-run 'function CheckHeader' 'TL.RDIB.002' 'readimageblockresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.NSCN.RDIB.001' 'readimageblockresult' 'Content-Type' ~contains 'multipart/mixed' 'boundary='
+run 'function CheckHeader' 'TL.NSCN.RDIB.002' 'readimageblockresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'TL.RDIB.003' 'readimageblockresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'TL.RDIB.004' 'readimageblockresult' 'commandId'
-run 'function CheckJsonProperty' 'TL.RDIB.005' 'readimageblockresult' 'method' == 'readImageBlock'
-run 'function CheckJsonProperty' 'TL.RDIB.006' 'readimageblockresult' 'results'
-run 'function CheckJsonProperty' 'TL.RDIB.007' 'readimageblockresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'TL.RDIB.008' 'readimageblockresult' 'results.session'
-run 'function CheckJsonProperty' 'TL.RDIB.009' 'readimageblockresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'TL.RDIB.010' 'readimageblockresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.RDIB.011' 'readimageblockresult' 'results.session.state' == '${arg:3}'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.003' 'readimageblockresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.004' 'readimageblockresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.005' 'readimageblockresult' 'method' == 'readImageBlock'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.006' 'readimageblockresult' 'results'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.007' 'readimageblockresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.008' 'readimageblockresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.009' 'readimageblockresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.010' 'readimageblockresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.011' 'readimageblockresult' 'results.session.state' == '${arg:3}'
 ;
 ; If we didn't ask for metadata, there'd better not be any...
 if '${arg:2}' == 'true' goto READIMAGEBLOCK.CHECKMETADATA
 if '${rj:results.metadata}' != '' goto READIMAGEBLOCK.FAIL
-echopassfail 'TL.RDIB.012: results.metadata' 'pass'
+echopassfail 'TL.NSCN.RDIB.012: results.metadata' 'pass'
 return 'pass'
 :READIMAGEBLOCK.FAIL
-echopassfail 'TL.RDIB.012: results.metadata' 'fail'
+echopassfail 'TL.NSCN.RDIB.012: results.metadata' 'fail'
 return 'fail'
 ;
 ; We asked for metadata, so check it out...
 :READIMAGEBLOCK.CHECKMETADATA
-run 'function CheckJsonProperty' 'TL.RDIB.012m' 'readimageblockresult' 'results.metadata'
-run 'function CheckJsonProperty' 'TL.RDIB.013m' 'readimageblockresult' 'results.metadata.status'
-run 'function CheckJsonProperty' 'TL.RDIB.014m' 'readimageblockresult' 'results.metadata.status.success' == 'true'
-run 'function CheckJsonProperty' 'TL.RDIB.015m' 'readimageblockresult' 'results.metadata.address'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.012m' 'readimageblockresult' 'results.metadata'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.013m' 'readimageblockresult' 'results.metadata.status'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.014m' 'readimageblockresult' 'results.metadata.status.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.015m' 'readimageblockresult' 'results.metadata.address'
 if '${arg:1}' > '1' goto READIMAGEBLOCK.CHECKOTHERIMAGEBLOCKS
-	run 'function CheckJsonProperty' 'TL.RDIB.016mf' 'readimageblockresult' 'results.metadata.address.imageNumber' '==' '1'
-	run 'function CheckJsonProperty' 'TL.RDIB.017mf' 'readimageblockresult' 'results.metadata.address.imagePart' '==' '1'
-	run 'function CheckJsonProperty' 'TL.RDIB.018mf' 'readimageblockresult' 'results.metadata.address.sheetNumber' '==' '1'
+	run 'function CheckJsonProperty' 'TL.NSCN.RDIB.016mf' 'readimageblockresult' 'results.metadata.address.imageNumber' '==' '1'
+	run 'function CheckJsonProperty' 'TL.NSCN.RDIB.017mf' 'readimageblockresult' 'results.metadata.address.imagePart' '==' '1'
+	run 'function CheckJsonProperty' 'TL.NSCN.RDIB.018mf' 'readimageblockresult' 'results.metadata.address.sheetNumber' '==' '1'
 	goto READIMAGEBLOCK.SKIPOTHERIMAGEBLOCKS
 :READIMAGEBLOCK.CHECKOTHERIMAGEBLOCKS
-	run 'function CheckJsonProperty' 'TL.RDIB.016m' 'readimageblockresult' 'results.metadata.address.imageNumber' '!=' ''
-	run 'function CheckJsonProperty' 'TL.RDIB.017m' 'readimageblockresult' 'results.metadata.address.imagePart' '!=' ''
-	run 'function CheckJsonProperty' 'TL.RDIB.018m' 'readimageblockresult' 'results.metadata.address.sheetNumber' '!=' ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RDIB.016m' 'readimageblockresult' 'results.metadata.address.imageNumber' '!=' ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RDIB.017m' 'readimageblockresult' 'results.metadata.address.imagePart' '!=' ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RDIB.018m' 'readimageblockresult' 'results.metadata.address.sheetNumber' '!=' ''
 :READIMAGEBLOCK.SKIPOTHERIMAGEBLOCKS
-run 'function CheckJsonProperty' 'TL.RDIB.019m' 'readimageblockresult' 'results.metadata.address.moreParts' '==' 'false' 'true'
-run 'function CheckJsonProperty' 'TL.RDIB.020m' 'readimageblockresult' 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
-run 'function CheckJsonProperty' 'TL.RDIB.021m' 'readimageblockresult' 'results.metadata.address.streamName' '==' 'stream0'
-run 'function CheckJsonProperty' 'TL.RDIB.022m' 'readimageblockresult' 'results.metadata.address.sourceName' '==' 'source0'
-run 'function CheckJsonProperty' 'TL.RDIB.023m' 'readimageblockresult' 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
-run 'function CheckJsonProperty' 'TL.RDIB.024m' 'readimageblockresult' 'results.metadata.image'
-run 'function CheckJsonProperty' 'TL.RDIB.025m' 'readimageblockresult' 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
-run 'function CheckJsonProperty' 'TL.RDIB.026m' 'readimageblockresult' 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
-run 'function CheckJsonProperty' 'TL.RDIB.027m' 'readimageblockresult' 'results.metadata.image.pixelHeight' != ''
-run 'function CheckJsonProperty' 'TL.RDIB.028m' 'readimageblockresult' 'results.metadata.image.pixelOffsetX' != ''
-run 'function CheckJsonProperty' 'TL.RDIB.029m' 'readimageblockresult' 'results.metadata.image.pixelOffsetY' != ''
-run 'function CheckJsonProperty' 'TL.RDIB.030m' 'readimageblockresult' 'results.metadata.image.pixelWidth' != ''
-run 'function CheckJsonProperty' 'TL.RDIB.031m' 'readimageblockresult' 'results.metadata.image.resolution' != ''
-run 'function CheckJsonProperty' 'TL.RDIB.032m' 'readimageblockresult' 'results.metadata.image.size' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.019m' 'readimageblockresult' 'results.metadata.address.moreParts' '==' 'false' 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.020m' 'readimageblockresult' 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.021m' 'readimageblockresult' 'results.metadata.address.streamName' '==' 'stream0'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.022m' 'readimageblockresult' 'results.metadata.address.sourceName' '==' 'source0'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.023m' 'readimageblockresult' 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.024m' 'readimageblockresult' 'results.metadata.image'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.025m' 'readimageblockresult' 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.026m' 'readimageblockresult' 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.027m' 'readimageblockresult' 'results.metadata.image.pixelHeight' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.028m' 'readimageblockresult' 'results.metadata.image.pixelOffsetX' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.029m' 'readimageblockresult' 'results.metadata.image.pixelOffsetY' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.030m' 'readimageblockresult' 'results.metadata.image.pixelWidth' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.031m' 'readimageblockresult' 'results.metadata.image.resolution' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.032m' 'readimageblockresult' 'results.metadata.image.size' != ''
 return '${get:readimageblockresult}'

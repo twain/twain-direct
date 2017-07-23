@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Exception Handling v1.0 13-Jul-2017
+; Exception Handling
 ; arg:1 - scanner to test
 ; returns: pass or fail
 ;
@@ -13,17 +13,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Exception Handling v1.0 13-Jul-2017' '${arg:1}'
+call INITIALIZE 'Exception Handling v1.0 21-Jul-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN: fail, action
 ; Demonstrate a failure in an action.
 ;
-set name    'TD.EXHN.001: fail, action'
-set test    '{"actions":[{"action":"someWeirdAction","exception":"fail","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.FAIL.001: fail, action'
+set test    '{"actions":[{"action":"someWeirdAction","exception":"fail","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action  'someWeirdAction'
 set success 'false'
 set code    'invalidValue'
@@ -33,11 +32,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '$
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.002: fail, attribute
 ; Demonstrate a failure in an attribute.
 ;
-set name    'TD.EXHN.002: fail, attribute'
-set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"exception":"fail","attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.FAIL.002: fail, attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"exception":"fail","attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]}]}]}'
 set action  'configure'
 set success 'false'
 set code    'invalidValue'
@@ -47,10 +45,9 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '$
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.003: fail, pixelFormat
 ; Demonstrate a failure in a pixelFormat.
 ;
-set name    'TD.EXHN.003: fail, pixelFormat'
+set name    'TD.EXHN.FAIL.003: fail, pixelFormat'
 set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"exception":"fail","pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action  'configure'
 set success 'false'
@@ -61,11 +58,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '$
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.004: fail, source
 ; Demonstrate a failure in a source.
 ;
-set name    'TD.EXHN.004: fail, source'
-set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"exception":"fail","source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.FAIL.004: fail, source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"exception":"fail","source":"someWeirdSource","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action  'configure'
 set success 'false'
 set code    'invalidValue'
@@ -75,11 +71,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '$
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.005: fail, stream
 ; Demonstrate a failure in a stream (the actual failure is detected in the source).
 ;
-set name    'TD.EXHN.005: fail, stream'
-set test    '{"actions":[{"action":"configure","streams":[{"exception":"fail","sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.FAIL.005: fail, stream'
+set test    '{"actions":[{"action":"configure","streams":[{"exception":"fail","sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action  'configure'
 set success 'false'
 set code    'invalidValue'
@@ -89,11 +84,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '$
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.006: fail, value
 ; Demonstrate a failure in a value.
 ;
-set name    'TD.EXHN.006: fail, value'
-set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"exception":"fail","value":-200}]}]}]}]}]}]}'
+set name    'TD.EXHN.FAIL.006: fail, value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"compression","values":[{"value":"none"}]},{"attribute":"resolution","values":[{"exception":"fail","value":-200}]}]}]}]}]}]}'
 set action  'configure'
 set success 'false'
 set code    'invalidValue'
@@ -103,11 +97,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action}' '${get:success}' '$
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.007: nextAction, action
 ; Demonstrate nextAction in an action.
 ;
-set name     'TD.EXHN.007: nextAction, action'
-set test     '{"actions":[{"action":"someWeirdAction","exception":"nextAction"},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name     'TD.EXHN.NACT.001: nextAction, action'
+set test     '{"actions":[{"action":"someWeirdAction","exception":"nextAction"},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action0  'someWeirdAction'
 set success0 'false'
 set code0    'invalidValue'
@@ -119,11 +112,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.008: nextAction, attribute
 ; Demonstrate nextAction in an attribute.
 ;
-set name     'TD.EXHN.008: nextAction, attribute'
-set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","exception":"nextAction","values":[{"value":200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name     'TD.EXHN.NACT.002: nextAction, attribute'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"someWeirdAttribute","exception":"nextAction","values":[{"value":200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action0  'configure'
 set success0 'false'
 set code0    'invalidValue'
@@ -135,10 +127,9 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.009: nextAction, pixelFormat
 ; Demonstrate nextAction in a pixelFormat
 ;
-set name     'TD.EXHN.009: nextAction, pixelFormat'
+set name     'TD.EXHN.NACT.003: nextAction, pixelFormat'
 set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","exception":"nextAction"}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action0  'configure'
 set success0 'false'
@@ -151,11 +142,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.010: nextAction, source
 ; Demonstrate nextAction in a source.
 ;
-set name     'TD.EXHN.010: nextAction, source'
-set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","exception":"nextAction"}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name     'TD.EXHN.NACT.004: nextAction, source'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","exception":"nextAction"}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action0  'configure'
 set success0 'false'
 set code0    'invalidValue'
@@ -167,11 +157,10 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.011: nextAction, value
 ; Demonstrate nextAction in a value
 ;
-set name     'TD.EXHN.011: nextAction, value'
-set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","exception":"nextAction","values":[{"value":-200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name     'TD.EXHN.NACT.005: nextAction, value'
+set test     '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","exception":"nextAction","values":[{"value":-200}]}]}]}]}]},{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set action0  'configure'
 set success0 'false'
 set code0    'invalidValue'
@@ -183,13 +172,12 @@ call CHECKACTION '${get:name}' '${get:test}' '${get:action0}' '${get:success0}' 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.012: nextStream, attribute
 ; Demonstrate nextStream in an attribute (this is implicit in any stream save the last, so we don't have
 ; to have an exception property for it to work).  Note that rgb24 in the first stream could trigger the
 ; jump to the nextStream, while the second rgb24 must be ignored if it's not supported.
 ;
-set name    'TD.EXHN.012: nextStream, attribute'
-set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.NSTR.001: nextStream, attribute'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"someWeirdAttribute","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
 set value   'stream1'
@@ -198,12 +186,11 @@ call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.013: nextStream, pixelFormat
 ; Demonstrate nextStream in a pixelFormat (this is implicit an any stream save the last, so we don't have
 ; to have an exception property for it to work).
 ;
-set name    'TD.EXHN.013: nextStream, pixelFormat'
-set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.NSTR.002: nextStream, pixelFormat'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"someWeirdPixelFormat","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
 set value   'stream1'
@@ -212,12 +199,11 @@ call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.014: nextStream, source
 ; Demonstrate nextStream in a source (this is implicit an any stream save the last, so we don't have to
 ; have an exception property for it to work).
 ;
-set name    'TD.EXHN.014: nextStream, source'
-set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.NSTR.003: nextStream, source'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"someWeirdSource","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
 set value   'stream1'
@@ -226,13 +212,12 @@ call CHECKNEXTSTREAM '${get:name}' '${get:test}' '${get:success}' '${get:key}' '
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.EXHN.015: nextStream, value
 ; Demonstrate nextStream in a value (this is implicit an any stream save the last, so we don't have to
 ; have an exception property for it to work).  Note that rgb24 in the first stream could trigger the
 ; jump to the nextStream, while the second rgb24 must be ignored if it's not supported.
 ;
-set name    'TD.EXHN.015: nextStream, value'
-set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":-200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
+set name    'TD.EXHN.NSTR.004: nextStream, value'
+set test    '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"any","attributes":[{"attribute":"resolution","values":[{"value":-200}]}]}]}]},{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"rgb24","attributes":[{"attribute":"resolution","values":[{"value":200}]}]}]}]}]}]}'
 set success 'true'
 set key     'results.session.task.actions[0].streams[0].name'
 set value   'stream1'

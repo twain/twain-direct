@@ -20,7 +20,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Test readImageBlockMetadata v1.0 17-Jul-2017'
+echo 'Test readImageBlockMetadata v1.0 21-Jul-2017'
 set readimageblockmetadataresult 'pass'
 
 
@@ -56,43 +56,43 @@ readImageBlockMetadata '${arg:1}' '${arg:2}'
 call CHECKREPONSEHEADERS '${arg:2}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'TL.RIBM.003' 'readimageblockmetadataresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'TL.RIBM.004' 'readimageblockmetadataresult' 'commandId'
-run 'function CheckJsonProperty' 'TL.RIBM.005' 'readimageblockmetadataresult' 'method' == 'readImageBlockMetadata'
-run 'function CheckJsonProperty' 'TL.RIBM.006' 'readimageblockmetadataresult' 'results'
-run 'function CheckJsonProperty' 'TL.RIBM.007' 'readimageblockmetadataresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'TL.RIBM.008' 'readimageblockmetadataresult' 'results.session'
-run 'function CheckJsonProperty' 'TL.RIBM.009' 'readimageblockmetadataresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'TL.RIBM.010' 'readimageblockmetadataresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.RIBM.011' 'readimageblockmetadataresult' 'results.session.state' == '${arg:3}'
-run 'function CheckJsonProperty' 'TL.RIBM.012' 'readimageblockmetadataresult' 'results.metadata'
-run 'function CheckJsonProperty' 'TL.RIBM.013' 'readimageblockmetadataresult' 'results.metadata.status'
-run 'function CheckJsonProperty' 'TL.RIBM.014' 'readimageblockmetadataresult' 'results.metadata.status.success' == 'true'
-run 'function CheckJsonProperty' 'TL.RIBM.015' 'readimageblockmetadataresult' 'results.metadata.address'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.003' 'readimageblockmetadataresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.004' 'readimageblockmetadataresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.005' 'readimageblockmetadataresult' 'method' == 'readImageBlockMetadata'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.006' 'readimageblockmetadataresult' 'results'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.007' 'readimageblockmetadataresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.008' 'readimageblockmetadataresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.009' 'readimageblockmetadataresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.010' 'readimageblockmetadataresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.011' 'readimageblockmetadataresult' 'results.session.state' == '${arg:3}'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.012' 'readimageblockmetadataresult' 'results.metadata'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.013' 'readimageblockmetadataresult' 'results.metadata.status'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.014' 'readimageblockmetadataresult' 'results.metadata.status.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.015' 'readimageblockmetadataresult' 'results.metadata.address'
 if '${arg:1}' > '1' goto READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
-	run 'function CheckJsonProperty' 'TL.RIBM.016f' 'readimageblockmetadataresult' 'results.metadata.address.imageNumber' '==' '1'
-	run 'function CheckJsonProperty' 'TL.RIBM.017f' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '==' '1'
-	run 'function CheckJsonProperty' 'TL.RIBM.018f' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '==' '1'
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.016f' 'readimageblockmetadataresult' 'results.metadata.address.imageNumber' '==' '1'
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.017f' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '==' '1'
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.018f' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '==' '1'
 	goto READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
 :READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
-	run 'function CheckJsonProperty' 'TL.RIBM.016' 'readimageblockmetadataresult' 'results.metadata.address.imageNumber' '!=' ''
-	run 'function CheckJsonProperty' 'TL.RIBM.017' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '!=' ''
-	run 'function CheckJsonProperty' 'TL.RIBM.018' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '!=' ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.016' 'readimageblockmetadataresult' 'results.metadata.address.imageNumber' '!=' ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.017' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '!=' ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.018' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '!=' ''
 :READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
-run 'function CheckJsonProperty' 'TL.RIBM.019' 'readimageblockmetadataresult' 'results.metadata.address.moreParts' '==' 'false' 'true'
-run 'function CheckJsonProperty' 'TL.RIBM.020' 'readimageblockmetadataresult' 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
-run 'function CheckJsonProperty' 'TL.RIBM.021' 'readimageblockmetadataresult' 'results.metadata.address.streamName' '==' 'stream0'
-run 'function CheckJsonProperty' 'TL.RIBM.022' 'readimageblockmetadataresult' 'results.metadata.address.sourceName' '==' 'source0'
-run 'function CheckJsonProperty' 'TL.RIBM.023' 'readimageblockmetadataresult' 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
-run 'function CheckJsonProperty' 'TL.RIBM.024' 'readimageblockmetadataresult' 'results.metadata.image'
-run 'function CheckJsonProperty' 'TL.RIBM.025' 'readimageblockmetadataresult' 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
-run 'function CheckJsonProperty' 'TL.RIBM.026' 'readimageblockmetadataresult' 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
-run 'function CheckJsonProperty' 'TL.RIBM.027' 'readimageblockmetadataresult' 'results.metadata.image.pixelHeight' != ''
-run 'function CheckJsonProperty' 'TL.RIBM.028' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetX' != ''
-run 'function CheckJsonProperty' 'TL.RIBM.029' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetY' != ''
-run 'function CheckJsonProperty' 'TL.RIBM.030' 'readimageblockmetadataresult' 'results.metadata.image.pixelWidth' != ''
-run 'function CheckJsonProperty' 'TL.RIBM.031' 'readimageblockmetadataresult' 'results.metadata.image.resolution' != ''
-run 'function CheckJsonProperty' 'TL.RIBM.032' 'readimageblockmetadataresult' 'results.metadata.image.size' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.019' 'readimageblockmetadataresult' 'results.metadata.address.moreParts' '==' 'false' 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.020' 'readimageblockmetadataresult' 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.021' 'readimageblockmetadataresult' 'results.metadata.address.streamName' '==' 'stream0'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.022' 'readimageblockmetadataresult' 'results.metadata.address.sourceName' '==' 'source0'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.023' 'readimageblockmetadataresult' 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.024' 'readimageblockmetadataresult' 'results.metadata.image'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.025' 'readimageblockmetadataresult' 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.026' 'readimageblockmetadataresult' 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.027' 'readimageblockmetadataresult' 'results.metadata.image.pixelHeight' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.028' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetX' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.029' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetY' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.030' 'readimageblockmetadataresult' 'results.metadata.image.pixelWidth' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.031' 'readimageblockmetadataresult' 'results.metadata.image.resolution' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.032' 'readimageblockmetadataresult' 'results.metadata.image.size' != ''
 return '${get:readimageblockmetadataresult}'
 
 
@@ -106,12 +106,12 @@ return '${get:readimageblockmetadataresult}'
 ;
 ; Handle a normal header...
 if '${arg:1}' == 'true' goto CHECKREPONSEHEADERS.MULTIPART
-run 'function CheckHeader' 'TL.RIBM.001' 'readimageblockmetadataresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'TL.RIBM.002' 'readimageblockmetadataresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.NSCN.RIBM.001' 'readimageblockmetadataresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.NSCN.RIBM.002' 'readimageblockmetadataresult' 'Content-Length' == '${rdata:#}'
 return '${get:readimageblockmetadataresult}'
 ;
 ; Handle a multipart header...
 :CHECKREPONSEHEADERS.MULTIPART
-run 'function CheckJsonHeader' 'TL.RIBM.001m' 'readimageblockmetadataresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckJsonHeader' 'TL.RIBM.002m' 'readimageblockmetadataresult' 'Content-Length' == '${rj:#}'
+run 'function CheckJsonHeader' 'TL.NSCN.RIBM.001m' 'readimageblockmetadataresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckJsonHeader' 'TL.NSCN.RIBM.002m' 'readimageblockmetadataresult' 'Content-Length' == '${rj:#}'
 return '${get:readimageblockmetadataresult}'
