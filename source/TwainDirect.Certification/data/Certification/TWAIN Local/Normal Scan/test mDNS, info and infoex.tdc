@@ -27,7 +27,6 @@ set mdnsinfoinfoexresult pass
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.MDIN.001: mDNS
 ; Examine the TXT fields in the mDNS data.
 ;
 call CHECKMDNSTXT 'TL.NSCN.MDIN.001: mDNS'
@@ -35,7 +34,6 @@ call CHECKMDNSTXT 'TL.NSCN.MDIN.001: mDNS'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.MDIN.002: info
 ; Examine the properties returned by info, and compare them to the mDNS TXT fields.
 ;
 call CHECKINFO 'TL.NSCN.MDIN.002: info'
@@ -43,7 +41,6 @@ call CHECKINFO 'TL.NSCN.MDIN.002: info'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TD.MDIN.003: infoex
 ; Examine the properties returned by infoex, and compare them to the mDNS TXT fields.
 ;
 call CHECKINFOEX 'TL.NSCN.MDIN.003: infoex'

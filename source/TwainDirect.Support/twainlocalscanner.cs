@@ -602,9 +602,7 @@ namespace TwainDirect.Support
                 ref a_apicmd,
                 szCommand,
                 "GET",
-                new string[] {
-                    "X-Privet-Token: \"\""
-                },
+                ClientHttpBuildHeader(true),
                 null,
                 null,
                 null,
@@ -639,14 +637,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
-                // Collection session data, if we have any...
+                // Collect session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
@@ -658,10 +654,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -731,10 +724,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + m_twainlocalsession.GetXPrivetToken()
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
@@ -777,14 +767,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
@@ -796,10 +784,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -838,14 +823,6 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
-                }
-
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -853,10 +830,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + Guid.NewGuid().ToString() + "\"," +
@@ -892,14 +866,6 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
-                }
-
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -907,9 +873,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/invaliduri",
                     "GET",
-                    new string[] {
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(true),
                     null,
                     null,
                     null,
@@ -951,14 +915,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
@@ -987,10 +949,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -1068,14 +1027,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
@@ -1109,10 +1066,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -1190,14 +1144,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
@@ -1209,10 +1161,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -1272,14 +1221,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
@@ -1291,10 +1238,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -1333,14 +1277,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                     m_twainlocalsession.SetSessionStatusSuccess(true);
@@ -1354,10 +1296,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -1399,14 +1338,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
@@ -1418,10 +1355,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"" + szClientCreateCommandId + "\"," +
@@ -1459,13 +1393,11 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLock)
             {
-                string szXPrivetToken = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -1478,10 +1410,7 @@ namespace TwainDirect.Support
                     ref a_apicmd,
                     "/privet/twaindirect/session",
                     "POST",
-                    new string[] {
-                        "Content-Type: application/json; charset=UTF-8",
-                        "X-Privet-Token: " + szXPrivetToken
-                    },
+                    ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
                     "\"commandId\":\"@@@COMMANDID@@@\"," +
@@ -1542,16 +1471,25 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Create a TWAIN Local Session object
+        /// Create a TWAIN Local Session object.  If this hasn't been done yet you
+        /// can specify the X-Privet-Token for testing.  The following have special
+        /// meaning:
+        /// no_header - no X-Privet-Header
+        /// no_token - X-Privet-Header with no data
+        /// anything else is droppedin verbatim
         /// </summary>
-        public void ClientCertificationTwainLocalSessionCreate()
+        /// <param name="a_szXPrivetToken">token to use if we don't have one yet</param>
+        public void ClientCertificationTwainLocalSessionCreate
+        (
+            string a_szXPrivetToken = "no_token"
+        )
         {
             if (m_twainlocalsession == null)
             {
                 // If we have a token from info or infoex, use it, otherwise make a bad token,
                 // as the function indicates this is for the client only, and in fact it's just
                 // for the certification tool...
-                m_twainlocalsession = new TwainLocalSession(string.IsNullOrEmpty(m_szXPrivetToken) ? "no-token" : m_szXPrivetToken);
+                m_twainlocalsession = new TwainLocalSession(string.IsNullOrEmpty(m_szXPrivetToken) ? a_szXPrivetToken : m_szXPrivetToken);
             }
         }
 
@@ -2664,6 +2602,79 @@ namespace TwainDirect.Support
         // Private Client Methods...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Client Methods...
+
+        /// <summary>
+        /// Build the HTTP headers needed by the client.  I didn't want to write this
+        /// function, because it makes something simple too complex, but I needed it
+        /// to help with the certification tool.  Application writers just need to
+        /// make sure they set the headers for info/infoex, and the POST commands
+        /// sent using the TWAIN Local RESTful API.
+        ///
+        /// I've commented the code with what apps do vs what the certification tool
+        /// needs...
+        /// </summary>
+        /// <param name="a_blInfoInfoex">build header for info/infoex</param>
+        /// <returns>the HTTP headers</returns>
+        private string[] ClientHttpBuildHeader(bool a_blInfoInfoex = false)
+        {
+            string[] aszHeader;
+            string szXPrivetToken = "";
+            string szContentType = "Content-Type: application/json; charset=UTF-8";
+
+            // Apps do this: collect session data, if we have any...
+            if (m_twainlocalsession != null)
+            {
+                szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
+
+                // Certification only: test the scanner when we don't give it an
+                // X-Privet-Token...
+                if (szXPrivetToken == "no-token")
+                {
+                    szXPrivetToken = null;
+                }
+            }
+
+            // Apps do this: if we're issuing info/infoex command, then we have
+            // no content-type and the caller will set the argument to null
+            // or an empty string.  All other TWAIN Local commands use POST,
+            // and must specify a content type...
+            if (a_blInfoInfoex)
+            {
+                // Certification only: we have no header...
+                if (szXPrivetToken == null)
+                {
+                    return (null);
+                }
+
+                // Apps do this: send a privet token, the recommendation
+                // for info/infoex is an empty string, indicated with two
+                // double-quotes "".
+                aszHeader = new string[] {
+                    "X-Privet-Token: \"\""
+                };
+                return (aszHeader);
+            }
+
+            // Certification only: build the header, we're only allowing
+            // this kind of flexibility to support the Certification tool.
+            // Application writers shouldn't support this part of the code,
+            // except to generate an error, if they've not first obtained
+            // an X-Privet-Token...
+            if (szXPrivetToken == null)
+            {
+                aszHeader = new string[] {
+                    szContentType
+                };
+                return (aszHeader);
+            }
+
+            // Apps do this: for any POST commands...
+            aszHeader = new string[] {
+                szContentType,
+                "X-Privet-Token: " + szXPrivetToken
+            };
+            return (aszHeader);
+        }
 
         /// <summary>
         /// One stop shop for sending commands to the scanner.

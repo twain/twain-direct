@@ -46,7 +46,6 @@
 
 // Helpers...
 using System;
-using System.Runtime.InteropServices;
 
 namespace TwainDirect.Support
 {
@@ -971,9 +970,9 @@ namespace TwainDirect.Support
 	        // Handle everything else...
 	        else
 	        {
-		        // Copy the data as-is...
+                // Copy the entire block of data (whole objects and arrays included)...
                 a_szValue = m_szJson.Substring((int)a_property.u32ValueOffset, (int)a_property.u32ValueLength);
-	        }
+            }
 
 	        // All done...
             a_epropertytype = a_property.epropertytype;

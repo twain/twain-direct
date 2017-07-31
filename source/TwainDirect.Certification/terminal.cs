@@ -2562,7 +2562,14 @@ namespace TwainDirect.Certification
             // Create a session...
             if (a_functionarguments.aszCmd[1] == "create")
             {
-                m_twainlocalscanner.ClientCertificationTwainLocalSessionCreate();
+                if ((a_functionarguments.aszCmd.Length < 3) || string.IsNullOrEmpty(a_functionarguments.aszCmd[2]))
+                {
+                    m_twainlocalscanner.ClientCertificationTwainLocalSessionCreate();
+                }
+                else
+                {
+                    m_twainlocalscanner.ClientCertificationTwainLocalSessionCreate(a_functionarguments.aszCmd[2]);
+                }
                 return (false);
             }
 
