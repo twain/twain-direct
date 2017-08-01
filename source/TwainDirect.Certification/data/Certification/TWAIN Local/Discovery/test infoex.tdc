@@ -1,0 +1,98 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test Infoex
+; Run the infoex command.  Check the results for mandatory properties,
+; and those properties that must match mDNS content.
+;
+; Arguments
+; (none)
+;
+; Locals
+; infoexresult - result of the test
+; apiindex - counter
+;
+; returns: pass or fail
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'Test Infoex v1.0 31-Jul-2017'
+set infoexresult 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Issue the command...
+infoex
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Examine the properties returned by info, and compare them to the mDNS TXT fields.
+;
+run 'function CheckJsonProperty' 'TL.INFX.TEXT.001' 'infoexresult' 'connection_state' '==' '${txt:cs}'
+run 'function CheckJsonProperty' 'TL.INFX.TEXT.002' 'infoexresult' 'id' '==' '${txt:id}'
+run 'function CheckJsonProperty' 'TL.INFX.TEXT.003' 'infoexresult' 'name' '==' '${txt:ty}'
+run 'function CheckJsonProperty' 'TL.INFX.TEXT.004' 'infoexresult' 'type' '==' '${txt:type}'
+run 'function CheckJsonProperty' 'TL.INFX.TEXT.005' 'infoexresult' 'url' '==' '${txt:url}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Make sure that /privet/twaindirect/session is one of the values in the api array...
+;
+set apiindex 0
+:MAIN.APILOOP
+	if '${rjx:api[${get:apiindex}]}' == '' goto MAIN.APIBAD
+	if '${rjx:api[${get:apiindex}]}' == '/privet/twaindirect/session' goto MAIN.APIGOOD
+	increment apiindex '${get:apiindex}' 1
+	goto MAIN.APILOOP
+;
+; Ruh-roh...
+:MAIN.APIBAD
+set infoexresult 'fail'
+echopassfail 'TL.INFX.PROP.001: api' 'fail (/privet/twaindirect/session not found)'
+goto MAIN.APIDONE
+;
+; We passed...
+:MAIN.APIGOOD
+echopassfail 'TL.INFX.PROP.001: api' 'pass'
+;
+; We're done...
+:MAIN.APIDONE
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Examine the properties returned by info, making sure they are present and not empty,
+; and that in some cases that they have certain values...
+;
+run 'function CheckJsonProperty' 'TL.INFX.PROP.002' 'infoexresult' 'connection_state' '==' 'online' 'offline' 'connecting' 'not-configured'
+run 'function CheckJsonProperty' 'TL.INFX.PROP.003' 'infoexresult' 'device_state' '==' 'idle' 'processing' 'stopped'
+run 'function CheckJsonProperty' 'TL.INFX.PROP.004' 'infoexresult' 'manufacturer' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFX.PROP.005' 'infoexresult' 'model' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFX.PROP.006' 'infoexresult' 'serial_number' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFX.PROP.007' 'infoexresult' 'uptime' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFX.PROP.008' 'infoexresult' 'version' '==' '1.0'
+run 'function CheckJsonProperty' 'TL.INFX.PROP.009' 'infoexresult' 'x-privet-token' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFX.PROP.010' 'infoexresult' 'clouds' '!=' ''
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summarize...
+;
+if '${get:infoexresult}' != 'pass' goto MAIN.FAIL
+echopassfail 'SUMMARY' 'pass'
+log info '#Test result:                 pass'
+return 'pass'
+;
+; No joy...
+:MAIN.FAIL
+echopassfail 'SUMMARY' 'fail'
+log info '#Test result:                 fail'
+return 'fail'
+

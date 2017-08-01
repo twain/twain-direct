@@ -49,17 +49,17 @@ return '${get:stopcapturingresult}'
 stopCapturing
 ;
 ; Check the headers...
-run 'function CheckHeader' 'TL.NSCN.SPCP.001' 'stopcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'TL.NSCN.SPCP.002' 'stopcapturingresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.NSCN.STOP.001' 'stopcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.NSCN.STOP.002' 'stopcapturingresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.003' 'stopcapturingresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.004' 'stopcapturingresult' 'commandId'
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.005' 'stopcapturingresult' 'method' == 'stopCapturing'
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.006' 'stopcapturingresult' 'results'
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.007' 'stopcapturingresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.008' 'stopcapturingresult' 'results.session'
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.009' 'stopcapturingresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.010' 'stopcapturingresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.SPCP.011' 'stopcapturingresult' 'results.session.state' == '${arg:1}'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.003' 'stopcapturingresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.004' 'stopcapturingresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.005' 'stopcapturingresult' 'method' == 'stopCapturing'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.006' 'stopcapturingresult' 'results'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.007' 'stopcapturingresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.008' 'stopcapturingresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.009' 'stopcapturingresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.010' 'stopcapturingresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.011' 'stopcapturingresult' 'results.session.state' == '${arg:1}'
 return '${get:stopcapturingresult}'

@@ -1,0 +1,96 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test Info
+; Run the info command.  Check the results for mandatory properties,
+; and those properties that must match mDNS content.
+;
+; Arguments
+; (none)
+;
+; Locals
+; inforesult - result of the test
+; apiindex - counter
+;
+; returns: pass or fail
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'Test Info v1.0 31-Jul-2017'
+set inforesult 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Issue the command...
+info
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Examine the properties returned by info, and compare them to the mDNS TXT fields.
+;
+run 'function CheckJsonProperty' 'TL.INFO.TEXT.001' 'inforesult' 'connection_state' '==' '${txt:cs}'
+run 'function CheckJsonProperty' 'TL.INFO.TEXT.002' 'inforesult' 'id' '==' '${txt:id}'
+run 'function CheckJsonProperty' 'TL.INFO.TEXT.003' 'inforesult' 'name' '==' '${txt:ty}'
+run 'function CheckJsonProperty' 'TL.INFO.TEXT.004' 'inforesult' 'type' '==' '${txt:type}'
+run 'function CheckJsonProperty' 'TL.INFO.TEXT.005' 'inforesult' 'url' '==' '${txt:url}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Make sure that /privet/twaindirect/session is one of the values in the api array...
+;
+set apiindex 0
+:MAIN.APILOOP
+	if '${rjx:api[${get:apiindex}]}' == '' goto MAIN.APIBAD
+	if '${rjx:api[${get:apiindex}]}' == '/privet/twaindirect/session' goto MAIN.APIGOOD
+	increment apiindex '${get:apiindex}' 1
+	goto MAIN.APILOOP
+;
+; Ruh-roh...
+:MAIN.APIBAD
+set inforesult 'fail'
+echopassfail 'TL.INFO.PROP.001: api' 'fail (/privet/twaindirect/session not found)'
+goto MAIN.APIDONE
+;
+; We passed...
+:MAIN.APIGOOD
+echopassfail 'TL.INFO.PROP.001: api' 'pass'
+;
+; We're done...
+:MAIN.APIDONE
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Examine the properties returned by info, making sure they are present and not empty,
+; and that in some cases that they have certain values...
+;
+run 'function CheckJsonProperty' 'TL.INFO.PROP.002' 'inforesult' 'connection_state' '==' 'online' 'offline' 'connecting' 'not-configured'
+run 'function CheckJsonProperty' 'TL.INFO.PROP.003' 'inforesult' 'device_state' '==' 'idle' 'processing' 'stopped'
+run 'function CheckJsonProperty' 'TL.INFO.PROP.004' 'inforesult' 'manufacturer' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFO.PROP.005' 'inforesult' 'model' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFO.PROP.006' 'inforesult' 'serial_number' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFO.PROP.007' 'inforesult' 'uptime' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFO.PROP.008' 'inforesult' 'version' '==' '1.0'
+run 'function CheckJsonProperty' 'TL.INFO.PROP.009' 'inforesult' 'x-privet-token' '!=' ''
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Summarize...
+;
+if '${get:inforesult}' != 'pass' goto MAIN.FAIL
+echopassfail 'SUMMARY' 'pass'
+log info '#Test result:                 pass'
+return 'pass'
+;
+; No joy...
+:MAIN.FAIL
+echopassfail 'SUMMARY' 'fail'
+log info '#Test result:                 fail'
+return 'fail'

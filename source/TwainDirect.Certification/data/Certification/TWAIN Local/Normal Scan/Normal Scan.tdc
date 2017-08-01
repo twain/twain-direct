@@ -21,7 +21,7 @@
 ; Display the banner...
 ;
 echo
-echo 'Normal Scan v1.0 17-Jul-2017'
+echo 'Normal Scan v1.0 31-Jul-2017'
 
 
 
@@ -50,7 +50,7 @@ clean
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Pick a scanner, default to the first scanner if we don't get one...
+; Pick a scanner...
 ;
 select '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.FAIL
@@ -58,18 +58,9 @@ if '${ret:}' != 'true' goto MAIN.FAIL
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Confirm that all commands correctly return 404 invalid_x_privet_token if called before info or infoex...
+; Collect info on our scanner (this gets our X-Privet-Token)...
 ;
-run 'test x-privet-token error'
-if '${ret:}' != 'pass' goto MAIN.FAIL
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Check that info and infoex are supported, and their values match the mDNS TXT fields...
-;
-run 'test mDNS, info and infoex' true
-if '${ret:}' != 'pass' goto MAIN.FAIL
+infoex
 
 
 
@@ -168,6 +159,15 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ; Test closeSession...
 ;
 run 'test closeSession' 'noSession'
+if '${ret:}' != 'pass' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test PDF/raster, this command goes into the images folder and
+; validated every .pdf file...
+;
+run 'test pdfraster'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 

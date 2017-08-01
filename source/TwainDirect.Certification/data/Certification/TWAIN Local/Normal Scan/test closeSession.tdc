@@ -49,19 +49,19 @@ return '${get:closesessionresult}'
 closeSession
 ;
 ; Check the headers...
-run 'function CheckHeader' 'TL.NSCN.CLSS.001' 'closesessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'TL.NSCN.CLSS.002' 'closesessionresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.NSCN.CLOS.001' 'closesessionresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.NSCN.CLOS.002' 'closesessionresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.003' 'closesessionresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.004' 'closesessionresult' 'commandId'
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.005' 'closesessionresult' 'method' == 'closeSession'
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.006' 'closesessionresult' 'results'
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.007' 'closesessionresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.008' 'closesessionresult' 'results.session'
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.009' 'closesessionresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.010' 'closesessionresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.CLSS.011' 'closesessionresult' 'results.session.state' == '${arg:1}'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.003' 'closesessionresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.004' 'closesessionresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.005' 'closesessionresult' 'method' == 'closeSession'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.006' 'closesessionresult' 'results'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.007' 'closesessionresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.008' 'closesessionresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.009' 'closesessionresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.010' 'closesessionresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.011' 'closesessionresult' 'results.session.state' == '${arg:1}'
 if '${get:closesessionresult}' != 'pass' goto CLOSESESSION.FAIL
 ;
 ; We're good...

@@ -2144,7 +2144,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2167,7 +2167,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2183,7 +2183,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2195,14 +2195,17 @@ namespace TWAINWorkingGroup
                 return (STS.BUMMER);
             }
 
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
+
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (sts);
         }
 
         /// <summary>
@@ -2268,7 +2271,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2291,7 +2294,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2307,7 +2310,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2315,18 +2318,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -2391,7 +2397,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2414,7 +2420,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2430,7 +2436,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2438,18 +2444,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -2514,7 +2523,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2537,7 +2546,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2553,7 +2562,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2561,18 +2570,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), CallbackToCsv(a_twcallback));
+                Log.LogSendAfter(stsRcOrCc, CallbackToCsv(a_twcallback));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -2637,7 +2649,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2660,7 +2672,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2676,7 +2688,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2684,18 +2696,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), Callback2ToCsv(a_twcallback2));
+                Log.LogSendAfter(stsRcOrCc, Callback2ToCsv(a_twcallback2));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -2793,7 +2808,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2816,7 +2831,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2832,7 +2847,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2840,25 +2855,28 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
                 if ((a_msg == MSG.RESETALL) || ((sts != STS.SUCCESS) && (sts != STS.CHECKSTATUS)))
                 {
-                    Log.LogSendAfter(sts.ToString(), "");
+                    Log.LogSendAfter(stsRcOrCc, "");
                 }
                 else
                 {
-                    Log.LogSendAfter(sts.ToString(), CapabilityToCsv(a_twcapability));
+                    Log.LogSendAfter(stsRcOrCc, CapabilityToCsv(a_twcapability));
                 }
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -2923,7 +2941,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2946,7 +2964,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2962,7 +2980,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -2970,18 +2988,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3046,7 +3067,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3069,7 +3090,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3085,7 +3106,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3093,18 +3114,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), CustomdsdataToCsv(a_twcustomdsdata));
+                Log.LogSendAfter(stsRcOrCc, CustomdsdataToCsv(a_twcustomdsdata));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3169,7 +3193,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3192,7 +3216,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3208,7 +3232,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3216,18 +3240,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), DeviceeventToCsv(a_twdeviceevent));
+                Log.LogSendAfter(stsRcOrCc, DeviceeventToCsv(a_twdeviceevent));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3292,7 +3319,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3315,7 +3342,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3331,7 +3358,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3339,7 +3366,7 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
 
@@ -3367,14 +3394,17 @@ namespace TWAINWorkingGroup
                 }
             }
 
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
+
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), EntrypointToCsv(a_twentrypoint));
+                Log.LogSendAfter(stsRcOrCc, EntrypointToCsv(a_twentrypoint));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3412,7 +3442,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3435,7 +3465,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3451,7 +3481,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3459,14 +3489,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 1)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // Check the event for anything interesting...
@@ -3476,7 +3509,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3541,7 +3574,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3564,7 +3597,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3580,7 +3613,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3588,18 +3621,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3664,7 +3700,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3687,7 +3723,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3703,7 +3739,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3711,18 +3747,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), FilesystemToCsv(a_twfilesystem));
+                Log.LogSendAfter(stsRcOrCc, FilesystemToCsv(a_twfilesystem));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3787,7 +3826,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3810,7 +3849,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3826,7 +3865,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3834,18 +3873,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -3910,7 +3952,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3933,7 +3975,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3949,7 +3991,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -3957,18 +3999,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -4033,7 +4078,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4056,7 +4101,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4072,7 +4117,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4080,18 +4125,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -4157,7 +4205,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
                 a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
@@ -4183,7 +4231,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4200,7 +4248,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
                 a_twidentity = TwidentitymacosxToTwidentity(twidentitymacosx);
@@ -4209,14 +4257,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), IdentityToCsv(a_twidentity));
+                Log.LogSendAfter(stsRcOrCc, IdentityToCsv(a_twidentity));
             }
 
             // If we opened, go to state 4...
@@ -4259,13 +4310,13 @@ namespace TWAINWorkingGroup
                             catch
                             {
                                 // The driver crashed...
-                                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                                Log.LogSendAfter(STS.BUMMER, "");
                                 return (STS.BUMMER);
                             }
                             // Log it...
                             if (Log.GetLevel() > 0)
                             {
-                                Log.LogSendAfter(sts.ToString(), "");
+                                Log.LogSendAfter(sts, "");
                             }
                         }
                     }
@@ -4295,13 +4346,13 @@ namespace TWAINWorkingGroup
                         catch
                         {
                             // The driver crashed...
-                            Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                            Log.LogSendAfter(STS.BUMMER, "");
                             return (STS.BUMMER);
                         }
                         // Log it...
                         if (Log.GetLevel() > 0)
                         {
-                            Log.LogSendAfter(sts.ToString(), "");
+                            Log.LogSendAfter(sts, "");
                         }
                     }
 
@@ -4324,13 +4375,13 @@ namespace TWAINWorkingGroup
                         catch
                         {
                             // The driver crashed...
-                            Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                            Log.LogSendAfter(STS.BUMMER, "");
                             return (STS.BUMMER);
                         }
                         // Log it...
                         if (Log.GetLevel() > 0)
                         {
-                            Log.LogSendAfter(sts.ToString(), "");
+                            Log.LogSendAfter(sts, "");
                         }
                     }
                 }
@@ -4346,7 +4397,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -4411,7 +4462,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4452,7 +4503,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4468,7 +4519,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4476,18 +4527,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), ImageinfoToCsv(a_twimageinfo));
+                Log.LogSendAfter(stsRcOrCc, ImageinfoToCsv(a_twimageinfo));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -4552,7 +4606,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4575,7 +4629,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4591,7 +4645,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4599,18 +4653,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), ImagelayoutToCsv(a_twimagelayout));
+                Log.LogSendAfter(stsRcOrCc, ImagelayoutToCsv(a_twimagelayout));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -4747,7 +4804,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4770,7 +4827,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4786,7 +4843,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4794,14 +4851,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // If we had a successful transfer, then change state...
@@ -4811,7 +4871,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -4955,7 +5015,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -4999,7 +5059,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5036,7 +5096,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5044,14 +5104,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), ImagememferToCsv(a_twimagememxfer));
+                Log.LogSendAfter(stsRcOrCc, ImagememferToCsv(a_twimagememxfer));
             }
 
             // If we had a successful transfer, then change state...
@@ -5061,7 +5124,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -5205,7 +5268,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5249,7 +5312,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5286,7 +5349,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5294,14 +5357,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), ImagememferToCsv(a_twimagememxfer));
+                Log.LogSendAfter(stsRcOrCc, ImagememferToCsv(a_twimagememxfer));
             }
 
             // If we had a successful transfer, then change state...
@@ -5311,7 +5377,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -5462,7 +5528,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5485,7 +5551,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5502,7 +5568,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5510,14 +5576,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // If we had a successful transfer, then convert the data...
@@ -5535,7 +5604,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -5600,7 +5669,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5623,7 +5692,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5639,7 +5708,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5647,18 +5716,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -5723,7 +5795,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5746,7 +5818,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5762,7 +5834,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5770,18 +5842,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -5846,7 +5921,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5869,7 +5944,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5885,7 +5960,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -5893,14 +5968,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // If we opened, go to state 3, and start tracking
@@ -5926,7 +6004,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -5991,7 +6069,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6014,7 +6092,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6030,7 +6108,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6038,18 +6116,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -6114,7 +6195,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6137,7 +6218,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6153,7 +6234,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6161,14 +6242,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), PendingxfersToCsv(a_twpendingxfers));
+                Log.LogSendAfter(stsRcOrCc, PendingxfersToCsv(a_twpendingxfers));
             }
 
             // If we endxfer, go to state 5 or 6...
@@ -6199,7 +6283,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -6264,7 +6348,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6287,7 +6371,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6303,7 +6387,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6311,18 +6395,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -6387,7 +6474,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6410,7 +6497,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6426,7 +6513,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6434,18 +6521,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), SetupfilexferToCsv(a_twsetupfilexfer));
+                Log.LogSendAfter(stsRcOrCc, SetupfilexferToCsv(a_twsetupfilexfer));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -6510,7 +6600,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6533,7 +6623,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6549,7 +6639,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6557,18 +6647,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), SetupmemxferToCsv(a_twsetupmemxfer));
+                Log.LogSendAfter(stsRcOrCc, SetupmemxferToCsv(a_twsetupmemxfer));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -6633,7 +6726,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6656,7 +6749,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6672,7 +6765,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6680,18 +6773,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -6756,7 +6852,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6779,7 +6875,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6795,7 +6891,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -6803,18 +6899,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -6985,7 +7084,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -7008,7 +7107,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -7024,7 +7123,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -7032,14 +7131,17 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), "");
+                Log.LogSendAfter(stsRcOrCc, "");
             }
 
             // If we opened, go to state 5...
@@ -7079,7 +7181,7 @@ namespace TWAINWorkingGroup
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         /// <summary>
@@ -7144,7 +7246,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -7167,7 +7269,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -7183,7 +7285,7 @@ namespace TWAINWorkingGroup
                 catch
                 {
                     // The driver crashed...
-                    Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                    Log.LogSendAfter(STS.BUMMER, "");
                     return (STS.BUMMER);
                 }
             }
@@ -7191,18 +7293,21 @@ namespace TWAINWorkingGroup
             // Uh-oh...
             else
             {
-                Log.LogSendAfter(STS.BUMMER.ToString(), "");
+                Log.LogSendAfter(STS.BUMMER, "");
                 return (STS.BUMMER);
             }
+
+            // Get DAT_STATUS, if needed...
+            TWAIN.STS stsRcOrCc = AutoDatStatus(sts);
 
             // Log it...
             if (Log.GetLevel() > 0)
             {
-                Log.LogSendAfter(sts.ToString(), XfergroupToCsv(a_twuint32));
+                Log.LogSendAfter(stsRcOrCc, XfergroupToCsv(a_twuint32));
             }
 
             // All done...
-            return (AutoDatStatus(sts));
+            return (stsRcOrCc);
         }
 
         #endregion
@@ -7693,6 +7798,7 @@ namespace TWAINWorkingGroup
         /// <summary>
         /// Automatically collect the condition code for TWRC_FAILURE's...
         /// </summary>
+        /// <param name="a_sts">The return code from the last operation</param>
         /// <param name="a_sts">The return code from the last operation</param>
         /// <returns>The final statue return</returns>
         private STS AutoDatStatus(STS a_sts)
@@ -9449,15 +9555,26 @@ namespace TWAINWorkingGroup
         /// <summary>
         /// Log after sending to the TWAIN driver...
         /// </summary>
-        /// <param name="a_szSts">status</param>
+        /// <param name="a_sts">status</param>
         /// <param name="a_szMemref">data</param>
-        public static void LogSendAfter(string a_szSts, string a_szMemref)
+        public static void LogSendAfter(TWAIN.STS a_sts, string a_szMemref)
         {
+            // The data argument type (DAT) stuff...
             if ((a_szMemref != null) && (a_szMemref != "") && (a_szMemref[0] != '('))
             {
                 Log.Info("twn> " + a_szMemref);
             }
-            Log.Info("twn> " + a_szSts);
+
+            // TWRC...
+            if ((int)a_sts < TWAIN.STSCC)
+            {
+                Log.Info("twn> " + a_sts);
+            }
+            // TWCC...
+            else
+            {
+                Log.Info("twn> FAILURE/" + a_sts);
+            }
         }
 
         /// <summary>

@@ -190,15 +190,14 @@ namespace TwainDirect.OnTwain
 
             // Collect information about the scanner...
             twaininquirydata = TwainInquiry(m_szTwainDriverIdentity);
-            if (    (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Undefined)
-                ||  (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.None))
+            if (twaininquirydata.GetTwainDirectSupport() <= DeviceRegister.TwainDirectSupport.None)
             {
                 TWAINWorkingGroup.Log.Error("Process: TwainInquiry says we can't do this");
                 return (false);
             }
 
             // Have the driver process the task...
-            if (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Full)
+            if (twaininquirydata.GetTwainDirectSupport() >= DeviceRegister.TwainDirectSupport.Driver)
             {
                 string szMetadata;
                 TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);
@@ -288,8 +287,7 @@ namespace TwainDirect.OnTwain
 
             // Collect information about the scanner...
             twaininquirydata = TwainInquiry(m_szTwainDriverIdentity);
-            if (    (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Undefined)
-                ||  (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.None))
+            if (twaininquirydata.GetTwainDirectSupport() <= DeviceRegister.TwainDirectSupport.None)
             {
                 TWAINWorkingGroup.Log.Error("Process: TwainInquiry says we can't do this");
                 //m_twaincstoolkit.Cleanup();
@@ -1117,8 +1115,7 @@ namespace TwainDirect.OnTwain
                 // we're at it, collect interesting information...
                 ProcessSwordTask processswordtask = new ProcessSwordTask("", twaincstoolkit, null);
                 twaininquirydata = processswordtask.TwainInquiry(szTwidentity);
-                if (    (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Undefined)
-                    ||  (twaininquirydata.GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Undefined))
+                if (twaininquirydata.GetTwainDirectSupport() <= DeviceRegister.TwainDirectSupport.Undefined)
                 {
                     TWAINWorkingGroup.Log.Error("TwainInquiry says it can't support this driver: " + szTwidentity);
                     continue;
@@ -2906,7 +2903,9 @@ namespace TwainDirect.OnTwain
 
 
                 // Congratulations, we think this is enough for full support...
-                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Full);
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Driver);
+
+                // Break out of the "loop" and move on...
                 break;
             }
 
@@ -3153,7 +3152,7 @@ namespace TwainDirect.OnTwain
 
                 // Just see if we can get it...
                 szStatus = "";
-                szCapability = "CAP_FEEDERENABLED";
+                szCapability = "CAP_SHEETCOUNT";
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 m_twaininquirydata.SetSheetCount(sts == TWAIN.STS.SUCCESS);
 
@@ -3556,14 +3555,15 @@ namespace TwainDirect.OnTwain
                 #endregion
 
 
-                // Good news, we've made it this far...
+                // Good news, we've made it this far, so break out of
+                // the "loop" and move on...
                 break;
             }
 
 
             // If we didn't get full support, then we need to see if we can get by
             // with a plan B where TWAIN Bridge handles the TWAIN Direct stuff...
-            if (m_twaininquirydata.GetTwainDirectSupport() != DeviceRegister.TwainDirectSupport.Full)
+            if (m_twaininquirydata.GetTwainDirectSupport() != DeviceRegister.TwainDirectSupport.Driver)
             {
                 // Reset the scanner.  This won't necessarily work for every device.
                 // We're not going to treat it as a failure, though, because the user
@@ -3643,8 +3643,8 @@ namespace TwainDirect.OnTwain
                 szStatus = TwainGetValue("ICAP_AUTOMATICCOLORENABLED");
                 m_blAutomaticColorEnabled = (szStatus != null);
 
-                // We're going minimal...
-                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Minimal);
+                // We're going full...
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Full);
             }
 
             // All done...

@@ -432,6 +432,75 @@ namespace TwainDirect.Support
             return false;
         }
 
+        /// <summary>
+        /// Check if a file is a valid PDF/raster...
+        /// </summary>
+        /// <param name="a_szPdf">file to check</param>
+        /// <param name="a_szError">text if we hit an error</param>
+        /// <returns>true if it's a valid PDF/raster file</returns>
+        public static bool ValidPdfRaster(string a_szPdf, out string a_szError)
+        {
+            int iDecoder;
+            byte[] abStripData;
+            PdfRasterReader.Reader pdfRasRd;
+            string szFunction = "";
+
+            // Hope for the best...
+            a_szError = "";
+
+            // The class throws errors, so get the mitt ready...
+            try
+            {
+                szFunction = "new PdfRasterReader.Reader()";
+                pdfRasRd = new PdfRasterReader.Reader();
+
+                szFunction = "pdfRasRd.decoder_create()";
+                iDecoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szPdf);
+
+                szFunction = "pdfRasRd.decoder_get_compression()";
+                pdfRasRd.decoder_get_compression(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_get_height()";
+                pdfRasRd.decoder_get_height(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_get_page_count()";
+                pdfRasRd.decoder_get_page_count(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_get_pixelformat()";
+                pdfRasRd.decoder_get_pixelformat(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_get_width()";
+                pdfRasRd.decoder_get_width(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_get_xresolution()";
+                pdfRasRd.decoder_get_xresolution(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_get_yresolution()";
+                pdfRasRd.decoder_get_yresolution(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_read_strips()";
+                abStripData = pdfRasRd.decoder_read_strips(iDecoder);
+
+                szFunction = "pdfRasRd.decoder_destroy()";
+                pdfRasRd.decoder_destroy(iDecoder);
+            }
+            catch (Exception exception)
+            {
+                a_szError = szFunction + ": " + exception.Message;
+                return (false);
+            }
+
+            // We almost made it...
+            if (abStripData == null)
+            {
+                a_szError = "pdfRasRd.decoder_read_strips(): error reading strip data";
+                return (false);
+            }
+
+            // Success...
+            return (true);
+        }
+
         #endregion
 
 

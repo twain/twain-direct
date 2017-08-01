@@ -328,19 +328,26 @@ namespace TwainDirect.Support
         #region Public Definitions...
 
         /// <summary>
-        /// Report the level of TWAIN Direct support.  A value of
-        /// none indicates that the driver is not safe for use.
-        /// Minimal indicates that the driver can be used, but it
-        /// needs the TWAIN Bridge to handle TWAIN Direct features.
-        /// Full indicates that the driver can handle TWAIN Direct
-        /// tasks and return metadata and PDF/raster images.
+        /// Report the level of TWAIN Direct support.  The order
+        /// matters, and must go from least support to most support...
+        /// 
+        /// None    - the driver is not safe for use.
+        /// Minimal - requires TWAIN Bridge to handle TWAIN Direct
+        ///           features, but didn't answer all inquires in
+        ///           a way that inspires full confidence.
+        /// Full    - requires TWAIN Bridge to handle TWAIN Direct
+        ///           features, but can safely use all of TWAIN
+        ///           Bridge's capabilities.
+        /// Driver  - the TWAIN driver can handle TWAIN Direct tasks
+        ///           and return metadata and PDF/raster images.
         /// </summary>
         public enum TwainDirectSupport
         {
-            Undefined,
-            None,
-            Minimal,
-            Full
+            Undefined = 0,
+            None = 1,
+            Minimal = 2,
+            Full = 3,
+            Driver = 4
         }
 
         /// <summary>
@@ -401,6 +408,7 @@ namespace TwainDirect.Support
                     case "none": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.None; break;
                     case "minimal": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Minimal; break;
                     case "full": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Full; break;
+                    case "driver": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Driver; break;
                 }
 
                 // CAP_AUTOMATICSENSEMEDIUM?

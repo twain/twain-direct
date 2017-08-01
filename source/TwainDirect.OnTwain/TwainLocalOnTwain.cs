@@ -1262,7 +1262,7 @@ namespace TwainDirect.OnTwain
             #region TWAIN Driver Support
 
             // Have the driver process the task...
-            if (m_deviceregisterSession.GetTwainLocalTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Full)
+            if (m_deviceregisterSession.GetTwainLocalTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Driver)
             {
                 string szMetadata;
                 TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);

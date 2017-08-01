@@ -43,12 +43,12 @@ return 'fail'
 set '${arg:2}' 'pass'
 ;
 ; Analyze the result...
-call CHECK 'TL.NSCN.WTEV.001' 'kind'
-call CHECK 'TL.NSCN.WTEV.002' 'commandId'
-call CHECK 'TL.NSCN.WTEV.003' 'method' '==' 'waitForEvents'
-call CHECK 'TL.NSCN.WTEV.004' 'results'
-call CHECK 'TL.NSCN.WTEV.005' 'results.success' '==' 'false'
-call CHECK 'TL.NSCN.WTEV.006' 'results.code' == 'invalidSessionId'
+call CHECK 'TL.NSCN.WAIT.001' 'kind'
+call CHECK 'TL.NSCN.WAIT.002' 'commandId'
+call CHECK 'TL.NSCN.WAIT.003' 'method' '==' 'waitForEvents'
+call CHECK 'TL.NSCN.WAIT.004' 'results'
+call CHECK 'TL.NSCN.WAIT.005' 'results.success' '==' 'false'
+call CHECK 'TL.NSCN.WAIT.006' 'results.code' == 'invalidSessionId'
 if '${get:${arg:2}}' != 'pass' goto CHECKINVALIDSESSIONID.FAIL
 ;
 ; We're good...

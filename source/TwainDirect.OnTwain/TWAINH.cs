@@ -4642,7 +4642,7 @@ namespace TWAINWorkingGroup
         /// We're departing from a strict translation of TWAIN.H so that
         /// we can achieve a unified status return type.  
         /// </summary>
-        private const int STSCC = 0x10000; // get us past the custom space
+        public const int STSCC = 0x10000; // get us past the custom space
         public enum STS
         {
             // Custom base (same for TWRC and TWCC)...

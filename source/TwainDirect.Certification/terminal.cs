@@ -107,6 +107,7 @@ namespace TwainDirect.Certification
             // Scripting...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCall,                         new string[] { "call" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCd,                           new string[] { "cd", "pwd" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCheckpdfraster,               new string[] { "checkpdfraster" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdClean,                        new string[] { "clean" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdDir,                          new string[] { "dir", "ls" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
@@ -824,6 +825,69 @@ namespace TwainDirect.Certification
             }
 
             // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Check all of the PDF/raster files in the images folder to
+        /// make sure they can be read (confirming that they're valid)...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private enum CHECKPDFRASTERRESULT { fail, skip, pass }
+        private bool CmdCheckpdfraster(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            bool blSuccess;
+            string szError = "";
+            CHECKPDFRASTERRESULT checkpdfrasterresult;
+
+            // The images folder...
+            string szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
+
+            // If we don't have an images folder, then we didn't pass
+            // but we also didn't necessarily fail, so mark it as a
+            // skip...
+            if (!Directory.Exists(szImagesFolder))
+            {
+                SetReturnValue(CHECKPDFRASTERRESULT.skip.ToString());
+                return (false);
+            }
+
+            // Give us some cover...
+            checkpdfrasterresult = CHECKPDFRASTERRESULT.skip;
+            try
+            {
+                // Get the PDF files, and walk through them...
+                DirectoryInfo directoryinfo = new DirectoryInfo(szImagesFolder);
+                foreach (System.IO.FileInfo file in directoryinfo.GetFiles("*.pdf"))
+                {
+                    blSuccess = PdfRaster.ValidPdfRaster(file.FullName, out szError);
+                    if (blSuccess)
+                    {
+                        // Only keep marking as pass if we've not seen a fail...
+                        if (checkpdfrasterresult > CHECKPDFRASTERRESULT.fail)
+                        {
+                            checkpdfrasterresult = CHECKPDFRASTERRESULT.pass;
+                        }
+                    }
+                    else
+                    {
+                        // Oh well...
+                        DisplayError("error in <" + file.FullName + "> - " + szError);
+                        checkpdfrasterresult = CHECKPDFRASTERRESULT.fail;
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                DisplayError("error while examining <" + szImagesFolder + "> - " + exception.Message);
+                SetReturnValue(CHECKPDFRASTERRESULT.fail.ToString());
+                return (false);
+            }
+
+            // Report what happened, skip if we didn't find any PDF files,
+            // fail if at least one of them failed, pass if they all passed...
+            SetReturnValue(checkpdfrasterresult.ToString());
             return (false);
         }
 

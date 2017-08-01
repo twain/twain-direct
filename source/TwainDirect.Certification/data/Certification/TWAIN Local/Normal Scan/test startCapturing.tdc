@@ -27,11 +27,11 @@ set startcapturingresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-run 'function CheckCode' 'TL.NSCN.STCP.001' 'startcapturingresult' 'createSession' 'busy'
-run 'function CheckCode' 'TL.NSCN.STCP.002' 'startcapturingresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
-run 'function CheckCode' 'TL.NSCN.STCP.003' 'startcapturingresult' 'readImageBlock' 'invalidState' '1' 'false'
-run 'function CheckCode' 'TL.NSCN.STCP.004' 'startcapturingresult' 'releaseImageBlocks' 'invalidState' '1' '1'
-run 'function CheckCode' 'TL.NSCN.STCP.005' 'startcapturingresult' 'stopCapturing' 'invalidState'
+run 'function CheckCode' 'TL.NSCN.STRT.001' 'startcapturingresult' 'createSession' 'busy'
+run 'function CheckCode' 'TL.NSCN.STRT.002' 'startcapturingresult' 'readImageBlockMetadata' 'invalidState' '1' 'false'
+run 'function CheckCode' 'TL.NSCN.STRT.003' 'startcapturingresult' 'readImageBlock' 'invalidState' '1' 'false'
+run 'function CheckCode' 'TL.NSCN.STRT.004' 'startcapturingresult' 'releaseImageBlocks' 'invalidState' '1' '1'
+run 'function CheckCode' 'TL.NSCN.STRT.005' 'startcapturingresult' 'stopCapturing' 'invalidState'
 
 
 
@@ -45,8 +45,8 @@ call STARTCAPTURING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the codes, we're looking for commands that must return busy and invalidState
 ;
-run 'function CheckCode' 'TL.NSCN.STCP.017' 'startcapturingresult' 'createSession' 'busy'
-run 'function CheckCode' 'TL.NSCN.STCP.018' 'startcapturingresult' 'startCapturing' 'invalidState'
+run 'function CheckCode' 'TL.NSCN.STRT.017' 'startcapturingresult' 'createSession' 'busy'
+run 'function CheckCode' 'TL.NSCN.STRT.018' 'startcapturingresult' 'startCapturing' 'invalidState'
 
 
 
@@ -68,17 +68,17 @@ return '${get:startcapturingresult}'
 startCapturing
 ;
 ; Check the headers...
-run 'function CheckHeader' 'TL.NSCN.STCP.006' 'startcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
-run 'function CheckHeader' 'TL.NSCN.STCP.007' 'startcapturingresult' 'Content-Length' == '${rdata:#}'
+run 'function CheckHeader' 'TL.NSCN.STRT.006' 'startcapturingresult' 'Content-Type' ~contains 'application/json' 'charset=utf-8'
+run 'function CheckHeader' 'TL.NSCN.STRT.007' 'startcapturingresult' 'Content-Length' == '${rdata:#}'
 ;
 ; Check the mandatory properties...
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.008' 'startcapturingresult' 'kind' == 'twainlocalscanner'
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.009' 'startcapturingresult' 'commandId'
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.010' 'startcapturingresult' 'method' == 'startCapturing'
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.011' 'startcapturingresult' 'results'
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.012' 'startcapturingresult' 'results.success' == 'true'
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.013' 'startcapturingresult' 'results.session'
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.014' 'startcapturingresult' 'results.session.sessionId' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.015' 'startcapturingresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.STCP.016' 'startcapturingresult' 'results.session.state' == 'capturing'
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.008' 'startcapturingresult' 'kind' == 'twainlocalscanner'
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.009' 'startcapturingresult' 'commandId'
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.010' 'startcapturingresult' 'method' == 'startCapturing'
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.011' 'startcapturingresult' 'results'
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.012' 'startcapturingresult' 'results.success' == 'true'
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.013' 'startcapturingresult' 'results.session'
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.014' 'startcapturingresult' 'results.session.sessionId' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.015' 'startcapturingresult' 'results.session.revision' != ''
+run 'function CheckJsonProperty' 'TL.NSCN.STRT.016' 'startcapturingresult' 'results.session.state' == 'capturing'
 return '${get:startcapturingresult}'

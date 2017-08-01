@@ -1,0 +1,99 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test mDNS
+; Check the mDNS TXT fields for their presence and for mandatory values.
+;
+; Arguments
+; (none)
+;
+; Locals
+; mdnsresult - result of the test
+;
+; returns: pass or fail
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'Test mDNS v1.0 31-Jul-2017'
+set mdnsresult pass
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Examine the TXT fields in the mDNS data.
+;
+call CHECKTXT 'TL.MDNS.TEXT.001' 'mdnsresult' 'cs' '==' 'online' 'offline' 'connecting' 'not-configured'
+call CHECKTXT 'TL.MDNS.TEXT.002' 'mdnsresult' 'id'
+call CHECKTXT 'TL.MDNS.TEXT.003' 'mdnsresult' 'https' '==' '1'
+call CHECKTXT 'TL.MDNS.TEXT.004' 'mdnsresult' 'txtvers' '==' '1'
+call CHECKTXT 'TL.MDNS.TEXT.005' 'mdnsresult' 'ty'
+call CHECKTXT 'TL.MDNS.TEXT.006' 'mdnsresult' 'type' 'contains' 'twaindirect'
+call CHECKTXT 'TL.MDNS.TEXT.007' 'mdnsresult' 'url'
+if '${get:mdnsresult}' != 'pass' goto MAIN.FAIL
+;
+; We're good...
+echopassfail 'SUMMARY' 'pass'
+return 'pass'
+;
+:MAIN.FAIL
+echopassfail 'SUMMARY' 'fail'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check Text
+; Check that the specified mDNS TXT field passes the test(s). If the
+; TXT name is the only thing specified, we just check if it exists.
+; If an if-statement operator is included, then we also check it
+; against one or more values...
+;
+; Arguments
+; arg:1 - title for this test
+; arg:2 - [REF] status (only set to fail, if needed)
+; arg:3 - TXT field to check
+; arg:4 - if-statement operation to perform
+; arg:5 - first item to check against the operation
+; arg:n - arguments repeat as needed
+;
+; Locals
+; checktxt.aa - argument counter
+;
+; returns pass or fail
+:CHECKTXT
+;
+; Make sure the property exists...
+if '${txtx:${arg:3}}' == '(null)' goto CHECKTXT.MISSING
+;
+; if we have no operator, we're done...
+if '${arg:4}' == '' goto CHECKTXT.PASS
+;
+; Do the if-statement (init at 3, we'll start at 4), we are
+; successful if we find an item, unsuccessful if we exhaust
+; the list without finding a match...
+set checktxt.aa 3
+:CHECKTXT.NEXTIF
+	increment checktxt.aa ${get:checktxt.aa} 1
+	if '${get:checktxt.aa}' > '${arg:#}' goto CHECKTXT.FAILEDIF
+	if '${txt:${arg:3}}' '${arg:4}' '${arg:${get:checktxt.aa}}' goto CHECKTXT.PASS
+	goto CHECKTXT.NEXTIF
+;
+; An if-statement failed...
+:CHECKTXT.FAILEDIF
+echopassfail '${arg:1}: check ${arg:3}' 'fail (if '<${txt:${arg:3}}>' '${arg:4}' '<${arg:${get:checktxt.aa}}>')'
+set '${arg:2}' 'fail'
+return 'fail'
+;
+; The property is missing...
+:CHECKTXT.MISSING
+echopassfail '${arg:1}: ${arg:3}' 'fail (${arg:3} missing)'
+set '${arg:2}' 'fail'
+return 'fail'
+;
+; We're good...
+:CHECKTXT.PASS
+echopassfail '${arg:1}: ${arg:3}' 'pass'
+return 'pass'
