@@ -75,7 +75,7 @@ run 'function CheckJsonProperty' 'TL.INFO.PROP.003' 'inforesult' 'device_state' 
 run 'function CheckJsonProperty' 'TL.INFO.PROP.004' 'inforesult' 'manufacturer' '!=' ''
 run 'function CheckJsonProperty' 'TL.INFO.PROP.005' 'inforesult' 'model' '!=' ''
 run 'function CheckJsonProperty' 'TL.INFO.PROP.006' 'inforesult' 'serial_number' '!=' ''
-run 'function CheckJsonProperty' 'TL.INFO.PROP.007' 'inforesult' 'uptime' '!=' ''
+run 'function CheckJsonProperty' 'TL.INFO.PROP.007' 'inforesult' 'uptime' '>' '0'
 run 'function CheckJsonProperty' 'TL.INFO.PROP.008' 'inforesult' 'version' '==' '1.0'
 run 'function CheckJsonProperty' 'TL.INFO.PROP.009' 'inforesult' 'x-privet-token' '!=' ''
 

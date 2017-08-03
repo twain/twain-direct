@@ -58,11 +58,18 @@ return '${get:xprivettokenerrorresult}'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; CHECKMISSING
+;
+; Arguments
 ; arg:1 - title of the test
 ; arg:2 - command to run
 ; arg:3 - argument to the command
 ; arg:4 - argument to the command
 ; arg:5 - argument to the command
+;
+; Locals
+; checkmissing.ii - argument counter
+; checkmissing.aa - argument counter
+;
 ; returns pass or fail
 ;
 :CHECKMISSING
@@ -70,10 +77,18 @@ return '${get:xprivettokenerrorresult}'
 ; Log it to make it easier to diagnose stuff...
 log info '#'
 log info '#Test:                        ${arg:1}'
-log info '#Task:                        ${arg:2}'
-log info '#arg-1:                       ${arg:3}'
-log info '#arg-2:                       ${arg:4}'
-log info '#arg-3:                       ${arg:5}'
+log info '#Command:                     ${arg:2}'
+;
+; Dump the arguments (if any)...
+set checkmissing.ii 1
+set checkmissing.aa 3
+:CHECKMISSING.ARGLOOP
+	if '${arg:${get:checkmissing.aa}}' == '' goto CHECKMISSING.ARGDONE
+	log info '#arg-${get:checkmissing.ii}:                       ${arg:${get:checkmissing.aa}}'
+	increment checkmissing.ii '${get:checkmissing.ii}' 1
+	increment checkmissing.aa '${get:checkmissing.aa}' 1
+	goto CHECKMISSING.ARGLOOP
+:CHECKMISSING.ARGDONE
 ;
 ; Send the command with no X-Privet-Token...
 '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
@@ -112,11 +127,18 @@ return 'fail'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; CHECKINVALID
+;
+; Arguments
 ; arg:1 - title of the test
 ; arg:2 - command to run
 ; arg:3 - argument to the command
 ; arg:4 - argument to the command
 ; arg:5 - argument to the command
+;
+; Locals
+; checkmissing.ii - argument counter
+; checkmissing.aa - argument counter
+;
 ; returns pass or fail
 ;
 :CHECKINVALID
@@ -124,10 +146,18 @@ return 'fail'
 ; Log it to make it easier to diagnose stuff...
 log info '#'
 log info '#Test:                        ${arg:1}'
-log info '#Task:                        ${arg:2}'
-log info '#arg-1:                       ${arg:3}'
-log info '#arg-2:                       ${arg:4}'
-log info '#arg-3:                       ${arg:5}'
+log info '#Command:                     ${arg:2}'
+;
+; Dump the arguments (if any)...
+set checkmissing.ii 1
+set checkmissing.aa 3
+:CHECKINVALID.ARGLOOP
+	if '${arg:${get:checkmissing.aa}}' == '' goto CHECKINVALID.ARGDONE
+	log info '#arg-${get:checkmissing.ii}:                       ${arg:${get:checkmissing.aa}}'
+	increment checkmissing.ii '${get:checkmissing.ii}' 1
+	increment checkmissing.aa '${get:checkmissing.aa}' 1
+	goto CHECKINVALID.ARGLOOP
+:CHECKINVALID.ARGDONE
 ;
 ; Send the command with a bad X-Privet_Token...
 twainlocalsession create

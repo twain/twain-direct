@@ -1162,18 +1162,25 @@ namespace TwainDirect.Support
                     // if an error occurs, we disassociate the DNSServiceRef from the window, deallocate
                     // it, and invalidate the reference so we don't try to deallocate it again on quit. 
                     // Since this is a simple example app, if this error occurs, we quit the app too.
-                    dnsserviceerrortype = m_pfndnsserviceprocessresult(m_dnsservicerefClient);
-                    if (dnsserviceerrortype == 0) // kDNSServiceErr_NoError
+                    try
                     {
-                        // Do the callback...
+                        dnsserviceerrortype = m_pfndnsserviceprocessresult(m_dnsservicerefClient);
+                        if (dnsserviceerrortype == 0) // kDNSServiceErr_NoError
+                        {
+                            // Do the callback...
+                        }
+                        else
+                        {
+                            Log.Error("bonjour error..." + dnsserviceerrortype);
+                            NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), a_hwnd, NativeMethods.BONJOUR_EVENT, 0);
+                            m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
+                            m_dnsservicerefService = IntPtr.Zero;
+                            NativeMethods.PostMessage(a_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                        }
                     }
-                    else
+                    catch (Exception exception)
                     {
-                        Log.Error("bonjour error..." + dnsserviceerrortype);
-                        NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), a_hwnd, NativeMethods.BONJOUR_EVENT, 0);
-                        m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
-                        m_dnsservicerefService = IntPtr.Zero;
-                        NativeMethods.PostMessage(a_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                        Log.Error("bonjour exception..." + exception.Message);
                     }
 
                     // All done...

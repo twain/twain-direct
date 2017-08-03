@@ -29,7 +29,7 @@ call CHECKTXT 'TL.MDNS.TEXT.001' 'mdnsresult' 'cs' '==' 'online' 'offline' 'conn
 call CHECKTXT 'TL.MDNS.TEXT.002' 'mdnsresult' 'id'
 call CHECKTXT 'TL.MDNS.TEXT.003' 'mdnsresult' 'https' '==' '1'
 call CHECKTXT 'TL.MDNS.TEXT.004' 'mdnsresult' 'txtvers' '==' '1'
-call CHECKTXT 'TL.MDNS.TEXT.005' 'mdnsresult' 'ty'
+call CHECKTXT 'TL.MDNS.TEXT.005' 'mdnsresult' 'ty' '!=' ''
 call CHECKTXT 'TL.MDNS.TEXT.006' 'mdnsresult' 'type' 'contains' 'twaindirect'
 call CHECKTXT 'TL.MDNS.TEXT.007' 'mdnsresult' 'url'
 if '${get:mdnsresult}' != 'pass' goto MAIN.FAIL
@@ -65,6 +65,22 @@ return 'fail'
 ; returns pass or fail
 :CHECKTXT
 ;
+; Log it to make it easier to diagnose stuff...
+log info '#'
+log info '#Test:                        ${arg:1}'
+log info '#TXT Field:                   ${arg:3}'
+;
+; Dump the arguments (if any)...
+set checkmissing.ii 1
+set checkmissing.aa 4
+:CHECKTXT.ARGLOOP
+	if '${arg:${get:checkmissing.aa}}' == '' goto CHECKTXT.ARGDONE
+	log info '#arg-${get:checkmissing.ii}:                       ${arg:${get:checkmissing.aa}}'
+	increment checkmissing.ii '${get:checkmissing.ii}' 1
+	increment checkmissing.aa '${get:checkmissing.aa}' 1
+	goto CHECKTXT.ARGLOOP
+:CHECKTXT.ARGDONE
+;
 ; Make sure the property exists...
 if '${txtx:${arg:3}}' == '(null)' goto CHECKTXT.MISSING
 ;
@@ -83,17 +99,20 @@ set checktxt.aa 3
 ;
 ; An if-statement failed...
 :CHECKTXT.FAILEDIF
-echopassfail '${arg:1}: check ${arg:3}' 'fail (if '<${txt:${arg:3}}>' '${arg:4}' '<${arg:${get:checktxt.aa}}>')'
+echopassfail '${arg:1}: check ${arg:3}' 'fail (if <${txt:${arg:3}}> ${arg:4} <${arg:${get:checktxt.aa}}>)'
+log info '#Test result:                 fail (if <${txt:${arg:3}}> ${arg:4} <${arg:${get:checktxt.aa}}>)'
 set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECKTXT.MISSING
 echopassfail '${arg:1}: ${arg:3}' 'fail (${arg:3} missing)'
+log info '#Test result:                 fail (${arg:3} missing)'
 set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; We're good...
 :CHECKTXT.PASS
 echopassfail '${arg:1}: ${arg:3}' 'pass'
+log info '#Test result:                 pass'
 return 'pass'

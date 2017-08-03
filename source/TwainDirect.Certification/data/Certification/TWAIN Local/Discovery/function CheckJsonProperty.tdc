@@ -17,7 +17,22 @@
 ; checkproperty.aa - argument counter
 ;
 ; returns pass or fail
-
+;
+; Log it to make it easier to diagnose stuff...
+log info '#'
+log info '#Test:                        ${arg:1}'
+log info '#Property:                    ${arg:3}'
+;
+; Dump the arguments (if any)...
+set checkmissing.ii 1
+set checkmissing.aa 4
+:MAIN.ARGLOOP
+	if '${arg:${get:checkmissing.aa}}' == '' goto MAIN.ARGDONE
+	log info '#arg-${get:checkmissing.ii}:                       ${arg:${get:checkmissing.aa}}'
+	increment checkmissing.ii '${get:checkmissing.ii}' 1
+	increment checkmissing.aa '${get:checkmissing.aa}' 1
+	goto MAIN.ARGLOOP
+:MAIN.ARGDONE
 ;
 ; Make sure the property exists...
 if '${rjx:${arg:3}}' == '(null)' goto CHECK.MISSING
@@ -37,17 +52,20 @@ set checkproperty.aa 3
 ;
 ; An if-statement failed...
 :CHECK.FAILEDIF
-echopassfail '${arg:1}: check ${arg:3}' 'fail (if '<${rj:${arg:3}}>' '${arg:4}' '<${arg:${get:checkproperty.aa}}>')'
+echopassfail '${arg:1}: check ${arg:3}' 'fail (if <${rj:${arg:3}}> ${arg:4} <${arg:${get:checkproperty.aa}}>)'
+log info '#Test result:                 fail (if <${rj:${arg:3}}> ${arg:4} <${arg:${get:checkproperty.aa}}>)'
 set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; The property is missing...
 :CHECK.MISSING
 echopassfail '${arg:1}: ${arg:3}' 'fail (${arg:3} missing)'
+log info '#Test result:                 fail (${arg:3} missing)'
 set '${arg:2}' 'fail'
 return 'fail'
 ;
 ; We're good...
 :CHECK.PASS
 echopassfail '${arg:1}: ${arg:3}' 'pass'
+log info '#Test result:                 pass'
 return 'pass'

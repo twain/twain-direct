@@ -37,7 +37,7 @@ set checkproperty.aa 3
 ;
 ; An if-statement failed...
 :CHECK.FAILEDIF
-echopassfail '${arg:1}: check ${arg:3}' 'fail (if '<${rj:${arg:3}}>' '${arg:4}' '<${arg:${get:checkproperty.aa}}>')'
+echopassfail '${arg:1}: check ${arg:3}' 'fail (if <${rj:${arg:3}}> ${arg:4} <${arg:${get:checkproperty.aa}}>)'
 set '${arg:2}' 'fail'
 return 'fail'
 ;
