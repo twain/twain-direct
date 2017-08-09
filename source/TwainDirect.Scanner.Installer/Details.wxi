@@ -47,4 +47,20 @@
   <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
   <?define ProductLicense="$(var.ResourceFolder)\license.rtf" ?>
 
+  <!-- Url reservation rights -->
+  <!-- D (dacl_flags)
+       A: ACCESS_ALLOWED
+       GX: GENERIC_EXECUTE
+       BU: BUILTIN_USERS
+  -->
+  <?define UrlDacl="D:(A;;GX;;;BU)" ?>
+
+  <!-- SLL configuration -->   
+  <?define Port="55554" ?>
+  <?define SslPort="55555" ?>
+  
+  <?define AppId="{A62BAF24-2841-4B54-AC43-5758F603F3DA}" ?>
+  <?define CertHash="2c42009c747e24b32640f737ae5ea50c46f6cfd3"?>
+  <?define firefox.process="firefox.exe"?>
+
 </Include>
