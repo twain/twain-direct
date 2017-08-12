@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+		 xmlns:iis="http://schemas.microsoft.com/wix/IIsExtension">
 
   <?include Details.wxi ?>
   
@@ -25,8 +26,14 @@
       <Directory Id="$(var.PlatformProgramFilesFolder)">
         <Directory Id="INSTALLFOLDER" Name="TWAIN Direct Scanner">
 
-          <Component Id="TwainDirect.Scanner.exe" Guid="{8BA908AD-DFB4-4BC6-9132-5028E90CC6D5}">
+					<Component Id="TwainDirect.Scanner.exe" Guid="{8BA908AD-DFB4-4BC6-9132-5028E90CC6D5}">
             <File Id="TwainDirect.Scanner.exe" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.exe" KeyPath="yes" />
+						<!-- Register for autorun -->
+						<RegistryValue Id="TwainDirect.Scanner.Reg.startup" Root="HKLM" Action="write"
+						               Key="Software\Microsoft\Windows\CurrentVersion\Run"
+						               Name="$(var.ProductName)"
+						               Value="[#TwainDirect.Scanner.exe]"
+						               Type="string" />
           </Component>
           <Component Id="TwainDirect.Scanner.exe.config" Guid="{B0CD6476-8A29-4B01-A611-60F798604876}">
             <File Id="TwainDirect.Scanner.exe.config" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.exe.config" KeyPath="yes" />
@@ -47,7 +54,26 @@
             <File Id="pdfras_reader_managed.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\pdfras_reader_managed.dll" KeyPath="yes" />
           </Component>
 
-        </Directory>
+					<Component Id="https.certificates" Guid="{42D7EB8F-4BAB-4996-A1EE-EA6B8A86741F}">
+						<RegistryValue Root="HKLM" Key="Software\[Manufacturer]\[ProductName]" Type="string" Value="" KeyPath="yes" />
+
+						<!--certificates not support keypath itself so couldn't extract them in separate component for now-->
+						<iis:Certificate Id="ca.cert"
+						                 Name="Kofax.WebCapture.CA"
+						                 BinaryKey="ca.cert.bin"
+						                 Overwrite="yes"
+						                 StoreLocation="localMachine"
+						                 StoreName="root"/>
+
+						<iis:Certificate Id="server.cert"
+						                 Name="Kofax.WebCapture.Server"
+						                 BinaryKey="server.cert.bin"
+						                 Overwrite="yes"
+						                 StoreLocation="localMachine"
+						                 StoreName="personal"/>
+					</Component>
+
+				</Directory>
       </Directory>
     </Directory>
     

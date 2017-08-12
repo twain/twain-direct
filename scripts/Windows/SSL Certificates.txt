@@ -1,0 +1,48 @@
+0. Critical additions to openssl.cnf
+ 
+  # under [ usr_cert ] section
+  subjectAltName = @alt_names
+
+  [alt_names]
+  IP.1 = 127.0.0.1
+
+  [SAN]
+  subjectAltName=DNS:127.0.0.1
+
+1. Generate CA certificate
+
+openssl genrsa -out Twain.Direct.CA.key 2048
+openssl req -new -x509 -keyout Twain.Direct.CA.key -out Twain.Direct.CA.crt -days 10959 -config openssl.cnf -extensions v3_ca 
+	
+  Country Name (2 letter code) [AU]:US
+  State or Province Name (full name) [Some-State]:California
+  Locality Name (eg, city) []:
+  Organization Name (eg, company) [Internet Widgits Pty Ltd]:TWAIN Working Group
+  Organizational Unit Name (eg, section) []:
+  Common Name (e.g. server FQDN or YOUR name) []:TWAIN Direct
+  Email Address []:
+  
+2. Generate Localhost certificate
+
+openssl req -newkey rsa:2048 -nodes -out Twain.Direct.Localhost.csr -keyout Twain.Direct.Localhost.key -config openssl.cnf -reqexts SAN -extensions SAN
+
+  Country Name (2 letter code) [AU]:US
+  State or Province Name (full name) [Some-State]:California
+  Locality Name (eg, city) []:
+  Organization Name (eg, company) [Internet Widgits Pty Ltd]:TWAIN Working Group
+  Organizational Unit Name (eg, section) []:
+  Common Name (e.g. server FQDN or YOUR name) []:127.0.0.1
+  Email Address []:
+
+openssl ca -cert Twain.Direct.CA.crt -keyfile Twain.Direct.CA.key -out Twain.Direct.Localhost.crt -days 10959 -config openssl.cnf -infiles Twain.Direct.Localhost.csr
+openssl pkcs12 -export -in Twain.Direct.Localhost.crt -inkey Twain.Direct.Localhost.key -name Twain.Direct.Localhost -out Twain.Direct.Localhost.pfx
+
+3. Export certification in CER format
+
+Twain.Direct.CA.csr and Twain.Direct.Localhost.csr need to be converted into .cer format. 
+To do that, double-click the certificates, go to 'Details' tab -> 'Copy to File' and select 'DER encoded binary X.509 (.CER)' option.
+
+4. Update certificate hash in installer! 
+
+You need to copy 'Thumbprint' value from Twain.Direct.Localhost.crt, remove all the spaces and put it to the installer. 
+At the time of writing, you need to update Details.wxi, 'CertHash' property.

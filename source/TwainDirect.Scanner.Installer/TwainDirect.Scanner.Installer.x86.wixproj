@@ -31,10 +31,13 @@
     <DefineConstants>ProductVersion=$(BuildVersion)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Certificate.wxs" />
     <Compile Include="Files.wxs" />
     <Compile Include="Product.wxs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Certificates\Twain.Direct.CA.cer" />
+    <Content Include="Certificates\Twain.Direct.Localhost.pfx" />
     <Content Include="Details.wxi" />
     <Content Include="Images\banner.bmp" />
     <Content Include="Images\dialog.bmp" />
@@ -46,8 +49,17 @@
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
     </WixExtension>
-  </ItemGroup>
+	  <WixExtension Include="WixUtilExtension">
+		  <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+		  <Name>WixUtilExtension</Name>
+	  </WixExtension>
+	  <WixExtension Include="WixIIsExtension">
+		  <HintPath>$(WixExtDir)\WixIIsExtension.dll</HintPath>
+		  <Name>WixIIsExtension</Name>
+	  </WixExtension>
+	</ItemGroup>
   <ItemGroup>
+    <Folder Include="Certificates\" />
     <Folder Include="Images\" />
   </ItemGroup>
   <ItemGroup>

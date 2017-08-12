@@ -46,7 +46,13 @@ namespace TwainDirect.App
         [STAThread]
         static void Main(string[] a_aszArgs)
         {
-            FormScan formscan;
+			// TODO: Handle this correctly - this is a temporary workaround.
+
+	        //Trust all certificates
+	        System.Net.ServicePointManager.ServerCertificateValidationCallback =
+		        ((sender, certificate, chain, sslPolicyErrors) => true);
+
+			FormScan formscan;
 
             // Basic initialization stuff...
             Application.EnableVisualStyles();

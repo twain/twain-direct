@@ -31,6 +31,7 @@
     <DefineConstants>ProductVersion=$(BuildVersion)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Certificate.wxs" />
     <Compile Include="Files.wxs" />
     <Compile Include="Product.wxs" />
   </ItemGroup>
@@ -46,7 +47,15 @@
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
     </WixExtension>
-  </ItemGroup>
+	  <WixExtension Include="WixUtilExtension">
+		  <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+		  <Name>WixUtilExtension</Name>
+	  </WixExtension>
+	  <WixExtension Include="WixIIsExtension">
+		  <HintPath>$(WixExtDir)\WixIIsExtension.dll</HintPath>
+		  <Name>WixIIsExtension</Name>
+	  </WixExtension>
+	</ItemGroup>
   <ItemGroup>
     <Folder Include="Images\" />
   </ItemGroup>
