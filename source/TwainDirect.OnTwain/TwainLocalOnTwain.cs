@@ -776,13 +776,20 @@ namespace TwainDirect.OnTwain
             if (!File.Exists(szSessionImageBlocksDrained))
             {
                 TWAINWorkingGroup.Log.Info("SetImageBlocksDrained: " + a_sts);
-                File.WriteAllText
-                (
-                    szSessionImageBlocksDrained,
-                    "{" +
-                    "\"detected\":\"" + a_sts + "\"" +
-                    "}"
-                );
+                try
+                {
+                    File.WriteAllText
+                    (
+                        szSessionImageBlocksDrained,
+                        "{" +
+                        "\"detected\":\"" + a_sts + "\"" +
+                        "}"
+                    );
+                }
+                catch (Exception exception)
+                { 
+                    TWAINWorkingGroup.Log.Error("SetImageBlocksDrained: error writing <" + szSessionImageBlocksDrained + "> - " + exception.Message);
+                }
             }
         }
 

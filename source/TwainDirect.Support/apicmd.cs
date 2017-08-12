@@ -1373,7 +1373,8 @@ namespace TwainDirect.Support
                             if (lMultipartContentLength <= (lRead - lOffset))
                             {
                                 // Write out the data segment we have...
-                                filestreamOutputFile.Write(abBuffer, 0, (int)(lRead - lOffset));
+                                filestreamOutputFile.Write(abBuffer, (int)lOffset, (int)(lRead - lOffset));
+                                lOffset = 0;
                             }
 
                             // Otherwise we've not read enough data, so we'll be doing
@@ -1385,7 +1386,7 @@ namespace TwainDirect.Support
                                 // with the data block...
                                 if ((lRead - lOffset) > 0)
                                 {
-                                    filestreamOutputFile.Write(abBuffer, 0, (int)(lRead - lOffset));
+                                    filestreamOutputFile.Write(abBuffer, (int)lOffset, (int)(lRead - lOffset));
                                 }
 
                                 // Read and write the rest of the data in this block...
