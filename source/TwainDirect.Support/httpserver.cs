@@ -123,19 +123,25 @@ namespace TwainDirect.Support
             if (Config.Get("useHttps", "yes") == "yes")
             {
                 szUri = @"https://+:" + m_iPort + "/privet/info/";
+                Log.Info("Monitoring: " + szUri);
                 m_httplistener.Prefixes.Add(szUri);
                 szUri = @"https://+:" + m_iPort + "/privet/infoex/";
+                Log.Info("Monitoring: " + szUri);
                 m_httplistener.Prefixes.Add(szUri);
                 szUri = @"https://+:" + m_iPort + "/privet/twaindirect/session/";
+                Log.Info("Monitoring: " + szUri);
                 m_httplistener.Prefixes.Add(szUri);
             }
             else
             {
                 szUri = @"http://+:" + m_iPort + "/privet/info/";
+                Log.Info("Monitoring: " + szUri);
                 m_httplistener.Prefixes.Add(szUri);
                 szUri = @"http://+:" + m_iPort + "/privet/infoex/";
+                Log.Info("Monitoring: " + szUri);
                 m_httplistener.Prefixes.Add(szUri);
                 szUri = @"http://+:" + m_iPort + "/privet/twaindirect/session/";
+                Log.Info("Monitoring: " + szUri);
                 m_httplistener.Prefixes.Add(szUri);
             }
 

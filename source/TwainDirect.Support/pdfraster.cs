@@ -216,6 +216,7 @@ namespace TwainDirect.Support
         /// - color jpeg
         /// </summary>
         /// <param name="a_szPrdFile">file to store the pdf/raster</param>
+        /// <param name="a_szMetadata">metadata in json->xml conversion format</param>
         /// <param name="a_abImage">raw image data to wrap</param>
         /// <param name="a_iImageOffset">byte offset into the image</param>
         /// <param name="a_szPixelFormat">bw1, gray8, rgb24</param>
@@ -227,6 +228,7 @@ namespace TwainDirect.Support
         public static bool CreatePdfRaster
         (
             string a_szPdfRasterFile,
+            string a_szMetadataJson,
             byte[] a_abImage,
             int a_iImageOffset,
             string a_szPixelFormat,
@@ -326,6 +328,41 @@ namespace TwainDirect.Support
                     pdfRasWr.encoder_write_strip(enc, (int)a_i32Height, a_abImage, (UInt32)a_iImageOffset, (UInt32)(rowWidthInBytesNotBMP * a_i32Height));
                 }
 
+                // Add the metadata...
+                if (!string.IsNullOrEmpty(a_szMetadataJson))
+                {
+                    bool blSuccessLoad;
+                    long lJsonErrorIndex;
+                    JsonLookup jsonlookup = new JsonLookup();
+                    blSuccessLoad = jsonlookup.Load(a_szMetadataJson, out lJsonErrorIndex);
+                    if (!blSuccessLoad)
+                    {
+                        Log.Error("Failed to load metadata: " + a_szMetadataJson);
+                    }
+                    else
+                    {
+                        string szXmp;
+                        string szMetadataXml = jsonlookup.GetXml();
+
+                        // Try to build an XMP string that makes some kind of sense...
+                        szXmp =
+                            "<?xpacket begin=\"?\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>" +
+                            "<x:xmpdata xmlns:x=\"adobe:ns:meta/\">" +
+                            "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">" +
+                            "<rdf:Description rdf:about=\"\" xmlns:twaindirect=\"http://www.twaindirect.org/metadata/1.0\">" +
+                            "<twaindirect:twaindirect>" +
+                            szMetadataXml +
+                            "</twaindirect:twaindirect>" +
+                            "</rdf:Description>" +
+                            "</rdf:RDF>" +
+                            "</x:xmpdata>" +
+                            "<?xpacket end=\"w\"?>";
+
+                        // Write it...
+                        pdfRasWr.encoder_write_page_xmp(enc, szXmp);
+                    }
+                }
+
                 // End of page...
                 pdfRasWr.encoder_end_page(enc);
 
@@ -421,7 +458,7 @@ namespace TwainDirect.Support
                 }
 
                 // PDF/raster it...              
-                blSuccess = PdfRaster.CreatePdfRaster(a_szThumbnailFile, abImage, 0, "rgb24", "none", (int)bitmap.HorizontalResolution, bitmap.Width, bitmap.Height);
+                blSuccess = PdfRaster.CreatePdfRaster(a_szThumbnailFile, "", abImage, 0, "rgb24", "none", (int)bitmap.HorizontalResolution, bitmap.Width, bitmap.Height);
             }
 
             // All done...

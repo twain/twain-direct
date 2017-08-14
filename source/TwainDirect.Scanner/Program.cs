@@ -1,7 +1,6 @@
 ﻿// Helpers...
 using System;
-using System.IO;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
@@ -26,6 +25,15 @@ namespace TwainDirect.Scanner
             string szWriteFolder;
             float fScale;
 
+            // Are we already running?
+            Process[] aprocessTwainDirectScanner = Process.GetProcessesByName("TwainDirectScanner");
+            if ((aprocessTwainDirectScanner != null) && (aprocessTwainDirectScanner.Length > 1))
+            {
+                //tbd it would be nice to send a message to the running program
+                // so that it can make itself visible...
+                Environment.Exit(1);
+            }
+
             // Load our configuration information and our arguments,
             // so that we can access them from anywhere in the code...
             if (!Config.Load(Application.ExecutablePath, a_aszArgs, "appdata.txt"))
@@ -42,6 +50,19 @@ namespace TwainDirect.Scanner
             Log.Open(szExecutableName, szWriteFolder, 1);
             Log.SetLevel((int)Config.Get("logLevel", 0));
             Log.Info(szExecutableName + " Log Started...");
+
+            // Make sure that any stale TwainDirectOnTwain processes are gone...
+            foreach (Process processTwainDirectOnTwain in Process.GetProcessesByName("TwainDirectOnTwain"))
+            {
+                try
+                {
+                    processTwainDirectOnTwain.Kill();
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("unable to kill TwainDirectOnTwain - " + exception.Message);
+                }
+            }
 
             // Figure out what we're doing...
             string szCommand;

@@ -1514,12 +1514,46 @@ namespace TwainDirect.Support
         #region Public Device Methods...
 
         /// <summary>
-        /// Dispatch a command...
+        /// Dispatch a command.  Commands sent by applications show up here as
+        /// callbacks.  So in theory we're architected to handle multiple commands
+        /// arriving at the same time, since each one should be appearing inside
+        /// of its own thread.  That means we have to protect some data structures,
+        /// such as the session object (which includes the current state).
+        /// 
+        /// We ignore commands that aren't meant for us.  That is, that don't
+        /// satisfy the URI requirements.  We validate the X-Privet-Token before
+        /// taking any other action.
+        /// 
+        /// The info and infoex commands are handled first, since we're likely to
+        /// see more of them than any other command.
+        /// 
+        /// After that we're processing /privet/twaindirect/session commands.  We
+        /// validate our X-Privet-Token (received from a prior call to info or
+        /// infoex) and if that goes well we parse the JSON.
+        /// 
+        /// There are three properties: kind, commandId, and method.  The kind
+        /// identifies the format of the REST command.  At this time we only
+        /// understand twainlocalscanner.  twaincloudscanner should show up at
+        /// some point.
+        /// 
+        /// The commandId is a unique GUID for every command, and is part of our
+        /// strategy for making commands idempotent, and for cleanly handling
+        /// requests and responses in different threads.  This is an idea that is
+        /// still in development at this time (14-Aug-2017), and will probably be
+        /// fully realized in the TwainDirect.MobileApp before it gets here.
+        /// 
+        /// The method is the TWAIN Local command, we dispatch each of those to a
+        /// function.
+        /// 
         /// </summary>
         /// <param name="a_szJsonCommand">the command we received</param>
         /// <param name="a_httplistenercontext">thr HTTP object that delivered the command</param>
         /// <returns>true on success</returns>
-        public void DeviceDispatchCommand(string a_szJsonCommand, ref HttpListenerContext a_httplistenercontext)
+        public void DeviceDispatchCommand
+        (
+            string a_szJsonCommand,
+            ref HttpListenerContext a_httplistenercontext
+        )
         {
             int ii;
             bool blSuccess;
@@ -1648,7 +1682,7 @@ namespace TwainDirect.Support
                 }
             }
 
-            // Parse the command...
+            // Parse the JSON...
             long lResponseCharacterOffset;
             JsonLookup jsonlookup = new JsonLookup();
             blSuccess = jsonlookup.Load(a_szJsonCommand, out lResponseCharacterOffset);
@@ -1659,8 +1693,26 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // Init stuff...
+            // Init our API command object, this will track our progress
+            // and receieve either the result or any errors...
             apicmd = new ApiCmd(null, jsonlookup, ref a_httplistenercontext);
+
+            // Validate the kind property, we only support twainlocalscanner at this time...
+            if (jsonlookup.Get("kind") != "twainlocalscanner")
+            {
+                DeviceReturnError(szFunction, apicmd, "invalidValue", "kind", -1);
+                return;
+            }
+
+            // Validate the commandId property, it must be present, and it must be a GUID...
+            Guid guidCommandid;
+            if (!Guid.TryParse(jsonlookup.Get("commandId"), out guidCommandid))
+            {
+                DeviceReturnError(szFunction, apicmd, "invalidValue", "commandId", -1);
+                return;
+            }
+
+            // We'll handle method further down...
 
             // If we are running a session, make sure that the command's session id matches
             // our session's id...
@@ -1726,7 +1778,8 @@ namespace TwainDirect.Support
             switch (jsonlookup.Get("method"))
             {
                 default:
-                    break;
+                    DeviceReturnError(szFunction, apicmd, "invalidValue", "method", -1);
+                    return;
 
                 case "closeSession":
                     DeviceScannerCloseSession(ref apicmd);

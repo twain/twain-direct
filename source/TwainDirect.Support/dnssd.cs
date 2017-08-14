@@ -381,6 +381,22 @@ namespace TwainDirect.Support
                 return (true);
             }
 
+            // mDNS record...
+            Log.Info
+            (
+                "mDNS: " +
+                "instance=<" + a_szInstanceName + "._twaindirect._privet._tcp> " +
+                "port=<" + a_iPort + "> " +
+                "txtvers=<1> " +
+                "ty=<" + a_szTy + "> " +
+                "url=<" + a_szUrl + "> " +
+                "type=<twaindirect> " +
+                "id=<> " +
+                "cs=<offline> " +
+                "https=<" + ((Config.Get("useHttps", "yes") == "no") ? "0" : "1") + "> " +
+                "note=<" + a_szNote + "> "
+            );
+
             // Build the txt record, note that there is no "auto" for https=
             // on the registration side.  The user has to pick, and the default
             // is for https being true.  Once the record is built we have to

@@ -36,10 +36,13 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.m_buttonStart = new System.Windows.Forms.Button();
             this.m_buttonStop = new System.Windows.Forms.Button();
             this.m_richtextboxTask = new System.Windows.Forms.RichTextBox();
             this.m_buttonRegister = new System.Windows.Forms.Button();
+            this.m_notifyicon = new System.Windows.Forms.NotifyIcon(this.components);
             this.SuspendLayout();
             // 
             // m_buttonStart
@@ -86,6 +89,14 @@
             this.m_buttonRegister.UseVisualStyleBackColor = true;
             this.m_buttonRegister.Click += new System.EventHandler(this.m_buttonRegister_Click);
             // 
+            // m_notifyicon
+            // 
+            this.m_notifyicon.BalloonTipText = "TWAIN Direct on TWAIN Bridge";
+            this.m_notifyicon.BalloonTipTitle = "TWAIN Direct";
+            this.m_notifyicon.Icon = ((System.Drawing.Icon)(resources.GetObject("m_notifyicon.Icon")));
+            this.m_notifyicon.Text = "TWAIN Direct";
+            this.m_notifyicon.Visible = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -107,6 +118,7 @@
         private System.Windows.Forms.Button m_buttonStop;
         private System.Windows.Forms.RichTextBox m_richtextboxTask;
         private System.Windows.Forms.Button m_buttonRegister;
+        private System.Windows.Forms.NotifyIcon m_notifyicon;
     }
 }
 

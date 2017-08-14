@@ -130,6 +130,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="data\appdata.txt" />
+    <None Include="Resources\SystemTray.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

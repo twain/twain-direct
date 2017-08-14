@@ -967,6 +967,7 @@ namespace TwainDirect.OnSane
                     blSuccess = PdfRaster.CreatePdfRaster
                     (
                         szPdfFile,
+                        "",
                         abImage,
                         0,
                         szTwainDirectPixelFormat,

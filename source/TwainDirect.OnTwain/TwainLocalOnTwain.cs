@@ -550,26 +550,6 @@ namespace TwainDirect.OnTwain
                     break;
             }
 
-            // Save as PDF/Raster...
-            blSuccess = PdfRaster.CreatePdfRaster
-            (
-                szImageFile,
-                a_abImage,
-                a_iImageOffset,
-                szPixelFormat,
-                szCompression,
-                twimageinfo.XResolution.Whole,
-                twimageinfo.ImageWidth,
-                twimageinfo.ImageLength
-            );
-            if (!blSuccess)
-            {
-                TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile);
-                m_blCancel = false;
-                SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                return (TWAINCSToolkit.MSG.RESET);
-            }
-
             // Work out the source...
             string szSource = "";
             if (m_blFlatbed)
@@ -700,11 +680,7 @@ namespace TwainDirect.OnTwain
             szMeta += "\"pixelWidth\":" + twimageinfo.ImageWidth + ",";
 
             // Add resolution...
-            szMeta += "\"resolution\":" + twimageinfo.XResolution.Whole + ",";
-
-            // Add size...
-            FileInfo fileinfo = new FileInfo(szImageFile);
-            szMeta += "\"size\":" + fileinfo.Length;
+            szMeta += "\"resolution\":" + twimageinfo.XResolution.Whole;
 
             // TWAIN Direct metadata.image end...
             szMeta += "},";
@@ -720,6 +696,27 @@ namespace TwainDirect.OnTwain
 
             // TWAIN Direct metadata end...
             szMeta += "}";
+
+            // Save as PDF/Raster...
+            blSuccess = PdfRaster.CreatePdfRaster
+            (
+                szImageFile,
+                "{" + szMeta + "}", // we need it to be rooted
+                a_abImage,
+                a_iImageOffset,
+                szPixelFormat,
+                szCompression,
+                twimageinfo.XResolution.Whole,
+                twimageinfo.ImageWidth,
+                twimageinfo.ImageLength
+            );
+            if (!blSuccess)
+            {
+                TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile);
+                m_blCancel = false;
+                SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                return (TWAINCSToolkit.MSG.RESET);
+            }
 
             // Save the metadata to disk...
             try

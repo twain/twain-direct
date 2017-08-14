@@ -424,10 +424,11 @@ namespace TwainDirect.Support
         /// <summary>
         /// Get the JSON data as XML.  This is a simple name/value conversion...
         /// </summary>
-        /// <returns>teh XML string</returns>
-        public string GetXml()
+        /// <param name="a_szRootName">instead of o, use this as the name for the outermost tag</o></param>
+        /// <returns>the XML string</returns>
+        public string GetXml(string a_szRootName = "")
         {
-            return (GetXmlPrivate(m_property, 0, ""));
+            return (GetXmlPrivate(m_property, a_szRootName, 0, ""));
         }
 
         /// <summary>
@@ -735,13 +736,18 @@ namespace TwainDirect.Support
         ///             <n:item>3</n:item>
         ///         </a:array>
         ///     </o>
+        ///     
+        /// We do allow overriding the outermost tag, so that instead
+        /// of "o" it can be something a little more descriptive, like
+        /// "tdm" for TWAIN Direct metadata...
         /// 
         /// </summary>
         /// <param name="a_property">property to emit</param>
+        /// <param name="a_szRootName">rootname to use for outermost tag at depth 0</param>
         /// <param name="a_iDepth">depth we're at</param>
         /// <param name="a_szXml">current string provided by caller</param>
         /// /// <returns>an XML string, or null on error</returns>
-        private string GetXmlPrivate(Property a_property, int a_iDepth, string a_szXml)
+        private string GetXmlPrivate(Property a_property, string a_szRootName, int a_iDepth, string a_szXml)
         {
             string szXml = a_szXml;
             string szData;
@@ -772,7 +778,17 @@ namespace TwainDirect.Support
                     {
                         default: szName = "z"; break;
                         case EPROPERTYTYPE.ARRAY: szName = "a"; break;
-                        case EPROPERTYTYPE.OBJECT: szName = "o"; break;
+                        case EPROPERTYTYPE.OBJECT:
+                            // We can override the outermost tag...
+                            if (!string.IsNullOrEmpty(a_szRootName) && (a_iDepth == 0))
+                            {
+                                szName = a_szRootName;
+                            }
+                            else
+                            {
+                                szName = "o";
+                            }
+                            break;
                     }
                 }
                   
@@ -804,7 +820,7 @@ namespace TwainDirect.Support
                 if (property.propertyChild != null)
                 {
                     // Dive in...
-                    szXml = GetXmlPrivate(property.propertyChild, a_iDepth + 1, szXml);
+                    szXml = GetXmlPrivate(property.propertyChild, "", a_iDepth + 1, szXml);
                     if (szXml == null)
                     {
                         return (null);

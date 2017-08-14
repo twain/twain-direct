@@ -59,6 +59,17 @@ namespace TwainDirect.Scanner
             // Init our form...
             InitializeComponent();
 
+            // Context memory for the system tray...
+            MenuItem menuitemOpen = new MenuItem("&Show Console...");
+            MenuItem menuitemExit = new MenuItem("E&xit...");
+            menuitemOpen.Click += MenuitemOpen_Click;
+            menuitemExit.Click += MenuitemExit_Click; ;
+            m_notifyicon.ContextMenu = new ContextMenu();
+            m_notifyicon.ContextMenu.MenuItems.Add(menuitemOpen);
+            m_notifyicon.ContextMenu.MenuItems.Add(menuitemExit);
+
+            this.Resize += Form1_Resize;
+
             // Handle scaling...
             float fScale = (float)Config.Get("scale", 1.0);
             if (fScale <= 1)
@@ -102,6 +113,33 @@ namespace TwainDirect.Scanner
             {
                 SetButtons(ButtonState.WaitingForStart);
             }
+        }
+
+        private bool m_blAllowFormToClose;
+        private void MenuitemExit_Click(object sender, EventArgs e)
+        {
+            DialogResult dialogresult = MessageBox.Show("Do you want to close TWAIN Direct on TWAIN Bridge?", "TWAIN Direct", MessageBoxButtons.YesNo);
+            if (dialogresult == DialogResult.Yes)
+            {
+                m_blAllowFormToClose = true;
+                Application.Exit();
+            }
+        }
+
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            if (WindowState == FormWindowState.Minimized)
+            {
+                this.Hide();
+            }
+        }
+
+        private void MenuitemOpen_Click(object sender, EventArgs e)
+        {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            this.Update();
+            this.Show();
         }
 
         #endregion
@@ -231,19 +269,19 @@ namespace TwainDirect.Scanner
                 buttonOk.DialogResult = DialogResult.OK;
                 buttonCancel.DialogResult = DialogResult.Cancel;
 
-                label.SetBounds(9, 20, 372, 13);
-                textBox.SetBounds(12, 36, 372, 20);
-                buttonOk.SetBounds(228, 72, 75, 23);
-                buttonCancel.SetBounds(309, 72, 75, 23);
+                label.SetBounds(9, 20, 472, 13);
+                textBox.SetBounds(12, 36, 472, 20);
+                buttonOk.SetBounds(328, 72, 75, 23);
+                buttonCancel.SetBounds(409, 72, 75, 23);
 
                 label.AutoSize = true;
                 textBox.Anchor = textBox.Anchor | AnchorStyles.Right;
                 buttonOk.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
                 buttonCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
 
-                form.ClientSize = new Size(396, 107);
+                form.ClientSize = new Size(496, 107);
                 form.Controls.AddRange(new Control[] { label, textBox, buttonOk, buttonCancel });
-                form.ClientSize = new Size(Math.Max(300, label.Right + 10), form.ClientSize.Height);
+                form.ClientSize = new Size(Math.Max(400, label.Right + 10), form.ClientSize.Height);
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.MinimizeBox = false;
@@ -330,7 +368,12 @@ namespace TwainDirect.Scanner
         /// <param name="e"></param>
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            SetButtons(ButtonState.Undefined);
+            if (!m_blAllowFormToClose)
+            {
+                e.Cancel = true;
+                WindowState = FormWindowState.Minimized;
+                this.Hide();
+            }
         }
 
         /// <summary>
@@ -476,7 +519,7 @@ namespace TwainDirect.Scanner
             // Register it, make a note if it works by clearing the
             // no devices flag...
             apicmd = new ApiCmd();
-            if (m_scanner.RegisterScanner(jsonlookup, iNumber, szNote, ref apicmd))
+            if (m_scanner.RegisterScanner(jsonlookup, iNumber - 1, szNote, ref apicmd))
             {
                 m_blNoDevices = false;
                 Display("Done...");
