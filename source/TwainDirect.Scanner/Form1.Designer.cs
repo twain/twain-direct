@@ -48,7 +48,7 @@
             // m_buttonStart
             // 
             this.m_buttonStart.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStart.Location = new System.Drawing.Point(131, 8);
+            this.m_buttonStart.Location = new System.Drawing.Point(199, 8);
             this.m_buttonStart.Name = "m_buttonStart";
             this.m_buttonStart.Size = new System.Drawing.Size(75, 23);
             this.m_buttonStart.TabIndex = 58;
@@ -59,7 +59,7 @@
             // m_buttonStop
             // 
             this.m_buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStop.Location = new System.Drawing.Point(212, 8);
+            this.m_buttonStop.Location = new System.Drawing.Point(280, 8);
             this.m_buttonStop.Name = "m_buttonStop";
             this.m_buttonStop.Size = new System.Drawing.Size(75, 23);
             this.m_buttonStop.TabIndex = 59;
@@ -75,7 +75,7 @@
             this.m_richtextboxTask.Location = new System.Drawing.Point(11, 37);
             this.m_richtextboxTask.Name = "m_richtextboxTask";
             this.m_richtextboxTask.ReadOnly = true;
-            this.m_richtextboxTask.Size = new System.Drawing.Size(276, 176);
+            this.m_richtextboxTask.Size = new System.Drawing.Size(344, 186);
             this.m_richtextboxTask.TabIndex = 61;
             this.m_richtextboxTask.Text = "";
             // 
@@ -101,7 +101,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(299, 225);
+            this.ClientSize = new System.Drawing.Size(367, 235);
             this.Controls.Add(this.m_buttonRegister);
             this.Controls.Add(this.m_richtextboxTask);
             this.Controls.Add(this.m_buttonStop);

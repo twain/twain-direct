@@ -2480,7 +2480,7 @@ namespace TwainDirect.Support
             {
                 return (-1);
             }
-            if (a_abTarget.Length > (lSourceLength + a_lSourceOffset))
+            if (a_abTarget.Length > (lSourceLength - a_lSourceOffset))
             {
                 return (-1);
             }

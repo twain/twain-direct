@@ -31,6 +31,8 @@
 
 // Helpers...
 using System;
+using System.Resources;
+using System.Threading;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -50,9 +52,25 @@ namespace TwainDirect.Scanner
             // Confirm scan...
             bool blConfirmScan = (Config.Get("confirmscan", null) != null);
 
+            // Localize...
+            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
+            if (szCurrentUiCulture == ".en-US")
+            {
+                szCurrentUiCulture = "";
+            }
+            try
+            {
+                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings" + szCurrentUiCulture, typeof(Form1).Assembly);
+            }
+            catch
+            {
+                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings", typeof(Form1).Assembly);
+            }
+
             // Instantiate our scanner object...
             m_scanner = new Scanner
             (
+                m_resourcemanager,
                 Display,
                 null,
                 blConfirmScan ? ConfirmScan : (TwainLocalScanner.ConfirmScan)null,
@@ -440,6 +458,11 @@ namespace TwainDirect.Scanner
         // Private Attributes...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Attributes...
+
+        /// <summary>
+        /// Localized strings...
+        /// </summary>
+        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// Our scanner interface...

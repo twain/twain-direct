@@ -93,6 +93,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Terminal.cs" />
+    <Compile Include="WinFormStrings.Designer.cs" />
     <EmbeddedResource Include="ConfirmScan.resx">
       <DependentUpon>ConfirmScan.cs</DependentUpon>
     </EmbeddedResource>
@@ -109,6 +110,10 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <EmbeddedResource Include="WinFormStrings.fr-FR.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="WinFormStrings.resx" />
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>

@@ -33,9 +33,9 @@
 
 // Helpers...
 using System;
-using System.Diagnostics;
 using System.Drawing;
-using System.IO;
+using System.Resources;
+using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
 
@@ -59,9 +59,28 @@ namespace TwainDirect.Scanner
             // Init our form...
             InitializeComponent();
 
+            // Localize...
+            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
+            if (szCurrentUiCulture == ".en-US")
+            {
+                szCurrentUiCulture = "";
+            }
+            try
+            {
+                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings" + szCurrentUiCulture, typeof(Form1).Assembly);
+            }
+            catch
+            {
+                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings", typeof(Form1).Assembly);
+            }
+            m_buttonRegister.Text = m_resourcemanager.GetString("strButtonRegisterEllipsis"); // Register...
+            m_buttonStart.Text = m_resourcemanager.GetString("strButtonStart"); // Start
+            m_buttonStop.Text = m_resourcemanager.GetString("strButtonStop"); // Stop
+            this.Text = m_resourcemanager.GetString("strFormMainTitle"); // TWAIN Direct on TWAIN Bridge
+
             // Context memory for the system tray...
-            MenuItem menuitemOpen = new MenuItem("&Show Console...");
-            MenuItem menuitemExit = new MenuItem("E&xit...");
+            MenuItem menuitemOpen = new MenuItem(m_resourcemanager.GetString("strMenuShowConsole")); // &Show Console...
+            MenuItem menuitemExit = new MenuItem(m_resourcemanager.GetString("strMenuExit")); // E&xit...
             menuitemOpen.Click += MenuitemOpen_Click;
             menuitemExit.Click += MenuitemExit_Click; ;
             m_notifyicon.ContextMenu = new ContextMenu();
@@ -91,6 +110,7 @@ namespace TwainDirect.Scanner
             // Instantiate our scanner object...
             m_scanner = new Scanner
             (
+                m_resourcemanager,
                 Display,
                 StopNotification,
                 blConfirmScan ? ConfirmScan : (TwainLocalScanner.ConfirmScan)null,
@@ -613,6 +633,11 @@ namespace TwainDirect.Scanner
         // Private Attributes...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Attributes...
+
+        /// <summary>
+        /// Localized text...
+        /// </summary>
+        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// Our scanner interface...

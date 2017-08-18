@@ -35,7 +35,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
+using System.Resources;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -56,6 +56,7 @@ namespace TwainDirect.Scanner
         /// <param name="a_blNoDevices">true if we have no devices</param>
         public Scanner
         (
+            ResourceManager a_resourcemanager,
             TwainLocalScanner.DisplayCallback a_displaycallback,
             StopNotification a_stopnotification,
             TwainLocalScanner.ConfirmScan a_confirmscan,
@@ -70,6 +71,7 @@ namespace TwainDirect.Scanner
 
             // Init stuff...
             a_blNoDevices = true;
+            m_resourcemanager = a_resourcemanager;
             m_displaycallback = a_displaycallback;
             m_stopnotification = a_stopnotification;
             m_confirmscan = a_confirmscan;
@@ -305,7 +307,7 @@ namespace TwainDirect.Scanner
             blSuccess = m_twainlocalscanner.DeviceRegisterLoad();
             if (!blSuccess)
             {
-                m_displaycallback("No scanners registered...");
+                m_displaycallback(m_resourcemanager.GetString("strTextNoScannersRegistered")); // "No scanners registered..."
                 Log.Error("DeviceRegisterLoad failed...");
                 return (true);
             }
@@ -316,9 +318,9 @@ namespace TwainDirect.Scanner
             // If yes, display the names...
             if (m_displaycallback != null)
             {
-                m_displaycallback("Listing registered scanners...(please wait for the list)");
+                m_displaycallback(m_resourcemanager.GetString("strTextListingScannersBegin")); // "Listing registered scanners...(please wait for the list)"
                 m_displaycallback(m_twainlocalscanner.GetTwainLocalTy());
-                m_displaycallback("Listing complete...");
+                m_displaycallback(m_resourcemanager.GetString("strTextListingScannersEnd")); // "Listing complete..."
             }
 
             // All done...
@@ -481,6 +483,11 @@ namespace TwainDirect.Scanner
         // Private Attributes...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Attributes...
+
+        /// <summary>
+        /// Resource for localization...
+        /// </summary>
+        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// Our scanner interface...
