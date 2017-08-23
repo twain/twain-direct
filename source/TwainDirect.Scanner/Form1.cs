@@ -290,16 +290,16 @@ namespace TwainDirect.Scanner
                 buttonCancel.DialogResult = DialogResult.Cancel;
 
                 label.SetBounds(9, 20, 472, 13);
-                textBox.SetBounds(12, 36, 472, 20);
-                buttonOk.SetBounds(328, 72, 75, 23);
-                buttonCancel.SetBounds(409, 72, 75, 23);
+                textBox.SetBounds(12, 56, 472, 20);
+                buttonOk.SetBounds(328, 92, 75, 23);
+                buttonCancel.SetBounds(409, 92, 75, 23);
 
                 label.AutoSize = true;
                 textBox.Anchor = textBox.Anchor | AnchorStyles.Right;
                 buttonOk.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
                 buttonCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
 
-                form.ClientSize = new Size(496, 107);
+                form.ClientSize = new Size(496, 127);
                 form.Controls.AddRange(new Control[] { label, textBox, buttonOk, buttonCancel });
                 form.ClientSize = new Size(Math.Max(400, label.Right + 10), form.ClientSize.Height);
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -369,6 +369,7 @@ namespace TwainDirect.Scanner
             m_richtextboxTask.ScrollToCaret();
             m_richtextboxTask.Update();
             this.Refresh();
+
             // This is bad...
             Application.DoEvents();
         }
@@ -470,7 +471,7 @@ namespace TwainDirect.Scanner
             {
                 szText =
                     "Enter a number from 1 to " + iScanner + Environment.NewLine +
-                    "(there is no current default)";
+                    "(there is no current default)" + iScanner;
             }
             else
             {

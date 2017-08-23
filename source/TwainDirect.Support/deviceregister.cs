@@ -471,16 +471,6 @@ namespace TwainDirect.Support
                     case "true": twaininquirydata.m_blFlatbedDetected = true; break;
                 }
 
-                // DAT_IMAGEFILEXFER?
-                szValue = jsonlookup.Get("isImageFileXferSupported", false);
-                if (szValue == null) szValue = "";
-                switch (szValue.ToLowerInvariant())
-                {
-                    default: twaininquirydata.m_blImageFileXfer = false; break;
-                    case "false": twaininquirydata.m_blImageFileXfer = false; break;
-                    case "true": twaininquirydata.m_blImageFileXfer = true; break;
-                }
-
                 // DAT_IMAGEMEMFILEXFER?
                 szValue = jsonlookup.Get("isImageMemFileXferSupported", false);
                 if (szValue == null) szValue = "";
@@ -707,15 +697,6 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
-            /// Get the image file setting...
-            /// </summary>
-            /// <returns>true if support file transfers</returns>
-            public bool GetImageFileXfer()
-            {
-                return (m_blImageFileXfer);
-            }
-
-            /// <summary>
             /// Get the TW_IDENTITY.Manufacturer
             /// </summary>
             /// <returns>manufacturer name</returns>
@@ -901,7 +882,6 @@ namespace TwainDirect.Support
                 szJson += "\"isExtImageInfoSupported\":" + m_blExtImageInfo.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isFeederDetected\":" + m_blFeederDetected.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isFlatbedDetected\":" + m_blFlatbedDetected.ToString().ToLowerInvariant() + ",";
-                szJson += "\"isImageFileXferSupported\":" + m_blImageFileXfer.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isImageMemFileXferSupported\":" + m_blImageMemFileXfer.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isPaperDetectableSupported\":" + m_blPaperDetectable.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isPdfRasterSupported\":" + m_blPdfRaster.ToString().ToLowerInvariant() + ",";
@@ -1014,14 +994,6 @@ namespace TwainDirect.Support
             public void SetImageMemFileXfer(bool a_blImageMemFileXfer)
             {
                 m_blImageMemFileXfer = a_blImageMemFileXfer;
-            }
-
-            /// <summary>
-            /// Set image file...
-            /// </summary>
-            public void SetImageFileXfer(bool a_blImageFileXfer)
-            {
-                m_blImageFileXfer = a_blImageFileXfer;
             }
 
             /// <summary>
@@ -1196,11 +1168,6 @@ namespace TwainDirect.Support
             /// Can we transfer memory files?
             /// </summary>
             private bool m_blImageMemFileXfer;
-
-            /// <summary>
-            /// Can we transfer files?
-            /// </summary>
-            private bool m_blImageFileXfer;
 
             /// <summary>
             /// JSON array of min,max offsetx...

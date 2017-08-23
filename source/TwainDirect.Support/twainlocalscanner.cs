@@ -2363,7 +2363,8 @@ namespace TwainDirect.Support
             // Parse the JSON in the response, we always have to make sure
             // its valid...
             jsonlookup = new JsonLookup();
-            blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+            string szHttpResponseData = a_apicmd.HttpResponseData();
+            blSuccess = jsonlookup.Load(szHttpResponseData, out lResponseCharacterOffset);
             if (!blSuccess)
             {
                 ClientReturnError(a_apicmd, false, "invalidJson", lResponseCharacterOffset, a_szReason + ": ClientHttpRequest JSON syntax error...");

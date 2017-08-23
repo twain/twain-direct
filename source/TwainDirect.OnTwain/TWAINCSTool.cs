@@ -1941,7 +1941,7 @@ namespace TWAINWorkingGroupToolkit
 
                 // Loop through all the strips of data, at the end of this the byte
                 // array abImage has all of the data that we got from the scanner...
-                #region Tranfer the image from the driver...
+                #region Transfer the image from the driver...
                 intptrTotalAllocated = (IntPtr)iSpaceForHeader;
                 intptrOffset = (IntPtr)iSpaceForHeader;
                 intptrTotalXfer = IntPtr.Zero;
@@ -2690,26 +2690,49 @@ namespace TWAINWorkingGroupToolkit
                     Marshal.Copy(twimagememxfer.Memory.TheMem, abImage, (int)intptrOffset, (int)twimagememxfer.BytesWritten);
                 }
 
-                // Okay, turn the data into a bitmap...
-                memorystream = new MemoryStream(abImage);
-                try
+                // Turn the PDF/raster data into a bitmap...
+                if ((abImage != null) && (abImage.Length > 4) && (abImage[0] == '%') && (abImage[1] == 'P') && (abImage[2] == 'D') && (abImage[3] == 'F'))
                 {
-                    Image image = Image.FromStream(memorystream);
-                    bitmap = new Bitmap(image);
-                    image.Dispose();
-                    image = null;
-                    msgPendingxfers = ReportImage("ScanCallback: 049", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, null, null, null, 0);
-                    bitmap = null;
-                    blXferDone = true;
+                    msgPendingxfers = ReportImage
+                    (
+                        "ScanCallback: 049pdf",
+                        TWAIN.DG.IMAGE.ToString(),
+                        TWAIN.DAT.IMAGEMEMFILEXFER.ToString(),
+                        TWAIN.MSG.GET.ToString(),
+                        sts,
+                        new Bitmap(1,1), // TBD: a placeholder until I can come up with something better...
+                        null,
+                        null,
+                        abImage,
+                        0
+                    );
                 }
-                catch
+
+                // Handle anything else here...
+                else
                 {
-                    WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
-                    m_twain.Rollback(m_stateAfterScan);
-                    ReportImage("ScanCallback: 050", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
-                    return (TWAIN.STS.SUCCESS);
+                    memorystream = new MemoryStream(abImage);
+                    try
+                    {
+                        // This works for TIFF and JFIF, and probably for things
+                        // like BMP, but it's not going to work for PDF/raster...
+                        Image image = Image.FromStream(memorystream);
+                        bitmap = new Bitmap(image);
+                        image.Dispose();
+                        image = null;
+                        msgPendingxfers = ReportImage("ScanCallback: 049", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, null, null, null, 0);
+                        bitmap = null;
+                        blXferDone = true;
+                    }
+                    catch
+                    {
+                        WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
+                        m_twain.Rollback(m_stateAfterScan);
+                        ReportImage("ScanCallback: 050", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
+                        return (TWAIN.STS.SUCCESS);
+                    }
+                    memorystream = null;
                 }
-                memorystream = null;
             }
             #endregion
 

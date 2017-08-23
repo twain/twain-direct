@@ -1970,7 +1970,8 @@ namespace TwainDirect.Support
             {
                 try
                 {
-                    m_szMetadata = File.ReadAllText(szMeta).TrimEnd(new char[] { '\r', '\n' });
+                    m_szMetadata = File.ReadAllText(szMeta).TrimEnd(new char[] { '\r', '\n', ' ', '\t' });
+                    m_szMetadata = m_szMetadata.Substring(1, m_szMetadata.Length - 2); // remove the outermost {}
                 }
                 catch (Exception exception)
                 {

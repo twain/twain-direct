@@ -440,41 +440,6 @@ namespace TwainDirect.OnTwain
                 return (TWAINCSToolkit.MSG.RESET);
             }
 
-            // Init stuff...
-            twain = m_twaincstoolkit.Twain();
-
-            // Get the metadata for TW_IMAGEINFO...
-            TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
-            if (a_szTwimageinfo != null)
-            {
-                twain.CsvToImageinfo(ref twimageinfo, a_szTwimageinfo);
-            }
-            else
-            {
-                sts = twain.DatImageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twimageinfo);
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Error("ReportImage: DatImageinfo failed...");
-                    m_blCancel = false;
-                    SetImageBlocksDrained(sts);
-                    return (TWAINCSToolkit.MSG.RESET);
-                }
-            }
-
-            // Get the metadata for TW_EXTIMAGEINFO...
-            TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
-            TWAIN.TW_INFO twinfo = default(TWAIN.TW_INFO);
-            if (m_blExtImageInfo)
-            {
-                twextimageinfo.NumInfos = 0;
-                twinfo.InfoId = (ushort)TWAIN.TWEI.PAGESIDE; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
-                sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    m_blExtImageInfo = false;
-                }
-            }
-
             // Make sure we have a folder...
             if (!Directory.Exists(m_szImagesFolder))
             {
@@ -491,246 +456,402 @@ namespace TwainDirect.OnTwain
                 }
             }
 
-            // Create a filename...
-            m_iImageCount += 1;
-            szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
+            // Init stuff...
+            twain = m_twaincstoolkit.Twain();
 
-            // Cleanup...
-            if (File.Exists(szFile + ".pdf"))
+            // Driver support
+            #region Driver Support
+            if (m_deviceregisterSession.GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Driver)
             {
+                // Get the metadata for TW_EXTIMAGEINFO...
+                TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
+                TWAIN.TW_INFO twinfo = default(TWAIN.TW_INFO);
+                if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
+                {
+                    twextimageinfo.NumInfos = 0;
+                    twinfo.InfoId = (ushort)TWAIN.TWEI.TWAINDIRECTMETADATA;
+                    twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
+                    sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        m_deviceregisterSession.GetTwainInquiryData().SetExtImageInfo(false);
+                    }
+                }
+
+                // Create a filename...
+                m_iImageCount += 1;
+                szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
+
+                // Cleanup...
+                if (File.Exists(szFile + ".pdf"))
+                {
+                    try
+                    {
+                        File.Delete(szFile + ".pdf");
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                // Our filename...
+                szImageFile = szFile + ".pdf";
+
+                // Write the image data...
                 try
                 {
-                    File.Delete(szFile + ".pdf");
+                    File.WriteAllBytes(szImageFile, a_abImage);
                 }
-                catch
+                catch (Exception exception)
                 {
-                }
-            }
-
-            // Our filename...
-            szImageFile = szFile + ".pdf";
-
-            // Get our pixelFormat...
-            string szPixelFormat;
-            switch ((TWAIN.TWPT)twimageinfo.PixelType)
-            {
-                default:
-                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile + " - " + exception.Message);
                     m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                     return (TWAINCSToolkit.MSG.RESET);
-                case TWAIN.TWPT.BW:
-                    szPixelFormat = "bw1";
-                    break;
-                case TWAIN.TWPT.GRAY:
-                    szPixelFormat = "gray8";
-                    break;
-                case TWAIN.TWPT.RGB:
-                    szPixelFormat = "rgb24";
-                    break;
-            }
+                }
 
-            // Get our compression...
-            string szCompression;
-            switch ((TWAIN.TWCP)twimageinfo.Compression)
-            {
-                default:
-                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
-                    m_blCancel = false;
-                    SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                    return (TWAINCSToolkit.MSG.RESET);
-                case TWAIN.TWCP.NONE:
-                    szCompression = "none";
-                    break;
-                case TWAIN.TWCP.GROUP4:
-                    szCompression = "group4";
-                    break;
-                case TWAIN.TWCP.JPEG:
-                    szCompression = "jpeg";
-                    break;
-            }
-
-            // Work out the source...
-            string szSource = "";
-            if (m_blFlatbed)
-            {
-                szSource = "flatbed";
-            }
-
-            // The image came from a feeder...
-            else
-            {
-                // See if we can get the side from the extended image info...
-                if (m_blExtImageInfo)
+                // Save the metadata to disk, the arrival of metadata is
+                // a trigger that announces the image is done...
+                for (uu = 0; uu < twextimageinfo.NumInfos; uu++)
                 {
-                    for (uu = 0; uu < twextimageinfo.NumInfos; uu++)
+                    twextimageinfo.Get(uu, ref twinfo);
+                    if (twinfo.InfoId == (ushort)TWAIN.TWEI.TWAINDIRECTMETADATA)
                     {
-                        twextimageinfo.Get(uu, ref twinfo);
-                        if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAGESIDE)
+                        if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
                         {
-                            if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
+                            try
                             {
-                                if (twinfo.Item == (UIntPtr)TWAIN.TWCS.TOP)
+                                IntPtr Item;
+                                IntPtr Handle;
+
+                                // Ugh...
+                                if (Marshal.SizeOf(twinfo.Item) == 4)
                                 {
-                                    szSource = "feederFront";
+                                    Handle = unchecked((IntPtr)(int)twinfo.Item);
                                 }
                                 else
                                 {
-                                    szSource = "feederRear";
+                                    Handle = unchecked((IntPtr)(long)twinfo.Item);
                                 }
+
+                                // Lock the handle...
+                                Item = m_twaincstoolkit.DsmMemLock(Handle);
+
+                                // Get the data, watch out for a terminating NUL, we
+                                // don't want that to end up in the file...
+                                string szMeta;
+                                byte[] abMeta = new byte[twinfo.NumItems];
+                                Marshal.Copy(Item, abMeta, 0, (int)twinfo.NumItems);
+                                if (abMeta[abMeta.Length - 1] == 0)
+                                {
+                                    szMeta = Encoding.UTF8.GetString(abMeta, 0, abMeta.Length - 1);
+                                }
+                                else
+                                {
+                                    szMeta = Encoding.UTF8.GetString(abMeta);
+                                }
+
+                                // Unlock the handle...
+                                m_twaincstoolkit.DsmMemUnlock(Handle);
+
+                                // Okay, write it out and log it...
+                                File.WriteAllText(szFile + ".meta", szMeta);
+                                TWAINWorkingGroup.Log.Info("ReportImage: saved " + szFile + ".meta");
+                                TWAINWorkingGroup.Log.Info(szMeta);
                             }
-                            break;
+                            catch
+                            {
+                                TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
+                                m_blCancel = false;
+                                SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                                return (TWAINCSToolkit.MSG.RESET);
+                            }
                         }
+                        break;
+                    }
+                }
+            }
+            #endregion
+
+            // Non-driver support
+            #region Non-driver support
+            else
+            {
+                // Get the metadata for TW_IMAGEINFO...
+                TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
+                if (a_szTwimageinfo != null)
+                {
+                    twain.CsvToImageinfo(ref twimageinfo, a_szTwimageinfo);
+                }
+                else
+                {
+                    sts = twain.DatImageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twimageinfo);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Error("ReportImage: DatImageinfo failed...");
+                        m_blCancel = false;
+                        SetImageBlocksDrained(sts);
+                        return (TWAINCSToolkit.MSG.RESET);
                     }
                 }
 
-                // We didn't get a pageside.  So we're going to make
-                // the best guess we can.
-                if (szSource == "")
+                // Get the metadata for TW_EXTIMAGEINFO...
+                TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
+                TWAIN.TW_INFO twinfo = default(TWAIN.TW_INFO);
+                if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
                 {
-                    // We're just doing simplex front at the moment...
-                    if (!m_blDuplex)
+                    twextimageinfo.NumInfos = 0;
+                    twinfo.InfoId = (ushort)TWAIN.TWEI.PAGESIDE; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
+                    sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
+                    if (sts != TWAIN.STS.SUCCESS)
                     {
-                        szSource = "feederFront";
+                        m_deviceregisterSession.GetTwainInquiryData().SetExtImageInfo(false);
+                    }
+                }
+
+                // Create a filename...
+                m_iImageCount += 1;
+                szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
+
+                // Cleanup...
+                if (File.Exists(szFile + ".pdf"))
+                {
+                    try
+                    {
+                        File.Delete(szFile + ".pdf");
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                // Our filename...
+                szImageFile = szFile + ".pdf";
+
+                // Get our pixelFormat...
+                string szPixelFormat;
+                switch ((TWAIN.TWPT)twimageinfo.PixelType)
+                {
+                    default:
+                        TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
+                        m_blCancel = false;
+                        SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                        return (TWAINCSToolkit.MSG.RESET);
+                    case TWAIN.TWPT.BW:
+                        szPixelFormat = "bw1";
+                        break;
+                    case TWAIN.TWPT.GRAY:
+                        szPixelFormat = "gray8";
+                        break;
+                    case TWAIN.TWPT.RGB:
+                        szPixelFormat = "rgb24";
+                        break;
+                }
+
+                // Get our compression...
+                string szCompression;
+                switch ((TWAIN.TWCP)twimageinfo.Compression)
+                {
+                    default:
+                        TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
+                        m_blCancel = false;
+                        SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                        return (TWAINCSToolkit.MSG.RESET);
+                    case TWAIN.TWCP.NONE:
+                        szCompression = "none";
+                        break;
+                    case TWAIN.TWCP.GROUP4:
+                        szCompression = "group4";
+                        break;
+                    case TWAIN.TWCP.JPEG:
+                        szCompression = "jpeg";
+                        break;
+                }
+
+                // Work out the source...
+                string szSource = "";
+                if (m_blFlatbed)
+                {
+                    szSource = "flatbed";
+                }
+
+                // The image came from a feeder...
+                else
+                {
+                    // See if we can get the side from the extended image info...
+                    if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
+                    {
+                        for (uu = 0; uu < twextimageinfo.NumInfos; uu++)
+                        {
+                            twextimageinfo.Get(uu, ref twinfo);
+                            if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAGESIDE)
+                            {
+                                if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
+                                {
+                                    if (twinfo.Item == (UIntPtr)TWAIN.TWCS.TOP)
+                                    {
+                                        szSource = "feederFront";
+                                    }
+                                    else
+                                    {
+                                        szSource = "feederRear";
+                                    }
+                                }
+                                break;
+                            }
+                        }
                     }
 
-                    // We're duplex...
-                    else
+                    // We didn't get a pageside.  So we're going to make
+                    // the best guess we can.
+                    if (szSource == "")
                     {
-                        // Odd number images (we start at 1)...
-                        if ((m_iImageCount & 1) == 1)
+                        // We're just doing simplex front at the moment...
+                        if (!m_blDuplex)
                         {
                             szSource = "feederFront";
                         }
-                        // Even number images...
+
+                        // We're duplex...
                         else
                         {
-                            szSource = "feederRear";
+                            // Odd number images (we start at 1)...
+                            if ((m_iImageCount & 1) == 1)
+                            {
+                                szSource = "feederFront";
+                            }
+                            // Even number images...
+                            else
+                            {
+                                szSource = "feederRear";
+                            }
                         }
                     }
                 }
+
+                // Try to sort out a lookup...
+                ProcessSwordTask.ConfigureNameLookup configurenamelookup = null;
+                if (m_configurenamelookup != null)
+                {
+                    configurenamelookup = m_configurenamelookup.Find(szSource, szPixelFormat);
+                }
+                else
+                {
+                    ProcessSwordTask.ConfigureNameLookup.Add(ref configurenamelookup, "stream0", "source0", "pixelFormat0", "", "");
+                }
+
+                // Create the TWAIN Direct metadata...
+                string szMeta = "";
+
+                // TWAIN Direct metadata.address begin...
+                szMeta += "\"metadata\":{";
+
+                // TWAIN Direct metadata.address begin...
+                szMeta += "\"address\":{";
+
+                // Imagecount (counts images)...
+                szMeta += "\"imageNumber\":" + m_iImageCount + ",";
+
+                // Segmentcount (long document or huge document)...
+                szMeta += "\"imagePart\":" + "1" + ",";
+
+                // Segmentlast (long document or huge document)...
+                szMeta += "\"moreParts\":" + "\"lastPartInFile\",";
+
+                // Sheetcount (counts sheets, including ones lost to blank image dropout)...
+                szMeta += "\"sheetNumber\":" + "1" + ",";
+
+                // The image came from a flatbed or a feederFront or whatever...
+                szMeta += "\"source\":\"" + szSource + "\",";
+
+                // Name of this stream...
+                szMeta += "\"streamName\":\"" + configurenamelookup.GetStreamName() + "\",";
+
+                // Name of this source...
+                szMeta += "\"sourceName\":\"" + configurenamelookup.GetSourceName() + "\",";
+
+                // Name of this pixelFormat...
+                szMeta += "\"pixelFormatName\":\"" + configurenamelookup.GetPixelFormatName() + "\"";
+
+                // TWAIN Direct metadata.address end...
+                szMeta += "},";
+
+                // TWAIN Direct metadata.image begin...
+                szMeta += "\"image\":{";
+
+                // Add compression...
+                szMeta += "\"compression\":\"" + szCompression + "\",";
+
+                // Add pixel format...
+                szMeta += "\"pixelFormat\":\"" + szPixelFormat + "\",";
+
+                // Add height...
+                szMeta += "\"pixelHeight\":" + twimageinfo.ImageLength + ",";
+
+                // X-offset...
+                szMeta += "\"pixelOffsetX\":" + "0" + ",";
+
+                // Y-offset...
+                szMeta += "\"pixelOffsetY\":" + "0" + ",";
+
+                // Add width...
+                szMeta += "\"pixelWidth\":" + twimageinfo.ImageWidth + ",";
+
+                // Add resolution...
+                szMeta += "\"resolution\":" + twimageinfo.XResolution.Whole;
+
+                // TWAIN Direct metadata.image end...
+                szMeta += "},";
+
+                // Open SWORD.metadata.status...
+                szMeta += "\"status\":{";
+
+                // Add the status...
+                szMeta += "\"success\":true";
+
+                // TWAIN Direct metadata.status end...
+                szMeta += "}";
+
+                // TWAIN Direct metadata end...
+                szMeta += "}";
+
+                // We have to do this ourselves, save as PDF/Raster...
+                blSuccess = PdfRaster.CreatePdfRaster
+                (
+                    szImageFile,
+                    "{" + szMeta + "}", // we need it to be rooted
+                    a_abImage,
+                    a_iImageOffset,
+                    szPixelFormat,
+                    szCompression,
+                    twimageinfo.XResolution.Whole,
+                    twimageinfo.ImageWidth,
+                    twimageinfo.ImageLength
+                );
+                if (!blSuccess)
+                {
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile);
+                    m_blCancel = false;
+                    SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                    return (TWAINCSToolkit.MSG.RESET);
+                }
+
+                // Save the metadata to disk, the arrival of metadata is
+                // a trigger that announces the image is done...
+                try
+                {
+                    File.WriteAllText(szFile + ".meta", szMeta);
+                    TWAINWorkingGroup.Log.Info("ReportImage: saved " + szFile + ".meta");
+                }
+                catch
+                {
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
+                    m_blCancel = false;
+                    SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                    return (TWAINCSToolkit.MSG.RESET);
+                }
             }
-
-            // Try to sort out a lookup...
-            ProcessSwordTask.ConfigureNameLookup configurenamelookup = null;
-            if (m_configurenamelookup != null)
-            {
-                configurenamelookup = m_configurenamelookup.Find(szSource, szPixelFormat);
-            }
-            else
-            {
-                ProcessSwordTask.ConfigureNameLookup.Add(ref configurenamelookup, "stream0", "source0", "pixelFormat0", "", "");
-            }
-
-            // Create the TWAIN Direct metadata...
-            string szMeta = "";
-
-            // TWAIN Direct metadata.address begin...
-            szMeta += "\"metadata\":{";
-
-            // TWAIN Direct metadata.address begin...
-            szMeta += "\"address\":{";
-
-            // Imagecount (counts images)...
-            szMeta += "\"imageNumber\":" + m_iImageCount + ",";
-
-            // Segmentcount (long document or huge document)...
-            szMeta += "\"imagePart\":" + "1" + ",";
-
-            // Segmentlast (long document or huge document)...
-            szMeta += "\"moreParts\":" + "\"lastPartInFile\",";
-
-            // Sheetcount (counts sheets, including ones lost to blank image dropout)...
-            szMeta += "\"sheetNumber\":" + "1" + ",";
-
-            // The image came from a flatbed or a feederFront or whatever...
-            szMeta += "\"source\":\"" + szSource + "\",";
-
-            // Name of this stream...
-            szMeta += "\"streamName\":\"" + configurenamelookup.GetStreamName() + "\",";
-
-            // Name of this source...
-            szMeta += "\"sourceName\":\"" + configurenamelookup.GetSourceName() + "\",";
-
-            // Name of this pixelFormat...
-            szMeta += "\"pixelFormatName\":\"" + configurenamelookup.GetPixelFormatName() + "\"";
-
-            // TWAIN Direct metadata.address end...
-            szMeta += "},";
-
-            // TWAIN Direct metadata.image begin...
-            szMeta += "\"image\":{";
-
-            // Add compression...
-            szMeta += "\"compression\":\"" + szCompression + "\",";
-
-            // Add pixel format...
-            szMeta += "\"pixelFormat\":\"" + szPixelFormat + "\",";
-
-            // Add height...
-            szMeta += "\"pixelHeight\":" + twimageinfo.ImageLength + ",";
-
-            // X-offset...
-            szMeta += "\"pixelOffsetX\":" + "0" + ",";
-
-            // Y-offset...
-            szMeta += "\"pixelOffsetY\":" + "0" + ",";
-
-            // Add width...
-            szMeta += "\"pixelWidth\":" + twimageinfo.ImageWidth + ",";
-
-            // Add resolution...
-            szMeta += "\"resolution\":" + twimageinfo.XResolution.Whole;
-
-            // TWAIN Direct metadata.image end...
-            szMeta += "},";
-
-            // Open SWORD.metadata.status...
-            szMeta += "\"status\":{";
-
-            // Add the status...
-            szMeta += "\"success\":true";
-
-            // TWAIN Direct metadata.status end...
-            szMeta += "}";
-
-            // TWAIN Direct metadata end...
-            szMeta += "}";
-
-            // Save as PDF/Raster...
-            blSuccess = PdfRaster.CreatePdfRaster
-            (
-                szImageFile,
-                "{" + szMeta + "}", // we need it to be rooted
-                a_abImage,
-                a_iImageOffset,
-                szPixelFormat,
-                szCompression,
-                twimageinfo.XResolution.Whole,
-                twimageinfo.ImageWidth,
-                twimageinfo.ImageLength
-            );
-            if (!blSuccess)
-            {
-                TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile);
-                m_blCancel = false;
-                SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                return (TWAINCSToolkit.MSG.RESET);
-            }
-
-            // Save the metadata to disk...
-            try
-            {
-                File.WriteAllText(szFile + ".meta", szMeta);
-                TWAINWorkingGroup.Log.Info("ReportImage: saved " + szFile + ".meta");
-            }
-            catch
-            {
-                TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
-                m_blCancel = false;
-                SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                return (TWAINCSToolkit.MSG.RESET);
-            }
+            #endregion
 
             // We've been asked to cancel, so sneak that in...
             if (m_blCancel)
@@ -1405,35 +1526,98 @@ namespace TwainDirect.OnTwain
                 // We should only have to do it once...
                 a_blSetAppCapabilities = true;
 
-                // Memory transfer...
-                szStatus = "";
-                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
+                // If the TWAIN driver is doing most of the work, then we
+                // want to use TWSX_MEMFILE transfers, and specify that
+                // it should send TWFF_PDFRASTER images...
+                if (m_deviceregisterSession.GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Driver)
                 {
-                    TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
-                    return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    // Memory file transfer...
+                    szStatus = "";
+                    szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,4"; // TWSX_MEMFILE
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMFILE");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
+
+                    // No UI...
+                    szStatus = "";
+                    szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
+
+                    // Ask for extended image info...
+                    szStatus = "";
+                    szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
+
+                    // Ask for PDF/raster...
+                    szStatus = "";
+                    szCapability = "ICAP_IMAGEFILEFORMAT,TWON_ONEVALUE,TWTY_UINT16,17"; // TWFF_PDFRASTER
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_IMAGEFILEFORMAT to TWFF_PDFRASTER");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
+
+                    // Ask for PDF/raster again (kinda), because interfaces are hard,
+                    // we need the placeholder.tmp file to satisfy this call, which
+                    // has to be able to create the file.  However, we're not going to
+                    // be using it, since TWSX_MEMFILE transfers files in memory...
+                    szStatus = "";
+                    string szPlaceholder = Path.Combine(m_szImagesFolder, "placeholder.tmp");
+                    szCapability = szPlaceholder + ",TWFF_PDFRASTER,0";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Warn("Action: we can't set DAT_SETUPFILEXFER to TWFF_PDFRASTER");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
                 }
 
-                // No UI...
-                szStatus = "";
-                szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
+                // Otherwise we're going to do most of the work ourselves...
+                else
                 {
-                    TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
-                    return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
-                }
+                    // Memory transfer...
+                    szStatus = "";
+                    szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
 
-                // Ask for extended image info...
-                m_blExtImageInfo = true;
-                szStatus = "";
-                szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
-                    m_blExtImageInfo = false;
+                    // No UI...
+                    szStatus = "";
+                    szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
+
+                    // Ask for extended image info...
+                    szStatus = "";
+                    szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
+                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                    }
                 }
             }
 
@@ -1583,11 +1767,6 @@ namespace TwainDirect.OnTwain
         /// MSG_STOPFEEDER fails to work...
         /// </summary>
         private bool m_blCancel;
-
-        /// <summary>
-        /// True if we have support for DAT_EXTIMAGEINFO...
-        /// </summary>
-        private bool m_blExtImageInfo;
 
         /// <summary>
         /// Count of images for each TwainStartCapturing call, the
