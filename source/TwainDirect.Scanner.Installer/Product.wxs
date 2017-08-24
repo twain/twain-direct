@@ -39,7 +39,7 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <WixVariable Id="WixUIBannerBmp" Value="$(var.ProductBannerBitmap)" />
     <WixVariable Id="WixUIDialogBmp" Value="$(var.ProductDialogBitmap)" />
-    <!--<WixVariable Id="WixUILicenseRtf" Value="$(var.ProductLicense)" />-->
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProductLicense)" />
     <UIRef Id="WixUI_InstallDir" />
 
 	  <util:CloseApplication Id="CloseRunningApp" Target="$(var.TwainDirect.Scanner.TargetFileName)"
@@ -51,13 +51,11 @@
 			<Custom Action="WixCloseApplications" Before="InstallValidate" />
 
 			<!-- Install sequence -->
-			<Custom Action="SetCmdAddHttpReservationVista" Before="AddHttpReservationQuietExec">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>
 			<Custom Action="SetCmdAddHttpsReservationVista1" Before="AddHttpsReservationQuietExec1">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>
 			<Custom Action="SetCmdAddHttpsReservationVista2" Before="AddHttpsReservationQuietExec2">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>
 			<Custom Action="SetCmdAddHttpsReservationVista3" Before="AddHttpsReservationQuietExec3">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>			
 			<Custom Action="SetCmdBindHttpsPortWinVista" Before="BindHttpsPortQuietExec">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>
 
-			<Custom Action="AddHttpReservationQuietExec" Before="AddHttpsReservationQuietExec1">(NOT Installed AND NOT PATCH)</Custom>
 			<Custom Action="AddHttpsReservationQuietExec1" Before="AddHttpsReservationQuietExec2">(NOT Installed AND NOT PATCH)</Custom>
 			<Custom Action="AddHttpsReservationQuietExec2" Before="AddHttpsReservationQuietExec3">(NOT Installed AND NOT PATCH)</Custom>
 			<Custom Action="AddHttpsReservationQuietExec3" Before="BindHttpsPortQuietExec">(NOT Installed AND NOT PATCH)</Custom>
@@ -65,13 +63,11 @@
 
 			<!-- Uninstall sequence -->
 			<Custom Action="SetCmdUnBindHttpsPortWinVista" Before="ReleaseHttpsPortQuietExec">REMOVE~="ALL" AND VersionNT>=600 </Custom>
-			<Custom Action="SetCmdRemoveHttpReservationVista" Before="RemoveHttpReservationQuietExec">REMOVE~="ALL" AND VersionNT>=600 </Custom>
 			<Custom Action="SetCmdRemoveHttpsReservationVista1" Before="RemoveHttpsReservationQuietExec1">REMOVE~="ALL" AND VersionNT>=600 </Custom>
 			<Custom Action="SetCmdRemoveHttpsReservationVista2" Before="RemoveHttpsReservationQuietExec2">REMOVE~="ALL" AND VersionNT>=600 </Custom>
 			<Custom Action="SetCmdRemoveHttpsReservationVista3" Before="RemoveHttpsReservationQuietExec3">REMOVE~="ALL" AND VersionNT>=600 </Custom>
 
-			<Custom Action="ReleaseHttpsPortQuietExec" Before="RemoveHttpReservationQuietExec">REMOVE~="ALL"</Custom>
-			<Custom Action="RemoveHttpReservationQuietExec" Before="RemoveHttpsReservationQuietExec1">REMOVE~="ALL"</Custom>
+			<Custom Action="ReleaseHttpsPortQuietExec" Before="RemoveHttpsReservationQuietExec1">REMOVE~="ALL"</Custom>
 			<Custom Action="RemoveHttpsReservationQuietExec1" Before="RemoveHttpsReservationQuietExec2">REMOVE~="ALL"</Custom>
 			<Custom Action="RemoveHttpsReservationQuietExec2" Before="RemoveHttpsReservationQuietExec3">REMOVE~="ALL"</Custom>
 			<Custom Action="RemoveHttpsReservationQuietExec3" Before="InstallFinalize">REMOVE~="ALL"</Custom>

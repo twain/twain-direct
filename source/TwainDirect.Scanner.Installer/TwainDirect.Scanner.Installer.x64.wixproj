@@ -37,9 +37,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Details.wxi" />
-    <Content Include="Images\banner.bmp" />
-    <Content Include="Images\dialog.bmp" />
-    <Content Include="Images\twain.ico" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -47,17 +44,14 @@
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
     </WixExtension>
-	  <WixExtension Include="WixUtilExtension">
-		  <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
-		  <Name>WixUtilExtension</Name>
-	  </WixExtension>
-	  <WixExtension Include="WixIIsExtension">
-		  <HintPath>$(WixExtDir)\WixIIsExtension.dll</HintPath>
-		  <Name>WixIIsExtension</Name>
-	  </WixExtension>
-	</ItemGroup>
-  <ItemGroup>
-    <Folder Include="Images\" />
+    <WixExtension Include="WixUtilExtension">
+      <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+      <Name>WixUtilExtension</Name>
+    </WixExtension>
+    <WixExtension Include="WixIIsExtension">
+      <HintPath>$(WixExtDir)\WixIIsExtension.dll</HintPath>
+      <Name>WixIIsExtension</Name>
+    </WixExtension>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TwainDirect.OnTwain\TwainDirect.OnTwain.csproj">

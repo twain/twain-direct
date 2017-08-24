@@ -39,9 +39,6 @@
     <Content Include="Certificates\Twain.Direct.CA.cer" />
     <Content Include="Certificates\Twain.Direct.Localhost.pfx" />
     <Content Include="Details.wxi" />
-    <Content Include="Images\banner.bmp" />
-    <Content Include="Images\dialog.bmp" />
-    <Content Include="Images\twain.ico" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -49,18 +46,17 @@
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
     </WixExtension>
-	  <WixExtension Include="WixUtilExtension">
-		  <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
-		  <Name>WixUtilExtension</Name>
-	  </WixExtension>
-	  <WixExtension Include="WixIIsExtension">
-		  <HintPath>$(WixExtDir)\WixIIsExtension.dll</HintPath>
-		  <Name>WixIIsExtension</Name>
-	  </WixExtension>
-	</ItemGroup>
+    <WixExtension Include="WixUtilExtension">
+      <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+      <Name>WixUtilExtension</Name>
+    </WixExtension>
+    <WixExtension Include="WixIIsExtension">
+      <HintPath>$(WixExtDir)\WixIIsExtension.dll</HintPath>
+      <Name>WixIIsExtension</Name>
+    </WixExtension>
+  </ItemGroup>
   <ItemGroup>
     <Folder Include="Certificates\" />
-    <Folder Include="Images\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TwainDirect.OnTwain\TwainDirect.OnTwain.csproj">

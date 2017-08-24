@@ -5,25 +5,21 @@
 	<Fragment>
     <!-- built-in action for quiet execution of cmd commands. Executes content of QtExecCmdLine property.-->
     <!-- hidden attribute to eliminate empty value warning. Value will be set by custom action.-->
-    <Property Id="AddHttpReservationQuietExec" Hidden="yes"></Property>
     <Property Id="AddHttpsReservationQuietExec1" Hidden="yes"></Property>
 		<Property Id="AddHttpsReservationQuietExec2" Hidden="yes"></Property>
 		<Property Id="AddHttpsReservationQuietExec3" Hidden="yes"></Property>
     <Property Id="BindHttpsPortQuietExec" Hidden="yes"></Property>
     <Property Id="ReleaseHttpsPortQuietExec" Hidden="yes"></Property>
-    <Property Id="RemoveHttpReservationQuietExec" Hidden="yes"></Property>
     <Property Id="RemoveHttpsReservationQuietExec1" Hidden="yes"></Property>
 		<Property Id="RemoveHttpsReservationQuietExec2" Hidden="yes"></Property>
 		<Property Id="RemoveHttpsReservationQuietExec3" Hidden="yes"></Property>
 
-    <CustomAction Id="AddHttpReservationQuietExec" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
     <CustomAction Id="AddHttpsReservationQuietExec1" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
 		<CustomAction Id="AddHttpsReservationQuietExec2" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
 		<CustomAction Id="AddHttpsReservationQuietExec3" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
     <CustomAction Id="BindHttpsPortQuietExec" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
     
     <CustomAction Id="ReleaseHttpsPortQuietExec" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
-    <CustomAction Id="RemoveHttpReservationQuietExec" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
     <CustomAction Id="RemoveHttpsReservationQuietExec1" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
 		<CustomAction Id="RemoveHttpsReservationQuietExec2" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
 		<CustomAction Id="RemoveHttpsReservationQuietExec3" BinaryKey="WixCA" DllEntry="CAQuietExec" Return="check" Impersonate="no" Execute="commit"/>
@@ -31,9 +27,7 @@
 		<Binary Id="server.cert.bin" SourceFile="$(var.ProjectDir)Certificates/Twain.Direct.Localhost.pfx" />
     <Binary Id="ca.cert.bin" SourceFile="$(var.ProjectDir)Certificates/Twain.Direct.CA.cer" />
                     
-    <!-- Add reservations for HTTP and HTTPS URLs -->
-    <CustomAction Id="SetCmdAddHttpReservationVista" Property="AddHttpReservationQuietExec"
-                  Value='"netsh.exe" http add urlacl url=http://+:$(var.Port)/ sddl=$(var.UrlDacl)'/>
+    <!-- Add reservations for HTTPS URLs -->
     
 		<CustomAction Id="SetCmdAddHttpsReservationVista1" Property="AddHttpsReservationQuietExec1"
                   Value='"netsh.exe" http add urlacl url=https://+:$(var.SslPort)/privet/info/ sddl=$(var.UrlDacl)'/>
@@ -50,9 +44,7 @@
     <CustomAction Id="SetCmdUnBindHttpsPortWinVista" Property="ReleaseHttpsPortQuietExec"
                   Value='"netsh.exe" http delete sslcert ipport=0.0.0.0:$(var.SslPort)'/>   
     
-  <!-- Remove reservations for HTTP and HTTPS URLs -->          
-    <CustomAction Id="SetCmdRemoveHttpReservationVista" Property="RemoveHttpReservationQuietExec"
-                  Value='"netsh.exe" http delete urlacl url=http://+:$(var.Port)/'/>
+  <!-- Remove reservations for HTTPS URLs -->          
 		
     <CustomAction Id="SetCmdRemoveHttpsReservationVista1" Property="RemoveHttpsReservationQuietExec1"
                   Value='"netsh.exe" http delete urlacl url=https://+:$(var.SslPort)/privet/info/'/>

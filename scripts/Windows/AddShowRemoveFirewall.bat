@@ -64,16 +64,16 @@ REM https://support.microsoft.com/en-us/kb/947709
 :AddToFirewall
 	if "%~3" == "" (
 		if "%~2" == "in" (
-			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=55555 remoteport=any security=notrequired localip=any remoteip=localsubnet edge=yes
+			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=34034 remoteport=any security=notrequired localip=any remoteip=localsubnet edge=yes
 		) else (
-			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=55555 remoteport=any security=notrequired localip=any remoteip=localsubnet
+			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=34034 remoteport=any security=notrequired localip=any remoteip=localsubnet
 		)
 	) else (
 		pushd "%~3"
 		if "%~2" == "in" (
-			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%cd%\%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=55555 remoteport=any security=notrequired localip=any remoteip=localsubnet edge=yes
+			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%cd%\%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=34034 remoteport=any security=notrequired localip=any remoteip=localsubnet edge=yes
 		) else (
-			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%cd%\%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=55555 remoteport=any security=notrequired localip=any remoteip=localsubnet
+			netsh advfirewall firewall add rule "name=%~1" "dir=%~2" "action=allow" "program=%cd%\%~4" "enable=yes" profile=any interfacetype=any protocol=tcp localport=34034 remoteport=any security=notrequired localip=any remoteip=localsubnet
 		)
 		popd
 	)

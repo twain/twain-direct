@@ -41,7 +41,7 @@
   <?endif?>
 
   <!-- Resources -->
-  <?define ResourceFolder="$(var.ProjectDir)\Images" ?>
+  <?define ResourceFolder="$(var.ProjectDir)..\..\common" ?>
   <?define ProductIcon="$(var.ResourceFolder)\twain.ico" ?>
   <?define ProductDialogBitmap="$(var.ResourceFolder)\dialog.bmp" ?>
   <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
@@ -56,8 +56,7 @@
   <?define UrlDacl="D:(A;;GX;;;BU)" ?>
 
   <!-- SLL configuration -->   
-  <?define Port="55554" ?>
-  <?define SslPort="55555" ?>
+  <?define SslPort="34034" ?>
   
   <?define AppId="{A62BAF24-2841-4B54-AC43-5758F603F3DA}" ?>
   <?define CertHash="2c42009c747e24b32640f737ae5ea50c46f6cfd3"?>

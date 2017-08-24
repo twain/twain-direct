@@ -3,5 +3,5 @@
     "delayTwainDirectScanner": 0,
     "sessionTimeout": 300000,
     "useHttps": "yes",
-    "usePort": 55555
+    "usePort": 34034
 }
