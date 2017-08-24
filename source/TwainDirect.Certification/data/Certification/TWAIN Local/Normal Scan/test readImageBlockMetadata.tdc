@@ -79,7 +79,7 @@ if '${arg:1}' > '1' goto READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
 	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.017' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '!=' ''
 	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.018' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '!=' ''
 :READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.019' 'readimageblockmetadataresult' 'results.metadata.address.moreParts' '==' 'lastPartInFile' 'lastPartInFile' 'lastPartInFileMoreParts'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.019' 'readimageblockmetadataresult' 'results.metadata.address.moreParts' '==' 'lastPartInFile' 'moreParts' 'lastPartInFileMoreParts'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.020' 'readimageblockmetadataresult' 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.021' 'readimageblockmetadataresult' 'results.metadata.address.streamName' '==' 'stream0'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.022' 'readimageblockmetadataresult' 'results.metadata.address.sourceName' '==' 'source0'
@@ -92,7 +92,6 @@ run 'function CheckJsonProperty' 'TL.NSCN.RIBM.028' 'readimageblockmetadataresul
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.029' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetY' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.030' 'readimageblockmetadataresult' 'results.metadata.image.pixelWidth' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.031' 'readimageblockmetadataresult' 'results.metadata.image.resolution' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.032' 'readimageblockmetadataresult' 'results.metadata.image.size' != ''
 return '${get:readimageblockmetadataresult}'
 
 

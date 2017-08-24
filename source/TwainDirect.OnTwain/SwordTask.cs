@@ -2584,7 +2584,7 @@ namespace TwainDirect.OnTwain
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Check if DAT_TWAINDIRECT is supported, if not try for Full support...
+                // Check if DAT_TWAINDIRECT is supported, if not try for Extended support...
                 #region Can we use DAT_TWAINDIRECT?
 
                 // Does the driver support DAT_TWAINDIRECT?
@@ -2630,7 +2630,7 @@ namespace TwainDirect.OnTwain
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Can we get extended image information, if not try for Full support...
+                // Can we get extended image information, if not try for Extended support...
                 #region Is there support for DAT_EXTIMAGEINFO?
 
                 // Get the current value...
@@ -2672,7 +2672,7 @@ namespace TwainDirect.OnTwain
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Does the driver support TWEI_TWAINDIRECTMETADATA, if not try for Full support...
+                // Does the driver support TWEI_TWAINDIRECTMETADATA, if not try for Extended support...
                 #region We need TWEI_TWAINDIRECTMETADATA
 
                 // Does the driver support TWEI_TWAINDIRECTMETADATA?
@@ -2722,7 +2722,7 @@ namespace TwainDirect.OnTwain
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Does the driver support TWSX_MEMFILE, if not try for Full support...
+                // Does the driver support TWSX_MEMFILE, if not try for Extended support...
                 #region We need TWSX_MEMFILE support
 
                 // Memory file transfer...
@@ -2743,7 +2743,7 @@ namespace TwainDirect.OnTwain
 
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Does the driver support TWFF_PDFRASTER, if not try for Full support...
+                // Does the driver support TWFF_PDFRASTER, if not try for Extended support...
                 #region We need TWFF_PDFRASTER support
 
                 // PDF/raster...
@@ -3550,18 +3550,18 @@ namespace TwainDirect.OnTwain
             // with a plan B where TWAIN Bridge handles the TWAIN Direct stuff...
             if (m_twaininquirydata.GetTwainDirectSupport() != DeviceRegister.TwainDirectSupport.Driver)
             {
-                // Start by assuming we have Full support...
-                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Full);
+                // Start by assuming we have Extended support...
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Extended);
 
-                // Reset the scanner, this is required for Full support, without it
-                // we're going to be at a Minimal level...
+                // Reset the scanner, this is required for Extended support, without it
+                // we're going to be at a Basic level...
                 szStatus = "";
                 szCapability = ""; // don't need valid data for this call...
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "MSG_RESETALL is not supported - " + a_szTwidentity);
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Minimal);
+                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Basic);
                 }
 
                 // Do we have a vendor ID?

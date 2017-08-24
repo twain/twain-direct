@@ -743,6 +743,9 @@ namespace TwainDirect.OnTwain
                 // Create the TWAIN Direct metadata...
                 string szMeta = "";
 
+                // Root begins...
+                szMeta += "{";
+
                 // TWAIN Direct metadata.address begin...
                 szMeta += "\"metadata\":{";
 
@@ -815,11 +818,14 @@ namespace TwainDirect.OnTwain
                 // TWAIN Direct metadata end...
                 szMeta += "}";
 
+                // Root ends...
+                szMeta += "}";
+
                 // We have to do this ourselves, save as PDF/Raster...
                 blSuccess = PdfRaster.CreatePdfRaster
                 (
                     szImageFile,
-                    "{" + szMeta + "}", // we need it to be rooted
+                    szMeta,
                     a_abImage,
                     a_iImageOffset,
                     szPixelFormat,

@@ -452,7 +452,15 @@ namespace TwainDirect.Certification
                 DisplayError("image block must be a number...");
                 return (false);
             }
-            if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetThumbnail))
+            if (a_functionarguments.aszCmd[2].ToLower() == "true")
+            {
+                blGetThumbnail = true;
+            }
+            else if (a_functionarguments.aszCmd[2].ToLower() == "false")
+            {
+                blGetThumbnail = false;
+            }
+            else
             {
                 DisplayError("thumbnail flag must be true or false...");
                 return (false);
@@ -501,7 +509,15 @@ namespace TwainDirect.Certification
                 DisplayError("image block must be a number...");
                 return (false);
             }
-            if (!bool.TryParse(a_functionarguments.aszCmd[2], out blGetMetadataWithImage))
+            if (a_functionarguments.aszCmd[2].ToLower() == "true")
+            {
+                blGetMetadataWithImage = true;
+            }
+            else if (a_functionarguments.aszCmd[2].ToLower() == "false")
+            {
+                blGetMetadataWithImage = false;
+            }
+            else
             {
                 DisplayError("getmetdata flag must be true or false...");
                 return (false);

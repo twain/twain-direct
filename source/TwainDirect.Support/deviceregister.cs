@@ -331,22 +331,27 @@ namespace TwainDirect.Support
         /// Report the level of TWAIN Direct support.  The order
         /// matters, and must go from least support to most support...
         /// 
-        /// None    - the driver is not safe for use.
-        /// Minimal - requires TWAIN Bridge to handle TWAIN Direct
-        ///           features, but didn't answer all inquires in
-        ///           a way that inspires full confidence.
-        /// Full    - requires TWAIN Bridge to handle TWAIN Direct
-        ///           features, but can safely use all of TWAIN
-        ///           Bridge's capabilities.
-        /// Driver  - the TWAIN driver can handle TWAIN Direct tasks
-        ///           and return metadata and PDF/raster images.
+        /// None     - the driver is not safe for use.
+        /// Basic    - requires TWAIN Bridge to handle TWAIN Direct
+        ///            features, but didn't answer all inquires in
+        ///            a way that inspires full confidence, so this
+        ///            will do basics: flatbed, feeder, imageFormat,
+        ///            compression, resolution, and probably some
+        ///            kind of cropping support.
+        /// Extended - requires TWAIN Bridge to handle TWAIN Direct
+        ///            features, but can safely use more advanced
+        ///            capabilities, like feederFront, feederRear,
+        ///            automatic color detection, blank image removal,
+        ///            and such.
+        /// Driver   - the TWAIN driver can handle TWAIN Direct tasks
+        ///            and return metadata and PDF/raster images.
         /// </summary>
         public enum TwainDirectSupport
         {
             Undefined = 0,
             None = 1,
-            Minimal = 2,
-            Full = 3,
+            Basic = 2,
+            Extended = 3,
             Driver = 4
         }
 
@@ -406,8 +411,8 @@ namespace TwainDirect.Support
                 {
                     default: twaininquirydata.m_twaindirectsupport = TwainDirectSupport.None; break;
                     case "none": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.None; break;
-                    case "minimal": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Minimal; break;
-                    case "full": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Full; break;
+                    case "basic": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Basic; break;
+                    case "extended": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Extended; break;
                     case "driver": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Driver; break;
                 }
 
