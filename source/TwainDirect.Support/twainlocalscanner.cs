@@ -1873,9 +1873,9 @@ namespace TwainDirect.Support
             bool blSuccess;
 
             // Get our port...
-            if (!int.TryParse(Config.Get("usePort","55555"), out iPort))
+            if (!int.TryParse(Config.Get("usePort","34034"), out iPort))
             {
-                Log.Error("DeviceHttpServerStart: bad port..." + Config.Get("usePort", "55555"));
+                Log.Error("DeviceHttpServerStart: bad port..." + Config.Get("usePort", "34034"));
                 return (false);
             }
 
