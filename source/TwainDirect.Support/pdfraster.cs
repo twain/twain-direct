@@ -431,14 +431,13 @@ namespace TwainDirect.Support
             using (var memorystream = new MemoryStream(abImage))
             {
                 // Get the thumbnail, fix so all thumbnails have the same height
-                // we want to preserve the aspect ratio...
+                // we'd like to preserve the aspect ratio (that's the tricky bit)...
                 bitmap = new Bitmap(memorystream);
-                Image.GetThumbnailImageAbort myCallback = new Image.GetThumbnailImageAbort(ThumbnailCallback);
-                int iWidth = (64 * (int)bitmap.HorizontalResolution) / (int)bitmap.VerticalResolution;
-                Image imageThumbnail = bitmap.GetThumbnailImage(iWidth, 64, myCallback, IntPtr.Zero);
+                Image imageThumbnail = FixedSize(bitmap, 64, 64);
                 bitmap = new Bitmap(imageThumbnail);
 
-                // Convert it from 32bit rgb to 24bit rgb...
+                // Convert it from 32bit rgb to 24bit rgb, this is a shame, because
+                // it would be nice to keep an alpha channel, but so it goes...
                 bitmapdata = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
                 byte[] abImageBgr = new byte[bitmapdata.Stride * bitmap.Height];
                 System.Runtime.InteropServices.Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
@@ -468,7 +467,53 @@ namespace TwainDirect.Support
         {
             return false;
         }
+        static Image FixedSize(Image imgPhoto, int Width, int Height)
+        {
+            int sourceWidth = imgPhoto.Width;
+            int sourceHeight = imgPhoto.Height;
+            int sourceX = 0;
+            int sourceY = 0;
+            int destX = 0;
+            int destY = 0;
 
+            float nPercent = 0;
+            float nPercentW = 0;
+            float nPercentH = 0;
+
+            nPercentW = ((float)Width / (float)sourceWidth);
+            nPercentH = ((float)Height / (float)sourceHeight);
+            if (nPercentH < nPercentW)
+            {
+                nPercent = nPercentH;
+                destX = System.Convert.ToInt16((Width - (sourceWidth * nPercent)) / 2);
+            }
+            else
+            {
+                nPercent = nPercentW;
+                destY = System.Convert.ToInt16((Height - (sourceHeight * nPercent)) / 2);
+            }
+
+            int destWidth = (int)(sourceWidth * nPercent);
+            int destHeight = (int)(sourceHeight * nPercent);
+
+            Bitmap bmPhoto = new Bitmap(Width, Height, PixelFormat.Format24bppRgb);
+            bmPhoto.SetResolution(imgPhoto.HorizontalResolution, imgPhoto.VerticalResolution);
+
+            Graphics grPhoto = Graphics.FromImage(bmPhoto);
+            grPhoto.Clear(Color.LightGray);
+            grPhoto.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+            grPhoto.DrawImage
+            (
+                imgPhoto,
+                new Rectangle(destX, destY, destWidth, destHeight),
+                new Rectangle(sourceX, sourceY, sourceWidth, sourceHeight),
+                GraphicsUnit.Pixel
+            );
+
+            grPhoto.Dispose();
+            return bmPhoto;
+        }
         /// <summary>
         /// Check if a file is a valid PDF/raster...
         /// </summary>
