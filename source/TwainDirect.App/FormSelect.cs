@@ -197,7 +197,10 @@ namespace TwainDirect.App
                     // Select the first column, and make sure it has the focus...
                     if (m_dnssddeviceinfoSelected == null)
                     {
-                        m_listviewSelect.Items[0].Selected = true;
+                        if ((m_listviewSelect.Items != null) && (m_listviewSelect.Items.Count > 0))
+                        {
+                            m_listviewSelect.Items[0].Selected = true;
+                        }
                     }
 
                     // Try to match the last item we had, if we can't, then go to the top

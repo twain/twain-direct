@@ -112,6 +112,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdDir,                          new string[] { "dir", "ls" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGc,                           new string[] { "gc" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIncrement,                    new string[] { "increment" }));
@@ -1044,6 +1045,21 @@ namespace TwainDirect.Certification
             {
                 Display(szLine, true);
             }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Garbage collection, used to freak out the system and catch
+        /// bugs that linger in places, like the bonjour interface...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdGc(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            // Let's see if we can break things...
+            GC.Collect();
 
             // All done...
             return (false);

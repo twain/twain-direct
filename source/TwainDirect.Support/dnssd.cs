@@ -37,7 +37,6 @@
 
 // Helpers...
 using System;
-using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -228,6 +227,7 @@ namespace TwainDirect.Support
             );
             if (m_hwnd == IntPtr.Zero)
             {
+                Log.Error("NativeMethods.CreateWindowExW failed...");
                 // Handle an error...
             }
 
@@ -249,19 +249,29 @@ namespace TwainDirect.Support
             // with synchronization that would introduce), but still process everything asynchronously.
             // This also simplifies app code because Bonjour will only run when we explicitly call it.
 
+            // We start by creating a connection to the service.  We're going to share this with all of
+            // the other calls.  Doing this simplifies life, allowing us to see our device across
+            // every interface.
             dnsserviceerrortype = m_pfndnsserrvicecreateconnection(ref m_dnsservicerefClient);
             if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
             {
+                Log.Error("m_pfndnsserrvicecreateconnection failed...");
                 // Handle an error...
             }
 
-            m_dnsservicerefService = m_dnsservicerefClient;
+            // TBD
+            // Fire up the browser.  This will run until we tear it down.  It's not entirely clear to
+            // me as to how we're supposed to manage dnsservicerefTmp.  It's value changes after the
+            // call, so something was done to it.  We may need to save these and free them calls to the
+            // deallocation function, which is why I have a TBD at the top of this.  Note that this
+            // may apply to every place where dnsservicerefTmp is used...
             GCHandle gchandle = GCHandle.Alloc(this);
             DNSServiceBrowseReply dnsservicebrowsereply = BrowserCallBackLaunchpad;
+            IntPtr dnsservicerefTmp = m_dnsservicerefClient;
             dnsserviceerrortype = m_pfndnsservicebrowse
             (
-                ref m_dnsservicerefService,                 // Receives reference to Bonjour browser object.
-                0x4000, //kDNSServiceFlagsShareConnection   // No flags.
+                ref dnsservicerefTmp,                       // Receives reference to Bonjour browser object.
+                0x4000,                                     // kDNSServiceFlagsShareConnection.
                 0, //kDNSServiceInterfaceIndexAny           // Browse on all network interfaces.
                 "_privet._tcp,_twaindirect",                // Browse for privet service types, with a sub-type of _twaindirect
                 null,                                       // Browse on the default domain (e.g. local.).
@@ -270,12 +280,14 @@ namespace TwainDirect.Support
             );
             if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
             {
+                Log.Error("m_pfndnsservicebrowse failed: " + dnsserviceerrortype);
                 // Handle an error...
             }
 
             dnsserviceerrortype = NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefClient), m_hwnd, NativeMethods.BONJOUR_EVENT, (1 << 0) /*FD_READ*/ | (1 << 5) /*FD_CLOSE*/);
             if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
             {
+                Log.Error("NativeMethods.WSAAsyncSelect failed: " + dnsserviceerrortype);
                 // Handle an error...
             }
 
@@ -1060,10 +1072,11 @@ namespace TwainDirect.Support
                 {
                     // Clean up Bonjour. This is not strictly necessary since the normal process cleanup will 
                     // close Bonjour socket(s) and release memory, but it's here to demonstrate how to do it.
-                    if (m_dnsservicerefService != IntPtr.Zero)
+                    if (m_dnsservicerefClient != IntPtr.Zero)
                     {
-                        NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), m_hwnd, NativeMethods.BONJOUR_EVENT, 0);
-                        m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
+                        NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefClient), m_hwnd, NativeMethods.BONJOUR_EVENT, 0);
+                        m_pfndnsservicerefdeallocate(m_dnsservicerefClient);
+                        m_dnsservicerefClient = IntPtr.Zero;
                     }
                     NativeMethods.PostMessage(m_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
                     if (!m_threadMonitor.Join(5000))
@@ -1074,7 +1087,7 @@ namespace TwainDirect.Support
                 }
                 if (m_dnsservicerefRegister != IntPtr.Zero)
                 {
-                    m_pfndnsservicerefdeallocate(ref m_dnsservicerefRegister);
+                    m_pfndnsservicerefdeallocate(m_dnsservicerefRegister);
                     m_dnsservicerefRegister = IntPtr.Zero;
                 }
                 if (m_hmoduleDnssd != IntPtr.Zero)
@@ -1163,6 +1176,12 @@ namespace TwainDirect.Support
         {
             Int32 dnsserviceerrortype;
 
+            // We shouldn't be here...
+            if (m_hmoduleDnssd == null)
+            {
+                return (NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam));
+            }
+
             // Dispatch the message...
             switch (a_iMsg)
             {
@@ -1180,6 +1199,7 @@ namespace TwainDirect.Support
                     // Since this is a simple example app, if this error occurs, we quit the app too.
                     try
                     {
+                        dnsserviceerrortype = 0;
                         dnsserviceerrortype = m_pfndnsserviceprocessresult(m_dnsservicerefClient);
                         if (dnsserviceerrortype == 0) // kDNSServiceErr_NoError
                         {
@@ -1188,9 +1208,9 @@ namespace TwainDirect.Support
                         else
                         {
                             Log.Error("bonjour error..." + dnsserviceerrortype);
-                            NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefService), a_hwnd, NativeMethods.BONJOUR_EVENT, 0);
-                            m_pfndnsservicerefdeallocate(ref m_dnsservicerefService);
-                            m_dnsservicerefService = IntPtr.Zero;
+                            NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefClient), a_hwnd, NativeMethods.BONJOUR_EVENT, 0);
+                            m_pfndnsservicerefdeallocate(m_dnsservicerefClient);
+                            m_dnsservicerefClient = IntPtr.Zero;
                             NativeMethods.PostMessage(a_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
                         }
                     }
@@ -1217,7 +1237,7 @@ namespace TwainDirect.Support
         /// <param name="a_pvContext"></param>
         internal void BrowserCallBackLaunchpad
         (
-	        ref IntPtr a_dnsserviceref,
+	        IntPtr a_dnsserviceref,
 	        Int32 a_dnsserviceflags,
 	        Int32 a_i32Interface,
 	        Int32 a_dnsserviceerrortype,
@@ -1271,7 +1291,6 @@ namespace TwainDirect.Support
         )
         {
             int ii;
-	        IntPtr pdnsserviceref;
 	        Int32 dnsserviceerrortype;
 
 	        // Ruh-roh...
@@ -1333,21 +1352,13 @@ namespace TwainDirect.Support
 
             // Otherwise, we're adding something...
 
-	        // Handle our reference...
-	        pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
-	        if (pdnsserviceref == IntPtr.Zero)
-	        {
-		        Log.Error("calloc failed...");
-		        return;
-	        }
-            Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
-
             // Build a callback context...
             IntPtr pcallbackcontext = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
             if (pcallbackcontext == IntPtr.Zero)
 	        {
-                NativeMethods.free(pdnsserviceref);
-		        return;
+                Log.Error("NativeMethods.calloc failed...");
+                //NativeMethods.free(pdnsserviceref);
+                return;
 	        }
             CallbackContext callbackcontext;
             callbackcontext.dnssddeviceinfo = new DnssdDeviceInfo();
@@ -1359,9 +1370,10 @@ namespace TwainDirect.Support
 
             // Resolve the rest of the info...
             DNSServiceResolveReply dnsserviceresolvereply = ResolveCallbackLaunchpad;
+            IntPtr dnsservicerefTmp = m_dnsservicerefClient;
             dnsserviceerrortype = m_pfndnsserviceresolve
 	        (
-                pdnsserviceref,
+                ref dnsservicerefTmp,
 		        0x4000, // kDNSServiceFlagsShareConnection
                 a_i32Interface,
 		        a_szName,
@@ -1372,6 +1384,7 @@ namespace TwainDirect.Support
 	        );
             if (dnsserviceerrortype != 0) // kDNSServiceErr_NoError
             {
+                Log.Error("m_pfndnsserviceresolve failed..." + dnsserviceerrortype);
             }
         }
 
@@ -1391,7 +1404,7 @@ namespace TwainDirect.Support
         /// <param name="a_pvContext"></param>
         internal void ResolveCallbackLaunchpad
         (
-            ref IntPtr a_dnsserviceref,
+            IntPtr a_dnsserviceref,
             Int32 a_dnsserviceflags,
             Int32 a_i32Interface,
             Int32 a_dnsserviceerrortype,
@@ -1453,7 +1466,6 @@ namespace TwainDirect.Support
 	        int oo;
 	        int jj;
 	        UInt16 u16Opaqueport;
-	        IntPtr pdnsserviceref;
 	        Int32 dnsserviceerrortype;
             CallbackContext callbackcontext = (CallbackContext)Marshal.PtrToStructure(a_pvContext, typeof(CallbackContext));
 	        IntPtr pcallbackcontextQuery;
@@ -1543,15 +1555,6 @@ namespace TwainDirect.Support
             // Query for our IPv4 address...
             if (Config.Get("useIpv4", "yes") == "yes")
             {
-                // Handle our reference...
-                pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
-                if (pdnsserviceref == IntPtr.Zero)
-                {
-                    Log.Error("calloc failed...");
-                    goto ABORT;
-                }
-                Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
-
                 // Build a callback context...
                 pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
                 if (pcallbackcontextQuery == IntPtr.Zero)
@@ -1563,9 +1566,10 @@ namespace TwainDirect.Support
 
                 // Make the query...
                 dnsservicequeryrecordreply = QueryCallbackLaunchpad;
+                IntPtr dnsservicerefTmp = m_dnsservicerefClient;
                 dnsserviceerrortype = m_pfndnsservicequeryrecord
                 (
-                    pdnsserviceref,
+                    ref dnsservicerefTmp,
                     0x4000, // kDNSServiceFlagsShareConnection
                     a_i32Interface, // kDNSServiceInterfaceIndexAny,
                     callbackcontext.dnssddeviceinfo.GetLinkLocal(),
@@ -1583,15 +1587,6 @@ namespace TwainDirect.Support
             // Query for our IPv6 address...
             if (Config.Get("useIpv6", "yes") == "yes")
             {
-                // Handle our reference...
-                pdnsserviceref = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(IntPtr)));
-                if (pdnsserviceref == IntPtr.Zero)
-                {
-                    Log.Error("calloc failed...");
-                    goto ABORT;
-                }
-                Marshal.StructureToPtr(m_dnsservicerefClient, pdnsserviceref, false);
-
                 // Build a callback context...
                 pcallbackcontextQuery = NativeMethods.calloc((IntPtr)1, (IntPtr)Marshal.SizeOf(typeof(CallbackContext)));
                 if (pcallbackcontextQuery == IntPtr.Zero)
@@ -1603,9 +1598,10 @@ namespace TwainDirect.Support
 
                 // Make the query...
                 dnsservicequeryrecordreply = QueryCallbackLaunchpad;
+                IntPtr dnsservicerefTmp = m_dnsservicerefClient;
                 dnsserviceerrortype = m_pfndnsservicequeryrecord
                 (
-                    pdnsserviceref,
+                    ref dnsservicerefTmp,
                     0x4000, // kDNSServiceFlagsShareConnection
                     a_i32Interface, // kDNSServiceInterfaceIndexAny,
                     callbackcontext.dnssddeviceinfo.GetLinkLocal(),
@@ -1844,7 +1840,6 @@ namespace TwainDirect.Support
         // Windows stuff...
         IntPtr m_hmoduleDnssd;
 	    IntPtr m_dnsservicerefClient;
-        IntPtr m_dnsservicerefService;
         IntPtr m_dnsservicerefRegister;
         IntPtr m_hwnd;
 
@@ -1879,7 +1874,7 @@ namespace TwainDirect.Support
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         public delegate void DNSServiceBrowseReply
         (
-            ref IntPtr sdRef,
+            IntPtr sdRef,
             Int32 flags,
             Int32 interfaceIndex,
             Int32 errorCode,
@@ -1904,7 +1899,7 @@ namespace TwainDirect.Support
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         public delegate void pfnDNSServiceRefDeallocate
         (
-            ref IntPtr sdRef
+            IntPtr sdRef
         );
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
@@ -1916,7 +1911,7 @@ namespace TwainDirect.Support
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         delegate Int32 pfnDNSServiceResolve
         (
-            IntPtr sdRef,
+            ref IntPtr sdRef,
             Int32 flags,
             Int32 interfaceIndex,
             string name,
@@ -1928,7 +1923,7 @@ namespace TwainDirect.Support
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         public delegate void DNSServiceResolveReply
         (
-            ref IntPtr a_dnsserviceref,
+            IntPtr a_dnsserviceref,
             Int32 a_dnsserviceflags,
             Int32 a_i32Interface,
             Int32 a_dnsserviceerrortype,
@@ -1943,7 +1938,7 @@ namespace TwainDirect.Support
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         public delegate Int32 pfnDNSServiceQueryRecord
         (
-            IntPtr sdRef,
+            ref IntPtr sdRef,
             Int32 flags,
             Int32 interfaceIndex,
             string fullname,

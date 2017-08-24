@@ -255,6 +255,9 @@ namespace TwainDirect.Support
         /// <param name="result"></param>
         private void ListenerCallback(IAsyncResult a_iasyncresult)
         {
+            HttpListener httplistener;
+            HttpListenerContext httplistenercontext;
+            HttpListenerRequest httplistenerrequest;
             string szFunction = "ListenerCallback";
 
             // Protect ourselves from any rug pulling...
@@ -267,25 +270,34 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // Get our listener...
-            HttpListener httplistener = (HttpListener)a_iasyncresult.AsyncState;
-
-            // Call EndGetContext to complete the asynchronous operation.
-            HttpListenerContext httplistenercontext = httplistener.EndGetContext(a_iasyncresult);
-
-            // Immediately fire off another context, so we can
-            // process more stuff, while working on what we've
-            // just received...
-            m_iasyncresult = m_httplistener.BeginGetContext(new AsyncCallback(ListenerCallback), m_httplistener);
-
-            // Get the request...
-            HttpListenerRequest httplistenerrequest = httplistenercontext.Request;
-
-            // Filter out favicon.ico requests if a browser is talking to us...
-            string szUrl = httplistenerrequest.RawUrl;
-            szUrl = szUrl.Substring(1);
-            if (szUrl == "favicon.ico")
+            // And just in case the rug goes bye-bye anyways...
+            try
             {
+                // Get our listener...
+                httplistener = (HttpListener)a_iasyncresult.AsyncState;
+
+                // Call EndGetContext to complete the asynchronous operation.
+                httplistenercontext = httplistener.EndGetContext(a_iasyncresult);
+
+                // Immediately fire off another context, so we can
+                // process more stuff, while working on what we've
+                // just received...
+                m_iasyncresult = m_httplistener.BeginGetContext(new AsyncCallback(ListenerCallback), m_httplistener);
+
+                // Get the request...
+                httplistenerrequest = httplistenercontext.Request;
+
+                // Filter out favicon.ico requests if a browser is talking to us...
+                string szUrl = httplistenerrequest.RawUrl;
+                szUrl = szUrl.Substring(1);
+                if (szUrl == "favicon.ico")
+                {
+                    return;
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Info("ListenerCallback exception - " + exception.Message);
                 return;
             }
 
