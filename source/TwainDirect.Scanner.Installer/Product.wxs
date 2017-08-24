@@ -39,7 +39,7 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <WixVariable Id="WixUIBannerBmp" Value="$(var.ProductBannerBitmap)" />
     <WixVariable Id="WixUIDialogBmp" Value="$(var.ProductDialogBitmap)" />
-    <!--<WixVariable Id="WixUILicenseRtf" Value="$(var.ProductLicense)" />-->
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProductLicense)" />
     <UIRef Id="WixUI_InstallDir" />
 
 	  <util:CloseApplication Id="CloseRunningApp" Target="$(var.TwainDirect.Scanner.TargetFileName)"

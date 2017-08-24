@@ -41,7 +41,7 @@
   <?endif?>
 
   <!-- Resources -->
-  <?define ResourceFolder="$(var.ProjectDir)\Images" ?>
+  <?define ResourceFolder="$(var.ProjectDir)..\..\common" ?>
   <?define ProductIcon="$(var.ResourceFolder)\twain.ico" ?>
   <?define ProductDialogBitmap="$(var.ResourceFolder)\dialog.bmp" ?>
   <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
