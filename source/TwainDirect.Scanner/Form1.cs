@@ -33,7 +33,9 @@
 
 // Helpers...
 using System;
+using System.Diagnostics;
 using System.Drawing;
+using System.Reflection;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
@@ -79,12 +81,17 @@ namespace TwainDirect.Scanner
             this.Text = m_resourcemanager.GetString("strFormMainTitle"); // TWAIN Direct on TWAIN Bridge
 
             // Context memory for the system tray...
-            MenuItem menuitemOpen = new MenuItem(m_resourcemanager.GetString("strMenuShowConsole")); // &Show Console...
-            MenuItem menuitemExit = new MenuItem(m_resourcemanager.GetString("strMenuExit")); // E&xit...
+            MenuItem menuitemOpen = new MenuItem(m_resourcemanager.GetString("strMenuShowConsole")); // Open...
+            MenuItem menuitemAbout = new MenuItem(m_resourcemanager.GetString("strMenuAbout")); // About...
+            MenuItem menuitemExit = new MenuItem(m_resourcemanager.GetString("strMenuExit")); // Exit...
             menuitemOpen.Click += MenuitemOpen_Click;
+            menuitemAbout.Click += MenuitemAbout_Click;
             menuitemExit.Click += MenuitemExit_Click; ;
             m_notifyicon.ContextMenu = new ContextMenu();
             m_notifyicon.ContextMenu.MenuItems.Add(menuitemOpen);
+            m_notifyicon.ContextMenu.MenuItems.Add("-");
+            m_notifyicon.ContextMenu.MenuItems.Add(menuitemAbout);
+            m_notifyicon.ContextMenu.MenuItems.Add("-");
             m_notifyicon.ContextMenu.MenuItems.Add(menuitemExit);
 
             this.Resize += Form1_Resize;
@@ -133,6 +140,12 @@ namespace TwainDirect.Scanner
             {
                 SetButtons(ButtonState.WaitingForStart);
             }
+        }
+
+        private void MenuitemAbout_Click(object sender, EventArgs e)
+        {
+            AboutBox aboutbox = new AboutBox(m_resourcemanager);
+            aboutbox.ShowDialog();
         }
 
         private bool m_blAllowFormToClose;
@@ -411,6 +424,14 @@ namespace TwainDirect.Scanner
             string szText;
             JsonLookup jsonlookup;
             ApiCmd apicmd;
+            DialogResult dialogresult;
+
+            // Are you sure?
+            dialogresult = MessageBox.Show("Do you want to register a TWAIN driver?  Please note that depending on how many drivers are installed, this may take a while.", "Register", MessageBoxButtons.YesNo);
+            if (dialogresult == DialogResult.No)
+            {
+                return;
+            }
 
             // Turn the buttons off...
             SetButtons(ButtonState.Undefined);
@@ -486,7 +507,7 @@ namespace TwainDirect.Scanner
             {
                 // Prompt the user...
                 szNumber = "";
-                DialogResult dialogresult = InputBox
+                dialogresult = InputBox
                 (
                     "Select Default Scanner",
                     szText,
@@ -522,7 +543,7 @@ namespace TwainDirect.Scanner
             string szNote = m_scanner.GetTwainLocalNote();
             if ((iNumber >= 1) && (iNumber <= iScanner))
             {
-                DialogResult dialogresult = InputBox
+                dialogresult = InputBox
                 (
                     "Enter Note",
                     "Your current note is: " + m_scanner.GetTwainLocalNote() + Environment.NewLine +

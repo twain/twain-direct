@@ -154,7 +154,8 @@ namespace TwainDirect.Support
             m_autoreseteventWaitForEvents = new AutoResetEvent(false);
             m_autoreseteventWaitForEventsProcessing = new AutoResetEvent(false);
 
-            // This is our default location for storing images...
+            // This is our default location for storing imageblocks
+            // and metadata...
             try
             {
                 m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
@@ -165,7 +166,7 @@ namespace TwainDirect.Support
             }
             catch
             {
-                throw new Exception("Can't set up an images folder...");
+                throw new Exception("Can't set up the images folder...");
             }
 
             // Create the timer we'll use for expiring sessions...
@@ -5028,7 +5029,7 @@ namespace TwainDirect.Support
         private string m_szWriteFolder;
 
         /// <summary>
-        /// A place to store images and metadata...
+        /// This is where the imageblocks and metadata are stored.
         /// </summary>
         private string m_szImagesFolder;
 

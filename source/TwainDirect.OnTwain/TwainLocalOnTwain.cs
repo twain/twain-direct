@@ -75,7 +75,7 @@ namespace TwainDirect.OnTwain
             }
             else
             {
-                a_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+                m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
             }
             m_szIpc = a_szIpc;
             m_iPid = a_iPid;
@@ -427,7 +427,8 @@ namespace TwainDirect.OnTwain
             uint uu;
             bool blSuccess;
             string szFile;
-            string szImageFile;
+            string szPdfFile;
+            string szMetaFile;
             TWAIN.STS sts;
             TWAIN twain;
 
@@ -459,6 +460,28 @@ namespace TwainDirect.OnTwain
             // Init stuff...
             twain = m_twaincstoolkit.Twain();
 
+            // Create a filename...
+            m_iImageCount += 1;
+            szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
+            szPdfFile = szFile + ".pdf";
+            szMetaFile = szFile + ".meta";
+
+            // Cleanup...
+            if (File.Exists(szPdfFile))
+            {
+                try
+                {
+                    File.Delete(szPdfFile);
+                }
+                catch (Exception exception)
+                {
+                    TWAINWorkingGroup.Log.Error("unable to delete file: " + szPdfFile + " - " + exception.Message);
+                    m_blCancel = false;
+                    SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
+                    return (TWAINCSToolkit.MSG.RESET);
+                }
+            }
+
             // Driver support
             #region Driver Support
             if (m_deviceregisterSession.GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Driver)
@@ -474,37 +497,21 @@ namespace TwainDirect.OnTwain
                     sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
-                        m_deviceregisterSession.GetTwainInquiryData().SetExtImageInfo(false);
+                        TWAINWorkingGroup.Log.Error("DAT_EXTIMAGEINFO failed: " + sts);
+                        m_blCancel = false;
+                        SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
+                        return (TWAINCSToolkit.MSG.RESET);
                     }
                 }
-
-                // Create a filename...
-                m_iImageCount += 1;
-                szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
-
-                // Cleanup...
-                if (File.Exists(szFile + ".pdf"))
-                {
-                    try
-                    {
-                        File.Delete(szFile + ".pdf");
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                // Our filename...
-                szImageFile = szFile + ".pdf";
 
                 // Write the image data...
                 try
                 {
-                    File.WriteAllBytes(szImageFile, a_abImage);
+                    File.WriteAllBytes(szPdfFile, a_abImage);
                 }
                 catch (Exception exception)
                 {
-                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile + " - " + exception.Message);
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile + " - " + exception.Message);
                     m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                     return (TWAINCSToolkit.MSG.RESET);
@@ -555,8 +562,8 @@ namespace TwainDirect.OnTwain
                                 m_twaincstoolkit.DsmMemUnlock(Handle);
 
                                 // Okay, write it out and log it...
-                                File.WriteAllText(szFile + ".meta", szMeta);
-                                TWAINWorkingGroup.Log.Info("ReportImage: saved " + szFile + ".meta");
+                                File.WriteAllText(szMetaFile, szMeta);
+                                TWAINWorkingGroup.Log.Info("ReportImage: saved " + szMetaFile);
                                 TWAINWorkingGroup.Log.Info(szMeta);
                             }
                             catch
@@ -609,31 +616,12 @@ namespace TwainDirect.OnTwain
                     }
                 }
 
-                // Create a filename...
-                m_iImageCount += 1;
-                szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
-
-                // Cleanup...
-                if (File.Exists(szFile + ".pdf"))
-                {
-                    try
-                    {
-                        File.Delete(szFile + ".pdf");
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                // Our filename...
-                szImageFile = szFile + ".pdf";
-
                 // Get our pixelFormat...
                 string szPixelFormat;
                 switch ((TWAIN.TWPT)twimageinfo.PixelType)
                 {
                     default:
-                        TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
+                        TWAINWorkingGroup.Log.Error("ReportImage: bad pixeltype - " + twimageinfo.PixelType);
                         m_blCancel = false;
                         SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                         return (TWAINCSToolkit.MSG.RESET);
@@ -653,7 +641,7 @@ namespace TwainDirect.OnTwain
                 switch ((TWAIN.TWCP)twimageinfo.Compression)
                 {
                     default:
-                        TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file <" + szImageFile + ">");
+                        TWAINWorkingGroup.Log.Error("ReportImage: bad compression - " + twimageinfo.Compression);
                         m_blCancel = false;
                         SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                         return (TWAINCSToolkit.MSG.RESET);
@@ -824,7 +812,7 @@ namespace TwainDirect.OnTwain
                 // We have to do this ourselves, save as PDF/Raster...
                 blSuccess = PdfRaster.CreatePdfRaster
                 (
-                    szImageFile,
+                    szPdfFile,
                     szMeta,
                     a_abImage,
                     a_iImageOffset,
@@ -836,7 +824,7 @@ namespace TwainDirect.OnTwain
                 );
                 if (!blSuccess)
                 {
-                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szImageFile);
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile);
                     m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                     return (TWAINCSToolkit.MSG.RESET);
@@ -846,8 +834,8 @@ namespace TwainDirect.OnTwain
                 // a trigger that announces the image is done...
                 try
                 {
-                    File.WriteAllText(szFile + ".meta", szMeta);
-                    TWAINWorkingGroup.Log.Info("ReportImage: saved " + szFile + ".meta");
+                    File.WriteAllText(szMetaFile, szMeta);
+                    TWAINWorkingGroup.Log.Info("ReportImage: saved " + szMetaFile);
                 }
                 catch
                 {

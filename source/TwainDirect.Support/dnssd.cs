@@ -232,14 +232,14 @@ namespace TwainDirect.Support
             }
 
             // Make sure the window has our object...
-            GCHandle gchandleObject = GCHandle.Alloc(this);
+            m_gchandleThis = GCHandle.Alloc(this);
             if (Config.GetMachineWordSize() == 32)
             {
-                NativeMethods.SetWindowLong(m_hwnd, -21, (int)GCHandle.ToIntPtr(gchandleObject)); // GWL_USERDATA
+                NativeMethods.SetWindowLong(m_hwnd, -21, (int)GCHandle.ToIntPtr(m_gchandleThis)); // GWL_USERDATA
             }
             else
             {
-                NativeMethods.SetWindowLongPtr(m_hwnd, -21, GCHandle.ToIntPtr(gchandleObject)); // GWL_USERDATA
+                NativeMethods.SetWindowLongPtr(m_hwnd, -21, GCHandle.ToIntPtr(m_gchandleThis)); // GWL_USERDATA
             }
 
             // Start browsing for services and associate the Bonjour browser with our window using the 
@@ -265,7 +265,6 @@ namespace TwainDirect.Support
             // call, so something was done to it.  We may need to save these and free them calls to the
             // deallocation function, which is why I have a TBD at the top of this.  Note that this
             // may apply to every place where dnsservicerefTmp is used...
-            GCHandle gchandle = GCHandle.Alloc(this);
             DNSServiceBrowseReply dnsservicebrowsereply = BrowserCallBackLaunchpad;
             IntPtr dnsservicerefTmp = m_dnsservicerefClient;
             dnsserviceerrortype = m_pfndnsservicebrowse
@@ -276,7 +275,7 @@ namespace TwainDirect.Support
                 "_privet._tcp,_twaindirect",                // Browse for privet service types, with a sub-type of _twaindirect
                 null,                                       // Browse on the default domain (e.g. local.).
                 dnsservicebrowsereply,                      // Callback function when Bonjour events occur.
-                GCHandle.ToIntPtr(gchandle)                 // No callback context needed.
+                GCHandle.ToIntPtr(m_gchandleThis)           // No callback context needed.
             );
             if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
             {
@@ -284,6 +283,7 @@ namespace TwainDirect.Support
                 // Handle an error...
             }
 
+            // Register to be notified when the socket has data...
             dnsserviceerrortype = NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefClient), m_hwnd, NativeMethods.BONJOUR_EVENT, (1 << 0) /*FD_READ*/ | (1 << 5) /*FD_CLOSE*/);
             if (dnsserviceerrortype != 0 /*kDNSServiceErr_NoError*/)
             {
@@ -1068,6 +1068,7 @@ namespace TwainDirect.Support
             // Free managed resources...
             if (a_blDisposing)
             {
+                // Lose the thread...
                 if (m_threadMonitor != null)
                 {
                     // Clean up Bonjour. This is not strictly necessary since the normal process cleanup will 
@@ -1085,15 +1086,32 @@ namespace TwainDirect.Support
                     }
                     m_threadMonitor = null;
                 }
+
+                // Stop monitoring bonjour...
                 if (m_dnsservicerefRegister != IntPtr.Zero)
                 {
                     m_pfndnsservicerefdeallocate(m_dnsservicerefRegister);
                     m_dnsservicerefRegister = IntPtr.Zero;
                 }
+
+                // Close our window...
                 if (m_hmoduleDnssd != IntPtr.Zero)
                 {
                     NativeMethods.FreeLibrary(m_hmoduleDnssd);
                     m_hmoduleDnssd = IntPtr.Zero;
+                }
+
+                // Free the cache...
+                if (m_adnssddeviceinfoCache != null)
+                {
+                    m_adnssddeviceinfoCache = null;
+                }
+
+                // Free memory...
+                if (m_gchandleThis.IsAllocated)
+                {
+                    m_gchandleThis.Free();
+                    m_gchandleThis = default(GCHandle);
                 }
             }
         }
@@ -1362,8 +1380,7 @@ namespace TwainDirect.Support
 	        }
             CallbackContext callbackcontext;
             callbackcontext.dnssddeviceinfo = new DnssdDeviceInfo();
-            GCHandle gchandle = GCHandle.Alloc(this);
-            callbackcontext.dnssd = GCHandle.ToIntPtr(gchandle);
+            callbackcontext.dnssd = GCHandle.ToIntPtr(m_gchandleThis);
             callbackcontext.dnssddeviceinfo.SetInterface(a_i32Interface);
             callbackcontext.dnssddeviceinfo.SetServiceName(a_szName + "." + a_szType + a_szDomain);
             Marshal.StructureToPtr(callbackcontext, pcallbackcontext, false);
@@ -1842,6 +1859,7 @@ namespace TwainDirect.Support
 	    IntPtr m_dnsservicerefClient;
         IntPtr m_dnsservicerefRegister;
         IntPtr m_hwnd;
+        GCHandle m_gchandleThis;
 
         // Linux stuff...
         // nothing at this time...

@@ -133,13 +133,21 @@
     <value>TWAIN Direct on TWAIN Bridge</value>
     <comment>Main Form title...</comment>
   </data>
+  <data name="strMenuAbout" xml:space="preserve">
+    <value>&amp;A propos</value>
+    <comment>Information about this program...</comment>
+  </data>
   <data name="strMenuExit" xml:space="preserve">
-    <value>&amp;Sortie</value>
+    <value>&amp;Sortie...</value>
     <comment>Exit the program...</comment>
   </data>
   <data name="strMenuShowConsole" xml:space="preserve">
-    <value>&amp;Afficher la fenêtre</value>
+    <value>&amp;Ouvrir</value>
     <comment>Raise the server console window...</comment>
+  </data>
+  <data name="strTextAbout" xml:space="preserve">
+    <value>Un programme permettant aux applications TWAIN Direct de communiquer avec les scanners pris en charge par les pilotes TWAIN.</value>
+    <comment>Information about this program...</comment>
   </data>
   <data name="strTextListingScannersBegin" xml:space="preserve">
     <value>Liste des scanners enregistrés...(veuillez attendre la liste)</value>

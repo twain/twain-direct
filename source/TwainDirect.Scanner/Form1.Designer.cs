@@ -43,11 +43,14 @@
             this.m_richtextboxTask = new System.Windows.Forms.RichTextBox();
             this.m_buttonRegister = new System.Windows.Forms.Button();
             this.m_notifyicon = new System.Windows.Forms.NotifyIcon(this.components);
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // m_buttonStart
             // 
             this.m_buttonStart.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_buttonStart.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.m_buttonStart.Location = new System.Drawing.Point(199, 8);
             this.m_buttonStart.Name = "m_buttonStart";
             this.m_buttonStart.Size = new System.Drawing.Size(75, 23);
@@ -59,6 +62,7 @@
             // m_buttonStop
             // 
             this.m_buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_buttonStop.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.m_buttonStop.Location = new System.Drawing.Point(280, 8);
             this.m_buttonStop.Name = "m_buttonStop";
             this.m_buttonStop.Size = new System.Drawing.Size(75, 23);
@@ -69,18 +73,19 @@
             // 
             // m_richtextboxTask
             // 
-            this.m_richtextboxTask.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_richtextboxTask.Location = new System.Drawing.Point(11, 37);
+            this.m_richtextboxTask.BackColor = System.Drawing.SystemColors.Window;
+            this.m_richtextboxTask.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.m_richtextboxTask.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.m_richtextboxTask.Location = new System.Drawing.Point(0, 0);
             this.m_richtextboxTask.Name = "m_richtextboxTask";
             this.m_richtextboxTask.ReadOnly = true;
-            this.m_richtextboxTask.Size = new System.Drawing.Size(344, 186);
+            this.m_richtextboxTask.Size = new System.Drawing.Size(340, 183);
             this.m_richtextboxTask.TabIndex = 61;
             this.m_richtextboxTask.Text = "";
             // 
             // m_buttonRegister
             // 
+            this.m_buttonRegister.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.m_buttonRegister.Location = new System.Drawing.Point(11, 8);
             this.m_buttonRegister.Name = "m_buttonRegister";
             this.m_buttonRegister.Size = new System.Drawing.Size(75, 23);
@@ -97,17 +102,32 @@
             this.m_notifyicon.Text = "TWAIN Direct";
             this.m_notifyicon.Visible = true;
             // 
+            // panel1
+            // 
+            this.panel1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel1.Controls.Add(this.m_richtextboxTask);
+            this.panel1.Location = new System.Drawing.Point(13, 38);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(342, 185);
+            this.panel1.TabIndex = 63;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.SystemColors.Window;
             this.ClientSize = new System.Drawing.Size(367, 235);
+            this.Controls.Add(this.panel1);
             this.Controls.Add(this.m_buttonRegister);
-            this.Controls.Add(this.m_richtextboxTask);
             this.Controls.Add(this.m_buttonStop);
             this.Controls.Add(this.m_buttonStart);
+            this.MinimumSize = new System.Drawing.Size(383, 274);
             this.Name = "Form1";
             this.Text = "TWAIN Direct: Scanner";
+            this.panel1.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -119,6 +139,7 @@
         private System.Windows.Forms.RichTextBox m_richtextboxTask;
         private System.Windows.Forms.Button m_buttonRegister;
         private System.Windows.Forms.NotifyIcon m_notifyicon;
+        private System.Windows.Forms.Panel panel1;
     }
 }
 
