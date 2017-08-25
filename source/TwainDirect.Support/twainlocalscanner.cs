@@ -1848,6 +1848,10 @@ namespace TwainDirect.Support
                         {
                             DeviceScannerStartCapturing(ref apicmd);
                         }
+                        else
+                        {
+                            DeviceReturnError(szFunction, apicmd, "aborted", null, -1);
+                        }
                     }
                     break;
 

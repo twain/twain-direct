@@ -33,9 +33,7 @@
 
 // Helpers...
 using System;
-using System.Diagnostics;
 using System.Drawing;
-using System.Reflection;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
@@ -55,8 +53,10 @@ namespace TwainDirect.Scanner
         /// </summary>
         public Form1()
         {
-            // Confirm scan...
-            bool blConfirmScan = (Config.Get("confirmscan", null) != null);
+            // Confirm scan, we check for the command line (confirmscan)
+            // and for the appdata.txt file (useConfirmScan).  The default
+            // is for it to be off...
+            bool blConfirmScan = (Config.Get("confirmscan", null) != null) || (Config.Get("useConfirmScan", "no") == "yes");
 
             // Init our form...
             InitializeComponent();
