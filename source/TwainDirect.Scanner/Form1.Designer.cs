@@ -50,7 +50,6 @@
             // m_buttonStart
             // 
             this.m_buttonStart.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStart.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.m_buttonStart.Location = new System.Drawing.Point(199, 8);
             this.m_buttonStart.Name = "m_buttonStart";
             this.m_buttonStart.Size = new System.Drawing.Size(75, 23);
@@ -62,7 +61,6 @@
             // m_buttonStop
             // 
             this.m_buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStop.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.m_buttonStop.Location = new System.Drawing.Point(280, 8);
             this.m_buttonStop.Name = "m_buttonStop";
             this.m_buttonStop.Size = new System.Drawing.Size(75, 23);
@@ -85,7 +83,6 @@
             // 
             // m_buttonRegister
             // 
-            this.m_buttonRegister.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.m_buttonRegister.Location = new System.Drawing.Point(11, 8);
             this.m_buttonRegister.Name = "m_buttonRegister";
             this.m_buttonRegister.Size = new System.Drawing.Size(75, 23);
@@ -118,7 +115,6 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.SystemColors.Window;
             this.ClientSize = new System.Drawing.Size(367, 235);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.m_buttonRegister);

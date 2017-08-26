@@ -3258,7 +3258,7 @@ namespace TwainDirect.Support
         private void DeviceShutdownTwainDirectOnTwain(bool a_blForce)
         {
             // Apparently we've already done this...
-            if (m_twainlocalsession == null)
+            if ((m_twainlocalsession == null) || (m_twainlocalsession.GetIpcTwainDirectOnTwain() == null))
             {
                 return;
             }
@@ -3895,6 +3895,8 @@ namespace TwainDirect.Support
                     m_twainlocalsession.GetProcessTwainDirectOnTwain().StartInfo.Arguments = "\"" + szTwainDirectOnTwain + "\"" + " " + szArguments;
                 }
                 m_twainlocalsession.GetProcessTwainDirectOnTwain().StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                m_twainlocalsession.GetProcessTwainDirectOnTwain().EnableRaisingEvents = true;
+                m_twainlocalsession.GetProcessTwainDirectOnTwain().Exited += new EventHandler(TwainLocalScanner_Exited);
 
                 // Log what we're doing...
                 Log.Info("run>>> " + m_twainlocalsession.GetProcessTwainDirectOnTwain().StartInfo.FileName);
@@ -3977,6 +3979,11 @@ namespace TwainDirect.Support
 
             // All done...
             return (true);
+        }
+
+        private void TwainLocalScanner_Exited(object sender, EventArgs e)
+        {
+            DeviceSessionTimerCallback(this);
         }
 
         /// <summary>
