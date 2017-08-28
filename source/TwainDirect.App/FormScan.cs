@@ -532,6 +532,12 @@ namespace TwainDirect.App
                         break;
 
                     // We've lost our session
+                    case "critical":
+                        formscan.SetButtons(EBUTTONSTATE.CLOSED);
+                        MessageBox.Show("Your scanner session has aborted.", "Notification");
+                        break;
+
+                    // We've lost our session
                     case "sessionTimedOut":
                         formscan.SetButtons(EBUTTONSTATE.CLOSED);
                         MessageBox.Show("Your scanner session has timed out.", "Notification");

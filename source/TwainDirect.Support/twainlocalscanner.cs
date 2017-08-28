@@ -116,14 +116,6 @@ namespace TwainDirect.Support
                 m_iHttpTimeoutData = iDefault;
             }
 
-            // Init our event timeout for HTTPS communication...
-            iDefault = 30000; // 30 seconds
-            m_iHttpTimeoutEvent = (int)Config.Get("httpTimeoutEvent", iDefault);
-            if (m_iHttpTimeoutEvent < 10000)
-            {
-                m_iHttpTimeoutEvent = iDefault;
-            }
-
             // Init our idle session timeout...
             iDefault = 300000; // five minutes
             m_lSessionTimeout = Config.Get("sessionTimeout", iDefault);
@@ -1402,6 +1394,15 @@ namespace TwainDirect.Support
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
+                // Init our event timeout for HTTPS communication, this value
+                // needs to be more than whatever is being used by the scanner.
+                int iDefault = 60000; // 60 seconds
+                int iHttpTimeoutEvent = (int)Config.Get("httpTimeoutEvent", iDefault);
+                if (iHttpTimeoutEvent < 10000)
+                {
+                    iHttpTimeoutEvent = iDefault;
+                }
+
                 // Send the RESTful API command...
                 // Both @@@COMMANDID@@@ and @@@SESSIONREVISION@@@ are resolved
                 // inside of the ClientScannerWaitForEventsHelper thread...
@@ -1423,7 +1424,7 @@ namespace TwainDirect.Support
                     "}",
                     null,
                     null,
-                    m_iHttpTimeoutEvent,
+                    iHttpTimeoutEvent,
                     ApiCmd.HttpReplyStyle.Event
                 );
                 if (!blSuccess)
@@ -2159,6 +2160,14 @@ namespace TwainDirect.Support
             // Cleanup...
             if (a_sessionstate == SessionState.noSession)
             {
+                // Don't let the event timeout fire...
+                if (m_timerEvent != null)
+                {
+                    m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+                    m_timerEvent.Dispose();
+                    m_timerEvent = null;
+                }
+
                 // Lose the eventing stuff on the client side...
                 if (m_waitforeventsinfo != null)
                 {
@@ -2452,6 +2461,21 @@ namespace TwainDirect.Support
                                 Log.Verbose(szFunction + ": unrecognized event..." + jsonlookup.Get(szEvent + ".event", false));
                                 break;
 
+                            // Our scanner session went bye-bye on us...
+                            case "critical":
+                                // Our reply...
+                                Log.Info(szFunction + ": critical event...");
+                                if (m_eventcallback != null)
+                                {
+                                    m_eventcallback(m_objectEventCallback, "critical");
+                                }
+
+                                // Wake up anybody watching us...
+                                ClientWaitForSessionUpdateForceSet();
+
+                                // All done...
+                                break;
+
                             // The session object has been updated, specifically we have a change
                             // to the imageBlocks array from stuff being added or removed...
                             case "imageBlocks":
@@ -2525,13 +2549,11 @@ namespace TwainDirect.Support
                                 // Wake up anybody watching us...
                                 ClientWaitForSessionUpdateForceSet();
 
-                                // Give them a couple of seconds...
-                                //Thread.Sleep(2000);
-
-                                // Now we can zap it...
-                                //SetSessionState(SessionState.noSession);
-
                                 // All done...
+                                break;
+
+                            // The event has timed out, we can ignore this one...
+                            case "timeout":
                                 break;
                         }
                     }
@@ -2964,13 +2986,15 @@ namespace TwainDirect.Support
                 // code in this function collects the session state and
                 // the session revision...
                 apicmd = new ApiCmd(apicmd, out szSessionState, out lSessionRevision);
+
+                // Wake up the processor...
+                m_autoreseteventWaitForEventsProcessing.Set();
+
+                // We're done, we can stop monitoring for events...
                 if (szSessionState == "noSession")
                 {
                     return;
                 }
-
-                // Wake up the processor...
-                m_autoreseteventWaitForEventsProcessing.Set();
             }
         }
 
@@ -3201,7 +3225,13 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_szEvent">the event to send</param>
         /// <param name="a_sessionstate">the state to send</param>
-        private void DeviceSendEvent(string a_szEvent, SessionState a_sessionstate)
+        /// <param name="a_blAllowEventWithNoSession">needed for sessionTimeout and critical events</param>
+        private void DeviceSendEvent
+        (
+            string a_szEvent,
+            SessionState a_sessionstate,
+            bool a_blAllowEventWithNoSession = false
+        )
         {
             // Guard us...
             lock (m_objectLock)
@@ -3212,8 +3242,28 @@ namespace TwainDirect.Support
                     ApiCmd apicmd = new ApiCmd(null);
                     m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
                     apicmd.SetEvent(a_szEvent, a_sessionstate.ToString(), m_twainlocalsession.GetSessionRevision());
-                    DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, a_sessionstate, m_twainlocalsession.GetSessionRevision(), a_szEvent);
+                    DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, a_sessionstate, m_twainlocalsession.GetSessionRevision(), a_szEvent, a_blAllowEventWithNoSession);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Our device event timeout callback...
+        /// </summary>
+        /// <param name="a_objectState"></param>
+        internal void DeviceEventTimerCallback(object a_objectState)
+        {
+            // Turn us off...
+            m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+
+            // Get our scanner object...
+            TwainLocalScanner twainlocalscanner = (TwainLocalScanner)a_objectState;
+
+            // Tell the application that this event has timed out, so it
+            // needs to set up a new one...
+            if (m_twainlocalsession != null)
+            {
+                twainlocalscanner.DeviceSendEvent("timeout", m_twainlocalsession.GetSessionState(), false);
             }
         }
 
@@ -3227,19 +3277,41 @@ namespace TwainDirect.Support
             TwainLocalScanner twainlocalscanner = (TwainLocalScanner)a_objectState;
 
             // Send an event to let the app know that it's tooooooo late...
-            twainlocalscanner.DeviceSendEvent("sessionTimedOut", SessionState.noSession);
+            twainlocalscanner.DeviceSendEvent("sessionTimedOut", SessionState.noSession, true);
 
             // Make a note of what we're doing...
             Log.Error("DeviceSessionTimerCallback: session timeout...");
 
-            // Give the system two seconds to deliver the message, otherwise
+            // Give the system time to deliver the message, otherwise
             // what will happen is the client will see that it's lost
             // communication.  Which it should interpret as the loss of the
             // session.  This is just a nicer way of getting there...
-            Thread.Sleep(2000);
+            Thread.Sleep(1000);
 
             // Scrag the session...
             twainlocalscanner.SetSessionState(SessionState.noSession, "Session timeout...");
+        }
+
+        /// <summary>
+        /// Our device session exited in some unexpected fashion.  This
+        /// might happen if the TWAIN driver crashes...
+        /// </summary>
+        internal void DeviceSessionExited()
+        {
+            // Tell the application that we're in trouble...
+            DeviceSendEvent("critical", SessionState.noSession, true);
+
+            // Make a note of what we're doing...
+            Log.Error("DeviceSessionExited: session critical...");
+
+            // Give the system time to deliver the message, otherwise
+            // what will happen is the client will see that it's lost
+            // communication.  Which it should interpret as the loss of the
+            // session.  This is just a nicer way of getting there...
+            Thread.Sleep(1000);
+
+            // Scrag the session...
+            SetSessionState(SessionState.noSession, "Session critical...");
         }
 
         /// <summary>
@@ -3275,6 +3347,9 @@ namespace TwainDirect.Support
                 return;
             }
 
+            // Make sure we don't trigger our exit event handler...
+            m_twainlocalsession.GetProcessTwainDirectOnTwain().Exited -= new EventHandler(TwainLocalScanner_Exited);
+
             // Shut down the process...
             if (m_twainlocalsession.GetIpcTwainDirectOnTwain() != null)
             {
@@ -3307,6 +3382,7 @@ namespace TwainDirect.Support
         /// <param name="a_szSessionState">the state of the Scanner API session</param>
         /// <param name="a_lSessionRevision">the current session revision</param>
         /// <param name="a_szEventName">name of an event (or null)</param>
+        /// <param name="a_blAllowEventWithNoSession">pretty much what it says</param>
         /// <returns>true on success</returns>
         private bool DeviceUpdateSession
         (
@@ -3316,7 +3392,8 @@ namespace TwainDirect.Support
             ApiCmd a_apicmdEvent,
             SessionState a_esessionstate,
             long a_lSessionRevision,
-            string a_szEventName
+            string a_szEventName,
+            bool a_blAllowEventWithNoSession = false
         )
         {
             long ii;
@@ -3529,7 +3606,7 @@ namespace TwainDirect.Support
                 &&  a_blWaitForEvents)
             {
                 // This should never happen, but let's be sure...
-                if (a_esessionstate == SessionState.noSession)
+                if ((a_esessionstate == SessionState.noSession) && !a_blAllowEventWithNoSession)
                 {
                     return (true);
                 }
@@ -3584,9 +3661,24 @@ namespace TwainDirect.Support
                 // filtered and sorted, so we send all of it.
                 if (a_apicmd != null)
                 {
-                    // We have no events...
+                    // We have no events to report at this time...
                     if (m_twainlocalsession.GetApicmdEvents()[0] == null)
                     {
+                        // Init our event timeout for HTTPS communication, this value
+                        // needs to be less than whatever is being used by the application.
+                        int iDefault = 30000; // 30 seconds
+                        int iHttpTimeoutEvent = (int)Config.Get("httpTimeoutEvent", iDefault);
+                        if (iHttpTimeoutEvent < 10000)
+                        {
+                            iHttpTimeoutEvent = iDefault;
+                        }
+
+                        // Start our event timer, the default is 30 seconds,
+                        // we only run once, because the application is expected
+                        // to send a new waitForEvents command...
+                        m_timerEvent = new Timer(DeviceEventTimerCallback, this, iHttpTimeoutEvent, Timeout.Infinite);
+
+                        // All done...
                         return (true);
                     }
 
@@ -3983,7 +4075,7 @@ namespace TwainDirect.Support
 
         private void TwainLocalScanner_Exited(object sender, EventArgs e)
         {
-            DeviceSessionTimerCallback(this);
+            DeviceSessionExited();
         }
 
         /// <summary>
@@ -4831,6 +4923,11 @@ namespace TwainDirect.Support
         /// 
         /// We don't refresh the session time with waitForEvents,
         /// otherwise we'd never expire... :)
+        /// 
+        /// When we call this, we check to see if we need to respond
+        /// immediately.  If so, we do that.  If not, then we set a
+        /// timer that will expire after some period of time (for
+        /// long polls the recommendation appears to be 30 seconds).
         /// </summary>
         /// <param name="a_apicmd">our command object</param>
         /// <returns>true on success</returns>
@@ -4843,10 +4940,10 @@ namespace TwainDirect.Support
             m_apicmdEvent = a_apicmd;
 
             // Update events...
-            blSuccess = DeviceScannerGetSession(ref a_apicmd, true, false, null);
+            blSuccess = DeviceScannerGetSession(ref m_apicmdEvent, true, false, null);
             if (!blSuccess)
             {
-                DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
+                DeviceReturnError(szFunction, m_apicmdEvent, "critical", null, -1);
                 return (false);
             }
 
@@ -5086,11 +5183,6 @@ namespace TwainDirect.Support
         private int m_iHttpTimeoutData;
 
         /// <summary>
-        /// Event timeout, this should be long (and in milliseconds)...
-        /// </summary>
-        private int m_iHttpTimeoutEvent;
-
-        /// <summary>
         /// Idle time before a session times out (in milliseconds)...
         /// </summary>
         private long m_lSessionTimeout;
@@ -5111,6 +5203,11 @@ namespace TwainDirect.Support
         /// and if we have an event...
         /// </summary>
         private ApiCmd m_apicmdEvent;
+
+        /// <summary>
+        /// Our event timer for m_apicmdEvent...
+        /// </summary>
+        private Timer m_timerEvent;
 
         #endregion
 
