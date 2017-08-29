@@ -46,6 +46,7 @@
 
 // Helpers...
 using System;
+using System.Collections.Generic;
 
 namespace TwainDirect.Support
 {
@@ -122,9 +123,14 @@ namespace TwainDirect.Support
         /// <summary>
         /// Dump the contents of the property tree...
         /// </summary>
-		public void Dump()
+        /// <returns>the JSON string</returns>
+		public string Dump()
         {
-            DumpPrivate(m_property,0);
+            if (m_lkeyvalueOverride == null)
+            {
+                m_lkeyvalueOverride = new List<KeyValue>();
+            }
+            return (DumpPrivate(m_property, 0, "", false));
         }
 
         /// <summary>
@@ -471,6 +477,27 @@ namespace TwainDirect.Support
 	        return (blSuccess);
         }
 
+        /// <summary>
+        /// Add an override for the Dump.  A value of null can be used
+        /// to "delete" an override.  Overrides are only supported for
+        /// boolean, null, number, and string.  It would be possible to
+        /// add support for array and object, but that seems a lot more
+        /// risky, so I'm holding off for now.
+        /// </summary>
+        /// <param name="a_szKey"></param>
+        /// <param name="a_szValue"></param>
+        public void Override(string a_szKey, string a_szValue)
+        {
+            KeyValue keyvalue = new KeyValue();
+            keyvalue.szKey = a_szKey;
+            keyvalue.szValue = a_szValue;
+            if (m_lkeyvalueOverride == null)
+            {
+                m_lkeyvalueOverride = new List<KeyValue>();
+            }
+            m_lkeyvalueOverride.Add(keyvalue);
+        }
+
         #endregion
 
 
@@ -589,17 +616,30 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_property">property to dump</param>
         /// <param name="a_iDepth">depth we're at</param>
-        private void DumpPrivate(Property a_property, int a_iDepth)
+        /// <param name="a_szKey">key for this item</param>
+        /// <param name="a_blArray">true if we're elements in an array</param>
+        /// <returns>the JSON string</returns>
+        private string DumpPrivate
+        (
+            Property a_property,
+            int a_iDepth,
+            string a_szKey,
+            bool a_blArray
+        )
         {
-	        int aa;
-	        string szData;
+            int iArray;
+            string szKey;
 	        string szName;
+            string szValue;
+            string szResult;
 	        Property property;
+            KeyValue keyvalue;
             EPROPERTYTYPE epropertytype;
 
-	        // Init...
-	        aa = 0;
-	        property = a_property;
+            // Init...
+            iArray = -1;
+            szResult = "";
+            property = a_property;
 	        if (property == null)
 	        {
 		        property = m_property;
@@ -608,58 +648,129 @@ namespace TwainDirect.Support
 	        // Dump...
 	        while (property != null)
 	        {
-		        // Get the name...
-		        if (property == m_property)
-		        {
-			        szName = "root";
-		        }
-		        else
-		        {
-			        if (!GetProperty(property, out szName))
-			        {
-				        Console.WriteLine("\r\nerror>>> " + a_iDepth);
-				        return;
-			        }
-		        }
+                // Our key...
+                szKey = a_szKey;
 
-		        // Get the value...
-                if (!GetValue(property, out szData, out epropertytype))
-		        {
-			        Console.WriteLine("\r\nerror>>> " + a_iDepth);
-			        return;
-		        }
+                // We're in an array, so subscript us...
+                if (a_blArray)
+                {
+                    iArray += 1;
+                    szKey += "[" + iArray + "]";
+                }
 
-		        // Cleanup...
-                szData = szData.Replace("\n","$");
-                szData = szData.Replace("\r","");
+                switch (property.epropertytype)
+                {
+                    // This can't be right...
+                    default:
+                        return ("");
 
-		        // Print stuff...
-		        if (szName.Length > 0)
-		        {
-			        Console.WriteLine
-                    (
-                        ((a_iDepth == 0) ? "" : "                                                                                ".Substring(0, (a_iDepth * 4))) +
-                        szName + ": " + szData
-                    );
-		        }
-		        else
-		        {
-			        Console.WriteLine
-                    (
-                        ((a_iDepth == 0) ? "" : "                                                                                ".Substring(0, (a_iDepth * 4))) +
-                        aa++ + ": " + szData
-                    );
-		        }
+                    // Dump an array...
+                    case EPROPERTYTYPE.ARRAY:
+                        // name:[ or just [
+                        GetProperty(property, out szName);
+                        if (!string.IsNullOrEmpty(szName))
+                        {
+                            szResult += "\"" + szName + "\":[";
+                            szKey += string.IsNullOrEmpty(szKey) ? szName : "." + szName;
+                        }
+                        else
+                        {
+                            szResult += "[";
+                        }
 
-		        // Dive into our kiddie, if we have one...
-		        if (property.propertyChild != null)
-		        {
-			        DumpPrivate(property.propertyChild, a_iDepth+1);
-		        }
+                        // If we have a kiddie, dive down into it...
+                        if (property.propertyChild != null)
+                        {
+                            szResult += DumpPrivate(property.propertyChild, a_iDepth + 1, szKey, true);
+                        }
+
+                        // If the last character is a comma, remove it...
+                        if (szResult.EndsWith(","))
+                        {
+                            szResult = szResult.Remove(szResult.Length - 1);
+                        }
+
+                        // just ],
+                        szResult += "],";
+                        break;
+
+                    // Dump a boolean, null, or number...
+                    case EPROPERTYTYPE.BOOLEAN:
+                    case EPROPERTYTYPE.NULL:
+                    case EPROPERTYTYPE.NUMBER:
+                        GetProperty(property, out szName);
+                        szKey += string.IsNullOrEmpty(szKey) ? szName : "." + szName;
+                        keyvalue = m_lkeyvalueOverride.Find(item => item.szKey == szKey);
+                        if ((keyvalue == null) || (keyvalue.szValue == null))
+                        {
+                            GetValue(property, out szValue, out epropertytype);
+                            szResult += "\"" + szName + "\":" + szValue + ",";
+                        }
+                        else
+                        {
+                            szResult += "\"" + szName + "\":" + keyvalue.szValue + ",";
+                        }
+                        break;
+
+                    // Dump an object...
+                    case EPROPERTYTYPE.OBJECT:
+                        // name:{ or just {
+                        GetProperty(property, out szName);
+                        if (!string.IsNullOrEmpty(szName))
+                        {
+                            szResult += "\"" + szName + "\":{";
+                            szKey += string.IsNullOrEmpty(szKey) ? szName : "." + szName;
+                        }
+                        else
+                        {
+                            szResult += "{";
+                        }
+
+                        // If we have a kiddie, dive down into it...
+                        if (property.propertyChild != null)
+                        {
+                            szResult += DumpPrivate(property.propertyChild, a_iDepth + 1, szKey, false);
+                        }
+
+                        // If the last character is a comma, remove it...
+                        if (szResult.EndsWith(","))
+                        {
+                            szResult = szResult.Remove(szResult.Length - 1);
+                        }
+
+                        // just },
+                        szResult += "},";
+                        break;
+
+                    // Dump a string...
+                    case EPROPERTYTYPE.STRING:
+                        GetProperty(property, out szName);
+                        szKey += string.IsNullOrEmpty(szKey) ? szName : "." + szName;
+                        keyvalue = m_lkeyvalueOverride.Find(item => item.szKey == szKey);
+                        if ((keyvalue == null) || (keyvalue.szValue == null))
+                        {
+                            GetValue(property, out szValue, out epropertytype);
+                            szResult += "\"" + szName + "\":\"" + szValue + "\",";
+                        }
+                        else
+                        {
+                            szResult += "\"" + szName + "\":\"" + keyvalue.szValue + "\",";
+                        }
+                        break;
+                }
 
 		        // Next sibling...
 		        property = property.propertySibling;
 	        }
+
+            // If the last character is a comma, remove it...
+            if (szResult.EndsWith(","))
+            {
+                szResult = szResult.Remove(szResult.Length - 1);
+            }
+
+            // All done...
+            return (szResult);
         }
 
         /// <summary>
@@ -1863,6 +1974,16 @@ namespace TwainDirect.Support
 	        public UInt32		    u32ValueLength;
         };
 
+        /// <summary>
+        /// Key/Value pair structure, used to override the
+        /// values of keys during a Dump()...
+        /// </summary>
+        private class KeyValue
+        {
+            public string szKey;
+            public string szValue;
+        }
+
         #endregion
 
 
@@ -1889,6 +2010,11 @@ namespace TwainDirect.Support
         /// command line tools like cURL...
         /// </summary>
         private bool m_blStrictParsingRules;
+
+        /// <summary>
+        /// List of changes to the JSON in key/value pairs...
+        /// </summary>
+        private List<KeyValue> m_lkeyvalueOverride;
 
         #endregion
     }

@@ -1644,14 +1644,27 @@ namespace TwainDirect.Support
                 m_httplistenerresponse.Headers.Add(HttpResponseHeader.ContentType, "application/json; charset=UTF-8");
                 m_httplistenerresponse.ContentLength64 = abBufferJson.Length;
 
-                // Get a response stream and write the response to it...
-                streamResponse = m_httplistenerresponse.OutputStream;
-                streamResponse.Write(abBufferJson, 0, abBufferJson.Length);
-
-                // Close the output stream...
-                if (streamResponse != null)
+                // We need some protection...
+                try
                 {
-                    streamResponse.Close();
+                    // Get a response stream and write the response to it...
+                    streamResponse = m_httplistenerresponse.OutputStream;
+                    streamResponse.Write(abBufferJson, 0, abBufferJson.Length);
+
+                    // Close the output stream...
+                    if (streamResponse != null)
+                    {
+                        streamResponse.Close();
+                    }
+                }
+                catch (Exception exception)
+                {
+                    // This is most likely to happen if we lose communication,
+                    // or if the application poos itself at an inopportune
+                    // moment...
+                    Log.Error("response failed - " + exception.Message);
+                    m_httplistenerresponse = null;
+                    return (false);
                 }
 
                 // We can't use this anymore, so blow it away...

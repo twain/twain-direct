@@ -460,11 +460,25 @@ namespace TwainDirect.OnTwain
             // Init stuff...
             twain = m_twaincstoolkit.Twain();
 
-            // Create a filename...
+            // KEYWORD:imageBlock
+            //
+            // Create our filenames.  The output from TWAIN Direct on TWAIN
+            // represents the finished product from the TWAIN Driver, but
+            // does not necessarily represent what we're going to send up to
+            // the application.  We want the ability to split these images
+            // into one or more imageBlocks.  We could try to do that with
+            // the TWAIN Driver using DAT_SETUPMEMXFER, but I'm afraidn that
+            // the differences among TWAIN Drivers will create too many
+            // problems.  So I've opted to decouple the TWAIN Driver transfer
+            // from the transfer to the TWAIN Direct application.
+            //
+            // When TwainDirect.Scanner sees this content, it can choose to
+            // send them up, as-is.  Or it can do things with the data, like
+            // splitting it into multiple image blocks.
             m_iImageCount += 1;
             szFile = m_szImagesFolder + Path.DirectorySeparatorChar + "img" + m_iImageCount.ToString("D6");
-            szPdfFile = szFile + ".pdf";
-            szMetaFile = szFile + ".meta";
+            szPdfFile = szFile + ".pdftmp";
+            szMetaFile = szFile + ".metatmp";
 
             // Cleanup...
             if (File.Exists(szPdfFile))

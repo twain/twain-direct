@@ -292,8 +292,11 @@ namespace TwainDirect.App
         {
             bool blSuccess;
             bool blSuccessClientScan;
-            long[] alImageBlocks = null;
+            long[] alImageBlocks;
             ApiCmd apicmd;
+
+            // Init stuff...
+            alImageBlocks = null;
 
             // We want to return the first apicmd that has a problem, to do that we
             // need a bait-and-switch scheme that starts with making an object that
@@ -390,14 +393,19 @@ namespace TwainDirect.App
                     break;
                 }
 
-                // Loop on each image until we exhaust the imageBlocks array...
+                // Loop on each imageBlock until we exhaust the imageBlocks array...
                 while (true)
                 {
                     // We have the option to skip getting the metadata with this
                     // call.  An application should get metadata if it wants to
                     // examine it before getting the image.  If it always wants
                     // the image, it really doesn't need this step to be separate,
-                    // which will save us a round-trip on the network...
+                    // which will save us a round-trip on the network.
+                    //
+                    // If the caller doesn't get the metadata with this call,
+                    // then they must get it with the image data.  This is because
+                    // the metadata is the only place where address information is
+                    // reported, such as the imageNumber, imagePart, and moreParts...
                     if (!a_blGetMetadataWithImage)
                     {
                         m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref apicmd);
@@ -436,7 +444,7 @@ namespace TwainDirect.App
                         break;
                     }
 
-                    // Release the image...
+                    // Release the image block...
                     m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
                     blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
                     if (m_blStopCapturing)
@@ -742,9 +750,13 @@ namespace TwainDirect.App
         /// Our scan callback, used to access the metadata...
         /// </summary>
         /// <param name="a_szMetadata">metadata file</param>
+        /// <param name="a_szImageBlock">this is going to be null</param>
         /// <returns>true on success</returns>
-        public bool ImageBlockMetadataCallback(string a_szMetadata)
+        public bool ImageBlockMetadataCallback(string a_szMetadata, string a_szImageBlock)
         {
+            // Squirrel this away...
+            m_szMetadata = a_szMetadata;
+
             // All done...
             return (true);
         }
@@ -752,14 +764,23 @@ namespace TwainDirect.App
         /// <summary>
         /// Our scan callback, used to display images...
         /// </summary>
-        /// <param name="a_szImage">image file</param>
+        /// <param name="a_szMetadata">metadata for this imageBlock</param>
+        /// <param name="a_szImageBlock">file for this imageBlock</param>
         /// <returns>true on success</returns>
-        public bool ImageBlockCallback(string a_szImage)
+        public bool ImageBlockCallback(string a_szMetadata, string a_szImageBlock)
         {
+            string szMetadata;
             bool blGotImage = false;
 
+            // Locate our metadata...
+            szMetadata = a_szMetadata;
+            if (string.IsNullOrEmpty(a_szMetadata))
+            {
+                szMetadata = m_szMetadata;
+            }
+
             // We have no image...
-            if (!File.Exists(a_szImage))
+            if (!File.Exists(a_szImageBlock))
             {
                 return (blGotImage);
             }
@@ -768,7 +789,7 @@ namespace TwainDirect.App
             FileInfo fileinfo = null;
             try
             {
-                fileinfo = new FileInfo(a_szImage);
+                fileinfo = new FileInfo(a_szImageBlock);
             }
             catch
             {
@@ -784,7 +805,7 @@ namespace TwainDirect.App
                 blGotImage = true;
 
                 // Convert the beastie...
-                abImage = PdfRaster.ConvertPdfToTiffOrJpeg(a_szImage);
+                abImage = PdfRaster.ConvertPdfToTiffOrJpeg(a_szImageBlock);
                 if (abImage == null)
                 {
                     // Ew...
@@ -813,7 +834,7 @@ namespace TwainDirect.App
             {
                 try
                 {
-                    File.Delete(a_szImage);
+                    File.Delete(a_szImageBlock);
                 }
                 catch
                 {
@@ -1436,6 +1457,11 @@ namespace TwainDirect.App
         private Brush m_brushBackground;
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
+
+        /// <summary>
+        /// Metadata for the current imageBlock...
+        /// </summary>
+        private string m_szMetadata;
 
         #endregion
     }

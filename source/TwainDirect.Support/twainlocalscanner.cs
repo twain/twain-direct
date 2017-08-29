@@ -139,8 +139,10 @@ namespace TwainDirect.Support
                 m_twainlocalsessionInfo = new TwainLocalSession("");
             }
 
-            // Our lock...
+            // Our locks...
             m_objectLock = new object();
+            m_objectLockOnChangedBridge = new object();
+            m_objectLockOnChangedImageBlocks = new object();
 
             // We use this to get notification about events...
             m_autoreseteventWaitForEvents = new AutoResetEvent(false);
@@ -993,7 +995,7 @@ namespace TwainDirect.Support
                 // If we have a scanner callback, hit it now...
                 if (a_scancallback != null)
                 {
-                    a_scancallback(szImage);
+                    a_scancallback(m_twainlocalsession.GetMetadata(), szImage);
                 }
             }
 
@@ -1094,9 +1096,10 @@ namespace TwainDirect.Support
 
                     // Save the metadata to a file...
                     szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".meta");
+                    string szMetadata = "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}";
                     try
                     {
-                        File.WriteAllText(szMetaFile, "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}");
+                        File.WriteAllText(szMetaFile, szMetadata);
                     }
                     catch (Exception exception)
                     {
@@ -1108,7 +1111,7 @@ namespace TwainDirect.Support
                     // Give it to the callback...
                     if (a_scancallback != null)
                     {
-                        a_scancallback(szMetaFile);
+                        a_scancallback(szMetadata, null);
                     }
                 }
             }
@@ -2093,9 +2096,10 @@ namespace TwainDirect.Support
         /// <summary>
         /// Delegate for the scan callback...
         /// </summary>
-        /// <param name="a_szImage"></param>
+        /// <param name="a_szMetadata">metadata for this imageBlock</param>
+        /// <param name="a_szImageBlock">file for this imageBlock</param>
         /// <returns></returns>
-        public delegate bool ScanCallback(string a_szImage);
+        public delegate bool ScanCallback(string a_szMetadata, string a_szImageBlock);
 
         /// <summary>
         /// Delegate for event callback...
@@ -3140,6 +3144,7 @@ namespace TwainDirect.Support
         /// <returns>true on success</returns>
         private bool DeviceReturnError(string a_szReason, ApiCmd a_apicmd, string a_szCode, string a_szJsonKey, long a_lResponseCharacterOffset)
         {
+            bool blSuccess;
             string szResponse;
 
             // Log it...
@@ -3214,7 +3219,12 @@ namespace TwainDirect.Support
             }
 
             // Send the response...
-            a_apicmd.HttpRespond(a_szCode, szResponse);
+            blSuccess = a_apicmd.HttpRespond(a_szCode, szResponse);
+            if (!blSuccess)
+            {
+                Log.Error("Lost connection...");
+                SetSessionState(SessionState.noSession, "Lost connection...");
+            }
 
             // All done...
             return (true);
@@ -3397,6 +3407,7 @@ namespace TwainDirect.Support
         )
         {
             long ii;
+            bool blSuccess;
             string szResponse;
             string szSessionObjects;
             string szEventsArray = "";
@@ -3502,7 +3513,12 @@ namespace TwainDirect.Support
                     "}";
 
                 // Send the response...
-                a_apicmd.HttpRespond("success", szResponse);
+                blSuccess = a_apicmd.HttpRespond("success", szResponse);
+                if (!blSuccess)
+                {
+                    Log.Error("Lost connection...");
+                    SetSessionState(SessionState.noSession, "Lost connection...");
+                }
 
                 // All done...
                 return (true);
@@ -3589,7 +3605,12 @@ namespace TwainDirect.Support
 
                 // Send the response, note that any multipart contruction work
                 // takes place in this function...
-                a_apicmd.HttpRespond("success", szResponse);
+                blSuccess = a_apicmd.HttpRespond("success", szResponse);
+                if (!blSuccess)
+                {
+                    Log.Error("Lost connection...");
+                    SetSessionState(SessionState.noSession, "Lost connection...");
+                }
 
                 // Okay, now do the state transition...
                 SetSessionState(a_esessionstate);
@@ -3752,7 +3773,12 @@ namespace TwainDirect.Support
 
                     // Send the response, note that any multipart contruction work
                     // takes place in this function...
-                    a_apicmd.HttpRespond("success", szResponse);
+                    blSuccess = a_apicmd.HttpRespond("success", szResponse);
+                    if (!blSuccess)
+                    {
+                        Log.Error("Lost connection...");
+                        SetSessionState(SessionState.noSession, "Lost connection...");
+                    }
 
                     // All done...
                     return (true);
@@ -4067,6 +4093,9 @@ namespace TwainDirect.Support
                 // Display what happened...
                 Display("");
                 Display("Session started by <" + a_apicmd.HttpGetCallersHostName() + ">");
+
+                // Init stuff...
+                m_lImageBlockNumber = 0;
             }
 
             // All done...
@@ -4696,20 +4725,242 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Handle changes to the imageBlocks folder...
+        /// Handle changes to the imageBlocks folder for the TWAIN
+        /// Bridge (ex: TWAIN Direct on TWAIN).  This is where we
+        /// split images we got from the TWAIN Driver into imageBlocks
+        /// that we'll send to the application...
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="e"></param>
+        private void OnChangedBridge(object source, FileSystemEventArgs e)
+        {
+            long lImageBlocks;
+            long lImageBlockSize;
+            string szImageBlockName;
+            string[] aszMetatmp;
+            string[] aszBase;
+            FileSystemWatcherHelper filesystemwatcherhelper = (FileSystemWatcherHelper)source;
+
+            // It's important that we serialize the callbacks...
+            lock (m_objectLockOnChangedBridge)
+            {
+                // Find all of the .metatmp files, scoot if we don't find any...
+                aszMetatmp = Directory.GetFiles(m_szImagesFolder, "*.metatmp");
+                if ((aszMetatmp == null) || (aszMetatmp.Length == 0))
+                {
+                    return;
+                }
+
+                // Figure out what our imageblock size is, a value <= 8192 causes
+                // us to send the entire image in one go without splitting it...
+                lImageBlockSize = Config.Get("imageBlockSize", 0);
+                if (lImageBlockSize < 8192)
+                {
+                    lImageBlockSize = 0;
+                }
+
+                // Send the entire thing in one imageBlock...
+                #region Send the entire thing in one imageBlock...
+                if (lImageBlockSize == 0)
+                {
+                    // Fix every .metatmp we find, and its associated files...
+                    foreach (string szMetatmp in aszMetatmp)
+                    {
+                        // Get the files with this basename...
+                        aszBase = Directory.GetFiles(m_szImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".*");
+
+                        // Walk all the files, except for .metatmp, which we must do last...
+                        foreach (string szFile in aszBase)
+                        {
+                            // If it doesn't end with tmp, skip it...
+                            if (!szFile.EndsWith("tmp"))
+                            {
+                                continue;
+                            }
+
+                            // If it ends with .metatmp, skip it...
+                            if (szFile.EndsWith(".metatmp"))
+                            {
+                                continue;
+                            }
+
+                            // Rename it from .xxxtmp to .xxx...
+                            try
+                            {
+                                File.Move(szFile, szFile.Substring(0, szFile.Length - 3));
+                            }
+                            catch (Exception exception)
+                            {
+                                Log.Error("rename failed <" + szFile + "> <" + szFile.Substring(0, szFile.Length - 3) + "> - " + exception.Message);
+                            }
+                        }
+
+                        // Now fix just the .metatmp files, this is the trigger
+                        // that causes TwainDirect.Scanner to recognize that it
+                        // has new data to send to the application.  Note that
+                        // we are not refreshing aszBase, that's deliberate...
+                        foreach (string szFile in aszBase)
+                        {
+                            // If it doesn't end with .metatmp, skip it...
+                            if (!szFile.EndsWith(".metatmp"))
+                            {
+                                continue;
+                            }
+
+                            // Rename it from .xxxtmp to .xxx...
+                            try
+                            {
+                                File.Move(szFile, szFile.Substring(0, szFile.Length - 3));
+                            }
+                            catch (Exception exception)
+                            {
+                                Log.Error("rename failed <" + szFile + "> <" + szFile.Substring(0, szFile.Length - 3) + "> - " + exception.Message);
+                            }
+                        }
+                    }
+                }
+                #endregion
+
+                // Split the thing into one or more imageBlocks...
+                #region Split the thing into one or more imageBlocks...
+                else
+                {
+                    // Fix every .metatmp we find, and its associated files...
+                    foreach (string szMetatmp in aszMetatmp)
+                    {
+                        // Get the .pdf files with this basename, make sure
+                        // it's sorted, because we're going to be messing
+                        // with the imageBlock number...
+                        aszBase = Directory.GetFiles(m_szImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".pdf");
+                        Array.Sort(aszBase);
+
+                        // Walk all the .pdftmp files, skipping any thumbnails, we'll
+                        // sort them further down in this loop...
+                        foreach (string szFile in aszBase)
+                        {
+                            // Skip .pdf thumbnails...
+                            if (szFile.Contains("thumbnail"))
+                            {
+                                continue;
+                            }
+
+                            // How many imageBlocks are we getting from this file?
+                            // Be sure to pin to the next highest integer.
+                            FileInfo fileinfo = new FileInfo(szFile);
+                            lImageBlocks = (long)Math.Ceiling((double)fileinfo.Length / (double)lImageBlockSize);
+
+                            // Split the .pdf file into smaller imageBlocks...
+                            byte[] abData = new byte[lImageBlockSize];
+                            FileStream filestreamRead = new FileStream(szFile, FileMode.Open);
+                            for (long ll = 0; ll < lImageBlocks; ll++)
+                            {
+                                int iBytesRead;
+                                szImageBlockName = Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".pdf");
+                                FileStream filestreamWrite = new FileStream(szImageBlockName, FileMode.Create);
+                                iBytesRead = filestreamRead.Read(abData, (int)(ll * lImageBlockSize), (int)lImageBlockSize);
+                                filestreamWrite.Write(abData, 0, iBytesRead);
+                                filestreamWrite.Close();
+                            }
+                            filestreamRead.Close();
+
+                            // Fix the .metatmp file, this involves updating both
+                            // the imageNumber and the imagePart number.  We want
+                            // to do this first to reduce the delay between when
+                            // we create the other .meta files and this one...
+                            long lJsonErrorIndex;
+                            string szMeta = File.ReadAllText(szMetatmp);
+
+                            // We only need to do this bit if we have more than
+                            // one imageBlock...
+                            if (lImageBlocks > 1)
+                            {
+                                // Load the JSON from the .metatmp we got from the TWAIN driver...
+                                JsonLookup jsonlookup = new JsonLookup();
+                                jsonlookup.Load(szMeta, out lJsonErrorIndex);
+
+                                // Okay, let's create all the intermediate .meta files,
+                                // per the spec, these contain minimal information.
+                                // We're going to be sneaky about this, so that if changes
+                                // are made to the spec, we should still work.  Start by
+                                // grabbing the address block from the .metatmp file and
+                                // embedding it in a rooted metadata object...
+                                string szMetadataAddress =
+                                    "{" +
+                                    "\"metadata\":{" +
+                                    jsonlookup.Get("metadata.address") +
+                                    "}" + //metadata
+                                    "}"; // root
+
+                                // Get an object for this data, so we can override the bits
+                                // we care about...
+                                JsonLookup jsonlookupMetadataAddress = new JsonLookup();
+                                jsonlookupMetadataAddress.Load(szMetadataAddress, out lJsonErrorIndex);
+
+                                // Now loop through the intermediate .meta files, making
+                                // each one with it's correct imageBlock, imagePart, and
+                                // moreParts value...
+                                for (long ll = 0; ll < (lImageBlocks - 1); ll++)
+                                {
+                                    jsonlookupMetadataAddress.Override("metadata.address.imageNumber", (m_lImageBlockNumber + 1 + ll).ToString());
+                                    jsonlookupMetadataAddress.Override("metadata.address.imagePart", (ll + 1).ToString());
+                                    jsonlookupMetadataAddress.Override("metadata.address.moreParts","morePartsPending");
+                                    szMetadataAddress = jsonlookupMetadataAddress.Dump();
+                                    szImageBlockName = Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".meta");
+                                    File.WriteAllText(szImageBlockName, szMetadataAddress);
+                                }
+
+                                // Override the imageNumber and imagePart, note that we
+                                // don't want the +1 on m_lImageBlockNumber, because that's
+                                // already accounted for in the lImageBlocks number.  Also
+                                // we don't have to touch moreParts, it should already have
+                                // the value we want...
+                                jsonlookup.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
+                                jsonlookup.Override("metadata.address.imagePart", lImageBlocks.ToString());
+                                szMeta = jsonlookupMetadataAddress.Dump();
+                            }
+
+                            // If we have a thumbnail, rename it now...
+                            szImageBlockName = Path.Combine(Path.GetDirectoryName(szMetatmp), Path.GetFileNameWithoutExtension(szMetatmp)) + "_thumbnail.pdftmp";
+                            if (File.Exists(szImageBlockName))
+                            {
+                                File.Move
+                                (
+                                    szImageBlockName,
+                                    Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + "_thumbnail.pdf")
+                                );
+                            }
+
+                            // Write out the .meta for the final image block, this
+                            // triggers processing of the last block...
+                            szImageBlockName = Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + ".meta");
+                            File.WriteAllText(szImageBlockName, szMeta);
+                        }
+                    }
+                }
+                #endregion
+            }
+        }
+
+        /// <summary>
+        /// Handle changes to the imageBlocks folder for transfers to
+        /// the TWAIN Direct application...
         /// </summary>
         /// <param name="source"></param>
         /// <param name="e"></param>
         private void OnChangedImageBlocks(object source, FileSystemEventArgs e)
         {
-            FileSystemWatcherHelper filesystemwatcherhelper = (FileSystemWatcherHelper)source;
-            ApiCmd apicmdEvent = filesystemwatcherhelper.GetTwainLocalScanner().GetApiCmdEvent();
-            if (apicmdEvent == null)
+            // It's important that we serialize the callbacks...
+            lock (m_objectLockOnChangedImageBlocks)
             {
-                Log.Error("The session has been modified, but we have no apicmdEvent, did you forget to run DeviceScannerWaitForEvents?");
-                return;
+                FileSystemWatcherHelper filesystemwatcherhelper = (FileSystemWatcherHelper)source;
+                ApiCmd apicmdEvent = filesystemwatcherhelper.GetTwainLocalScanner().GetApiCmdEvent();
+                if (apicmdEvent == null)
+                {
+                    Log.Error("The session has been modified, but we have no apicmdEvent, did you forget to run DeviceScannerWaitForEvents?");
+                    return;
+                }
+                filesystemwatcherhelper.GetTwainLocalScanner().DeviceScannerGetSession(ref apicmdEvent, true, true, "imageBlocks");
             }
-            filesystemwatcherhelper.GetTwainLocalScanner().DeviceScannerGetSession(ref apicmdEvent, true, true, "imageBlocks");
         }
 
         /// <summary>
@@ -4722,6 +4973,7 @@ namespace TwainDirect.Support
             bool blSuccess;
             long lResponseCharacterOffset;
             string szIpc;
+            FileSystemWatcherHelper filesystemwatcherhelper;
             string szFunction = "DeviceScannerStartCapturing";
 
             // Protect our stuff...
@@ -4796,13 +5048,32 @@ namespace TwainDirect.Support
                         return (false);
                     }
                 }
-                m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(new FileSystemWatcherHelper(this));
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().Path = m_szImagesFolder;
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().Filter = "*.meta";
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().IncludeSubdirectories = true;
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().Changed += new FileSystemEventHandler(OnChangedImageBlocks);
-                m_twainlocalsession.GetFileSystemWatcherHelperImageBlocks().EnableRaisingEvents = true;
+
+                // KEYWORD:imageBlock
+                //
+                // Watch for *.metatmp files coming from the Bridge...
+                filesystemwatcherhelper = new FileSystemWatcherHelper(this);
+                filesystemwatcherhelper.Path = m_szImagesFolder;
+                filesystemwatcherhelper.Filter = "*.metatmp";
+                filesystemwatcherhelper.IncludeSubdirectories = true;
+                filesystemwatcherhelper.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
+                filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedBridge);
+                filesystemwatcherhelper.EnableRaisingEvents = true;
+                m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(filesystemwatcherhelper);
+
+                // KEYWORD:imageBlock
+                //
+                // Configure the event monitoring for updating the session object, we
+                // do this when we see a *.meta file appear.  Note that any associated
+                // files, such as .pdf MUST be created before the .meta file...
+                filesystemwatcherhelper = new FileSystemWatcherHelper(this);
+                filesystemwatcherhelper.Path = m_szImagesFolder;
+                filesystemwatcherhelper.Filter = "*.meta";
+                filesystemwatcherhelper.IncludeSubdirectories = true;
+                filesystemwatcherhelper.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
+                filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedImageBlocks);
+                filesystemwatcherhelper.EnableRaisingEvents = true;
+                m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(filesystemwatcherhelper);
             }
 
             // All done...
@@ -5106,6 +5377,8 @@ namespace TwainDirect.Support
         /// Something we can lock...
         /// </summary>
         private object m_objectLock;
+        private object m_objectLockOnChangedBridge;
+        private object m_objectLockOnChangedImageBlocks;
 
         /// <summary>
         /// Our HTTP server, all sessions must past through
@@ -5208,6 +5481,15 @@ namespace TwainDirect.Support
         /// Our event timer for m_apicmdEvent...
         /// </summary>
         private Timer m_timerEvent;
+
+        // If we're splitting up the TWAIN Bridge images into smaller
+        // chunks, then we have to create a new sequence of image
+        // block numbers.  In that case this counter keeps track of
+        // those image block numbers.  If we're not splitting up the
+        // images, this value doesn't get used (because we're just
+        // renaming the *.xxxtmp files to *.xxx, which will preserve
+        // the number we got from the TWAIN driver...
+        private long m_lImageBlockNumber;
 
         #endregion
 
@@ -5506,7 +5788,16 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
-            /// Get our file system watcher...
+            /// Get our file system watcher for the bridge...
+            /// </summary>
+            /// <returns>the filesystemwatcher object</returns>
+            public FileSystemWatcherHelper GetFileSystemWatcherHelperBridge()
+            {
+                return (m_filesystemwatcherhelperBridge);
+            }
+
+            /// <summary>
+            /// Get our file system watcher for the TWAIN Direct transfers...
             /// </summary>
             /// <returns>the filesystemwatcher object</returns>
             public FileSystemWatcherHelper GetFileSystemWatcherHelperImageBlocks()
@@ -5657,7 +5948,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
-            /// Set our file system watcher...
+            /// Set our file system watcher for the bridge...
+            /// </summary>
+            public void SetFileSystemWatcherHelperBridge(FileSystemWatcherHelper a_filesystemwatcherhelperBridge)
+            {
+                m_filesystemwatcherhelperBridge = a_filesystemwatcherhelperBridge;
+            }
+
+            /// <summary>
+            /// Set our file system watcher for the TWAIN Direct transfers...
             /// </summary>
             public void SetFileSystemWatcherHelperImageBlocks(FileSystemWatcherHelper a_filesystemwatcherhelperImageBlocks)
             {
@@ -5840,7 +6139,14 @@ namespace TwainDirect.Support
                     {
                         m_autoreseteventWaitForSessionUpdate.Set();
                         m_autoreseteventWaitForSessionUpdate.Dispose();
+                        m_filesystemwatcherhelperBridge = null;
                         m_filesystemwatcherhelperImageBlocks = null;
+                    }
+                    if (m_filesystemwatcherhelperBridge != null)
+                    {
+                        m_filesystemwatcherhelperBridge.EnableRaisingEvents = false;
+                        m_filesystemwatcherhelperBridge.Dispose();
+                        m_filesystemwatcherhelperBridge = null;
                     }
                     if (m_filesystemwatcherhelperImageBlocks != null)
                     {
@@ -5991,9 +6297,20 @@ namespace TwainDirect.Support
 
             /// <summary>
             /// The thread we use to monitor for changes to the contents
-            /// of the imageBlocks folder...
+            /// of the imageBlocks folder.  This is for data that we're
+            /// sending to a TWAIN Direct application...
             /// </summary>
             private FileSystemWatcherHelper m_filesystemwatcherhelperImageBlocks;
+
+            /// <summary>
+            /// The thread we use to monitor for changes to the contents
+            /// of the imageBlocks folder coming in from the Bridge.  We
+            /// have the option to modify this data, before sending it
+            /// up to the TWAIN Direct application.  The result of this
+            /// process will create the *.meta file that the other file
+            /// system watcher is monitoring...
+            /// </summary>
+            private FileSystemWatcherHelper m_filesystemwatcherhelperBridge;
 
             /// <summary>
             /// Our list of events, maintained in revision order, from
