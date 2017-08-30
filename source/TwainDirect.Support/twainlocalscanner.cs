@@ -141,6 +141,7 @@ namespace TwainDirect.Support
 
             // Our locks...
             m_objectLock = new object();
+            m_objectLockClientFinishImage = new object();
             m_objectLockOnChangedBridge = new object();
             m_objectLockOnChangedImageBlocks = new object();
 
@@ -502,6 +503,108 @@ namespace TwainDirect.Support
 
             // Golly, it looks like we're in good shape...
             return (true);
+        }
+
+        /// <summary>
+        /// Images are transferred using one or more imageBlocks.  This function
+        /// recognizes when all of the imageBlocks for an image have been received.
+        /// It creates the finished image, and ties the .meta and thumbnails to the
+        /// basename.
+        /// </summary>
+        /// <param name="a_szMetadata">the metadata for this imageBlock</param>
+        /// <param name="a_szImageBlock">the imageBlock</param>
+        /// <param name="a_szBasename">the basename for any finished content</param>
+        /// <returns></returns>
+        public bool ClientFinishImage(string a_szMetadata, string a_szImageBlock, string a_szBasename)
+        {
+            bool blSuccess;
+            long lJsonErrorIndex;
+            long iImageNumber;
+            long iImagePart;
+            string szMoreParts;
+            string szThumbnail;
+            JsonLookup jsonlookup;
+
+            // It's possible for this function to be called in response
+            // to one or more readImageBlock calls completing.  We don't
+            // want them fighting over the data.  So we serialize their
+            // access...
+            lock (m_objectLockClientFinishImage)
+            {
+                // If we were locked out, we may no longer have the imageBlock,
+                // which means somebody else beat us to the punch, and we have
+                // no work to do...
+                if (!File.Exists(a_szImageBlock))
+                {
+                    return (false);
+                }
+
+                // Load the metadata...
+                jsonlookup = new JsonLookup();
+                blSuccess = jsonlookup.Load(a_szMetadata, out lJsonErrorIndex);
+                if (!blSuccess)
+                {
+                    Log.Error("metadata error @" + lJsonErrorIndex + " <" + a_szMetadata + ">");
+                    return (false);
+                }
+
+                // Collect the relevant address information...
+                try
+                {
+                    iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
+                    iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
+                    szMoreParts = jsonlookup.Get("metadata.address.moreParts");
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("metadata error - " + exception.Message);
+                    return (false);
+                }
+
+                // If the imagePart is 1, and moreParts is lastPartInFile, then we can
+                // accomplish our task with simple renames...
+                if ((iImagePart == 1) && (szMoreParts == "lastPartInFile"))
+                {
+                    // Rename the .tdpdf file...
+                    File.Move(a_szImageBlock, a_szBasename + ".pdf");
+
+                    // If we have a thumbnail, rename it...
+                    szThumbnail = a_szImageBlock.Replace(".tdpdf", "_thumbnail.tdpdf");
+                    if (File.Exists(szThumbnail))
+                    {
+                        File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
+                    }
+
+                    // Always handle the .tdmeta last, because the creation
+                    // of a .meta file indicates that all of the files associated
+                    // with an image are ready for access...
+                    File.Move(a_szImageBlock.Replace(".tdpdf", ".tdmeta"), a_szBasename + ".meta");
+
+                    // All done, we created our finished image...
+                    return (true);
+                }
+
+                // Otherwise life is a bit more complicated.  We need to determine
+                // if we have a complete block of image data.  To make things more'
+                // fun there's no reason to imagine that things complete in order.
+                // we may not get the imageBlocks for an image in order.  And it's
+                // possible that a later image might be completed before an earlier
+                // image.
+                //
+                // So, the plan is simple.  When we get an image block we take a
+                // look at its imagePart and moreParts.  Using its imageNumber we
+                // can look for .tdmeta files and determine if we have all the stuff
+                // we need.  If we don't, we're done.  If we do, then we stitch all
+                // of the PDF content into a single file, and rename the other bits
+                // to the requested basename.
+                //
+                // It's up to the caller to make sure they don't show things out
+                // of order.  It's also up to the caller to make sure they give us
+                // a good basename.
+
+                // All done, we created our finished image...
+                return (true);
+            }
         }
 
         /// <summary>
@@ -921,7 +1024,7 @@ namespace TwainDirect.Support
                 }
 
                 // Build the full image path...
-                szImage = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".pdf");
+                szImage = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdpdf"); // TWAIN direct temporary pdf
 
                 // Make sure it's clean...
                 if (File.Exists(szImage))
@@ -967,6 +1070,7 @@ namespace TwainDirect.Support
                 }
 
                 // We asked for metadata...
+                string szMetadata = "";
                 if (a_blGetMetadataWithImage && (m_twainlocalsession != null))
                 {
                     // Try to get the meta data...
@@ -978,10 +1082,11 @@ namespace TwainDirect.Support
                     }
 
                     // Save the metadata to a file...
-                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".meta");
+                    szMetadata = "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}";
+                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdmeta");
                     try
                     {
-                        File.WriteAllText(szMetaFile, "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}");
+                        File.WriteAllText(szMetaFile, szMetadata);
                     }
                     catch (Exception exception)
                     {
@@ -995,7 +1100,7 @@ namespace TwainDirect.Support
                 // If we have a scanner callback, hit it now...
                 if (a_scancallback != null)
                 {
-                    a_scancallback(m_twainlocalsession.GetMetadata(), szImage);
+                    a_scancallback(szMetadata, szImage);
                 }
             }
 
@@ -1037,7 +1142,7 @@ namespace TwainDirect.Support
                 if (a_blGetThumbnail)
                 {
                     // Build the full image thumbnail path...
-                    szThumbnail = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + "_thumbnail.pdf");
+                    szThumbnail = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + "_thumbnail.tdpdf"); // twain direct temporary pdf
 
                     // Make sure it's clean...
                     if (File.Exists(szThumbnail))
@@ -1095,7 +1200,7 @@ namespace TwainDirect.Support
                     }
 
                     // Save the metadata to a file...
-                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".meta");
+                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdmeta");
                     string szMetadata = "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}";
                     try
                     {
@@ -4744,8 +4849,8 @@ namespace TwainDirect.Support
             // It's important that we serialize the callbacks...
             lock (m_objectLockOnChangedBridge)
             {
-                // Find all of the .metatmp files, scoot if we don't find any...
-                aszMetatmp = Directory.GetFiles(m_szImagesFolder, "*.metatmp");
+                // Find all of the TWAIN *.twmeta files, scoot if we don't find any...
+                aszMetatmp = Directory.GetFiles(m_szImagesFolder, "*.twmeta"); // Metadata from the TWAIN Driver or the bridge
                 if ((aszMetatmp == null) || (aszMetatmp.Length == 0))
                 {
                     return;
@@ -4763,31 +4868,31 @@ namespace TwainDirect.Support
                 #region Send the entire thing in one imageBlock...
                 if (lImageBlockSize == 0)
                 {
-                    // Fix every .metatmp we find, and its associated files...
+                    // Fix every .twmeta we find, and its associated files...
                     foreach (string szMetatmp in aszMetatmp)
                     {
                         // Get the files with this basename...
                         aszBase = Directory.GetFiles(m_szImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".*");
 
-                        // Walk all the files, except for .metatmp, which we must do last...
+                        // Walk all the files, except for .twmeta, which we must do last...
                         foreach (string szFile in aszBase)
                         {
-                            // If it doesn't end with tmp, skip it...
-                            if (!szFile.EndsWith("tmp"))
+                            // If it doesn't have a .tw in it, skip it...
+                            if (!szFile.Contains(".tw"))
                             {
                                 continue;
                             }
 
-                            // If it ends with .metatmp, skip it...
-                            if (szFile.EndsWith(".metatmp"))
+                            // If it ends with .twmeta, skip it...
+                            if (szFile.EndsWith(".twmeta"))
                             {
                                 continue;
                             }
 
-                            // Rename it from .xxxtmp to .xxx...
+                            // Rename it from .twxxx to .xxx...
                             try
                             {
-                                File.Move(szFile, szFile.Substring(0, szFile.Length - 3));
+                                File.Move(szFile, szFile.Replace(".tw", "."));
                             }
                             catch (Exception exception)
                             {
@@ -4795,14 +4900,14 @@ namespace TwainDirect.Support
                             }
                         }
 
-                        // Now fix just the .metatmp files, this is the trigger
+                        // Now fix just the .twmeta files, this is the trigger
                         // that causes TwainDirect.Scanner to recognize that it
                         // has new data to send to the application.  Note that
                         // we are not refreshing aszBase, that's deliberate...
                         foreach (string szFile in aszBase)
                         {
-                            // If it doesn't end with .metatmp, skip it...
-                            if (!szFile.EndsWith(".metatmp"))
+                            // If it doesn't end with .twmeta, skip it...
+                            if (!szFile.EndsWith(".twmeta"))
                             {
                                 continue;
                             }
@@ -4810,7 +4915,7 @@ namespace TwainDirect.Support
                             // Rename it from .xxxtmp to .xxx...
                             try
                             {
-                                File.Move(szFile, szFile.Substring(0, szFile.Length - 3));
+                                File.Move(szFile, szFile.Replace(".tw", "."));
                             }
                             catch (Exception exception)
                             {
@@ -4825,20 +4930,20 @@ namespace TwainDirect.Support
                 #region Split the thing into one or more imageBlocks...
                 else
                 {
-                    // Fix every .metatmp we find, and its associated files...
+                    // Fix every .twmeta we find, and its associated files...
                     foreach (string szMetatmp in aszMetatmp)
                     {
-                        // Get the .pdf files with this basename, make sure
+                        // Get the .twpdf files with this basename, make sure
                         // it's sorted, because we're going to be messing
                         // with the imageBlock number...
-                        aszBase = Directory.GetFiles(m_szImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".pdf");
+                        aszBase = Directory.GetFiles(m_szImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".twpdf");
                         Array.Sort(aszBase);
 
-                        // Walk all the .pdftmp files, skipping any thumbnails, we'll
+                        // Walk all the .twpdf files, skipping any thumbnails, we'll
                         // sort them further down in this loop...
                         foreach (string szFile in aszBase)
                         {
-                            // Skip .pdf thumbnails...
+                            // Skip .twpdf thumbnails...
                             if (szFile.Contains("thumbnail"))
                             {
                                 continue;
@@ -4863,7 +4968,7 @@ namespace TwainDirect.Support
                             }
                             filestreamRead.Close();
 
-                            // Fix the .metatmp file, this involves updating both
+                            // Fix the .twmeta file, this involves updating both
                             // the imageNumber and the imagePart number.  We want
                             // to do this first to reduce the delay between when
                             // we create the other .meta files and this one...
@@ -4874,7 +4979,7 @@ namespace TwainDirect.Support
                             // one imageBlock...
                             if (lImageBlocks > 1)
                             {
-                                // Load the JSON from the .metatmp we got from the TWAIN driver...
+                                // Load the JSON from the .twmeta we got from the TWAIN driver...
                                 JsonLookup jsonlookup = new JsonLookup();
                                 jsonlookup.Load(szMeta, out lJsonErrorIndex);
 
@@ -4882,7 +4987,7 @@ namespace TwainDirect.Support
                                 // per the spec, these contain minimal information.
                                 // We're going to be sneaky about this, so that if changes
                                 // are made to the spec, we should still work.  Start by
-                                // grabbing the address block from the .metatmp file and
+                                // grabbing the address block from the .twmeta file and
                                 // embedding it in a rooted metadata object...
                                 string szMetadataAddress =
                                     "{" +
@@ -4920,7 +5025,7 @@ namespace TwainDirect.Support
                             }
 
                             // If we have a thumbnail, rename it now...
-                            szImageBlockName = Path.Combine(Path.GetDirectoryName(szMetatmp), Path.GetFileNameWithoutExtension(szMetatmp)) + "_thumbnail.pdftmp";
+                            szImageBlockName = Path.Combine(Path.GetDirectoryName(szMetatmp), Path.GetFileNameWithoutExtension(szMetatmp)) + "_thumbnail.twpdf";
                             if (File.Exists(szImageBlockName))
                             {
                                 File.Move
@@ -5051,10 +5156,10 @@ namespace TwainDirect.Support
 
                 // KEYWORD:imageBlock
                 //
-                // Watch for *.metatmp files coming from the Bridge...
+                // Watch for *.twmeta files coming from the Bridge...
                 filesystemwatcherhelper = new FileSystemWatcherHelper(this);
                 filesystemwatcherhelper.Path = m_szImagesFolder;
-                filesystemwatcherhelper.Filter = "*.metatmp";
+                filesystemwatcherhelper.Filter = "*.twmeta";
                 filesystemwatcherhelper.IncludeSubdirectories = true;
                 filesystemwatcherhelper.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
                 filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedBridge);
@@ -5377,6 +5482,7 @@ namespace TwainDirect.Support
         /// Something we can lock...
         /// </summary>
         private object m_objectLock;
+        private object m_objectLockClientFinishImage;
         private object m_objectLockOnChangedBridge;
         private object m_objectLockOnChangedImageBlocks;
 

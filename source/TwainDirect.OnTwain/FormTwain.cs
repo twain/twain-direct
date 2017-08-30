@@ -41,6 +41,14 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// We don't want to steal the focus from anyone.  This
+        /// override accomplishes that...
+        /// </summary>
+        protected override bool ShowWithoutActivation
+        {
+            get { return true; }
+        }
+        /// <summary>
         /// Close our window...
         /// </summary>
         private void CloseFormTwain()

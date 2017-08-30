@@ -152,12 +152,10 @@ namespace TwainDirect.OnTwain
         {
             int iPid = 0;
             string szIpc;
-            string szTask;
             string szTaskFile;
             string szImagesFolder;
             bool blTestPdfRaster;
             string szTestDnssd;
-            bool blSuccess;
 
             // Check the arguments...
             string szWriteFolder = Config.Get("writeFolder", null);
@@ -172,55 +170,6 @@ namespace TwainDirect.OnTwain
                 szImagesFolder = Path.Combine(szWriteFolder, "images");
             }
             iPid = int.Parse(Config.Get("parentpid", "0"));
-
-            // Test ProcessSwordTask...
-            if (!string.IsNullOrEmpty(Config.Get("testtask", null)))
-            {
-                // Create our object...
-                ProcessSwordTask processswordtask = new ProcessSwordTask(szImagesFolder, null, null);
-
-                // Did we get a valid filename?
-                if ((szTaskFile == null) || !File.Exists(szTaskFile))
-                {
-                    Console.Out.WriteLine("");
-                    Console.Out.WriteLine("Please provide a valid task=file argument...");
-                    return (false);
-                }
-
-                // Load the file...
-                szTask = File.ReadAllText(szTaskFile);
-
-                // Handle certification files...
-                string[] aszTask = szTask.Split(new string[] { "***DATADATADATA***" }, StringSplitOptions.RemoveEmptyEntries);
-                if ((aszTask == null) || (aszTask.Length == 0))
-                {
-                    Console.Out.WriteLine("");
-                    Console.Out.WriteLine("Please provide a task file with data...");
-                    return (false);
-                }
-
-                // Get our task data...
-                if (aszTask.Length == 1)
-                {
-                    szTask = aszTask[0];
-                }
-                else
-                {
-                    szTask = aszTask[1];
-                }
-
-                // Run a test...
-                bool blSetAppCapabilities = true;
-                blSuccess = processswordtask.BatchMode(null, szTask, true, ref blSetAppCapabilities);
-                //blSuccess = processswordtask.Deserialize(szTask, "211a1e90-11e1-11e5-9493-1697f925ec7b");
-                if (blSuccess)
-                {
-                    //blSuccess = processswordtask.ProcessAndRun();
-                }
-
-                // All done...
-                return (true);
-            }
 
             // Run in IPC mode.  The caller has set up a 'pipe' for us, so we'll use
             // that to send commands back and forth.  This is the normal mode when
@@ -311,22 +260,6 @@ namespace TwainDirect.OnTwain
                     dnssd.RegisterStop();
                     dnssd.Dispose();
                 }
-
-                // All done...
-                return (true);
-            }
-
-            // Execute the specified task...
-            if (File.Exists(szTaskFile))
-            {
-                bool blSetAppCapabilities = false;
-                ProcessSwordTask processswordtask;
-
-                // Init stuff...
-                processswordtask = new ProcessSwordTask(szImagesFolder, null, null);
-
-                // Run our task...
-                processswordtask.BatchMode(Config.Get("scanner", null), szTaskFile, false, ref blSetAppCapabilities);
 
                 // All done...
                 return (true);

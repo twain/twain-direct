@@ -147,32 +147,7 @@ namespace TwainDirect.OnTwain
         /// <param name="e"></param>
         private void m_buttonRun_Click(object sender, EventArgs e)
         {
-            bool blSuccess;
-            bool blSetAppCapabilities = true;
-
-            // Protection...
-            if (m_processswordtask != null)
-            {
-                return;
-            }
-
-            // Init stuff...
-            m_processswordtask = new ProcessSwordTask(Path.Combine(m_szWriteFolder,"images"), null, null);
-
-            // Buttons off, cancel on...
-            SetButtonMode(ButtonMode.Scanning);
-
-            // Start the batch...
-            blSuccess = m_processswordtask.BatchMode("", (string)m_listviewTasks.SelectedItems[0].Tag, false, ref blSetAppCapabilities);
-
-            // Set up a timer to wait for completion...
-            Timer m_timer = new Timer();
-            m_timer.Interval = 1000;
-            m_timer.Start();
-            m_timer.Tick += new EventHandler(m_timer_Tick);
-
-            // Yike...            
-            m_listviewTasks.Focus();
+            // Removed...
         }
 
         /// <summary>
@@ -182,11 +157,7 @@ namespace TwainDirect.OnTwain
         /// <param name="e"></param>
         private void m_buttonCancel_Click(object sender, EventArgs e)
         {
-            if (m_processswordtask != null)
-            {
-                SetButtonMode(ButtonMode.Canceled);
-                m_processswordtask.Cancel();
-            }
+            // Removed...
         }
 
         /// <summary>
@@ -224,10 +195,7 @@ namespace TwainDirect.OnTwain
         /// <param name="e"></param>
         private void m_buttonEdit_Click(object sender, EventArgs e)
         {
-            // Run some editor...
-            Process process = Process.Start((string)m_listviewTasks.SelectedItems[0].Tag);
-            process.WaitForExit();
-            m_listviewTasks.Focus();
+            // Removed...
         }
 
         /// <summary>
@@ -238,8 +206,7 @@ namespace TwainDirect.OnTwain
         /// <param name="e"></param>
         private void m_buttonSelect_Click(object sender, EventArgs e)
         {
-            // Let the user select a default driver...
-            m_szTwainDefaultDriver = ProcessSwordTask.SelectDriver(m_szTwainDefaultDriver);
+            // Removed...
         }
 
         /// <summary>

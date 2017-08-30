@@ -426,7 +426,7 @@ namespace TwainDirect.App
                         }
                     }
 
-                    // Get the first image block in the array...
+                    // Get the corresponding image block in the array...
                     m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
                     blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
                     if (m_blStopCapturing)
@@ -770,80 +770,75 @@ namespace TwainDirect.App
         public bool ImageBlockCallback(string a_szMetadata, string a_szImageBlock)
         {
             string szMetadata;
+            string szBasename;
+            string szPdf;
             bool blGotImage = false;
+            byte[] abImage;
 
-            // Locate our metadata...
+            // Locate our metadata, we either got it from readImageBlockMetadata or
+            // the readImageBlock that triggered this callback...
             szMetadata = a_szMetadata;
             if (string.IsNullOrEmpty(a_szMetadata))
             {
                 szMetadata = m_szMetadata;
             }
 
-            // We have no image...
-            if (!File.Exists(a_szImageBlock))
+            // This function creates a finished image, metadata, and thumbnail
+            // from the imageBlocks...
+            szBasename = Path.Combine(m_szWriteFolder, "images");
+            szBasename = Path.Combine(szBasename, "img" + (m_lImageCount + 1).ToString("D6"));
+            if (!m_twainlocalscanner.ClientFinishImage(szMetadata, a_szImageBlock, szBasename))
             {
+                // We don't have a complete image, so scoot...
                 return (blGotImage);
             }
+
+            // We got an image, so bump our count...
+            m_lImageCount += 1;
+
+            // This is our finished PDF file...
+            szPdf = szBasename + ".pdf";
 
             // We might have an image...
             FileInfo fileinfo = null;
             try
             {
-                fileinfo = new FileInfo(a_szImageBlock);
+                fileinfo = new FileInfo(szPdf);
             }
             catch
             {
                 return (blGotImage);
             }
 
-            // Prep for the next image...
-            if (fileinfo.Length > 200)
+            // Just for now...
+            blGotImage = true;
+
+            // Convert the beastie...
+            abImage = PdfRaster.ConvertPdfToTiffOrJpeg(szPdf);
+            if (abImage == null)
             {
-                byte[] abImage;
-
-                // Just for now...
-                blGotImage = true;
-
-                // Convert the beastie...
-                abImage = PdfRaster.ConvertPdfToTiffOrJpeg(a_szImageBlock);
-                if (abImage == null)
-                {
-                    // Ew...
-                    return (blGotImage);
-                }
-
-                // Get the image data...
-                using (var bitmap = new Bitmap(new MemoryStream(abImage)))
-                {
-                    // Display the image...
-                    if (m_iUseBitmap == 0)
-                    {
-                        m_iUseBitmap = 1;
-                        LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, bitmap);
-                    }
-                    else
-                    {
-                        m_iUseBitmap = 0;
-                        LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, bitmap);
-                    }
-                }
+                Log.Error("failed to convert the image...");
+                return (blGotImage);
             }
 
-            // Delete it...
-            else
+            // Get the image data...
+            using (var bitmap = new Bitmap(new MemoryStream(abImage)))
             {
-                try
+                // Display the image...
+                if (m_iUseBitmap == 0)
                 {
-                    File.Delete(a_szImageBlock);
+                    m_iUseBitmap = 1;
+                    LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, bitmap);
                 }
-                catch
+                else
                 {
-                    // Delete failed, but we don't care...
+                    m_iUseBitmap = 0;
+                    LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, bitmap);
                 }
             }
 
             // All done...
-            return (true);
+            return (blGotImage);
         }
 
         /// <summary>
@@ -1462,6 +1457,15 @@ namespace TwainDirect.App
         /// Metadata for the current imageBlock...
         /// </summary>
         private string m_szMetadata;
+
+        /// <summary>
+        /// A count from 1 - n of the finished images
+        /// that we've captured.  Note that this will
+        /// note be the same as the imageBlock number
+        /// if any of the images are split across
+        /// multiple imageBlocks...
+        /// </summary>
+        private long m_lImageCount;
 
         #endregion
     }
