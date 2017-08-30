@@ -1875,10 +1875,18 @@ namespace TwainDirect.Support
             // Get the thumbnail file (if we have one)...
             m_szThumbnailFile = a_jsonlookup.Get("thumbnailFile", false);
 
+            // We can't just rely on the imageBlocks array...
+            string[] aszTw = Directory.GetFiles(a_szImagesFolder, "*.tw*");
+
             // End of job...
+            // - we must be capturing -and-
+            // - if we have imageBlocks, we're not done -or-
+            // - if we have intermediate *.tw* files, we're not done -or-
+            // - if we don't have imageBlocksDrained.meta, we're not done
             m_blSessionImageBlocksDrained = true;
             if (    a_blCapturing
                 &&  (!string.IsNullOrEmpty(m_szImageBlocks)
+                ||  ((aszTw != null) && (aszTw.Length > 0))
                 ||  !File.Exists(Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta"))))
             {
                 m_blSessionImageBlocksDrained = false;
