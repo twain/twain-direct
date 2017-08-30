@@ -33,6 +33,7 @@
   <ItemGroup>
     <Compile Include="Files.wxs" />
     <Compile Include="Product.wxs" />
+    <Compile Include="TwainDirect.Tasks.wxs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Details.wxi" />
@@ -56,6 +57,9 @@
   </ItemGroup>
   <Import Project="$(WixTargetsPath)" />
   <Import Condition="Exists('$(DigitalSignTargets)')" Project="$(DigitalSignTargets)" />
+  <PropertyGroup>
+    <PreBuildEvent>C:\Dev\GitHub\twain-direct\source\packages\WiX.3.10.3\tools\heat.exe dir $(ProjectDir)..\TwainDirect.App\tasks -g1 -gg -cg TwainDirect.Tasks -dr INSTALLFOLDER -var var.TwainDirect.Tasks -indent 2 -t $(ProjectDir)Tasks.Transform.xslt -out TwainDirect.Tasks.wxs</PreBuildEvent>
+  </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>

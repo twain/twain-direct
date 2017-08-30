@@ -33,6 +33,7 @@
   <ItemGroup>
     <Compile Include="Files.wxs" />
     <Compile Include="Product.wxs" />
+    <Compile Include="TwainDirect.Tasks.wxs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Details.wxi" />
@@ -62,6 +63,9 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\WiX.3.10.3\build\wix.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\WiX.3.10.3\build\wix.props'))" />
   </Target>
+  <PropertyGroup>
+    <PreBuildEvent>$(WixInstallPath)\heat.exe dir $(ProjectDir)..\TwainDirect.App\tasks -g1 -gg -cg TwainDirect.Tasks -dr INSTALLFOLDER -var var.TwainDirect.Tasks -indent 2 -t $(ProjectDir)Tasks.Transform.xslt -out TwainDirect.Tasks.wxs</PreBuildEvent>
+  </PropertyGroup>
   <!--
 	To modify your build process, add your task inside one of the targets below and uncomment it.
 	Other similar extension points exist, see Wix.targets.

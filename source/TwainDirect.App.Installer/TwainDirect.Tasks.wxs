@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"><?include Details.wxi ?>
+  <Fragment>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Directory Id="dirF5AF07FD3CBED922FD25FB3971105848" Name="tasks" />
+    </DirectoryRef>
+  </Fragment>
+  <Fragment>
+    <ComponentGroup Id="TwainDirect.Tasks">
+      <Component Id="cmpCED745EF269BB201C2820A37AAC81701" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="C15A6525-3EF9-487A-9B84-73D2826A2E25">
+        <File Id="fil6F65370E701B214193101E36881C3BB3" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Complex Source List.txt" />
+      </Component>
+      <Component Id="cmpC34D2E91436C521B39C2BEC2D65CAFCE" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="7B35A84C-BE44-4774-99E3-7A055AF621B7">
+        <File Id="fil404E1B0A6231F88CA1DE7B2F29196B46" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Everything Task Compact - 951 bytes.txt" />
+      </Component>
+      <Component Id="cmp917CE1267938B2797B0E4A649F6C48F5" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="774DD542-B7B8-43D6-BDCE-CA2977E9CE0D">
+        <File Id="fil32E9DDB1509F0D4AE02E18C6166F68CF" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Everything Task Human Readable - 3476 bytes.txt" />
+      </Component>
+      <Component Id="cmp42A8787B317B3A00CE5A96D1E8186CF0" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="25E55545-4D3B-4995-8B9A-605C158C7CCA">
+        <File Id="fil45B9E89C8198B547C2FF5020D870465D" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\folder" />
+      </Component>
+      <Component Id="cmpB22486C3571C25BB1B45D746D2619F78" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="1BC26F27-AD33-460A-B51C-322E80BD6A74">
+        <File Id="fil00EB235A2EB9970FDD48ECD0D9AB9E1C" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\JSON Error.txt" />
+      </Component>
+      <Component Id="cmp2141492A6527AE918E18739D912B0F7C" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="94AAEEB9-B0E3-4A6C-B444-198C13DDCD69">
+        <File Id="filED7ED5C9D4972A6CCBE9F03A55B203CB" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Multistream.txt" />
+      </Component>
+      <Component Id="cmp3596502E162863AFFA3E4A5B14A2BD00" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="A88405E7-B51B-4498-9D2B-4B92022F17C7">
+        <File Id="fil489B340CB26719B198559DCCC8826004" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Sample #1 Working with any scanner topology.txt" />
+      </Component>
+      <Component Id="cmpA5D841E097009A613F4AC659B21A26F3" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="AC2C0E3B-1A7B-43E1-840F-CE7466596461">
+        <File Id="fil83FA745A7E0BADAC41A0EBC30482F0CC" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Sample #2 Rear only from a feeder.txt" />
+      </Component>
+      <Component Id="cmp3220D173330CDBCB9EE886855093ECD7" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="6E691E2F-1269-43A8-891F-D49301F7C029">
+        <File Id="filD8FB1B5C52AEA3FD2DDAA0941400AADF" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Sample #3 Automatic Color.txt" />
+      </Component>
+      <Component Id="cmp502EF00B466003CA4BED3ABEA238B812" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="616F2DD7-E3AE-4506-9A28-422E8D92DEDF">
+        <File Id="filD00939587E6BCE92B6F6F50FFB3A45C9" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Simplest Task.txt" />
+      </Component>
+      <Component Id="cmpE8A61F01AE6DF9D76F6E34231E273809" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="0B3AAEE8-6E01-466F-BCEA-3413C151C735">
+        <File Id="filBFABBEE79A77F96A8FC2C96A205BA167" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\SWORD Task.txt" />
+      </Component>
+      <Component Id="cmpA71E05F9EA436AB4B98A7140B765184B" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="AB4F77D0-0791-46ED-B454-D2A7A374EC0B">
+        <File Id="filCB870673386DD2C38EB7E493F8575391" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\SWORD's Solution using a Task.txt" />
+      </Component>
+      <Component Id="cmpD028580AC5FAEB9D364663DCFACC9A7E" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="EE426775-6DD0-4C4E-A906-3F31098CC70E">
+        <File Id="filBF391EBC5C96B9EE9EABD93BABC52E94" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Automatic Color.txt" />
+      </Component>
+      <Component Id="cmp644405E7230A45DD37BDAC5BFC020DCC" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="3D6949A4-9849-4634-99D4-23C8B82C1FC0">
+        <File Id="fil466D285D20AA3B89222A479AB3F74594" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Black-and-White 600dpi.txt" />
+      </Component>
+      <Component Id="cmpC857A41C8510FBAFF28F93F32F6808EF" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="9ADC638F-AE9E-49DB-9781-DABC9AB3364B">
+        <File Id="fil3748866F426236AD5D840DECD6BA6F19" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Black-and-White Batch.txt" />
+      </Component>
+      <Component Id="cmp3C46457F427C7B8B1897DB77516ADB92" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="8A669536-D7F8-41C8-B5CB-2E08D4C11116">
+        <File Id="filDCD61C554D0E780994C0C1023DA63B96" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Black-and-White Group4.txt" />
+      </Component>
+      <Component Id="cmpF9F8A88409FAE268AA3BE2A6D2715987" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="EA440443-1CE2-46F8-8D8A-19F215C5C271">
+        <File Id="fil11086F423FEB297D5B46F27722A8A846" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Black-and-White.txt" />
+      </Component>
+      <Component Id="cmp79D13F2FB4EF5ECA82A5215FF05F1C0E" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="AB756C40-7A84-421D-9738-96E50BFC70CB">
+        <File Id="fil864C180DCFC9BF7ACFFE946BA405BC76" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Color Flatbed.txt" />
+      </Component>
+      <Component Id="cmp2B476B0933342777D332696C732C9255" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="FE69000F-DEBA-4F42-9D62-38846B72EF5F">
+        <File Id="filE5579059BA4B5A87BF29EDDB7E0F15CC" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Color Jpeg.txt" />
+      </Component>
+      <Component Id="cmp99C60A7DC7D2FBE6230E90135924A399" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="338D779B-EB94-4713-AE07-3DD0BC31C00E">
+        <File Id="filA5B8C292A71E04B00DB228D5B019F50F" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Color.txt" />
+      </Component>
+      <Component Id="cmp3C56AC27678340909CCBB65BF16B7964" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="BAA5446E-50D0-4EE2-865C-6FCA832C5F9F">
+        <File Id="filDC14B26C660010A8AFC5B0AA61013512" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Fail Attribute.txt" />
+      </Component>
+      <Component Id="cmpB57A10358A902EAE50D07B9910374193" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="679F6A56-5644-45EB-A503-DDDEAC3EE74B">
+        <File Id="filF96B8F221A9CBCDAE312CF06DD4E55B6" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Fail Format.txt" />
+      </Component>
+      <Component Id="cmp38F69C89644F1EF0B3435833F402E353" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="2EF86B63-6297-4AA2-AB43-594341B9EE2A">
+        <File Id="fil1E534E688AA61274757D0AA4E5653372" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Fail Source.txt" />
+      </Component>
+      <Component Id="cmpC6678CC088A050F146315BDB1480CB2D" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="EE58B896-0918-44F2-932F-853E3413161C">
+        <File Id="filDC427888764856187DDBE6C25C116D26" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Front-BW Rear-Color.txt" />
+      </Component>
+      <Component Id="cmp37254FE551848F7E1B93EA1C60C7C64A" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="63DEE43B-7FA2-4A82-B7EA-BADA742D2E34">
+        <File Id="fil4B4C81F12CA70906D585533D71E4B86C" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Front-Color Rear-BW.txt" />
+      </Component>
+      <Component Id="cmp08353DB99A64BEF623CF23031D85BD42" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="89311C97-2277-4BA3-80FF-69FA053812A4">
+        <File Id="fil861BE3BCE9CE45695F3482B6A20A5AE8" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Grayscale Jpeg.txt" />
+      </Component>
+      <Component Id="cmp0DAEACB6C31E644249872785FBF3AAB2" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="9E43AB03-4F36-404C-AB6B-C402524DBE9E">
+        <File Id="fil2BCD2F5D06DE8A83FDC18EE1E42DADE3" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Grayscale.txt" />
+      </Component>
+      <Component Id="cmp08FE5F7C8F476EC357B9C209CA6269BB" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="94AEF048-4014-4910-ACCF-5B771A84E1AA">
+        <File Id="fil1A7714EC012462D20DB16DD515EB0939" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Simple Scan.txt" />
+      </Component>
+      <Component Id="cmp5C67C301D61626BB22F6FE8F79B13384" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="BF856A93-573D-42CB-8498-8116DFBB1450">
+        <File Id="fil1041732B00F0F33DB1587718812B306B" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Stream.txt" />
+      </Component>
+      <Component Id="cmp347986350AB781E86049F3FEAA46F6EC" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="2D3651E7-49B3-499E-B5FD-69000BB81E6E">
+        <File Id="fil5DCA428CE4EC801E353DA4F9316EB627" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test TWAIN UI.txt" />
+      </Component>
+      <Component Id="cmp2C0F7388C1877385566A187BD38A41C5" Directory="dirF5AF07FD3CBED922FD25FB3971105848" Guid="475B1C0C-3CA8-4E25-B983-2DAAE74FA830">
+        <File Id="fil5E8777A773247898201C160CDE2C15DC" KeyPath="yes" Source="$(var.TwainDirect.Tasks)\Test Vendor.txt" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
