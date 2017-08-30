@@ -47,4 +47,6 @@
   <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
   <?define ProductLicense="$(var.ResourceFolder)\license.rtf" ?>
 
+  <?define TwainDirect.Tasks="$(var.TwainDirect.App.TargetDir)tasks" ?>
+
 </Include>
