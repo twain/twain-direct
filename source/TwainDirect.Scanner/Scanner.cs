@@ -195,9 +195,14 @@ namespace TwainDirect.Scanner
 
         /// <summary>
         /// Stop polling for tasks...
+        /// <param name="a_blUserShutdown">the user requested the close</param>
         /// </summary>
-        public void MonitorTasksStop()
+        public void MonitorTasksStop(bool a_blUserShutdown)
         {
+            // Bid adieu to any connected sessions...
+            m_twainlocalscanner.DeviceSessionExited(a_blUserShutdown);
+
+            // Stop advertising us...
             m_twainlocalscanner.DeviceHttpServerStop();
         }
 

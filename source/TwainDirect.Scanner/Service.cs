@@ -276,7 +276,7 @@ namespace TwainDirect.Scanner
             Console.In.ReadLine();
 
             // Stop...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
         }
 
         /// <summary>
@@ -285,7 +285,7 @@ namespace TwainDirect.Scanner
         protected override void OnStop()
         {
             // Staaaaaaahp...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
             Display("Stop...");
         }
 

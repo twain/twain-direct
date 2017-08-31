@@ -61,7 +61,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using TwainDirect.Support;
+using Microsoft.Win32;
 [assembly: CLSCompliant(true)]
 
 // This namespace supports applications and scanners...
@@ -143,10 +143,12 @@ namespace TwainDirect.Support
             // Our locks...
             m_objectLock = new object();
             m_objectLockClientFinishImage = new object();
+            m_objectLockDeviceHttpServerStop = new object();
             m_objectLockOnChangedBridge = new object();
             m_objectLockOnChangedImageBlocks = new object();
 
             // We use this to get notification about events...
+            m_blCancelWaitForEventsProcessing = false;
             m_autoreseteventWaitForEvents = new AutoResetEvent(false);
             m_autoreseteventWaitForEventsProcessing = new AutoResetEvent(false);
 
@@ -954,6 +956,7 @@ namespace TwainDirect.Support
                     ClientReturnError(a_apicmd, false, "", 0, "");
                     if (blCreatedTwainLocalSession)
                     {
+                        m_twainlocalsession.SetUserShutdown(false);
                         m_twainlocalsession.Dispose();
                         m_twainlocalsession = null;
                     }
@@ -1722,10 +1725,25 @@ namespace TwainDirect.Support
         /// <summary>
         /// Destroy a TWAIN Local Session object
         /// </summary>
-        public void ClientCertificationTwainLocalSessionDestroy()
+        public void ClientCertificationTwainLocalSessionDestroy(bool a_blSetNoSession = false)
         {
+            // Take out the event handler...
+            if (m_autoreseteventWaitForEventsProcessing != null)
+            {
+                m_blCancelWaitForEventsProcessing = true;
+                m_autoreseteventWaitForEventsProcessing.Set();
+            }
+
+            // Make sure we've ended...
+            if (a_blSetNoSession)
+            {
+                SetSessionState(SessionState.noSession, "Session critical...", false);
+            }
+
+            // Take out the session...
             if (m_twainlocalsession != null)
             {
+                m_twainlocalsession.SetUserShutdown(true);
                 m_twainlocalsession.Dispose();
                 m_twainlocalsession = null;
             }
@@ -2102,6 +2120,12 @@ namespace TwainDirect.Support
             int iPort;
             bool blSuccess;
 
+            // We already have one of these...
+            if (m_httpserver != null)
+            {
+                return (true);
+            }
+
             // Get our port...
             if (!int.TryParse(Config.Get("usePort","34034"), out iPort))
             {
@@ -2155,8 +2179,15 @@ namespace TwainDirect.Support
         /// <returns></returns>
         public void DeviceHttpServerStop()
         {
-            if (m_httpserver != null)
+            lock (m_objectLockDeviceHttpServerStop)
             {
+                // Nothing to do...
+                if (m_httpserver == null)
+                {
+                    return;
+                }
+
+                // Shut it down...
                 m_httpserver.ServerStop();
                 m_httpserver = null;
             }
@@ -2233,6 +2264,33 @@ namespace TwainDirect.Support
         public bool DeviceRegisterSave()
         {
             return (m_twainlocalsessionInfo.DeviceRegisterSave(Path.Combine(m_szWriteFolder, "register.txt")));
+        }
+
+        /// <summary>
+        /// Our device session exited in some unexpected fashion.  This
+        /// might happen if the TWAIN driver crashes...
+        /// <param name="a_blUserShutdown">the user requested the close</param>
+        /// </summary>
+        public void DeviceSessionExited(bool a_blUserShutdown)
+        {
+            // We only need to do this if we're running a session...
+            if ((m_twainlocalsession != null) && (m_twainlocalsession.GetSessionState() != SessionState.noSession))
+            {
+                // Tell the application that we're in trouble...
+                DeviceSendEvent("critical", SessionState.noSession, true);
+
+                // Make a note of what we're doing...
+                Log.Error("DeviceSessionExited: session critical...");
+
+                // Give the system time to deliver the message, otherwise
+                // what will happen is the client will see that it's lost
+                // communication.  Which it should interpret as the loss of the
+                // session.  This is just a nicer way of getting there...
+                Thread.Sleep(1000);
+
+                // Scrag the session...
+                SetSessionState(SessionState.noSession, "Session critical...", a_blUserShutdown);
+            }
         }
 
         /// <summary>
@@ -2366,11 +2424,13 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_sessionstate">new session state</param>
         /// <param name="a_szSessionEndedMessage">message to display when going to noSession</param>
+        /// <param name="a_blUserShutdown">the user requested the close</param>
         /// <returns>the previous session state</returns>
         private SessionState SetSessionState
         (
             SessionState a_sessionstate,
-            string a_szSessionEndedMessage = "Session ended..."
+            string a_szSessionEndedMessage = "Session ended...",
+            bool a_blUserShutdown = true
         )
         {
             SessionState sessionstatePrevious = SessionState.noSession;
@@ -2410,6 +2470,7 @@ namespace TwainDirect.Support
                 // Lose the session...
                 if (m_twainlocalsession != null)
                 {
+                    m_twainlocalsession.SetUserShutdown(a_blUserShutdown);
                     m_twainlocalsession.Dispose();
                     m_twainlocalsession = null;
                 }
@@ -2511,6 +2572,7 @@ namespace TwainDirect.Support
                 }
                 if (m_twainlocalsession != null)
                 {
+                    m_twainlocalsession.SetUserShutdown(true);
                     m_twainlocalsession.Dispose();
                     m_twainlocalsession = null;
                 }
@@ -3254,6 +3316,12 @@ namespace TwainDirect.Support
                     m_autoreseteventWaitForEvents.Set();
                     return;
                 }
+                if (m_blCancelWaitForEventsProcessing)
+                {
+                    // We've been asked to scoot...
+                    m_autoreseteventWaitForEvents.Set();
+                    return;
+                }
 
                 // Loop for as long as we find data in the list...
                 for (;;)
@@ -3290,7 +3358,7 @@ namespace TwainDirect.Support
 
                         // If we've gone to noSession, we should scoot, since
                         // it's no longer possible to receive events...
-                        if (m_twainlocalsession.GetSessionState() == SessionState.noSession)
+                        if ((m_twainlocalsession == null) || (m_twainlocalsession.GetSessionState() == SessionState.noSession))
                         {
                             // Do the callback, if we have one...
                             apicmd.WaitForEventsCallback();
@@ -3523,28 +3591,6 @@ namespace TwainDirect.Support
 
             // Scrag the session...
             twainlocalscanner.SetSessionState(SessionState.noSession, "Session timeout...");
-        }
-
-        /// <summary>
-        /// Our device session exited in some unexpected fashion.  This
-        /// might happen if the TWAIN driver crashes...
-        /// </summary>
-        internal void DeviceSessionExited()
-        {
-            // Tell the application that we're in trouble...
-            DeviceSendEvent("critical", SessionState.noSession, true);
-
-            // Make a note of what we're doing...
-            Log.Error("DeviceSessionExited: session critical...");
-
-            // Give the system time to deliver the message, otherwise
-            // what will happen is the client will see that it's lost
-            // communication.  Which it should interpret as the loss of the
-            // session.  This is just a nicer way of getting there...
-            Thread.Sleep(1000);
-
-            // Scrag the session...
-            SetSessionState(SessionState.noSession, "Session critical...");
         }
 
         /// <summary>
@@ -4327,7 +4373,7 @@ namespace TwainDirect.Support
 
         private void TwainLocalScanner_Exited(object sender, EventArgs e)
         {
-            DeviceSessionExited();
+            DeviceSessionExited(false);
         }
 
         /// <summary>
@@ -5543,19 +5589,37 @@ namespace TwainDirect.Support
             {
                 if (m_apicmd != null)
                 {
-                    m_apicmd.HttpAbort();
+                    try
+                    {
+                        m_apicmd.HttpAbort();
+                    }
+                    catch
+                    {
+                    }
                     m_apicmd = null;
                 }
                 if (m_threadCommunication != null)
                 {
-                    m_threadCommunication.Abort();
-                    m_threadCommunication.Join();
+                    try
+                    {
+                        m_threadCommunication.Abort();
+                        m_threadCommunication.Join();
+                    }
+                    catch
+                    {
+                    }
                     m_threadCommunication = null;
                 }
                 if (m_threadProcessing != null)
                 {
-                    m_threadProcessing.Abort();
-                    m_threadProcessing.Join();
+                    try
+                    {
+                        m_threadProcessing.Abort();
+                        m_threadProcessing.Join();
+                    }
+                    catch
+                    {
+                    }
                     m_threadProcessing = null;
                 }
             }
@@ -5625,6 +5689,7 @@ namespace TwainDirect.Support
         /// </summary>
         private object m_objectLock;
         private object m_objectLockClientFinishImage;
+        private object m_objectLockDeviceHttpServerStop;
         private object m_objectLockOnChangedBridge;
         private object m_objectLockOnChangedImageBlocks;
 
@@ -5718,6 +5783,7 @@ namespace TwainDirect.Support
         /// </summary>
         private AutoResetEvent m_autoreseteventWaitForEvents;
         private AutoResetEvent m_autoreseteventWaitForEventsProcessing;
+        private bool m_blCancelWaitForEventsProcessing;
 
         /// <summary>
         /// The long poll is on this guy, we'll respond to him when
@@ -6351,6 +6417,19 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Set to true if the user closed us.  It should be false if
+            /// we're shutting down because the user is logging out, or if
+            /// we're cleaning up from a problem.  This was added to take
+            /// care a nasty exception in Process.Dispose() when trying to
+            /// take down TwainDirect.OnTwain...
+            /// </summary>
+            /// <param name="a_blUserShutdown"></param>
+            public void SetUserShutdown(bool a_blUserShutdown)
+            {
+                m_blUserShutdown = a_blUserShutdown;
+            }
+
+            /// <summary>
             /// We need to keep track of the session revision sent by the last
             /// waitForEvents, so that we can expire events old than that number.
             /// This allows us to keep our event list cleaner, without a lot of
@@ -6424,7 +6503,30 @@ namespace TwainDirect.Support
                             // Not really interested in what we catch.
                             // Unless it's a goretrout... :)
                         }
-                        m_processTwainDirectOnTwain.Dispose();
+                        try
+                        {
+                            // We're getting a crash with an unknown
+                            // exception if logging off with an open
+                            // session.  Presumably .NET is poo'ing
+                            // itself because TwainDirect.OnTwain is
+                            // exiting too.  The try/catch doesn't
+                            // help (but I'm leaving it in).  Plan B
+                            // is to punt...so I'm punting...
+                            //
+                            // A value of true means the user initiated
+                            // this, so we're safe.
+                            if (m_blUserShutdown)
+                            {
+                                m_processTwainDirectOnTwain.Dispose();
+                            }
+                        }
+                        catch
+                        {
+                            // Not caring so much here, either.  We seem
+                            // to hit it if logging out, which suggests
+                            // that there's a bit of a struggle to see
+                            // who gets to kill TwainDirect.OnTwain first...
+                        }
                         m_processTwainDirectOnTwain = null;
                     }
                     if (m_aapicmdEvents != null)
@@ -6471,6 +6573,12 @@ namespace TwainDirect.Support
             /// no plans to do anything like that in the TWAIN Bridge...
             /// </summary>
             private string m_szSessionStatusDetected;
+
+            /// <summary>
+            /// True if we're shutting down because of some action from
+            /// the user, like stopping or closing the bridge...
+            /// </summary>
+            private bool m_blUserShutdown;
 
             /// <summary>
             /// Triggered when the session object had been updated...

@@ -541,17 +541,37 @@ namespace TwainDirect.App
 
                     // We've lost our session
                     case "critical":
-                        formscan.SetButtons(EBUTTONSTATE.CLOSED);
-                        MessageBox.Show("Your scanner session has aborted.", "Notification");
+                        BeginInvoke(new MethodInvoker(Critical));
                         break;
 
                     // We've lost our session
                     case "sessionTimedOut":
-                        formscan.SetButtons(EBUTTONSTATE.CLOSED);
-                        MessageBox.Show("Your scanner session has timed out.", "Notification");
+                        BeginInvoke(new MethodInvoker(SessionTimedOut));
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Handle critical errors...
+        /// </summary>
+        private void Critical()
+        {
+            SetButtons(EBUTTONSTATE.UNDEFINED);            
+            m_twainlocalscanner.ClientCertificationTwainLocalSessionDestroy(true);
+            SetButtons(EBUTTONSTATE.CLOSED);
+            MessageBox.Show("Your scanner session has aborted.", "Notification");
+        }
+
+        /// <summary>
+        /// Handle sessionTimedOut errors...
+        /// </summary>
+        private void SessionTimedOut()
+        {
+            SetButtons(EBUTTONSTATE.UNDEFINED);
+            m_twainlocalscanner.ClientCertificationTwainLocalSessionDestroy(true);
+            SetButtons(EBUTTONSTATE.CLOSED);
+            MessageBox.Show("Your scanner session has timed out.", "Notification");
         }
 
         /// <summary>

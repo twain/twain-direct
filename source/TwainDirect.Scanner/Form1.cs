@@ -402,11 +402,18 @@ namespace TwainDirect.Scanner
         /// <param name="e"></param>
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (!m_blAllowFormToClose)
+            // Reeeeeeeeejected!
+            if (!m_blAllowFormToClose && (e.CloseReason == CloseReason.UserClosing))
             {
                 e.Cancel = true;
                 WindowState = FormWindowState.Minimized;
                 this.Hide();
+            }
+
+            // Okay, fine...
+            if (m_scanner != null)
+            {
+                m_scanner.MonitorTasksStop(e.CloseReason == CloseReason.UserClosing);
             }
         }
 
@@ -622,7 +629,7 @@ namespace TwainDirect.Scanner
             SetButtons(ButtonState.Undefined);
 
             // Staaaaaaahp...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
             Display("Stop...");
 
             // Set buttons...

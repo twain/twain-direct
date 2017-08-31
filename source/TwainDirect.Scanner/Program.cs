@@ -24,6 +24,7 @@ namespace TwainDirect.Scanner
             string szExecutableName;
             string szWriteFolder;
             float fScale;
+            Form1 form1;
 
             // Are we already running?
             Process[] aprocessTwainDirectScanner = Process.GetProcessesByName("TwainDirectScanner");
@@ -99,13 +100,16 @@ namespace TwainDirect.Scanner
                             terminal.Start();
                             break;
                     }
+                    terminal.Dispose();
                     break;
 
                 // Fire up our application window...
                 case Mode.WINDOW:
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
-                    Application.Run(new Form1());
+                    form1 = new Form1();
+                    Application.Run(form1);
+                    form1.Dispose();
                     break;
             }
 

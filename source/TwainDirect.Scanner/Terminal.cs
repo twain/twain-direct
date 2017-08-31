@@ -338,7 +338,7 @@ namespace TwainDirect.Scanner
             }
 
             // Stop...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
         }
 
         #endregion
@@ -447,7 +447,7 @@ namespace TwainDirect.Scanner
         private void Stop(object sender, EventArgs e)
         {
             // Staaaaaaahp...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
             Display("Stop...");
         }
 

@@ -1876,7 +1876,16 @@ namespace TwainDirect.Support
             m_szThumbnailFile = a_jsonlookup.Get("thumbnailFile", false);
 
             // We can't just rely on the imageBlocks array...
-            string[] aszTw = Directory.GetFiles(a_szImagesFolder, "*.tw*");
+            string[] aszTw = null;
+            try
+            {
+                Directory.GetFiles(a_szImagesFolder, "*.tw*");
+            }
+            catch
+            {
+                // This is just a convenience...
+                Directory.CreateDirectory(a_szImagesFolder);
+            }
 
             // End of job...
             // - we must be capturing -and-
