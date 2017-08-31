@@ -68,16 +68,14 @@ using Microsoft.Win32;
 namespace TwainDirect.Support
 {
     /// <summary>
-    /// A scanner interface to a TWAIN Local scanner.  We only support one
-    /// registered scanner on a PC.  The user can change this at any time.
-    /// The client portion of the class can access any advertised scanner.
+    /// TWAIN Local support for the Device (TWAIN Bridge)...
     /// </summary>
-    public sealed class TwainLocalScanner : IDisposable
+    public sealed class TwainLocalScannerDevice : TwainLocalScanner
     {
         ///////////////////////////////////////////////////////////////////////////////
-        // Public Common Methods...
+        // Public Methods...
         ///////////////////////////////////////////////////////////////////////////////
-        #region Public Common Methods...
+        #region Public Methods...
 
         /// <summary>
         /// Init us...
@@ -88,7 +86,7 @@ namespace TwainDirect.Support
         /// <param name="a_objectEventCallback">object that provided the event</param>
         /// <param name="a_displaycallback">display callback</param>
         /// <param name="a_blCreateTwainLocalSession">true for the server only</param>
-        public TwainLocalScanner
+        public TwainLocalScannerDevice
         (
             ConfirmScan a_confirmscan,
             float a_fConfirmScanScale,
@@ -96,75 +94,27 @@ namespace TwainDirect.Support
             object a_objectEventCallback,
             DisplayCallback a_displaycallback,
             bool a_blCreateTwainLocalSession
+        ) : base
+        (
+            a_fConfirmScanScale,
+            a_eventcallback,
+            a_objectEventCallback,
+            a_displaycallback,
+            a_blCreateTwainLocalSession
         )
         {
-            int iDefault;
+            // Save the confirmscan callback, if given one...
+            m_confirmscan = a_confirmscan;
 
-            // Init our command timeout for HTTPS communication...
-            iDefault = 15000; // 15 seconds
-            m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
-            if (m_iHttpTimeoutCommand < 5000)
-            {
-                m_iHttpTimeoutCommand = iDefault;
-            }
-
-            // Init our data timeout for HTTPS communication...
-            iDefault = 30000; // 30 seconds
-            m_iHttpTimeoutData = (int)Config.Get("httpTimeoutData", iDefault);
-            if (m_iHttpTimeoutData < 10000)
-            {
-                m_iHttpTimeoutData = iDefault;
-            }
+            // Keep this for the life of the bridge...
+            m_szDeviceSecret = Guid.NewGuid().ToString();
 
             // Init our idle session timeout...
-            iDefault = 300000; // five minutes
-            m_lSessionTimeout = Config.Get("sessionTimeout", iDefault);
+            long lSessionTimeout = 300000; // five minutes
+            m_lSessionTimeout = Config.Get("sessionTimeout", lSessionTimeout);
             if (m_lSessionTimeout < 10000)
             {
-                m_lSessionTimeout = iDefault;
-            }
-
-            // Init stuff...
-            m_szWriteFolder = Config.Get("writeFolder", "");
-            m_confirmscan = a_confirmscan;
-            m_fConfirmScanScale = a_fConfirmScanScale;
-            m_eventcallback = a_eventcallback;
-            m_objectEventCallback = a_objectEventCallback;
-            m_displaycallback = a_displaycallback;
-            m_szDeviceSecret = Guid.NewGuid().ToString();
-            m_llPendingImageBlocks = new List<long>();
-
-            // Set up session specific content...
-            if (a_blCreateTwainLocalSession)
-            {
-                m_twainlocalsessionInfo = new TwainLocalSession("");
-            }
-
-            // Our locks...
-            m_objectLock = new object();
-            m_objectLockClientFinishImage = new object();
-            m_objectLockDeviceHttpServerStop = new object();
-            m_objectLockOnChangedBridge = new object();
-            m_objectLockOnChangedImageBlocks = new object();
-
-            // We use this to get notification about events...
-            m_blCancelWaitForEventsProcessing = false;
-            m_autoreseteventWaitForEvents = new AutoResetEvent(false);
-            m_autoreseteventWaitForEventsProcessing = new AutoResetEvent(false);
-
-            // This is our default location for storing imageblocks
-            // and metadata...
-            try
-            {
-                m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
-                if (!Directory.Exists(m_szImagesFolder))
-                {
-                    Directory.CreateDirectory(m_szImagesFolder);
-                }
-            }
-            catch
-            {
-                throw new Exception("Can't set up the images folder...");
+                m_lSessionTimeout = lSessionTimeout;
             }
 
             // Create the timer we'll use for expiring sessions...
@@ -172,1590 +122,28 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Destructor...
-        /// </summary>
-        ~TwainLocalScanner()
-        {
-            Dispose(false);
-        }
-
-        /// <summary>
         /// Cleanup...
         /// </summary>
-        public void Dispose()
+        public override void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            // Don't timeout the session...
+            if (m_timerSession != null)
+            {
+                m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
+                m_timerSession.Dispose();
+                m_timerSession = null;
+            }
+
+            // Zap our server...
+            if (m_httpserver != null)
+            {
+                m_httpserver.Dispose();
+                m_httpserver = null;
+            }
+
+            // Zap the rest of it...
+            base.Dispose();
         }
-
-        /// <summary>
-        /// Collect information for our device info...
-        /// </summary>
-        /// <returns></returns>
-        Dnssd.DnssdDeviceInfo GetDnssdDeviceInfo()
-        {
-            Dnssd.DnssdDeviceInfo dnssddeviceinfo;
-
-            // Create it...
-            dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
-
-            // Stock it...
-            dnssddeviceinfo.SetLinkLocal("");
-            dnssddeviceinfo.SetServiceName(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName());
-            dnssddeviceinfo.SetTxtCs("offline");
-            dnssddeviceinfo.SetTxtHttps(true);
-            dnssddeviceinfo.SetTxtId("");
-            dnssddeviceinfo.SetTxtNote(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote());
-            dnssddeviceinfo.SetTxtTxtvers("1");
-            dnssddeviceinfo.SetTxtTy(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
-            dnssddeviceinfo.SetTxtType("twaindirect");
-
-            // Return it...
-            return (dnssddeviceinfo);
-        }
-
-        /// <summary>
-        /// Access the device name
-        /// </summary>
-        /// <returns>TWAIN Local ty= field</returns>
-        public string GetTwainLocalTy()
-        {
-            return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
-        }
-
-        /// <summary>
-        /// Return the current images folder...
-        /// </summary>
-        /// <returns>the images folder</returns>
-        public string GetImagesFolder()
-        {
-            return (m_szImagesFolder);
-        }
-
-        /// <summary>
-        /// Returns a path for scratch pad use...
-        /// </summary>
-        /// <param name="a_szFile">an optional file or folder to add to the path</param>
-        /// <returns>the path</returns>
-        public string GetPath(string a_szFile)
-        {
-            string szPath = m_szWriteFolder;
-            if (!string.IsNullOrEmpty(a_szFile))
-            {
-                szPath = Path.Combine(szPath, a_szFile);
-            }
-            if (!Directory.Exists(Path.GetDirectoryName(szPath)))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(szPath));
-            }
-            return (szPath);
-        }
-
-        /// <summary>
-        /// Return the current state...
-        /// </summary>
-        /// <returns>the enum as a string</returns>
-        public string GetState()
-        {
-            if (m_twainlocalsession == null)
-            {
-                return ("noSession");
-            }
-            return (m_twainlocalsession.GetSessionState().ToString());
-        }
-
-        /// <summary>
-        /// Quick access to our platform id.  We probably need a better way to
-        /// figure this all out...
-        /// </summary>
-        /// <returns>a platform</returns>
-        public static Platform GetPlatform()
-        {
-            // First pass...
-            if (ms_platform == Platform.UNKNOWN)
-            {
-                // We're Windows...
-                if (Environment.OSVersion.ToString().Contains("Microsoft Windows"))
-                {
-                    ms_platform = Platform.WINDOWS;
-                }
-
-                // We're Mac OS X (this has to come before LINUX!!!)...
-                else if (Directory.Exists("/Library/Application Support"))
-                {
-                    ms_platform = Platform.MACOSX;
-                }
-
-                // We're Linux...
-                else if (Environment.OSVersion.ToString().Contains("Unix"))
-                {
-                    ms_platform = Platform.LINUX;
-                }
-
-                // We have a problem...
-                else
-                {
-                    ms_platform = Platform.UNKNOWN;
-                    throw new Exception("Unsupported platform...");
-                }
-            }
-
-            // This is it...
-            return (ms_platform);
-        }
-
-        /// <summary>
-        /// Set a new images folder...
-        /// </summary>
-        /// <param name="a_szImagesFolder">the folder to set</param>
-        /// <returns>true on success</returns>
-        public bool SetImagesFolder(string a_szImagesFolder)
-        {
-            // See if we can use it...
-            if (!Directory.Exists(a_szImagesFolder))
-            {
-                try
-                {
-                    Directory.CreateDirectory(a_szImagesFolder);
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("CreateDirectory failed: " + exception.Message);
-                    Log.Error("<" + a_szImagesFolder + ">");
-                    return (false);
-                }
-            }
-
-            // We're good...
-            m_szImagesFolder = a_szImagesFolder;
-            return (true);
-        }
-
-        #endregion
-
-
-        ///////////////////////////////////////////////////////////////////////////////
-        // Public Client Methods...
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Public Client Methods...
-
-        /// <summary>
-        /// TWAIN Direct has four layers of error reporting: there's the HTTP status
-        /// codes; a security layer defined by Privet 1.0; a TWAIN Local protocol
-        /// layer, and a TWAIN Direct language layer.
-        /// 
-        /// This function checks out the health of the communication across all four
-        /// layers, and updates the ApiCmd object with the results.  It returns true
-        /// if no errors were found.
-        /// </summary>
-        /// <param name="a_szFunction">function we're reporting on</param>
-        /// <param name="a_apicmd">object to update if we find problems</param>
-        /// <returns>true on success, false if an error was detected</returns>
-        public bool ClientCheckForApiErrors(string a_szFunction, ref ApiCmd a_apicmd)
-        {
-            int ii;
-            bool blSuccess;
-            long lJsonErrorIndex;
-            string szReply;
-            string szAction;
-            string szSuccess;
-            string szCode;
-            string szJsonKey;
-            string szCharacterOffset;
-            string szDescription;
-            JsonLookup jsonlookup;
-
-            // First, let's check on the health of the HTTP communication.
-            // If this fails, close the session...
-            if (a_apicmd.HttpStatus() != System.Net.WebExceptionStatus.Success)
-            {
-                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.httpstatus);
-                a_apicmd.AddApiErrorCode("httpError");
-                a_apicmd.AddApiErrorDescription(a_szFunction + ": httpError - " + a_apicmd.HttpStatus());
-                return (false);
-            }
-
-            // Check the response data, every command must come back with a JSON
-            // payload, so if we don't have one, that's a protocol error...
-            szReply = a_apicmd.GetResponseData();
-            if (string.IsNullOrEmpty(szReply))
-            {
-                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
-                a_apicmd.AddApiErrorCode("protocolError");
-                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - data is missing from the HTTP response");
-                return (false);
-            }
-
-            // If the JSON format of the reply is damaged, we have a protocol
-            // error...
-            jsonlookup = new JsonLookup();
-            blSuccess = jsonlookup.Load(szReply, out lJsonErrorIndex);
-            if (!blSuccess)
-            {
-                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
-                a_apicmd.AddApiErrorCode("invalidJson");
-                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - JSON error in the HTTP response at character offset " + lJsonErrorIndex);
-                return (false);
-            }
-
-            // Do we have a security error?
-            szCode = jsonlookup.Get("error", false);
-            if (!string.IsNullOrEmpty(szCode))
-            {
-                szDescription = jsonlookup.Get("description", false);
-                if (string.IsNullOrEmpty(szDescription))
-                {
-                    szDescription = "(no description provided)";
-                }
-                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.security);
-                a_apicmd.AddApiErrorCode("invalidJson");
-                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szDescription);
-                return (false);
-            }
-
-            // How about a protocol error?
-            szSuccess = jsonlookup.Get("results.success", false);
-            if (string.IsNullOrEmpty(szSuccess) || ((szSuccess != "false") && (szSuccess != "true")))
-            {
-                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
-                a_apicmd.AddApiErrorCode("protocolError");
-                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - results.success is missing or invalid");
-                return (false);
-            }
-            else if (szSuccess == "false")
-            {
-                // Collect the data...
-                szCode = jsonlookup.Get("results.code", false);
-                if (string.IsNullOrEmpty(szCode))
-                {
-                    szCode = "invalidTask";
-                }
-                szJsonKey = jsonlookup.Get("results.jsonKey", false);
-                if (string.IsNullOrEmpty(szJsonKey))
-                {
-                    szJsonKey = "(n/a)";
-                }
-                szCharacterOffset = jsonlookup.Get("results.characterOffset", false);
-                if (string.IsNullOrEmpty(szCharacterOffset))
-                {
-                    szCharacterOffset = "(n/a)";
-                }
-
-                // Squirrel it away...
-                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
-                a_apicmd.AddApiErrorCode("protocolError");
-                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - characterOffset=" + szCharacterOffset + " jsonKey=" + szJsonKey);
-                return (false);
-            }
-
-            // All that's left are language errors, and those are
-            // catagorized with each action.  Report all of them...
-            bool blErrorDetected = false;
-            for (ii = 0; true; ii++)
-            {
-                // If we run out of actions, scoot...
-                szAction = "results.session.task.actions[" + ii + "]";
-                szSuccess = jsonlookup.Get(szAction, false);
-                if (string.IsNullOrEmpty(szSuccess))
-                {
-                    break;
-                }
-
-                // We'd better have one of these...
-                szSuccess = jsonlookup.Get(szAction + ".results.success", false);
-
-                // We're good, check the next one...
-                if (!string.IsNullOrEmpty(szSuccess) && (szSuccess == "true"))
-                {
-                    continue;
-                }
-
-                // We've found a problem child...
-                blErrorDetected = true;
-
-                // The value better be false...
-                if (string.IsNullOrEmpty(szSuccess) || (szSuccess != "false"))
-                {
-                    a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
-                    a_apicmd.AddApiErrorCode("invalidTask");
-                    a_apicmd.AddApiErrorDescription(a_szFunction + ": invalidTask - " + szAction + ".results.success is missing or invalid");
-                    continue;
-                }
-
-                // Collect the data on it...
-                szCode = jsonlookup.Get(szAction + ".results.code", false);
-                if (string.IsNullOrEmpty(szCode))
-                {
-                    szCode = "invalidTask";
-                }
-                szJsonKey = jsonlookup.Get(szAction + ".results.jsonKey", false);
-                if (string.IsNullOrEmpty(szJsonKey))
-                {
-                    szJsonKey = "(n/a)";
-                }
-
-                // Add it to our list...
-                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
-                a_apicmd.AddApiErrorCode("invalidTask");
-                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szAction + ", jsonKey=" + szJsonKey);
-            }
-            if (blErrorDetected)
-            {
-                return (false);
-            }
-
-            // Golly, it looks like we're in good shape...
-            return (true);
-        }
-
-        /// <summary>
-        /// Images are transferred using one or more imageBlocks.  This function
-        /// recognizes when all of the imageBlocks for an image have been received.
-        /// It creates the finished image, and ties the .meta and thumbnails to the
-        /// basename.
-        /// </summary>
-        /// <param name="a_szMetadata">the metadata for this imageBlock</param>
-        /// <param name="a_szImageBlock">the imageBlock</param>
-        /// <param name="a_szBasename">the basename for any finished content</param>
-        /// <returns></returns>
-        public bool ClientFinishImage(string a_szMetadata, string a_szImageBlock, string a_szBasename)
-        {
-            int ii;
-            bool blSuccess;
-            long lJsonErrorIndex;
-            long iImageNumber;
-            long iImagePart;
-            long[] alImageBlocks;
-            string szMoreParts;
-            string szThumbnail;
-            JsonLookup jsonlookup;
-
-            // It's possible for this function to be called in response
-            // to one or more readImageBlock calls completing.  We don't
-            // want them fighting over the data.  So we serialize their
-            // access...
-            lock (m_objectLockClientFinishImage)
-            {
-                // If we were locked out, we may no longer have the imageBlock,
-                // which means somebody else beat us to the punch, and we have
-                // no work to do...
-                if (!File.Exists(a_szImageBlock))
-                {
-                    return (false);
-                }
-
-                // Load the metadata...
-                jsonlookup = new JsonLookup();
-                blSuccess = jsonlookup.Load(a_szMetadata, out lJsonErrorIndex);
-                if (!blSuccess)
-                {
-                    Log.Error("metadata error @" + lJsonErrorIndex + " <" + a_szMetadata + ">");
-                    return (false);
-                }
-
-                // Collect the relevant address information...
-                try
-                {
-                    iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
-                    iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
-                    szMoreParts = jsonlookup.Get("metadata.address.moreParts");
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("metadata error - " + exception.Message);
-                    return (false);
-                }
-
-                // Get the list of imageBlocks, this should be the contents of the array
-                // from the response to readImageBlock.  Having this allows us to better
-                // figure out where we are in the imageBlock array...
-                alImageBlocks = ClientGetImageBlocks();
-
-                // Add any new imageBlocks to the list we're maintaining...
-                if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
-                {
-                    // Get the last imageBlock in our list...
-                    long lLastImageBlock = 0;
-                    if (m_llPendingImageBlocks.Count > 0)
-                    {
-                        lLastImageBlock = m_llPendingImageBlocks[m_llPendingImageBlocks.Count - 1];
-                    }
-
-                    // Append any imageBlocks greater than lLastImageBlock...
-                    for (ii = 0; ii < alImageBlocks.Length; ii++)
-                    {
-                        if (alImageBlocks[ii] > lLastImageBlock)
-                        {
-                            m_llPendingImageBlocks.Add(alImageBlocks[ii]);
-                        }
-                    }
-                }
-
-                // If the imageNumber in the metadata matches the first imageBlock, if
-                // its imagePart is 1, and moreParts is lastPartInFile, then we can
-                // accomplish our task with simple renames.  I have this in place to allow
-                // for a simplier code path when the config setting imageBlockSize is set
-                // to 0, meaning that we don't want to split up images across multiple
-                // imageBlocks.
-                if ((m_llPendingImageBlocks.Count > 0) && (iImageNumber == m_llPendingImageBlocks[0]) && (iImagePart == 1) && (szMoreParts == "lastPartInFile"))
-                {
-                    // Rename the .tdpdf file...
-                    File.Move(a_szImageBlock, a_szBasename + ".pdf");
-
-                    // If we have a thumbnail, rename it...
-                    szThumbnail = a_szImageBlock.Replace(".tdpdf", "_thumbnail.tdpdf");
-                    if (File.Exists(szThumbnail))
-                    {
-                        File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
-                    }
-
-                    // Always handle the .tdmeta last, because the creation
-                    // of a .meta file indicates that all of the files associated
-                    // with an image are ready for access...
-                    File.Move(a_szImageBlock.Replace(".tdpdf", ".tdmeta"), a_szBasename + ".meta");
-
-                    // Remove this item from our list...
-                    m_llPendingImageBlocks.RemoveAt(0);
-
-                    // All done, we created our finished image...
-                    return (true);
-                }
-
-                // Otherwise life is a bit more complicated.  We walk through the
-                // list of imageBlocks we got from the session object to see if
-                // we can build a complete image, and if so, we do that.  If there
-                // are more imageBlocks after that, we tell the caller, so that
-                // they can have us look for more complete images.  We do that until
-                // we either exhaust the imageBlocks or we're unable to create a
-                // finished image.
-                //
-                // Doing it this way allows us to generate finished images in order,
-                // and with the caller controlling the basename of the finished
-                // files...
-                List<string> lszBasenames = new List<string>();
-                string szDirectoryName = Path.GetDirectoryName(a_szImageBlock);
-                foreach (long lImageBlock in m_llPendingImageBlocks)
-                {
-                    // Check for a .tdmeta file, if we don't have
-                    // it, we're done...
-                    string szTdmetaFile = Path.Combine(szDirectoryName, "img" + lImageBlock.ToString("D6") + ".tdmeta");
-                    if (!File.Exists(szTdmetaFile))
-                    {
-                        return (false);
-                    }
-
-                    // Read the beastie...
-                    string szTdmeta = File.ReadAllText(szTdmetaFile);
-                    jsonlookup.Load(szTdmeta, out lJsonErrorIndex);
-
-                    // Collect the relevant address information...
-                    try
-                    {
-                        iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
-                        iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
-                        szMoreParts = jsonlookup.Get("metadata.address.moreParts");
-                    }
-                    catch (Exception exception)
-                    {
-                        Log.Error("metadata error - " + exception.Message);
-                        return (false);
-                    }
-
-                    // Add it to our list...
-                    lszBasenames.Add(Path.Combine(szDirectoryName, Path.GetFileNameWithoutExtension(szTdmetaFile)));
-
-                    // If this isn't the last bit, go up and look for more...
-                    if (szMoreParts != "lastPartInFile")
-                    {
-                        continue;
-                    }
-
-                    // If we got this far, we've found all of the imageBlocks for an image...
-                    break;
-                }
-
-                // Stitch all the .tdpdf's into a single .pdf...
-                int iRead;
-                byte[] abData = new byte[0x200000];
-                string szLastBasename = lszBasenames[lszBasenames.Count - 1];
-                FileStream filestreamWrite = new FileStream(a_szBasename + ".pdf", FileMode.Create);
-                foreach (string szBasename in lszBasenames)
-                {
-                    // Copy the data...
-                    FileStream filestreamRead = new FileStream(szBasename + ".tdpdf", FileMode.Open);
-                    while (true)
-                    {
-                        iRead = filestreamRead.Read(abData, 0, abData.Length);
-                        if (iRead == 0)
-                        {
-                            break;
-                        }
-                        filestreamWrite.Write(abData, 0, iRead);
-                    }
-                    filestreamRead.Close();
-
-                    // Blow away the .tdpdf file...
-                    File.Delete(szBasename + ".tdpdf");
-
-                    // Blow away the .tdmeta file, if it's not the last one...
-                    if (szBasename != szLastBasename)
-                    {
-                        File.Delete(szBasename + ".tdmeta");
-                    }
-
-                    // Remove this imageBlock from our list...
-                    m_llPendingImageBlocks.RemoveAt(0);
-                }
-                filestreamWrite.Close();
-
-                // If we have a thumbnail, rename it...
-                szThumbnail = szLastBasename + "_thumbnail.tdpdf";
-                if (File.Exists(szThumbnail))
-                {
-                    File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
-                }
-
-                // Always handle the .tdmeta last, because the creation
-                // of a .meta file indicates that all of the files associated
-                // with an image are ready for access...
-                File.Move(szLastBasename + ".tdmeta", a_szBasename + ".meta");
-
-                // All done, we created our finished image...
-                return (true);
-            }
-        }
-
-        /// <summary>
-        /// Return the current image blocks...
-        /// </summary>
-        /// <returns>array of image blocks</returns>
-        public long[] ClientGetImageBlocks()
-        {
-            return (m_twainlocalsession.m_alSessionImageBlocks);
-        }
-
-        /// <summary>
-        /// Return the imageBlocksDrained flag...
-        /// </summary>
-        /// <returns>true if the scanner has no more images</returns>
-        public bool ClientGetImageBlocksDrained()
-        {
-            return (m_twainlocalsession.GetSessionImageBlocksDrained());
-        }
-
-        /// <summary>
-        /// Return the current image blocks...
-        /// </summary>
-        /// <returns>array of image blocks</returns>
-        public string ClientGetImageBlocks(ApiCmd a_apicmd)
-        {
-            return (a_apicmd.GetImageBlocks().Replace(" ",""));
-        }
-
-        /// <summary>
-        /// Return the current session state...
-        /// </summary>
-        /// <returns>session state</returns>
-        public string ClientGetSessionState()
-        {
-            if (m_twainlocalsession == null)
-            {
-                return ("noSession");
-            }
-            return (m_twainlocalsession.GetSessionState().ToString());
-        }
-
-        /// <summary>
-        /// Tell us about the health of the session...
-        /// </summary>
-        /// <param name="a_szDetected"></param>
-        /// <returns></returns>
-        public bool ClientGetSessionStatusSuccess(out string a_szDetected)
-        {
-            if (m_twainlocalsession == null)
-            {
-                a_szDetected = "nominal";
-                return (true);
-            }
-            a_szDetected = m_twainlocalsession.GetSessionStatusDetected();
-            return (m_twainlocalsession.GetSessionStatusSuccess());
-        }
-
-        /// <summary>
-        /// Get info about the device...
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <param name="a_szOverride">used for certification testing</param>
-        /// <returns>true on success</returns>
-        public bool ClientInfo
-        (
-            ref ApiCmd a_apicmd,
-            string a_szOverride = null
-        )
-        {
-            bool blSuccess;
-            string szCommand;
-            string szFunction = "ClientInfo";
-
-            // This command can be issued at any time, so we don't check state, we also
-            // don't have to worry about locking anything...
-
-            // Figure out what command we're sending...
-            if (a_szOverride != null)
-            {
-                szCommand = "/privet/" + a_szOverride;
-            }
-            else
-            {
-                szCommand = (Config.Get("useInfoex", "yes") == "yes") ? "/privet/infoex" : "/privet/info";
-            }
-
-            // Send the RESTful API command, we'll support using either
-            // privet/info or /privet/infoex, but we'll default to infoex...
-            blSuccess = ClientHttpRequest
-            (
-                szFunction,
-                ref a_apicmd,
-                szCommand,
-                "GET",
-                ClientHttpBuildHeader(true),
-                null,
-                null,
-                null,
-                m_iHttpTimeoutCommand,
-                ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-            );
-            if (!blSuccess)
-            {
-                ClientReturnError(a_apicmd, false, "", 0, "");
-                return (false);
-            }
-
-            // All done...
-            return (true);
-        }
-
-        // The naming convention for this bit is Executer / Package / Command.  So, since
-        // this is the client section, the executer is the Client.  The TWAIN Local package is
-        // "scanner" and the commands are TWAIN Direct Client-Scanner API commands.  If you want to find
-        // the corresponding function used by scanners, just replace "Client" with "Device"...
-
-        /// <summary>
-        /// Close a session...
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerCloseSession(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerCloseSession";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collect session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"closeSession\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"" +
-                    "}" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReply
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-
-                // A session can be closed with pending imageBlocks, in which case
-                // it's in a closed state, but it can't transition to NoSession
-                // until all of the images have been released...
-                if (    (m_twainlocalsession.m_alSessionImageBlocks == null)
-                    ||  (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))
-                {
-                    SetSessionState(SessionState.noSession);
-                }
-                else
-                {
-                    SetSessionState(SessionState.closed);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Create a session, basically seeing if the device is available for use.
-        /// If it works out the session state will go to "ready".  Anything else
-        /// is going to be an issue...
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerCreateSession(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            bool blCreatedTwainLocalSession = false;
-            string szFunction = "ClientScannerCreateSession";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                // Create it if we need it...
-                if (m_twainlocalsession == null)
-                {
-                    // We got this X-Privet-Token from info or infoex, if we didn't
-                    // get one yet, there will be sadness on the scanner side...
-                    m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
-                    blCreatedTwainLocalSession = true;
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
-                    "\"method\":\"createSession\"" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    if (blCreatedTwainLocalSession)
-                    {
-                        m_twainlocalsession.SetUserShutdown(false);
-                        m_twainlocalsession.Dispose();
-                        m_twainlocalsession = null;
-                    }
-                    return (false);
-                }
-
-                // Set our state (to get this far, things must be okay)...
-                SetSessionState(SessionState.ready);
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Get the session information...
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerGetSession(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerGetSession";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"getSession\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"" +
-                    "}" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// This is an invalid command, it's only used to test certification, please
-        /// don't go around adding this to your applications... >.<
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerInvalidCommand(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerInvalidCommand";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + Guid.NewGuid().ToString() + "\"," +
-                    "\"method\":\"invalidCommand\"" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReply
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// This is an invalid uri, it's only used to test certification, please
-        /// don't go around adding this to your applications... >.<
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerInvalidUri(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerInvalidUri";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/invaliduri",
-                    "GET",
-                    ClientHttpBuildHeader(true),
-                    null,
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReply
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Read an image block from the scanner...
-        /// </summary>
-        /// <param name="a_lImageBlockNum">block number to read</param>
-        /// <param name="a_blGetMetadataWithImage">ask for the metadata</param>
-        /// <param name="a_scancallback">function to call</param>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerReadImageBlock
-        (
-            long a_lImageBlockNum,
-            bool a_blGetMetadataWithImage,
-            ScanCallback a_scancallback,
-            ref ApiCmd a_apicmd
-        )
-        {
-            bool blSuccess;
-            string szImage;
-            string szMetaFile;
-            string szFunction = "ClientScannerReadImageBlock";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Build the full image path...
-                szImage = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdpdf"); // TWAIN direct temporary pdf
-
-                // Make sure it's clean...
-                if (File.Exists(szImage))
-                {
-                    try
-                    {
-                        File.Delete(szImage);
-                    }
-                    catch
-                    {
-                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": access denied: " + szImage);
-                        return (false);
-                    }
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"readImageBlock\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"," +
-                    (a_blGetMetadataWithImage ? "\"withMetadata\":true," : "") +
-                    "\"imageBlockNum\":" + a_lImageBlockNum +
-                    "}" +
-                    "}",
-                    null,
-                    szImage,
-                    m_iHttpTimeoutData,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-
-                // We asked for metadata...
-                string szMetadata = "";
-                if (a_blGetMetadataWithImage && (m_twainlocalsession != null))
-                {
-                    // Try to get the meta data...
-                    if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
-                    {
-                        m_twainlocalsession.SetMetadata(null);
-                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": 'results.metadata' missing");
-                        return (false);
-                    }
-
-                    // Save the metadata to a file...
-                    szMetadata = "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}";
-                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdmeta");
-                    try
-                    {
-                        File.WriteAllText(szMetaFile, szMetadata);
-                    }
-                    catch (Exception exception)
-                    {
-                        m_twainlocalsession.SetMetadata(null);
-                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " access denied: " + szMetaFile + " (" + exception.Message + ")");
-                        return (false);
-                    }
-                    Log.Info("metadata: " + szMetaFile);
-                }
-
-                // If we have a scanner callback, hit it now...
-                if (a_scancallback != null)
-                {
-                    a_scancallback(szMetadata, szImage);
-                }
-            }
-
-            // All done...
-            Log.Info("image: " + szImage);
-            return (true);
-        }
-
-        /// <summary>
-        /// Read an image block's TWAIN Direct metadata from the scanner...
-        /// </summary>
-        /// <param name="a_lImageBlockNum">image block to read</param>
-        /// <param name="a_blGetThumbnail">the caller would like a thumbnail</param>
-        /// <param name="a_scancallback">function to call</param>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerReadImageBlockMetadata(long a_lImageBlockNum, bool a_blGetThumbnail, ScanCallback a_scancallback, ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szThumbnail;
-            string szMetaFile = "(no session)";
-            string szFunction = "ClientScannerReadImageBlockMetadata";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // We're asking for a thumbnail...
-                szThumbnail = null;
-                if (a_blGetThumbnail)
-                {
-                    // Build the full image thumbnail path...
-                    szThumbnail = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + "_thumbnail.tdpdf"); // twain direct temporary pdf
-
-                    // Make sure it's clean...
-                    if (File.Exists(szThumbnail))
-                    {
-                        try
-                        {
-                            File.Delete(szThumbnail);
-                        }
-                        catch (Exception exception)
-                        {
-                            ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": access denied: " + szThumbnail + " (" + exception.Message + ")");
-                            return (false);
-                        }
-                    }
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"readImageBlockMetadata\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"," +
-                    "\"imageBlockNum\":" + a_lImageBlockNum +
-                    (a_blGetThumbnail ? ",\"withThumbnail\":true" : "") +
-                    "}" +
-                    "}",
-                    null,
-                    a_blGetThumbnail ? szThumbnail : null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-
-                // Make sure we have a session for this...
-                if (m_twainlocalsession != null)
-                {
-                    // Try to get the meta data...
-                    if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
-                    {
-                        m_twainlocalsession.SetMetadata(null);
-                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " 'results.metadata' missing");
-                        return (false);
-                    }
-
-                    // Save the metadata to a file...
-                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdmeta");
-                    string szMetadata = "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}";
-                    try
-                    {
-                        File.WriteAllText(szMetaFile, szMetadata);
-                    }
-                    catch (Exception exception)
-                    {
-                        m_twainlocalsession.SetMetadata(null);
-                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " access denied: " + szMetaFile + " (" + exception.Message + ")");
-                        return (false);
-                    }
-
-                    // Give it to the callback...
-                    if (a_scancallback != null)
-                    {
-                        a_scancallback(szMetadata, null);
-                    }
-                }
-            }
-
-            // All done...
-            Log.Info("metadata:  " + szMetaFile);
-            if (a_blGetThumbnail)
-            {
-                Log.Info("thumbnail: " + szThumbnail);
-            }
-            return (true);
-        }
-
-        /// <summary>
-        /// Release one or more image blocks
-        /// </summary>
-        /// <param name="a_lImageBlockNum">first block to release</param>
-        /// <param name="a_lLastImageBlockNum">last block in range (inclusive)</param>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns></returns>
-        public bool ClientScannerReleaseImageBlocks(long a_lImageBlockNum, long a_lLastImageBlockNum, ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerReleaseImageBlocks";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"releaseImageBlocks\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"," +
-                    "\"imageBlockNum\":" + a_lImageBlockNum + "," +
-                    "\"lastImageBlockNum\":" + a_lLastImageBlockNum +
-                    "}" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-
-                // If closeSession was previously called, we can be in a closed
-                // state, until all of the image blocks have been released.  We'll
-                // also go noSession if our m_twainlocalsession has gone bye-bye...
-                if (    (m_twainlocalsession == null)
-                    ||  ((m_twainlocalsession.GetSessionState() == SessionState.closed)
-                    &&  ((m_twainlocalsession.m_alSessionImageBlocks == null) || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))))
-                {
-                    SetSessionState(SessionState.noSession);
-                }
-
-                // If stopCapturing was previously called, we can be in a draining
-                // state, until all of the image blocks have been released...
-                else if (   (m_twainlocalsession.GetSessionState() == SessionState.draining)
-                         && ((m_twainlocalsession.m_alSessionImageBlocks == null)
-                         || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0)))
-                {
-                    SetSessionState(SessionState.ready);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Send a task to the scanner...
-        /// </summary>
-        /// <param name="a_szTask">the task to use</param>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerSendTask(string a_szTask, ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerSendTask";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"sendTask\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"," +
-                    "\"task\":" + a_szTask +
-                    "}" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Start capturing...
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerStartCapturing(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerStartCapturing";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                    m_twainlocalsession.SetSessionStatusSuccess(true);
-                    m_twainlocalsession.SetSessionStatusDetected("nominal");
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"startCapturing\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"" +
-                    "}" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    if (m_twainlocalsession != null)
-                    {
-                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
-                    }
-                    return (false);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Stop capturing...
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerStopCapturing(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerStopCapturing";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Send the RESTful API command...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                    "\"method\":\"stopCapturing\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"" +
-                    "}" +
-                    "}",
-                    null,
-                    null,
-                    m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Wait for one or more events...
-        /// </summary>
-        /// <param name="a_apicmd">info about the command</param>
-        /// <returns>true on success</returns>
-        public bool ClientScannerWaitForEvents(ref ApiCmd a_apicmd)
-        {
-            bool blSuccess;
-            string szFunction = "ClientScannerWaitForEvents";
-
-            // Lock this command to protect the session object...
-            lock (m_objectLock)
-            {
-                string szSessionId = "";
-
-                // Collection session data, if we have any...
-                if (m_twainlocalsession != null)
-                {
-                    szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Init our event timeout for HTTPS communication, this value
-                // needs to be more than whatever is being used by the scanner.
-                int iDefault = 60000; // 60 seconds
-                int iHttpTimeoutEvent = (int)Config.Get("httpTimeoutEvent", iDefault);
-                if (iHttpTimeoutEvent < 10000)
-                {
-                    iHttpTimeoutEvent = iDefault;
-                }
-
-                // Send the RESTful API command...
-                // Both @@@COMMANDID@@@ and @@@SESSIONREVISION@@@ are resolved
-                // inside of the ClientScannerWaitForEventsHelper thread...
-                blSuccess = ClientHttpRequest
-                (
-                    szFunction,
-                    ref a_apicmd,
-                    "/privet/twaindirect/session",
-                    "POST",
-                    ClientHttpBuildHeader(),
-                    "{" +
-                    "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"@@@COMMANDID@@@\"," +
-                    "\"method\":\"waitForEvents\"," +
-                    "\"params\":{" +
-                    "\"sessionId\":\"" + szSessionId + "\"," +
-                    "\"sessionRevision\":@@@SESSIONREVISION@@@" +
-                    "}" +
-                    "}",
-                    null,
-                    null,
-                    iHttpTimeoutEvent,
-                    ApiCmd.HttpReplyStyle.Event
-                );
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, "", 0, "");
-                    return (false);
-                }
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Allow us to kick ourselves out of a wait...
-        /// </summary>
-        /// <returns></returns>
-        public void ClientWaitForSessionUpdateForceSet()
-        {
-            if (m_twainlocalsession != null)
-            {
-                m_twainlocalsession.ClientWaitForSessionUpdateForceSet();
-            }
-        }
-
-        /// <summary>
-        /// Wait for the session object to be updated, this is done
-        /// by comparing the current session.revision number to the
-        /// session.revision from the last command or event.
-        /// </summary>
-        /// <param name="a_lMilliseconds">milliseconds to wait for the update</param>
-        /// <returns>true if an update was detected, false if the command timed out or was aborted</returns>
-        public bool ClientWaitForSessionUpdate(long a_lMilliseconds)
-        {
-            bool blSignaled = false;
-
-            // Wait for it...
-            if (m_twainlocalsession != null)
-            {
-                blSignaled = m_twainlocalsession.ClientWaitForSessionUpdate(a_lMilliseconds);
-            }
-
-            // All done...
-            Log.Info("ClientWaitForSessionUpdate - " + (blSignaled ? "true" : "false"));
-            return (blSignaled);
-        }
-
-        /// <summary>
-        /// Create a TWAIN Local Session object.  If this hasn't been done yet you
-        /// can specify the X-Privet-Token for testing.  The following have special
-        /// meaning:
-        /// no_header - no X-Privet-Header
-        /// no_token - X-Privet-Header with no data
-        /// anything else is droppedin verbatim
-        /// </summary>
-        /// <param name="a_szXPrivetToken">token to use if we don't have one yet</param>
-        public void ClientCertificationTwainLocalSessionCreate
-        (
-            string a_szXPrivetToken = "no_token"
-        )
-        {
-            if (m_twainlocalsession == null)
-            {
-                // If we have a token from info or infoex, use it, otherwise make a bad token,
-                // as the function indicates this is for the client only, and in fact it's just
-                // for the certification tool...
-                m_twainlocalsession = new TwainLocalSession(string.IsNullOrEmpty(m_szXPrivetToken) ? a_szXPrivetToken : m_szXPrivetToken);
-            }
-        }
-
-        /// <summary>
-        /// Destroy a TWAIN Local Session object
-        /// </summary>
-        public void ClientCertificationTwainLocalSessionDestroy(bool a_blSetNoSession = false)
-        {
-            // Take out the event handler...
-            if (m_autoreseteventWaitForEventsProcessing != null)
-            {
-                m_blCancelWaitForEventsProcessing = true;
-                m_autoreseteventWaitForEventsProcessing.Set();
-            }
-
-            // Make sure we've ended...
-            if (a_blSetNoSession)
-            {
-                SetSessionState(SessionState.noSession, "Session critical...", false);
-            }
-
-            // Take out the session...
-            if (m_twainlocalsession != null)
-            {
-                m_twainlocalsession.SetUserShutdown(true);
-                m_twainlocalsession.Dispose();
-                m_twainlocalsession = null;
-            }
-        }
-
-        #endregion
-
-
-        ///////////////////////////////////////////////////////////////////////////////
-        // Public Device Methods...
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Public Device Methods...
 
         /// <summary>
         /// Dispatch a command.  Commands sent by applications show up here as
@@ -1810,9 +198,9 @@ namespace TwainDirect.Support
             // Confirm that this command is coming in on a good URI, if it's not
             // then ignore it...
             szUri = a_httplistenercontext.Request.RawUrl.ToString();
-            if (    (szUri != "/privet/info")
-                &&  (szUri != "/privet/infoex")
-                &&  (szUri != "/privet/twaindirect/session"))
+            if ((szUri != "/privet/info")
+                && (szUri != "/privet/infoex")
+                && (szUri != "/privet/twaindirect/session"))
             {
                 return;
             }
@@ -1833,15 +221,15 @@ namespace TwainDirect.Support
             }
 
             // We found X-Privet-Token, squirrel away the value, remove any double quotes...
-            szXPrivetToken = a_httplistenercontext.Request.Headers.Get(ii).Replace("\"","");
+            szXPrivetToken = a_httplistenercontext.Request.Headers.Get(ii).Replace("\"", "");
 
             // Handle the /privet/info and /privet/infoex commands...
-            if (    (szUri == "/privet/info")
-                ||  (szUri == "/privet/infoex"))
+            if ((szUri == "/privet/info")
+                || (szUri == "/privet/infoex"))
             {
                 // Log it...
                 Log.Info("");
-                Log.Info("http>>> " + szUri.Replace("/privet/",""));
+                Log.Info("http>>> " + szUri.Replace("/privet/", ""));
                 Log.Info("http>>> " + a_httplistenercontext.Request.HttpMethod + " uri " + a_httplistenercontext.Request.Url.AbsoluteUri);
 
                 // Get each header and display each value.
@@ -2127,7 +515,7 @@ namespace TwainDirect.Support
             }
 
             // Get our port...
-            if (!int.TryParse(Config.Get("usePort","34034"), out iPort))
+            if (!int.TryParse(Config.Get("usePort", "34034"), out iPort))
             {
                 Log.Error("DeviceHttpServerStart: bad port..." + Config.Get("usePort", "34034"));
                 return (false);
@@ -2233,7 +621,7 @@ namespace TwainDirect.Support
             }
             catch
             {
-                ClientReturnError(a_apicmd, false, "invalidJason", -1, "DeviceRegister: JSON syntax error...");
+                DeviceReturnError("DeviceRegister", a_apicmd, "invalidJson", null, 0);
                 return (false);
             }
 
@@ -2248,7 +636,7 @@ namespace TwainDirect.Support
         public bool DeviceRegisterLoad()
         {
             // First load the data...
-            if (!m_twainlocalsessionInfo.DeviceRegisterLoad(this, Path.Combine(m_szWriteFolder, "register.txt")))
+            if (!m_twainlocalsessionInfo.DeviceRegisterLoad(Path.Combine(m_szWriteFolder, "register.txt")))
             {
                 return (false);
             }
@@ -2311,6 +699,15 @@ namespace TwainDirect.Support
             return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote());
         }
 
+        /// <summary>
+        /// Access the device name
+        /// </summary>
+        /// <returns>TWAIN Local ty= field</returns>
+        public string GetTwainLocalTy()
+        {
+            return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
+        }
+
         #endregion
 
 
@@ -2320,1072 +717,18 @@ namespace TwainDirect.Support
         #region Public Definitions...
 
         /// <summary>
-        /// Our supported platforms...
-        /// </summary>
-        public enum Platform
-        {
-            UNKNOWN,
-            WINDOWS,
-            LINUX,
-            MACOSX
-        };
-
-        /// <summary>
-        /// Buttons that a user can press...
-        /// </summary>
-        public enum ButtonPress
-        {
-            OK,
-            Cancel
-        };
-
-        /// <summary>
-        /// TWAIN Direct Client-Scanner API errors.  Be sure to only append to the list,
-        /// treat the numbers as unmodifiable constants, so that we can
-        /// guarantee their value across interfaces...
-        /// </summary>
-        public enum ApiStatus
-        {
-            success = 0,
-            newSessionNotAllowed = 1,
-            invalidSessionId = 2,
-            closedSession = 3,
-            notReady = 4,
-            notCapturing = 5,
-            invalidImageBlockNumber = 6,
-            invalidCapturingOptions = 7
-        }
-
-        /// <summary>
-        /// A place to keep our command information...
-        /// </summary>
-        public struct Command
-        {
-            public string szDeviceName;
-            public string szJson;
-        }
-
-        /// <summary>
-        /// Delegate for the long poll event processor.  This function
-        /// is called for every event received from the scanner.
-        /// </summary>
-        /// <param name="a_object">An object supplied by the caller when it registers the callback</param>
-        public delegate void WaitForEventsProcessingCallback(ApiCmd a_apicmd, object a_object);
-
-        /// <summary>
-        /// Delegate for the scan callback...
-        /// </summary>
-        /// <param name="a_szMetadata">metadata for this imageBlock</param>
-        /// <param name="a_szImageBlock">file for this imageBlock</param>
-        /// <returns></returns>
-        public delegate bool ScanCallback(string a_szMetadata, string a_szImageBlock);
-
-        /// <summary>
-        /// Delegate for event callback...
-        /// </summary>
-        /// <param name="a_object">caller's object</param>
-        /// <param name="a_szEvent">event</param>
-        public delegate void EventCallback(object a_object, string a_szEvent);
-
-        /// <summary>
         /// Prompt the user to confirm a request to scan...
         /// </summary>
         /// <returns>button the user pressed</returns>
         public delegate ButtonPress ConfirmScan(float a_fConfirmScanScale);
 
-        /// <summary>
-        /// Display callback...
-        /// </summary>
-        /// <param name="a_szText">text to display</param>
-        public delegate void DisplayCallback(string a_szText);
-
         #endregion
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Common methods...
+        // Private Methods...
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Common Methods...
-
-        /// <summary>
-        /// Display a message, if we have a callback for it...
-        /// </summary>
-        /// <param name="a_szMsg">the message to display</param>
-        private void Display(string a_szMsg)
-        {
-            if (m_displaycallback != null)
-            {
-                m_displaycallback(a_szMsg);
-            }
-        }
-
-        /// <summary>
-        /// Set the session state, and do additional cleanup work, if needed...
-        /// </summary>
-        /// <param name="a_sessionstate">new session state</param>
-        /// <param name="a_szSessionEndedMessage">message to display when going to noSession</param>
-        /// <param name="a_blUserShutdown">the user requested the close</param>
-        /// <returns>the previous session state</returns>
-        private SessionState SetSessionState
-        (
-            SessionState a_sessionstate,
-            string a_szSessionEndedMessage = "Session ended...",
-            bool a_blUserShutdown = true
-        )
-        {
-            SessionState sessionstatePrevious = SessionState.noSession;
-
-            // First set the session's state...
-            if (m_twainlocalsession != null)
-            {
-                sessionstatePrevious = m_twainlocalsession.GetSessionState();
-                m_twainlocalsession.SetSessionState(a_sessionstate);
-            }
-
-            // Cleanup...
-            if (a_sessionstate == SessionState.noSession)
-            {
-                // Don't let the event timeout fire...
-                if (m_timerEvent != null)
-                {
-                    m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
-                    m_timerEvent.Dispose();
-                    m_timerEvent = null;
-                }
-
-                // Lose the eventing stuff on the client side...
-                if (m_waitforeventsinfo != null)
-                {
-                    m_waitforeventsinfo.Dispose();
-                    m_waitforeventsinfo = null;
-                }
-
-                // Lose the eventing stuff on the device side...
-                if (m_apicmdEvent != null)
-                {
-                    m_apicmdEvent.HttpAbort();
-                    m_apicmdEvent = null;
-                }
-
-                // Lose the session...
-                if (m_twainlocalsession != null)
-                {
-                    m_twainlocalsession.SetUserShutdown(a_blUserShutdown);
-                    m_twainlocalsession.Dispose();
-                    m_twainlocalsession = null;
-                }
-
-                // Lose the timer...
-                if (m_timerSession != null)
-                {
-                    m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
-                }
-
-                // Display what happened...
-                Display(a_szSessionEndedMessage);
-            }
-
-            // Return the previous state...
-            return (sessionstatePrevious);
-        }
-
-        /// <summary>
-        /// Set the error return for client functions...
-        /// </summary>
-        /// <param name="a_apicmd">the current command</param>
-        /// <param name="a_blSuccess">our success status</param>
-        /// <param name="a_szResponseCode">the error code</param>
-        /// <param name="a_lResponseCharacterOffset">the offset of a JSON error, or -1</param>
-        /// <param name="a_szResponseText">extra info about the error</param>
-        private void ClientReturnError(ApiCmd a_apicmd, bool a_blSuccess, string a_szResponseCode, long a_lResponseCharacterOffset, string a_szResponseText)
-        {
-            long lJsonErrorIndex;
-
-            // Only log something if we have something...
-            if (!string.IsNullOrEmpty(a_szResponseText))
-            {
-                Log.Error(a_szResponseText);
-            }
-
-            // Handle protocol errors...
-            if (a_apicmd.GetResponseStatus() != 200)
-            {
-                string szResponseText = a_apicmd.GetResponseText();
-                if (string.IsNullOrEmpty(szResponseText))
-                {
-                    a_apicmd.DeviceResponseSetStatus(false, "protocolError", 0, "unrecognized protocol error, sorry.");
-                }
-                else
-                {
-                    JsonLookup jsonlookup = new JsonLookup();
-                    jsonlookup.Load(szResponseText, out lJsonErrorIndex);
-                    string szError = jsonlookup.Get("error");
-                    if (string.IsNullOrEmpty(szError))
-                    {
-                        szError = "protocolError";
-                    }
-                    a_apicmd.DeviceResponseSetStatus(false, szError, 0, szResponseText);
-                }
-
-                // All done...
-                return;
-            }
-
-            // Set the command's error return...
-            a_apicmd.DeviceResponseSetStatus(a_blSuccess, a_szResponseCode, a_lResponseCharacterOffset, a_szResponseText);
-        }
-
-        /// <summary>
-        /// Cleanup...
-        /// </summary>
-        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
-        internal void Dispose(bool a_blDisposing)
-        {
-            // Free managed resources...
-            if (a_blDisposing)
-            {
-                if (m_timerSession != null)
-                {
-                    m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
-                    m_timerSession.Dispose();
-                    m_timerSession = null;
-                }
-                if (m_autoreseteventWaitForEvents != null)
-                {
-                    m_autoreseteventWaitForEvents.Dispose();
-                    m_autoreseteventWaitForEvents = null;
-                }
-                if (m_autoreseteventWaitForEventsProcessing != null)
-                {
-                    m_autoreseteventWaitForEventsProcessing.Dispose();
-                    m_autoreseteventWaitForEventsProcessing = null;
-                }
-                if (m_waitforeventsinfo != null)
-                {
-                    m_waitforeventsinfo.Dispose();
-                    m_waitforeventsinfo = null;
-                }
-                if (m_httpserver != null)
-                {
-                    m_httpserver.Dispose();
-                    m_httpserver = null;
-                }
-                if (m_twainlocalsession != null)
-                {
-                    m_twainlocalsession.SetUserShutdown(true);
-                    m_twainlocalsession.Dispose();
-                    m_twainlocalsession = null;
-                }
-                if (m_twainlocalsessionInfo != null)
-                {
-                    m_twainlocalsessionInfo.Dispose();
-                    m_twainlocalsessionInfo = null;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Convert a C# DateTime to a Unix Epoch-based timestamp in milliseconds...
-        /// </summary>
-        /// <param name="dateTime">value to convert</param>
-        /// <returns>result</returns>
-        public static long DateTimeToUnixTimeMs(DateTime a_datetime)
-        {
-            DateTime datetimeUnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            long u64Ticks = (long)(a_datetime.ToUniversalTime() - datetimeUnixEpoch).Ticks;
-            return (u64Ticks / TimeSpan.TicksPerMillisecond);
-        }
-
-        // Run curl...get the stdout as a string, log the command and the result...
-        private string Run(string szProgram, string a_szArguments)
-        {
-            // Log what we're doing...
-            Log.Info("run>>> " + szProgram);
-            Log.Info("run>>> " + a_szArguments);
-
-            // Start the child process.
-            Process p = new Process();
-
-            // Redirect the output stream of the child process.
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.WorkingDirectory = Path.GetDirectoryName(szProgram);
-            p.StartInfo.CreateNoWindow = true;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.FileName = szProgram;
-            p.StartInfo.Arguments = a_szArguments;
-            p.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            p.Start();
-
-            // Do not wait for the child process to exit before
-            // reading to the end of its redirected stream.
-            // p.WaitForExit();
-            // Read the output stream first and then wait.
-            string szOutput = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-
-            // Log any output...
-            Log.Info("run>>> " + szOutput);
-
-            // All done...
-            return (szOutput);
-        }
-
-        /// <summary>
-        /// Convert a Unix Epoch-based timestamp in milliseconds to a C# DateTime...
-        /// </summary>
-        /// <param name="a_lUnixTimeMs">value to convert</param>
-        /// <returns>result</returns>
-        public static DateTime UnixTimeMsToDateTime(long a_lUnixTimeMs)
-        {
-            DateTime datetimeUnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            long u64Ticks = (long)(a_lUnixTimeMs * TimeSpan.TicksPerMillisecond);
-            return (new DateTime(datetimeUnixEpoch.Ticks + u64Ticks));
-        }
-
-        /// <summary>
-        /// Parse data from the session object.  We do this in a number
-        /// of places, so it makes sense to centralize...
-        /// </summary>
-        /// <param name="a_httpreplystyle">the reply style</param>
-        /// <param name="a_apicmd">the command object</param>
-        /// <param name="a_jsonlookup">data to check</param>
-        /// <returns>true on success</returns>
-        private bool ParseSession(string a_szReason, ApiCmd a_apicmd, out string a_szCode)
-        {
-            bool blSuccess;
-            bool blIsInfoOrInfoex;
-            int ii;
-            int iSessionRevision;
-            long lResponseCharacterOffset;
-            string szImageBlocks;
-            string szFunction = "ParseSession";
-            JsonLookup jsonlookup;
-
-            // Parse the JSON in the response, we always have to make sure
-            // its valid...
-            jsonlookup = new JsonLookup();
-            string szHttpResponseData = a_apicmd.HttpResponseData();
-            blSuccess = jsonlookup.Load(szHttpResponseData, out lResponseCharacterOffset);
-            if (!blSuccess)
-            {
-                ClientReturnError(a_apicmd, false, "invalidJson", lResponseCharacterOffset, a_szReason + ": ClientHttpRequest JSON syntax error...");
-                a_szCode = "critical";
-                return (false);
-            }
-
-            // Are we info or infoex?
-            blIsInfoOrInfoex = ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex"));
-
-            // Run-roh...
-            if (!blIsInfoOrInfoex && jsonlookup.Get("results.success") == "false")
-            {
-                // Get the code...
-                a_szCode = jsonlookup.Get("results.code");
-                if (string.IsNullOrEmpty(a_szCode))
-                {
-                    Log.Error("results.code is missing, so we're assuming 'critical'...");
-                    a_szCode = "critical";
-                }
-
-                // If we've lost the session, we might as well zap things here...
-                switch (a_szCode)
-                {
-                    default: break;
-                    case "critical": SetSessionState(SessionState.noSession); break;
-                    case "invalidSessionId": SetSessionState(SessionState.noSession); break;
-                }
-
-                // Bail...
-                return (false);
-            }
-
-            // We expect success from this point on, unless set otherwise...
-            a_szCode = "success";
-
-            // If we done't have one of these styles, we can't have any session
-            // data, so bail here...
-            if (    (a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo)
-                &&  (a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.Event))
-            {
-                return (true);
-            }
-
-            // Is this /privet/info or /privet/infoex?
-            if (blIsInfoOrInfoex)
-            {
-                // Squirrel away the x-privet-token so that we'll have
-                // it for when createSession is called.  Note that this
-                // is only done for the client, the device never does
-                // anything with this attribute...
-                m_szXPrivetToken = jsonlookup.Get("x-privet-token");
-
-                // All done...
-                return (true);
-            }
-
-            // Handle events...
-            if (a_apicmd.GetHttpReplyStyle() == ApiCmd.HttpReplyStyle.Event)
-            {
-                // Handle any and all of the event data...
-                if (!string.IsNullOrEmpty(jsonlookup.Get("results.events", false)))
-                {
-                    // Loop through it...
-                    for (ii = 0 ;; ii++)
-                    {
-                        string szEvent = "results.events[" + ii + "]";
-
-                        // We're out of events...
-                        if (string.IsNullOrEmpty(jsonlookup.Get(szEvent, false)))
-                        {
-                            break;
-                        }
-
-                        // Process this event...
-                        switch (jsonlookup.Get(szEvent + ".event", false))
-                        {
-                            // Ignore unrecognized events...
-                            default:
-                                Log.Verbose(szFunction + ": unrecognized event..." + jsonlookup.Get(szEvent + ".event", false));
-                                break;
-
-                            // Our scanner session went bye-bye on us...
-                            case "critical":
-                                // Our reply...
-                                Log.Info(szFunction + ": critical event...");
-                                if (m_eventcallback != null)
-                                {
-                                    m_eventcallback(m_objectEventCallback, "critical");
-                                }
-
-                                // Wake up anybody watching us...
-                                ClientWaitForSessionUpdateForceSet();
-
-                                // All done...
-                                break;
-
-                            // The session object has been updated, specifically we have a change
-                            // to the imageBlocks array from stuff being added or removed...
-                            case "imageBlocks":
-                                Log.Verbose(szFunction + ": imageBlocks event...");
-                                lock (m_objectLock)
-                                {
-                                    // Check the session revision number...
-                                    if (!int.TryParse(jsonlookup.Get(szEvent + ".session.revision", false), out iSessionRevision))
-                                    {
-                                        Log.Error(szFunction + ": bad session revision number...");
-                                        continue;
-                                    }
-
-                                    // Only do this bit if the number is newer than what
-                                    // we already have...
-                                    if (!m_twainlocalsession.SetSessionRevision(iSessionRevision, true))
-                                    {
-                                        continue;
-                                    }
-
-                                    // Only set the imageBlocksDrained to true if we're told to,
-                                    // don't set them to false.  That's done once during the state
-                                    // change to capturing...
-                                    if (jsonlookup.Get(szEvent + ".session.imageBlocksDrained", false) == "true")
-                                    {
-                                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
-                                    }
-
-                                    // Get the image blocks...
-                                    m_twainlocalsession.m_alSessionImageBlocks = null;
-                                    szImageBlocks = jsonlookup.Get(szEvent + ".session.imageBlocks", false);
-                                    if (!string.IsNullOrEmpty(szImageBlocks))
-                                    {
-                                        string[] aszImageBlocks = szImageBlocks.Split(new char[] { '[', ' ', ',', ']', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                                        if (aszImageBlocks != null)
-                                        {
-                                            m_twainlocalsession.m_alSessionImageBlocks = new long[aszImageBlocks.Length];
-                                            for (ii = 0; ii < aszImageBlocks.Length; ii++)
-                                            {
-                                                m_twainlocalsession.m_alSessionImageBlocks[ii] = long.Parse(aszImageBlocks[ii]);
-                                            }
-                                        }
-                                    }
-
-                                    // See if we've detected any new problems...
-                                    if (m_twainlocalsession.GetSessionStatusSuccess())
-                                    {
-                                        string szSessionStatusSuccess = jsonlookup.Get(szEvent + ".session.status.success", false);
-                                        if (!string.IsNullOrEmpty(szSessionStatusSuccess) && (szSessionStatusSuccess == "false"))
-                                        {
-                                            string szSessionStatusDetected = jsonlookup.Get(szEvent + ".session.status.detected", false);
-                                            m_twainlocalsession.SetSessionStatusSuccess(false);
-                                            m_twainlocalsession.SetSessionStatusDetected(string.IsNullOrEmpty(szSessionStatusDetected) ? "misfeed" : szSessionStatusDetected);
-                                        }
-                                    }
-
-                                    // Wakeup anybody watching us...
-                                    ClientWaitForSessionUpdateForceSet();
-                                }
-                                break;
-
-                            // Our scanner session went bye-bye on us...
-                            case "sessionTimedOut":
-                                // Our reply...
-                                Log.Info(szFunction + ": sessionTimedOut event...");
-                                if (m_eventcallback != null)
-                                {
-                                    m_eventcallback(m_objectEventCallback, "sessionTimedOut");
-                                }
-
-                                // Wake up anybody watching us...
-                                ClientWaitForSessionUpdateForceSet();
-
-                                // All done...
-                                break;
-
-                            // The event has timed out, we can ignore this one...
-                            case "timeout":
-                                break;
-                        }
-                    }
-                }
-
-                // All done...
-                return (true);
-            }
-
-            // Init stuff...
-            m_twainlocalsession.SetSessionId(jsonlookup.Get("results.session.sessionId"));
-
-            // Set the metadata, if we have any, we don't care if we
-            // succeed, the caller will worry about that...
-            m_twainlocalsession.SetMetadata(jsonlookup.Get("results.metadata", false));
-
-            // If we don't have a session id, then skip the rest of
-            // this function...
-            if (string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
-            {
-                a_szCode = "invalidSessionId";
-                return (false);
-            }
-
-            // Check the session revision number...
-            if (!int.TryParse(jsonlookup.Get("results.session.revision", false), out iSessionRevision))
-            {
-                Log.Error(szFunction + ": bad session revision number...");
-                a_szCode = "critical";
-                return (false);
-            }
-
-            // If the session revision number we just received is less
-            // than or equal to the one we already have, then skip the
-            // rest of this function.  Otherwise, save the number...
-            if (!m_twainlocalsession.SetSessionRevision(iSessionRevision))
-            {
-                return (true);
-            }
-
-            // We're going to refresh this...
-            m_twainlocalsession.m_alSessionImageBlocks = null;
-
-            // Protect ourselves from weirdness...
-            try
-            {
-                // Only set the imageBlocksDrained to true if we're told to,
-                // don't set them to false.  That's done once during the state
-                // change to capturing...
-                if (jsonlookup.Get("results.session.imageBlocksDrained", false) == "true")
-                {
-                    m_twainlocalsession.SetSessionImageBlocksDrained(true);
-                }
-
-                // Collect the image blocks data...
-                m_twainlocalsession.m_alSessionImageBlocks = null;
-                szImageBlocks = jsonlookup.Get("results.session.imageBlocks", false);
-                if (!string.IsNullOrEmpty(szImageBlocks))
-                {
-                    string[] aszImageBlocks = szImageBlocks.Split(new char[] { '[', ' ', ',', ']', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (aszImageBlocks != null)
-                    {
-                        m_twainlocalsession.m_alSessionImageBlocks = new long[aszImageBlocks.Length];
-                        for (ii = 0; ii < aszImageBlocks.Length; ii++)
-                        {
-                            m_twainlocalsession.m_alSessionImageBlocks[ii] = int.Parse(aszImageBlocks[ii]);
-                        }
-                    }
-                }
-
-                // Change our state...
-                switch (jsonlookup.Get("results.session.state"))
-                {
-                    // Uh-oh...
-                    default:
-                        Log.Error(szFunction + ":Unrecognized results.session.state..." + jsonlookup.Get("results.session.state"));
-                        a_szCode = "critical";
-                        return (false);
-
-                    case "capturing":
-                        SetSessionState(SessionState.capturing);
-                        break;
-
-                    case "closed":
-                        // We can't truly close until all the imageblocks are resolved...
-                        if (    (m_twainlocalsession.m_alSessionImageBlocks == null)
-                            ||  (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))
-                        {
-                            SetSessionState(SessionState.noSession);
-                        }
-                        else
-                        {
-                            SetSessionState(SessionState.closed);
-                        }
-                        break;
-
-                    case "draining":
-                        SetSessionState(SessionState.draining);
-                        break;
-
-                    case "nosession":
-                        SetSessionState(SessionState.noSession);
-                        break;
-
-                    case "ready":
-                        SetSessionState(SessionState.ready);
-                        break;
-                }
-            }
-            catch (Exception exception)
-            {
-                Log.Error(szFunction + ": exception..." + exception.Message);
-                m_twainlocalsession.SetSessionId(null);
-                m_twainlocalsession.SetCallersHostName(null);
-                m_twainlocalsession.m_alSessionImageBlocks = null;
-                m_twainlocalsession.SetSessionImageBlocksDrained(true);
-                a_szCode = "critical";
-                return (false);
-            }
-
-            // All done...
-            return (true);
-        }
-
-        #endregion
-
-
-        ///////////////////////////////////////////////////////////////////////////////
-        // Private Client Methods...
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Private Client Methods...
-
-        /// <summary>
-        /// Build the HTTP headers needed by the client.  I didn't want to write this
-        /// function, because it makes something simple too complex, but I needed it
-        /// to help with the certification tool.  Application writers just need to
-        /// make sure they set the headers for info/infoex, and the POST commands
-        /// sent using the TWAIN Local RESTful API.
-        ///
-        /// I've commented the code with what apps do vs what the certification tool
-        /// needs...
-        /// </summary>
-        /// <param name="a_blInfoInfoex">build header for info/infoex</param>
-        /// <returns>the HTTP headers</returns>
-        private string[] ClientHttpBuildHeader(bool a_blInfoInfoex = false)
-        {
-            string[] aszHeader;
-            string szXPrivetToken = "";
-            string szContentType = "Content-Type: application/json; charset=UTF-8";
-
-            // Apps do this: collect session data, if we have any...
-            if (m_twainlocalsession != null)
-            {
-                szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
-
-                // Certification only: test the scanner when we don't give it an
-                // X-Privet-Token...
-                if (szXPrivetToken == "no-token")
-                {
-                    szXPrivetToken = null;
-                }
-            }
-
-            // Apps do this: if we're issuing info/infoex command, then we have
-            // no content-type and the caller will set the argument to null
-            // or an empty string.  All other TWAIN Local commands use POST,
-            // and must specify a content type...
-            if (a_blInfoInfoex)
-            {
-                // Certification only: we have no header...
-                if (szXPrivetToken == null)
-                {
-                    return (null);
-                }
-
-                // Apps do this: send a privet token, the recommendation
-                // for info/infoex is an empty string, indicated with two
-                // double-quotes "".
-                aszHeader = new string[] {
-                    "X-Privet-Token: \"\""
-                };
-                return (aszHeader);
-            }
-
-            // Certification only: build the header, we're only allowing
-            // this kind of flexibility to support the Certification tool.
-            // Application writers shouldn't support this part of the code,
-            // except to generate an error, if they've not first obtained
-            // an X-Privet-Token...
-            if (szXPrivetToken == null)
-            {
-                aszHeader = new string[] {
-                    szContentType
-                };
-                return (aszHeader);
-            }
-
-            // Apps do this: for any POST commands...
-            aszHeader = new string[] {
-                szContentType,
-                "X-Privet-Token: " + szXPrivetToken
-            };
-            return (aszHeader);
-        }
-
-        /// <summary>
-        /// One stop shop for sending commands to the scanner.
-        /// </summary>
-        /// <param name="a_szReason">reason for the call, for logging</param>
-        /// <param name="a_szUri">our target</param>
-        /// <param name="a_szMethod">http method (ex: POST, DELETE...)</param>
-        /// <param name="a_aszHeader">array of headers to send or null</param>
-        /// <param name="a_szData">data to send or null</param>
-        /// <param name="a_szUploadFile">upload data from a file</param>
-        /// <param name="a_szOutputFile">redirect the data to a file</param>
-        /// <param name="a_iTimeout">timeout in milliseconds</param>
-        /// <param name="a_httpreplystyle">how we know when the command is complete</param>
-        /// <returns>true on success</returns>
-        private bool ClientHttpRequest
-        (
-            string a_szReason,
-            ref ApiCmd a_apicmd,
-            string a_szUri,
-            string a_szMethod,
-            string[] a_aszHeader,
-            string a_szData,
-            string a_szUploadFile,
-            string a_szOutputFile,
-            int a_iTimeout,
-            ApiCmd.HttpReplyStyle a_httpreplystyle
-        )
-        {
-            bool blSuccess;
-            string szCode;
-
-            // Our normal path...
-            if (a_httpreplystyle != ApiCmd.HttpReplyStyle.Event)
-            {
-                // Send the RESTful API command...
-                blSuccess = a_apicmd.HttpRequest
-                (
-                    a_szReason,
-                    a_szUri,
-                    a_szMethod,
-                    a_aszHeader,
-                    a_szData,
-                    a_szUploadFile,
-                    a_szOutputFile,
-                    a_iTimeout,
-                    a_httpreplystyle
-                );
-                if (!blSuccess)
-                {
-                    return (false);
-                }
-
-                // Try to get any session data that may be in the payload...
-                blSuccess = ParseSession(a_szReason, a_apicmd, out szCode);
-                if (!blSuccess)
-                {
-                    ClientReturnError(a_apicmd, false, szCode, -1, a_szReason + ": ParseSession failed - " + szCode);
-                    return (false);
-                }
-            }
-
-            // Handle events, we only expect to come down this path
-            // once per session...
-            else
-            {
-                // We already have a thread, so shut it down...
-                if (m_waitforeventsinfo != null)
-                {
-                    m_waitforeventsinfo.Dispose();
-                    m_waitforeventsinfo = null;
-                }
-
-                // Squirrel the information away for the new thread...
-                m_waitforeventsinfo = new WaitForEventsInfo();
-                m_waitforeventsinfo.m_apicmd = a_apicmd;
-                m_waitforeventsinfo.m_threadCommunication = new Thread(new ParameterizedThreadStart(ClientScannerWaitForEventsCommunicationLaunchpad));
-                m_waitforeventsinfo.m_threadProcessing = new Thread(new ParameterizedThreadStart(ClientScannerWaitForEventsProcessingLaunchpad));
-                m_waitforeventsinfo.m_szReason = a_szReason;
-                m_waitforeventsinfo.m_dnssddeviceinfo = a_apicmd.GetDnssdDeviceInfo();
-                m_waitforeventsinfo.m_szUri = a_szUri;
-                m_waitforeventsinfo.m_szMethod = a_szMethod;
-                m_waitforeventsinfo.m_aszHeader = a_aszHeader;
-                m_waitforeventsinfo.m_szData = a_szData;
-                m_waitforeventsinfo.m_szUploadFile = a_szUploadFile;
-                m_waitforeventsinfo.m_szOutputFile = a_szOutputFile;
-                m_waitforeventsinfo.m_iTimeout = a_iTimeout;
-                m_waitforeventsinfo.m_httpreplystyle = a_httpreplystyle;
-
-                // Start the threads...
-                m_waitforeventsinfo.m_threadProcessing.Start(this);
-                m_waitforeventsinfo.m_threadCommunication.Start(this);
-            }
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
-        /// Help with waiting for events (communication)...
-        /// </summary>
-        /// <param name="a_objectParameters">our object</param>
-        private void ClientScannerWaitForEventsCommunicationLaunchpad
-        (
-            object a_objectParameters
-        )
-        {
-            TwainLocalScanner twainlocalscanner;
-            twainlocalscanner = (TwainLocalScanner)a_objectParameters;
-            twainlocalscanner.ClientScannerWaitForEventsCommunicationHelper();
-        }
-
-        /// <summary>
-        /// Help with waiting for events (communication)...
-        /// </summary>
-        private void ClientScannerWaitForEventsCommunicationHelper()
-        {
-            bool blSuccess;
-            long lSessionRevision = 0;
-            string szSessionState;
-            ApiCmd apicmd = m_waitforeventsinfo.m_apicmd;
-
-            // Loop until something stops us...
-            for (;;)
-            {
-                string szClientCreateCommandId = "";
-                string szSessionRevision = "0";
-                SessionState sessionstate = SessionState.noSession;
-
-                // Get data from our session...
-                if (m_twainlocalsession != null)
-                {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
-                    szSessionRevision = m_twainlocalsession.GetSessionRevision().ToString();
-                    sessionstate = m_twainlocalsession.GetSessionState();
-                }
-
-                // Update the data, first we need a new command id for this
-                // instance of the long poll...
-                string szData = m_waitforeventsinfo.m_szData;
-                szData = szData.Replace("@@@COMMANDID@@@", szClientCreateCommandId);
-
-                // Session data is protected...
-                lock (m_waitforeventsinfo.m_objectlapicmdLock)
-                {
-                    // Report our current session id to the scanner, this
-                    // will either be the revision from the session object
-                    // or from the last event...
-                    szData = szData.Replace("@@@SESSIONREVISION@@@", (lSessionRevision == 0) ? szSessionRevision : lSessionRevision.ToString());
-
-                    // If we've gone to noSession, we should scoot, since
-                    // it's no longer possible to receive events...
-                    if ((m_twainlocalsession == null) || (sessionstate == SessionState.noSession))
-                    {
-                        // Initialize the object, and that's it...
-                        apicmd.HttpRequest
-                        (
-                            m_waitforeventsinfo.m_szReason,
-                            m_waitforeventsinfo.m_szUri,
-                            m_waitforeventsinfo.m_szMethod,
-                            m_waitforeventsinfo.m_aszHeader,
-                            szData,
-                            m_waitforeventsinfo.m_szUploadFile,
-                            m_waitforeventsinfo.m_szOutputFile,
-                            m_waitforeventsinfo.m_iTimeout,
-                            m_waitforeventsinfo.m_httpreplystyle,
-                            true
-                        );
-                        apicmd.DeviceResponseSetStatus
-                        (
-                            false,
-                            "invalidSessionId",
-                            -1,
-                            "{" +
-                            "\"kind\":\"twainlocalscanner\"," +
-                            "\"commandId\":\"" + szClientCreateCommandId + "\"," +
-                            "\"method\":\"waitForEvents\"," +
-                            "\"results\":{" +
-                            "\"success\":false," +
-                            "\"code\":\"invalidSessionId\"" +
-                            "}" + // results
-                            "}", //root
-                            200
-                        );
-                        apicmd.WaitForEventsCallback();
-                        return;
-                    }
-                }
-
-                // Send the RESTful API command...
-                blSuccess = apicmd.HttpRequest
-                (
-                    m_waitforeventsinfo.m_szReason,
-                    m_waitforeventsinfo.m_szUri,
-                    m_waitforeventsinfo.m_szMethod,
-                    m_waitforeventsinfo.m_aszHeader,
-                    szData,
-                    m_waitforeventsinfo.m_szUploadFile,
-                    m_waitforeventsinfo.m_szOutputFile,
-                    m_waitforeventsinfo.m_iTimeout,
-                    m_waitforeventsinfo.m_httpreplystyle
-                );
-
-                // Handle errors...
-                if (!blSuccess)
-                {
-                    switch (apicmd.HttpStatus())
-                    {
-                        // Ruh-roh...
-                        default:
-                            Log.Error("ClientScannerWaitForEventsHelper: bad status..." + apicmd.HttpStatus());
-                            continue;
-
-                        // Issue a new command...
-                        case WebExceptionStatus.ReceiveFailure:
-                        case WebExceptionStatus.Timeout:
-                            continue;
-                    }
-                }
-
-                // Send this off for processing, we have to lock when adding
-                // it to the list...
-                lock (m_waitforeventsinfo.m_objectlapicmdLock)
-                {
-                    m_waitforeventsinfo.m_lapicmdEvents.Add(apicmd);
-                }
-
-                // We need a new one of these for the next long poll, the
-                // code in this function collects the session state and
-                // the session revision...
-                apicmd = new ApiCmd(apicmd, out szSessionState, out lSessionRevision);
-
-                // Wake up the processor...
-                m_autoreseteventWaitForEventsProcessing.Set();
-
-                // We're done, we can stop monitoring for events...
-                if (szSessionState == "noSession")
-                {
-                    return;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Help with waiting for events (processing)...
-        /// </summary>
-        /// <param name="a_objectParameters">our object</param>
-        private void ClientScannerWaitForEventsProcessingLaunchpad
-        (
-            object a_objectParameters
-        )
-        {
-            TwainLocalScanner twainlocalscanner;
-            twainlocalscanner = (TwainLocalScanner)a_objectParameters;
-            twainlocalscanner.ClientScannerWaitForEventsProcessingHelper();
-        }
-
-        /// <summary>
-        /// Help with waiting for events (processing)...
-        /// </summary>
-        private void ClientScannerWaitForEventsProcessingHelper()
-        {
-            // Loop until something stops us...
-            for (;;)
-            {
-                // Wait for the communication thread to give us work...
-                if (!m_autoreseteventWaitForEventsProcessing.WaitOne())
-                {
-                    // We've been asked to scoot...
-                    m_autoreseteventWaitForEvents.Set();
-                    return;
-                }
-                if (m_blCancelWaitForEventsProcessing)
-                {
-                    // We've been asked to scoot...
-                    m_autoreseteventWaitForEvents.Set();
-                    return;
-                }
-
-                // Loop for as long as we find data in the list...
-                for (;;)
-                {
-                    ApiCmd apicmd;
-
-                    // Pull the first item from the list, if the list is empty
-                    // then drop out of this loop.  We have to protect this
-                    // action, since the communication thread can add new content
-                    // at any time...
-                    lock (m_waitforeventsinfo.m_objectlapicmdLock)
-                    {
-                        // No more data...
-                        if (m_waitforeventsinfo.m_lapicmdEvents.Count == 0)
-                        {
-                            break;
-                        }
-
-                        // Get the first item...
-                        apicmd = m_waitforeventsinfo.m_lapicmdEvents[0];
-
-                        // Delete the first item from the list...
-                        m_waitforeventsinfo.m_lapicmdEvents.RemoveAt(0);
-                    }
-
-                    // Handle the event, at this point all we ever expect to see
-                    // are updates for the session object...
-                    lock (m_objectLock)
-                    {
-                        string szCode;
-
-                        // Parse the data...
-                        ParseSession(m_waitforeventsinfo.m_szReason, apicmd, out szCode);
-
-                        // If we've gone to noSession, we should scoot, since
-                        // it's no longer possible to receive events...
-                        if ((m_twainlocalsession == null) || (m_twainlocalsession.GetSessionState() == SessionState.noSession))
-                        {
-                            // Do the callback, if we have one...
-                            apicmd.WaitForEventsCallback();
-
-                            // Tell the communication thread to stop...
-                            m_waitforeventsinfo.m_apicmd.HttpAbort();
-                            break;
-                        }
-                    }
-
-                    // Do the callback, if we have one...
-                    apicmd.WaitForEventsCallback();
-                }
-
-                // Wake up anybody who might want to know that an event
-                // has just gone by...
-                m_autoreseteventWaitForEvents.Set();
-            }
-        }
-
-        #endregion
-
-
-        ///////////////////////////////////////////////////////////////////////////////
-        // Private Device Methods...
-        ///////////////////////////////////////////////////////////////////////////////
-        #region Private Device Methods...
+        #region Private Methods...
 
         /// <summary>
         /// Create an X-Privet-Token, we do this to generate a brand new value,
@@ -3487,7 +830,7 @@ namespace TwainDirect.Support
                     "\"success\":" + (m_twainlocalsession.GetSessionStatusSuccess() ? "true" : "false") + "," +
                     "\"detected\":\"" + m_twainlocalsession.GetSessionStatusDetected() + "\"" +
                     "}," + // status
-                    "\"task\":" + a_szJsonKey + 
+                    "\"task\":" + a_szJsonKey +
                     "}" + // session
                     "}" + // results
                     "}"; //root
@@ -3558,13 +901,13 @@ namespace TwainDirect.Support
             m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
 
             // Get our scanner object...
-            TwainLocalScanner twainlocalscanner = (TwainLocalScanner)a_objectState;
+            TwainLocalScannerDevice twainlocalscannerdevice = (TwainLocalScannerDevice)a_objectState;
 
             // Tell the application that this event has timed out, so it
             // needs to set up a new one...
             if (m_twainlocalsession != null)
             {
-                twainlocalscanner.DeviceSendEvent("timeout", m_twainlocalsession.GetSessionState(), false);
+                twainlocalscannerdevice.DeviceSendEvent("timeout", m_twainlocalsession.GetSessionState(), false);
             }
         }
 
@@ -3575,10 +918,10 @@ namespace TwainDirect.Support
         internal void DeviceSessionTimerCallback(object a_objectState)
         {
             // Our scanner object...
-            TwainLocalScanner twainlocalscanner = (TwainLocalScanner)a_objectState;
+            TwainLocalScannerDevice twainlocalscannerdevice = (TwainLocalScannerDevice)a_objectState;
 
             // Send an event to let the app know that it's tooooooo late...
-            twainlocalscanner.DeviceSendEvent("sessionTimedOut", SessionState.noSession, true);
+            twainlocalscannerdevice.DeviceSendEvent("sessionTimedOut", SessionState.noSession, true);
 
             // Make a note of what we're doing...
             Log.Error("DeviceSessionTimerCallback: session timeout...");
@@ -3590,7 +933,7 @@ namespace TwainDirect.Support
             Thread.Sleep(1000);
 
             // Scrag the session...
-            twainlocalscanner.SetSessionState(SessionState.noSession, "Session timeout...");
+            twainlocalscannerdevice.SetSessionState(SessionState.noSession, "Session timeout...");
         }
 
         /// <summary>
@@ -3686,7 +1029,7 @@ namespace TwainDirect.Support
             // We're responding to the /privet/info or the
             // /privet/infoex command...
             #region We're responding to the /privet/info command...
-            if ((a_apicmd != null) && ((a_apicmd.GetUri() == "/privet/info") ||  (a_apicmd.GetUri() == "/privet/infoex")))
+            if ((a_apicmd != null) && ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex")))
             {
                 string szDeviceState;
                 string szManufacturer;
@@ -3797,9 +1140,9 @@ namespace TwainDirect.Support
             ////////////////////////////////////////////////////////////////
             // /privet/twaindirect/session command
             #region /privet/twaindirect/session command
-            if (    (a_apicmd != null)
-                &&  (a_apicmd.GetUri() == "/privet/twaindirect/session")
-                &&  !a_blWaitForEvents)
+            if ((a_apicmd != null)
+                && (a_apicmd.GetUri() == "/privet/twaindirect/session")
+                && !a_blWaitForEvents)
             {
                 // Okay, you're going to love this.  So in order to change our revision
                 // number in a meaningful way, we'll generate the string data we want
@@ -3844,11 +1187,11 @@ namespace TwainDirect.Support
                 {
                     szSessionObjects = szSessionObjects.Substring(0, szSessionObjects.Length - 1);
                 }
-                szSessionObjects+= "}";
+                szSessionObjects += "}";
 
                 // Check to see if we have to update our revision number...
-                if (    string.IsNullOrEmpty(m_twainlocalsession.GetSessionSnapshot())
-                    ||  (szSessionObjects != m_twainlocalsession.GetSessionSnapshot()))
+                if (string.IsNullOrEmpty(m_twainlocalsession.GetSessionSnapshot())
+                    || (szSessionObjects != m_twainlocalsession.GetSessionSnapshot()))
                 {
                     szSessionObjects = szSessionObjects.Replace
                     (
@@ -3892,8 +1235,8 @@ namespace TwainDirect.Support
             ////////////////////////////////////////////////////////////////
             // /privet/twaindirect/session event
             #region /privet/twaindirect/session event
-            if (    ((a_apicmd == null) || (a_apicmd.GetUri() == "/privet/twaindirect/session"))
-                &&  a_blWaitForEvents)
+            if (((a_apicmd == null) || (a_apicmd.GetUri() == "/privet/twaindirect/session"))
+                && a_blWaitForEvents)
             {
                 // This should never happen, but let's be sure...
                 if ((a_esessionstate == SessionState.noSession) && !a_blAllowEventWithNoSession)
@@ -3936,7 +1279,7 @@ namespace TwainDirect.Support
                         // Delete the item by shifting the rest of the array over it...
                         for (long jj = ii; jj < (m_twainlocalsession.GetApicmdEvents().Length - 1); jj++)
                         {
-                            m_twainlocalsession.SetApicmdEvent(jj, m_twainlocalsession.GetApicmdEvents()[jj+1]);
+                            m_twainlocalsession.SetApicmdEvent(jj, m_twainlocalsession.GetApicmdEvents()[jj + 1]);
                         }
                         m_twainlocalsession.SetApicmdEvent(m_twainlocalsession.GetApicmdEvents().Length - 1, null);
                     }
@@ -4120,8 +1463,8 @@ namespace TwainDirect.Support
                 }
 
                 // Validate...
-                if (    (m_twainlocalsession == null)
-                    ||  (m_twainlocalsession.GetIpcTwainDirectOnTwain() == null))
+                if ((m_twainlocalsession == null)
+                    || (m_twainlocalsession.GetIpcTwainDirectOnTwain() == null))
                 {
                     DeviceReturnError(szFunction, a_apicmd, "invalidSessionId", null, -1);
                     return (false);
@@ -4178,9 +1521,9 @@ namespace TwainDirect.Support
                 // Figure out the session state we want to transition to.  If
                 // we've lost our session, or we're ready, or we have no more
                 // images to deliver, then transition to noSession...
-                if (    (m_twainlocalsession == null)
-                    ||  (m_twainlocalsession.GetSessionState() == SessionState.ready)
-                    ||  m_twainlocalsession.GetSessionImageBlocksDrained())
+                if ((m_twainlocalsession == null)
+                    || (m_twainlocalsession.GetSessionState() == SessionState.ready)
+                    || m_twainlocalsession.GetSessionImageBlocksDrained())
                 {
                     sessionstate = SessionState.noSession;
                 }
@@ -4228,7 +1571,7 @@ namespace TwainDirect.Support
                 if (m_twainlocalsession == null)
                 {
                     m_twainlocalsession = new TwainLocalSession(a_szXPrivetToken);
-                    m_twainlocalsession.DeviceRegisterLoad(this, Path.Combine(m_szWriteFolder, "register.txt"));
+                    m_twainlocalsession.DeviceRegisterLoad(Path.Combine(m_szWriteFolder, "register.txt"));
                 }
 
                 // Init stuff...
@@ -4263,7 +1606,7 @@ namespace TwainDirect.Support
                 // Arguments to the progream...
                 szArguments = "ipc=\"" + m_twainlocalsession.GetIpcTwainDirectOnTwain().GetConnectionInfo() + "\"";
                 szArguments += " images=\"" + m_szImagesFolder + "\"";
-                szArguments += " twainlist=\"" + Path.Combine(m_szWriteFolder,"twainlist.txt") + "\"";
+                szArguments += " twainlist=\"" + Path.Combine(m_szWriteFolder, "twainlist.txt") + "\"";
 
                 // Get ready to start the child process...
                 m_twainlocalsession.SetProcessTwainDirectOnTwain(new Process());
@@ -5515,18 +2858,2883 @@ namespace TwainDirect.Support
             return (true);
         }
 
+        /// <summary>
+        /// Set the session state, and do additional cleanup work, if needed...
+        /// </summary>
+        /// <param name="a_sessionstate">new session state</param>
+        /// <param name="a_szSessionEndedMessage">message to display when going to noSession</param>
+        /// <param name="a_blUserShutdown">the user requested the close</param>
+        /// <returns>the previous session state</returns>
+        protected override SessionState SetSessionState
+        (
+            SessionState a_sessionstate,
+            string a_szSessionEndedMessage = "Session ended...",
+            bool a_blUserShutdown = true
+        )
+        {
+            SessionState sessionstatePrevious;
+
+            // Let the base cleanup...
+            sessionstatePrevious = base.SetSessionState(a_sessionstate, a_szSessionEndedMessage, a_blUserShutdown);
+
+            // Cleanup...
+            if (a_sessionstate == SessionState.noSession)
+            {
+                // Lose the timer...
+                if (m_timerSession != null)
+                {
+                    m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+            }
+
+            // Return the previous state...
+            return (sessionstatePrevious);
+        }
+
         #endregion
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Definitions...
+        // Private Attributes...
+        // All of the members in this section must be specific to the device
+        // and not to the session.  Session stuff goes into TwainLocalSession.
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Definitions...
+        #region Private Attributes...
+
+        /// <summary>
+        /// Use this to confirm a scan request...
+        /// </summary>
+        private ConfirmScan m_confirmscan;
+
+        /// <summary>
+        /// This value is generated whenever the TWAIN Local
+        /// Scanner object is created, and it exists only for
+        /// so long as the object exists.  We use this to
+        /// generatre our X-Privet-Token.  Knowing this value
+        /// allows us to validate it without having to keep
+        /// a table around...
+        /// </summary>
+        private string m_szDeviceSecret;
+
+        /// <summary>
+        /// Our HTTP server, all sessions must past through
+        /// one server...
+        /// </summary>
+        private HttpServer m_httpserver;
+
+        /// <summary>
+        /// Idle time before a session times out (in milliseconds)...
+        /// </summary>
+        private long m_lSessionTimeout;
+
+        /// <summary>
+        /// Our session timer for /privet/twaindirect/session...
+        /// </summary>
+        private Timer m_timerSession;
+
+        #endregion
+    }
+
+    /// <summary>
+    /// TWAIN Local support for the Client (Application and Certfication Tool)...
+    /// </summary>
+    public sealed class TwainLocalScannerClient : TwainLocalScanner
+    {
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Methods...
+
+        /// <summary>
+        /// Init us...
+        /// </summary>
+        /// <param name="a_confirmscan">user must confirm a scan request</param>
+        /// <param name="a_fConfirmScanScale">scale the confirmation dialog</param>
+        /// <param name="a_eventcallback">event function</param>
+        /// <param name="a_objectEventCallback">object that provided the event</param>
+        /// <param name="a_displaycallback">display callback</param>
+        /// <param name="a_blCreateTwainLocalSession">true for the server only</param>
+        public TwainLocalScannerClient
+        (
+            float a_fConfirmScanScale,
+            EventCallback a_eventcallback,
+            object a_objectEventCallback,
+            DisplayCallback a_displaycallback,
+            bool a_blCreateTwainLocalSession
+        ) : base
+        (
+            a_fConfirmScanScale,
+            a_eventcallback,
+            a_objectEventCallback,
+            a_displaycallback,
+            a_blCreateTwainLocalSession
+        )
+        {
+            // Nothing needed yet...
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public override void Dispose()
+        {
+            // Stop waiting for events...
+            if (m_waitforeventsinfo != null)
+            {
+                m_waitforeventsinfo.Dispose();
+                m_waitforeventsinfo = null;
+            }
+
+            // Zap the rest of it...
+            base.Dispose();
+        }
+
+        /// <summary>
+        /// TWAIN Direct has four layers of error reporting: there's the HTTP status
+        /// codes; a security layer defined by Privet 1.0; a TWAIN Local protocol
+        /// layer, and a TWAIN Direct language layer.
+        /// 
+        /// This function checks out the health of the communication across all four
+        /// layers, and updates the ApiCmd object with the results.  It returns true
+        /// if no errors were found.
+        /// </summary>
+        /// <param name="a_szFunction">function we're reporting on</param>
+        /// <param name="a_apicmd">object to update if we find problems</param>
+        /// <returns>true on success, false if an error was detected</returns>
+        public bool ClientCheckForApiErrors(string a_szFunction, ref ApiCmd a_apicmd)
+        {
+            int ii;
+            bool blSuccess;
+            long lJsonErrorIndex;
+            string szReply;
+            string szAction;
+            string szSuccess;
+            string szCode;
+            string szJsonKey;
+            string szCharacterOffset;
+            string szDescription;
+            JsonLookup jsonlookup;
+
+            // First, let's check on the health of the HTTP communication.
+            // If this fails, close the session...
+            if (a_apicmd.HttpStatus() != System.Net.WebExceptionStatus.Success)
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.httpstatus);
+                a_apicmd.AddApiErrorCode("httpError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": httpError - " + a_apicmd.HttpStatus());
+                return (false);
+            }
+
+            // Check the response data, every command must come back with a JSON
+            // payload, so if we don't have one, that's a protocol error...
+            szReply = a_apicmd.GetResponseData();
+            if (string.IsNullOrEmpty(szReply))
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("protocolError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - data is missing from the HTTP response");
+                return (false);
+            }
+
+            // If the JSON format of the reply is damaged, we have a protocol
+            // error...
+            jsonlookup = new JsonLookup();
+            blSuccess = jsonlookup.Load(szReply, out lJsonErrorIndex);
+            if (!blSuccess)
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("invalidJson");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - JSON error in the HTTP response at character offset " + lJsonErrorIndex);
+                return (false);
+            }
+
+            // Do we have a security error?
+            szCode = jsonlookup.Get("error", false);
+            if (!string.IsNullOrEmpty(szCode))
+            {
+                szDescription = jsonlookup.Get("description", false);
+                if (string.IsNullOrEmpty(szDescription))
+                {
+                    szDescription = "(no description provided)";
+                }
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.security);
+                a_apicmd.AddApiErrorCode("invalidJson");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szDescription);
+                return (false);
+            }
+
+            // How about a protocol error?
+            szSuccess = jsonlookup.Get("results.success", false);
+            if (string.IsNullOrEmpty(szSuccess) || ((szSuccess != "false") && (szSuccess != "true")))
+            {
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("protocolError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - results.success is missing or invalid");
+                return (false);
+            }
+            else if (szSuccess == "false")
+            {
+                // Collect the data...
+                szCode = jsonlookup.Get("results.code", false);
+                if (string.IsNullOrEmpty(szCode))
+                {
+                    szCode = "invalidTask";
+                }
+                szJsonKey = jsonlookup.Get("results.jsonKey", false);
+                if (string.IsNullOrEmpty(szJsonKey))
+                {
+                    szJsonKey = "(n/a)";
+                }
+                szCharacterOffset = jsonlookup.Get("results.characterOffset", false);
+                if (string.IsNullOrEmpty(szCharacterOffset))
+                {
+                    szCharacterOffset = "(n/a)";
+                }
+
+                // Squirrel it away...
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
+                a_apicmd.AddApiErrorCode("protocolError");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - characterOffset=" + szCharacterOffset + " jsonKey=" + szJsonKey);
+                return (false);
+            }
+
+            // All that's left are language errors, and those are
+            // catagorized with each action.  Report all of them...
+            bool blErrorDetected = false;
+            for (ii = 0; true; ii++)
+            {
+                // If we run out of actions, scoot...
+                szAction = "results.session.task.actions[" + ii + "]";
+                szSuccess = jsonlookup.Get(szAction, false);
+                if (string.IsNullOrEmpty(szSuccess))
+                {
+                    break;
+                }
+
+                // We'd better have one of these...
+                szSuccess = jsonlookup.Get(szAction + ".results.success", false);
+
+                // We're good, check the next one...
+                if (!string.IsNullOrEmpty(szSuccess) && (szSuccess == "true"))
+                {
+                    continue;
+                }
+
+                // We've found a problem child...
+                blErrorDetected = true;
+
+                // The value better be false...
+                if (string.IsNullOrEmpty(szSuccess) || (szSuccess != "false"))
+                {
+                    a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
+                    a_apicmd.AddApiErrorCode("invalidTask");
+                    a_apicmd.AddApiErrorDescription(a_szFunction + ": invalidTask - " + szAction + ".results.success is missing or invalid");
+                    continue;
+                }
+
+                // Collect the data on it...
+                szCode = jsonlookup.Get(szAction + ".results.code", false);
+                if (string.IsNullOrEmpty(szCode))
+                {
+                    szCode = "invalidTask";
+                }
+                szJsonKey = jsonlookup.Get(szAction + ".results.jsonKey", false);
+                if (string.IsNullOrEmpty(szJsonKey))
+                {
+                    szJsonKey = "(n/a)";
+                }
+
+                // Add it to our list...
+                a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
+                a_apicmd.AddApiErrorCode("invalidTask");
+                a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szAction + ", jsonKey=" + szJsonKey);
+            }
+            if (blErrorDetected)
+            {
+                return (false);
+            }
+
+            // Golly, it looks like we're in good shape...
+            return (true);
+        }
+
+        /// <summary>
+        /// Images are transferred using one or more imageBlocks.  This function
+        /// recognizes when all of the imageBlocks for an image have been received.
+        /// It creates the finished image, and ties the .meta and thumbnails to the
+        /// basename.
+        /// </summary>
+        /// <param name="a_szMetadata">the metadata for this imageBlock</param>
+        /// <param name="a_szImageBlock">the imageBlock</param>
+        /// <param name="a_szBasename">the basename for any finished content</param>
+        /// <returns></returns>
+        public bool ClientFinishImage(string a_szMetadata, string a_szImageBlock, string a_szBasename)
+        {
+            int ii;
+            bool blSuccess;
+            long lJsonErrorIndex;
+            long iImageNumber;
+            long iImagePart;
+            long[] alImageBlocks;
+            string szMoreParts;
+            string szThumbnail;
+            JsonLookup jsonlookup;
+
+            // It's possible for this function to be called in response
+            // to one or more readImageBlock calls completing.  We don't
+            // want them fighting over the data.  So we serialize their
+            // access...
+            lock (m_objectLockClientFinishImage)
+            {
+                // If we were locked out, we may no longer have the imageBlock,
+                // which means somebody else beat us to the punch, and we have
+                // no work to do...
+                if (!File.Exists(a_szImageBlock))
+                {
+                    return (false);
+                }
+
+                // Load the metadata...
+                jsonlookup = new JsonLookup();
+                blSuccess = jsonlookup.Load(a_szMetadata, out lJsonErrorIndex);
+                if (!blSuccess)
+                {
+                    Log.Error("metadata error @" + lJsonErrorIndex + " <" + a_szMetadata + ">");
+                    return (false);
+                }
+
+                // Collect the relevant address information...
+                try
+                {
+                    iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
+                    iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
+                    szMoreParts = jsonlookup.Get("metadata.address.moreParts");
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("metadata error - " + exception.Message);
+                    return (false);
+                }
+
+                // Get the list of imageBlocks, this should be the contents of the array
+                // from the response to readImageBlock.  Having this allows us to better
+                // figure out where we are in the imageBlock array...
+                alImageBlocks = ClientGetImageBlocks();
+
+                // Add any new imageBlocks to the list we're maintaining...
+                if ((alImageBlocks != null) && (alImageBlocks.Length > 0))
+                {
+                    // Get the last imageBlock in our list...
+                    long lLastImageBlock = 0;
+                    if (m_llPendingImageBlocks.Count > 0)
+                    {
+                        lLastImageBlock = m_llPendingImageBlocks[m_llPendingImageBlocks.Count - 1];
+                    }
+
+                    // Append any imageBlocks greater than lLastImageBlock...
+                    for (ii = 0; ii < alImageBlocks.Length; ii++)
+                    {
+                        if (alImageBlocks[ii] > lLastImageBlock)
+                        {
+                            m_llPendingImageBlocks.Add(alImageBlocks[ii]);
+                        }
+                    }
+                }
+
+                // If the imageNumber in the metadata matches the first imageBlock, if
+                // its imagePart is 1, and moreParts is lastPartInFile, then we can
+                // accomplish our task with simple renames.  I have this in place to allow
+                // for a simplier code path when the config setting imageBlockSize is set
+                // to 0, meaning that we don't want to split up images across multiple
+                // imageBlocks.
+                if ((m_llPendingImageBlocks.Count > 0) && (iImageNumber == m_llPendingImageBlocks[0]) && (iImagePart == 1) && (szMoreParts == "lastPartInFile"))
+                {
+                    // Rename the .tdpdf file...
+                    File.Move(a_szImageBlock, a_szBasename + ".pdf");
+
+                    // If we have a thumbnail, rename it...
+                    szThumbnail = a_szImageBlock.Replace(".tdpdf", "_thumbnail.tdpdf");
+                    if (File.Exists(szThumbnail))
+                    {
+                        File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
+                    }
+
+                    // Always handle the .tdmeta last, because the creation
+                    // of a .meta file indicates that all of the files associated
+                    // with an image are ready for access...
+                    File.Move(a_szImageBlock.Replace(".tdpdf", ".tdmeta"), a_szBasename + ".meta");
+
+                    // Remove this item from our list...
+                    m_llPendingImageBlocks.RemoveAt(0);
+
+                    // All done, we created our finished image...
+                    return (true);
+                }
+
+                // Otherwise life is a bit more complicated.  We walk through the
+                // list of imageBlocks we got from the session object to see if
+                // we can build a complete image, and if so, we do that.  If there
+                // are more imageBlocks after that, we tell the caller, so that
+                // they can have us look for more complete images.  We do that until
+                // we either exhaust the imageBlocks or we're unable to create a
+                // finished image.
+                //
+                // Doing it this way allows us to generate finished images in order,
+                // and with the caller controlling the basename of the finished
+                // files...
+                List<string> lszBasenames = new List<string>();
+                string szDirectoryName = Path.GetDirectoryName(a_szImageBlock);
+                foreach (long lImageBlock in m_llPendingImageBlocks)
+                {
+                    // Check for a .tdmeta file, if we don't have
+                    // it, we're done...
+                    string szTdmetaFile = Path.Combine(szDirectoryName, "img" + lImageBlock.ToString("D6") + ".tdmeta");
+                    if (!File.Exists(szTdmetaFile))
+                    {
+                        return (false);
+                    }
+
+                    // Read the beastie...
+                    string szTdmeta = File.ReadAllText(szTdmetaFile);
+                    jsonlookup.Load(szTdmeta, out lJsonErrorIndex);
+
+                    // Collect the relevant address information...
+                    try
+                    {
+                        iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
+                        iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
+                        szMoreParts = jsonlookup.Get("metadata.address.moreParts");
+                    }
+                    catch (Exception exception)
+                    {
+                        Log.Error("metadata error - " + exception.Message);
+                        return (false);
+                    }
+
+                    // Add it to our list...
+                    lszBasenames.Add(Path.Combine(szDirectoryName, Path.GetFileNameWithoutExtension(szTdmetaFile)));
+
+                    // If this isn't the last bit, go up and look for more...
+                    if (szMoreParts != "lastPartInFile")
+                    {
+                        continue;
+                    }
+
+                    // If we got this far, we've found all of the imageBlocks for an image...
+                    break;
+                }
+
+                // Stitch all the .tdpdf's into a single .pdf...
+                int iRead;
+                byte[] abData = new byte[0x200000];
+                string szLastBasename = lszBasenames[lszBasenames.Count - 1];
+                FileStream filestreamWrite = new FileStream(a_szBasename + ".pdf", FileMode.Create);
+                foreach (string szBasename in lszBasenames)
+                {
+                    // Copy the data...
+                    FileStream filestreamRead = new FileStream(szBasename + ".tdpdf", FileMode.Open);
+                    while (true)
+                    {
+                        iRead = filestreamRead.Read(abData, 0, abData.Length);
+                        if (iRead == 0)
+                        {
+                            break;
+                        }
+                        filestreamWrite.Write(abData, 0, iRead);
+                    }
+                    filestreamRead.Close();
+
+                    // Blow away the .tdpdf file...
+                    File.Delete(szBasename + ".tdpdf");
+
+                    // Blow away the .tdmeta file, if it's not the last one...
+                    if (szBasename != szLastBasename)
+                    {
+                        File.Delete(szBasename + ".tdmeta");
+                    }
+
+                    // Remove this imageBlock from our list...
+                    m_llPendingImageBlocks.RemoveAt(0);
+                }
+                filestreamWrite.Close();
+
+                // If we have a thumbnail, rename it...
+                szThumbnail = szLastBasename + "_thumbnail.tdpdf";
+                if (File.Exists(szThumbnail))
+                {
+                    File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
+                }
+
+                // Always handle the .tdmeta last, because the creation
+                // of a .meta file indicates that all of the files associated
+                // with an image are ready for access...
+                File.Move(szLastBasename + ".tdmeta", a_szBasename + ".meta");
+
+                // All done, we created our finished image...
+                return (true);
+            }
+        }
+
+        /// <summary>
+        /// Return the current image blocks...
+        /// </summary>
+        /// <returns>array of image blocks</returns>
+        public long[] ClientGetImageBlocks()
+        {
+            return (m_twainlocalsession.m_alSessionImageBlocks);
+        }
+
+        /// <summary>
+        /// Return the imageBlocksDrained flag...
+        /// </summary>
+        /// <returns>true if the scanner has no more images</returns>
+        public bool ClientGetImageBlocksDrained()
+        {
+            return (m_twainlocalsession.GetSessionImageBlocksDrained());
+        }
+
+        /// <summary>
+        /// Return the current image blocks...
+        /// </summary>
+        /// <returns>array of image blocks</returns>
+        public string ClientGetImageBlocks(ApiCmd a_apicmd)
+        {
+            return (a_apicmd.GetImageBlocks().Replace(" ", ""));
+        }
+
+        /// <summary>
+        /// Return the current session state...
+        /// </summary>
+        /// <returns>session state</returns>
+        public string ClientGetSessionState()
+        {
+            if (m_twainlocalsession == null)
+            {
+                return ("noSession");
+            }
+            return (m_twainlocalsession.GetSessionState().ToString());
+        }
+
+        /// <summary>
+        /// Tell us about the health of the session...
+        /// </summary>
+        /// <param name="a_szDetected"></param>
+        /// <returns></returns>
+        public bool ClientGetSessionStatusSuccess(out string a_szDetected)
+        {
+            if (m_twainlocalsession == null)
+            {
+                a_szDetected = "nominal";
+                return (true);
+            }
+            a_szDetected = m_twainlocalsession.GetSessionStatusDetected();
+            return (m_twainlocalsession.GetSessionStatusSuccess());
+        }
+
+        /// <summary>
+        /// Get info about the device...
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <param name="a_szOverride">used for certification testing</param>
+        /// <returns>true on success</returns>
+        public bool ClientInfo
+        (
+            ref ApiCmd a_apicmd,
+            string a_szOverride = null
+        )
+        {
+            bool blSuccess;
+            string szCommand;
+            string szFunction = "ClientInfo";
+
+            // This command can be issued at any time, so we don't check state, we also
+            // don't have to worry about locking anything...
+
+            // Figure out what command we're sending...
+            if (a_szOverride != null)
+            {
+                szCommand = "/privet/" + a_szOverride;
+            }
+            else
+            {
+                szCommand = (Config.Get("useInfoex", "yes") == "yes") ? "/privet/infoex" : "/privet/info";
+            }
+
+            // Send the RESTful API command, we'll support using either
+            // privet/info or /privet/infoex, but we'll default to infoex...
+            blSuccess = ClientHttpRequest
+            (
+                szFunction,
+                ref a_apicmd,
+                szCommand,
+                "GET",
+                ClientHttpBuildHeader(true),
+                null,
+                null,
+                null,
+                m_iHttpTimeoutCommand,
+                ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+            );
+            if (!blSuccess)
+            {
+                ClientReturnError(a_apicmd, false, "", 0, "");
+                return (false);
+            }
+
+            // All done...
+            return (true);
+        }
+
+        // The naming convention for this bit is Executer / Package / Command.  So, since
+        // this is the client section, the executer is the Client.  The TWAIN Local package is
+        // "scanner" and the commands are TWAIN Direct Client-Scanner API commands.  If you want to find
+        // the corresponding function used by scanners, just replace "Client" with "Device"...
+
+        /// <summary>
+        /// Close a session...
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerCloseSession(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerCloseSession";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collect session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"closeSession\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
+                    "}" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReply
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+
+                // A session can be closed with pending imageBlocks, in which case
+                // it's in a closed state, but it can't transition to NoSession
+                // until all of the images have been released...
+                if ((m_twainlocalsession.m_alSessionImageBlocks == null)
+                    || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))
+                {
+                    SetSessionState(SessionState.noSession);
+                }
+                else
+                {
+                    SetSessionState(SessionState.closed);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Create a session, basically seeing if the device is available for use.
+        /// If it works out the session state will go to "ready".  Anything else
+        /// is going to be an issue...
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerCreateSession(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            bool blCreatedTwainLocalSession = false;
+            string szFunction = "ClientScannerCreateSession";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                // Create it if we need it...
+                if (m_twainlocalsession == null)
+                {
+                    // We got this X-Privet-Token from info or infoex, if we didn't
+                    // get one yet, there will be sadness on the scanner side...
+                    m_twainlocalsession = new TwainLocalSession(m_szXPrivetToken);
+                    blCreatedTwainLocalSession = true;
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + m_twainlocalsession.ClientCreateCommandId() + "\"," +
+                    "\"method\":\"createSession\"" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    if (blCreatedTwainLocalSession)
+                    {
+                        m_twainlocalsession.SetUserShutdown(false);
+                        m_twainlocalsession.Dispose();
+                        m_twainlocalsession = null;
+                    }
+                    return (false);
+                }
+
+                // Set our state (to get this far, things must be okay)...
+                SetSessionState(SessionState.ready);
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Get the session information...
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerGetSession(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerGetSession";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"getSession\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
+                    "}" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// This is an invalid command, it's only used to test certification, please
+        /// don't go around adding this to your applications... >.<
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerInvalidCommand(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerInvalidCommand";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + Guid.NewGuid().ToString() + "\"," +
+                    "\"method\":\"invalidCommand\"" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReply
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// This is an invalid uri, it's only used to test certification, please
+        /// don't go around adding this to your applications... >.<
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerInvalidUri(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerInvalidUri";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/invaliduri",
+                    "GET",
+                    ClientHttpBuildHeader(true),
+                    null,
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReply
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Read an image block from the scanner...
+        /// </summary>
+        /// <param name="a_lImageBlockNum">block number to read</param>
+        /// <param name="a_blGetMetadataWithImage">ask for the metadata</param>
+        /// <param name="a_scancallback">function to call</param>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerReadImageBlock
+        (
+            long a_lImageBlockNum,
+            bool a_blGetMetadataWithImage,
+            ScanCallback a_scancallback,
+            ref ApiCmd a_apicmd
+        )
+        {
+            bool blSuccess;
+            string szImage;
+            string szMetaFile;
+            string szFunction = "ClientScannerReadImageBlock";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Build the full image path...
+                szImage = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdpdf"); // TWAIN direct temporary pdf
+
+                // Make sure it's clean...
+                if (File.Exists(szImage))
+                {
+                    try
+                    {
+                        File.Delete(szImage);
+                    }
+                    catch
+                    {
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": access denied: " + szImage);
+                        return (false);
+                    }
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"readImageBlock\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
+                    (a_blGetMetadataWithImage ? "\"withMetadata\":true," : "") +
+                    "\"imageBlockNum\":" + a_lImageBlockNum +
+                    "}" +
+                    "}",
+                    null,
+                    szImage,
+                    m_iHttpTimeoutData,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+
+                // We asked for metadata...
+                string szMetadata = "";
+                if (a_blGetMetadataWithImage && (m_twainlocalsession != null))
+                {
+                    // Try to get the meta data...
+                    if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
+                    {
+                        m_twainlocalsession.SetMetadata(null);
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": 'results.metadata' missing");
+                        return (false);
+                    }
+
+                    // Save the metadata to a file...
+                    szMetadata = "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}";
+                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdmeta");
+                    try
+                    {
+                        File.WriteAllText(szMetaFile, szMetadata);
+                    }
+                    catch (Exception exception)
+                    {
+                        m_twainlocalsession.SetMetadata(null);
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " access denied: " + szMetaFile + " (" + exception.Message + ")");
+                        return (false);
+                    }
+                    Log.Info("metadata: " + szMetaFile);
+                }
+
+                // If we have a scanner callback, hit it now...
+                if (a_scancallback != null)
+                {
+                    a_scancallback(szMetadata, szImage);
+                }
+            }
+
+            // All done...
+            Log.Info("image: " + szImage);
+            return (true);
+        }
+
+        /// <summary>
+        /// Read an image block's TWAIN Direct metadata from the scanner...
+        /// </summary>
+        /// <param name="a_lImageBlockNum">image block to read</param>
+        /// <param name="a_blGetThumbnail">the caller would like a thumbnail</param>
+        /// <param name="a_scancallback">function to call</param>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerReadImageBlockMetadata(long a_lImageBlockNum, bool a_blGetThumbnail, ScanCallback a_scancallback, ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szThumbnail;
+            string szMetaFile = "(no session)";
+            string szFunction = "ClientScannerReadImageBlockMetadata";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // We're asking for a thumbnail...
+                szThumbnail = null;
+                if (a_blGetThumbnail)
+                {
+                    // Build the full image thumbnail path...
+                    szThumbnail = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + "_thumbnail.tdpdf"); // twain direct temporary pdf
+
+                    // Make sure it's clean...
+                    if (File.Exists(szThumbnail))
+                    {
+                        try
+                        {
+                            File.Delete(szThumbnail);
+                        }
+                        catch (Exception exception)
+                        {
+                            ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": access denied: " + szThumbnail + " (" + exception.Message + ")");
+                            return (false);
+                        }
+                    }
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"readImageBlockMetadata\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
+                    "\"imageBlockNum\":" + a_lImageBlockNum +
+                    (a_blGetThumbnail ? ",\"withThumbnail\":true" : "") +
+                    "}" +
+                    "}",
+                    null,
+                    a_blGetThumbnail ? szThumbnail : null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+
+                // Make sure we have a session for this...
+                if (m_twainlocalsession != null)
+                {
+                    // Try to get the meta data...
+                    if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
+                    {
+                        m_twainlocalsession.SetMetadata(null);
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " 'results.metadata' missing");
+                        return (false);
+                    }
+
+                    // Save the metadata to a file...
+                    szMetaFile = Path.Combine(m_szImagesFolder, "img" + a_lImageBlockNum.ToString("D6") + ".tdmeta");
+                    string szMetadata = "{\"metadata\":" + m_twainlocalsession.GetMetadata() + "}";
+                    try
+                    {
+                        File.WriteAllText(szMetaFile, szMetadata);
+                    }
+                    catch (Exception exception)
+                    {
+                        m_twainlocalsession.SetMetadata(null);
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " access denied: " + szMetaFile + " (" + exception.Message + ")");
+                        return (false);
+                    }
+
+                    // Give it to the callback...
+                    if (a_scancallback != null)
+                    {
+                        a_scancallback(szMetadata, null);
+                    }
+                }
+            }
+
+            // All done...
+            Log.Info("metadata:  " + szMetaFile);
+            if (a_blGetThumbnail)
+            {
+                Log.Info("thumbnail: " + szThumbnail);
+            }
+            return (true);
+        }
+
+        /// <summary>
+        /// Release one or more image blocks
+        /// </summary>
+        /// <param name="a_lImageBlockNum">first block to release</param>
+        /// <param name="a_lLastImageBlockNum">last block in range (inclusive)</param>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns></returns>
+        public bool ClientScannerReleaseImageBlocks(long a_lImageBlockNum, long a_lLastImageBlockNum, ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerReleaseImageBlocks";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"releaseImageBlocks\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
+                    "\"imageBlockNum\":" + a_lImageBlockNum + "," +
+                    "\"lastImageBlockNum\":" + a_lLastImageBlockNum +
+                    "}" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+
+                // If closeSession was previously called, we can be in a closed
+                // state, until all of the image blocks have been released.  We'll
+                // also go noSession if our m_twainlocalsession has gone bye-bye...
+                if ((m_twainlocalsession == null)
+                    || ((m_twainlocalsession.GetSessionState() == SessionState.closed)
+                    && ((m_twainlocalsession.m_alSessionImageBlocks == null) || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))))
+                {
+                    SetSessionState(SessionState.noSession);
+                }
+
+                // If stopCapturing was previously called, we can be in a draining
+                // state, until all of the image blocks have been released...
+                else if ((m_twainlocalsession.GetSessionState() == SessionState.draining)
+                         && ((m_twainlocalsession.m_alSessionImageBlocks == null)
+                         || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0)))
+                {
+                    SetSessionState(SessionState.ready);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Send a task to the scanner...
+        /// </summary>
+        /// <param name="a_szTask">the task to use</param>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerSendTask(string a_szTask, ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerSendTask";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"sendTask\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
+                    "\"task\":" + a_szTask +
+                    "}" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Start capturing...
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerStartCapturing(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerStartCapturing";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                    m_twainlocalsession.SetSessionStatusSuccess(true);
+                    m_twainlocalsession.SetSessionStatusDetected("nominal");
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"startCapturing\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
+                    "}" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    if (m_twainlocalsession != null)
+                    {
+                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                    }
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Stop capturing...
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerStopCapturing(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerStopCapturing";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Send the RESTful API command...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"method\":\"stopCapturing\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"" +
+                    "}" +
+                    "}",
+                    null,
+                    null,
+                    m_iHttpTimeoutCommand,
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Wait for one or more events...
+        /// </summary>
+        /// <param name="a_apicmd">info about the command</param>
+        /// <returns>true on success</returns>
+        public bool ClientScannerWaitForEvents(ref ApiCmd a_apicmd)
+        {
+            bool blSuccess;
+            string szFunction = "ClientScannerWaitForEvents";
+
+            // Lock this command to protect the session object...
+            lock (m_objectLock)
+            {
+                string szSessionId = "";
+
+                // Collection session data, if we have any...
+                if (m_twainlocalsession != null)
+                {
+                    szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Init our event timeout for HTTPS communication, this value
+                // needs to be more than whatever is being used by the scanner.
+                int iDefault = 60000; // 60 seconds
+                int iHttpTimeoutEvent = (int)Config.Get("httpTimeoutEvent", iDefault);
+                if (iHttpTimeoutEvent < 10000)
+                {
+                    iHttpTimeoutEvent = iDefault;
+                }
+
+                // Send the RESTful API command...
+                // Both @@@COMMANDID@@@ and @@@SESSIONREVISION@@@ are resolved
+                // inside of the ClientScannerWaitForEventsHelper thread...
+                blSuccess = ClientHttpRequest
+                (
+                    szFunction,
+                    ref a_apicmd,
+                    "/privet/twaindirect/session",
+                    "POST",
+                    ClientHttpBuildHeader(),
+                    "{" +
+                    "\"kind\":\"twainlocalscanner\"," +
+                    "\"commandId\":\"@@@COMMANDID@@@\"," +
+                    "\"method\":\"waitForEvents\"," +
+                    "\"params\":{" +
+                    "\"sessionId\":\"" + szSessionId + "\"," +
+                    "\"sessionRevision\":@@@SESSIONREVISION@@@" +
+                    "}" +
+                    "}",
+                    null,
+                    null,
+                    iHttpTimeoutEvent,
+                    ApiCmd.HttpReplyStyle.Event
+                );
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, "", 0, "");
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Wait for the session object to be updated, this is done
+        /// by comparing the current session.revision number to the
+        /// session.revision from the last command or event.
+        /// </summary>
+        /// <param name="a_lMilliseconds">milliseconds to wait for the update</param>
+        /// <returns>true if an update was detected, false if the command timed out or was aborted</returns>
+        public bool ClientWaitForSessionUpdate(long a_lMilliseconds)
+        {
+            bool blSignaled = false;
+
+            // Wait for it...
+            if (m_twainlocalsession != null)
+            {
+                blSignaled = m_twainlocalsession.ClientWaitForSessionUpdate(a_lMilliseconds);
+            }
+
+            // All done...
+            Log.Info("ClientWaitForSessionUpdate - " + (blSignaled ? "true" : "false"));
+            return (blSignaled);
+        }
+
+        /// <summary>
+        /// Create a TWAIN Local Session object.  If this hasn't been done yet you
+        /// can specify the X-Privet-Token for testing.  The following have special
+        /// meaning:
+        /// no_header - no X-Privet-Header
+        /// no_token - X-Privet-Header with no data
+        /// anything else is droppedin verbatim
+        /// </summary>
+        /// <param name="a_szXPrivetToken">token to use if we don't have one yet</param>
+        public void ClientCertificationTwainLocalSessionCreate
+        (
+            string a_szXPrivetToken = "no_token"
+        )
+        {
+            if (m_twainlocalsession == null)
+            {
+                // If we have a token from info or infoex, use it, otherwise make a bad token,
+                // as the function indicates this is for the client only, and in fact it's just
+                // for the certification tool...
+                m_twainlocalsession = new TwainLocalSession(string.IsNullOrEmpty(m_szXPrivetToken) ? a_szXPrivetToken : m_szXPrivetToken);
+            }
+        }
+
+        /// <summary>
+        /// Destroy a TWAIN Local Session object
+        /// </summary>
+        public void ClientCertificationTwainLocalSessionDestroy(bool a_blSetNoSession = false)
+        {
+            // Take out the event handler...
+            if (m_autoreseteventWaitForEventsProcessing != null)
+            {
+                m_blCancelWaitForEventsProcessing = true;
+                m_autoreseteventWaitForEventsProcessing.Set();
+            }
+
+            // Make sure we've ended...
+            if (a_blSetNoSession)
+            {
+                SetSessionState(SessionState.noSession, "Session critical...", false);
+            }
+
+            // Take out the session...
+            if (m_twainlocalsession != null)
+            {
+                m_twainlocalsession.SetUserShutdown(true);
+                m_twainlocalsession.Dispose();
+                m_twainlocalsession = null;
+            }
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Methods...
+
+        /// <summary>
+        /// Build the HTTP headers needed by the client.  I didn't want to write this
+        /// function, because it makes something simple too complex, but I needed it
+        /// to help with the certification tool.  Application writers just need to
+        /// make sure they set the headers for info/infoex, and the POST commands
+        /// sent using the TWAIN Local RESTful API.
+        ///
+        /// I've commented the code with what apps do vs what the certification tool
+        /// needs...
+        /// </summary>
+        /// <param name="a_blInfoInfoex">build header for info/infoex</param>
+        /// <returns>the HTTP headers</returns>
+        private string[] ClientHttpBuildHeader(bool a_blInfoInfoex = false)
+        {
+            string[] aszHeader;
+            string szXPrivetToken = "";
+            string szContentType = "Content-Type: application/json; charset=UTF-8";
+
+            // Apps do this: collect session data, if we have any...
+            if (m_twainlocalsession != null)
+            {
+                szXPrivetToken = m_twainlocalsession.GetXPrivetToken();
+
+                // Certification only: test the scanner when we don't give it an
+                // X-Privet-Token...
+                if (szXPrivetToken == "no-token")
+                {
+                    szXPrivetToken = null;
+                }
+            }
+
+            // Apps do this: if we're issuing info/infoex command, then we have
+            // no content-type and the caller will set the argument to null
+            // or an empty string.  All other TWAIN Local commands use POST,
+            // and must specify a content type...
+            if (a_blInfoInfoex)
+            {
+                // Certification only: we have no header...
+                if (szXPrivetToken == null)
+                {
+                    return (null);
+                }
+
+                // Apps do this: send a privet token, the recommendation
+                // for info/infoex is an empty string, indicated with two
+                // double-quotes "".
+                aszHeader = new string[] {
+                    "X-Privet-Token: \"\""
+                };
+                return (aszHeader);
+            }
+
+            // Certification only: build the header, we're only allowing
+            // this kind of flexibility to support the Certification tool.
+            // Application writers shouldn't support this part of the code,
+            // except to generate an error, if they've not first obtained
+            // an X-Privet-Token...
+            if (szXPrivetToken == null)
+            {
+                aszHeader = new string[] {
+                    szContentType
+                };
+                return (aszHeader);
+            }
+
+            // Apps do this: for any POST commands...
+            aszHeader = new string[] {
+                szContentType,
+                "X-Privet-Token: " + szXPrivetToken
+            };
+            return (aszHeader);
+        }
+
+        /// <summary>
+        /// One stop shop for sending commands to the scanner.
+        /// </summary>
+        /// <param name="a_szReason">reason for the call, for logging</param>
+        /// <param name="a_szUri">our target</param>
+        /// <param name="a_szMethod">http method (ex: POST, DELETE...)</param>
+        /// <param name="a_aszHeader">array of headers to send or null</param>
+        /// <param name="a_szData">data to send or null</param>
+        /// <param name="a_szUploadFile">upload data from a file</param>
+        /// <param name="a_szOutputFile">redirect the data to a file</param>
+        /// <param name="a_iTimeout">timeout in milliseconds</param>
+        /// <param name="a_httpreplystyle">how we know when the command is complete</param>
+        /// <returns>true on success</returns>
+        private bool ClientHttpRequest
+        (
+            string a_szReason,
+            ref ApiCmd a_apicmd,
+            string a_szUri,
+            string a_szMethod,
+            string[] a_aszHeader,
+            string a_szData,
+            string a_szUploadFile,
+            string a_szOutputFile,
+            int a_iTimeout,
+            ApiCmd.HttpReplyStyle a_httpreplystyle
+        )
+        {
+            bool blSuccess;
+            string szCode;
+
+            // Our normal path...
+            if (a_httpreplystyle != ApiCmd.HttpReplyStyle.Event)
+            {
+                // Send the RESTful API command...
+                blSuccess = a_apicmd.HttpRequest
+                (
+                    a_szReason,
+                    a_szUri,
+                    a_szMethod,
+                    a_aszHeader,
+                    a_szData,
+                    a_szUploadFile,
+                    a_szOutputFile,
+                    a_iTimeout,
+                    a_httpreplystyle
+                );
+                if (!blSuccess)
+                {
+                    return (false);
+                }
+
+                // Try to get any session data that may be in the payload...
+                blSuccess = ParseSession(a_szReason, a_apicmd, out szCode);
+                if (!blSuccess)
+                {
+                    ClientReturnError(a_apicmd, false, szCode, -1, a_szReason + ": ParseSession failed - " + szCode);
+                    return (false);
+                }
+            }
+
+            // Handle events, we only expect to come down this path
+            // once per session...
+            else
+            {
+                // We already have a thread, so shut it down...
+                if (m_waitforeventsinfo != null)
+                {
+                    m_waitforeventsinfo.Dispose();
+                    m_waitforeventsinfo = null;
+                }
+
+                // Squirrel the information away for the new thread...
+                m_waitforeventsinfo = new WaitForEventsInfo();
+                m_waitforeventsinfo.m_apicmd = a_apicmd;
+                m_waitforeventsinfo.m_threadCommunication = new Thread(new ParameterizedThreadStart(ClientScannerWaitForEventsCommunicationLaunchpad));
+                m_waitforeventsinfo.m_threadProcessing = new Thread(new ParameterizedThreadStart(ClientScannerWaitForEventsProcessingLaunchpad));
+                m_waitforeventsinfo.m_szReason = a_szReason;
+                m_waitforeventsinfo.m_dnssddeviceinfo = a_apicmd.GetDnssdDeviceInfo();
+                m_waitforeventsinfo.m_szUri = a_szUri;
+                m_waitforeventsinfo.m_szMethod = a_szMethod;
+                m_waitforeventsinfo.m_aszHeader = a_aszHeader;
+                m_waitforeventsinfo.m_szData = a_szData;
+                m_waitforeventsinfo.m_szUploadFile = a_szUploadFile;
+                m_waitforeventsinfo.m_szOutputFile = a_szOutputFile;
+                m_waitforeventsinfo.m_iTimeout = a_iTimeout;
+                m_waitforeventsinfo.m_httpreplystyle = a_httpreplystyle;
+
+                // Start the threads...
+                m_waitforeventsinfo.m_threadProcessing.Start(this);
+                m_waitforeventsinfo.m_threadCommunication.Start(this);
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Help with waiting for events (communication)...
+        /// </summary>
+        /// <param name="a_objectParameters">our object</param>
+        private void ClientScannerWaitForEventsCommunicationLaunchpad
+        (
+            object a_objectParameters
+        )
+        {
+            TwainLocalScannerClient twainlocalscannerclient;
+            twainlocalscannerclient = (TwainLocalScannerClient)a_objectParameters;
+            twainlocalscannerclient.ClientScannerWaitForEventsCommunicationHelper();
+        }
+
+        /// <summary>
+        /// Help with waiting for events (communication)...
+        /// </summary>
+        private void ClientScannerWaitForEventsCommunicationHelper()
+        {
+            bool blSuccess;
+            long lSessionRevision = 0;
+            string szSessionState;
+            ApiCmd apicmd = m_waitforeventsinfo.m_apicmd;
+
+            // Loop until something stops us...
+            for (;;)
+            {
+                string szClientCreateCommandId = "";
+                string szSessionRevision = "0";
+                SessionState sessionstate = SessionState.noSession;
+
+                // Get data from our session...
+                if (m_twainlocalsession != null)
+                {
+                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    szSessionRevision = m_twainlocalsession.GetSessionRevision().ToString();
+                    sessionstate = m_twainlocalsession.GetSessionState();
+                }
+
+                // Update the data, first we need a new command id for this
+                // instance of the long poll...
+                string szData = m_waitforeventsinfo.m_szData;
+                szData = szData.Replace("@@@COMMANDID@@@", szClientCreateCommandId);
+
+                // Session data is protected...
+                lock (m_waitforeventsinfo.m_objectlapicmdLock)
+                {
+                    // Report our current session id to the scanner, this
+                    // will either be the revision from the session object
+                    // or from the last event...
+                    szData = szData.Replace("@@@SESSIONREVISION@@@", (lSessionRevision == 0) ? szSessionRevision : lSessionRevision.ToString());
+
+                    // If we've gone to noSession, we should scoot, since
+                    // it's no longer possible to receive events...
+                    if ((m_twainlocalsession == null) || (sessionstate == SessionState.noSession))
+                    {
+                        // Initialize the object, and that's it...
+                        apicmd.HttpRequest
+                        (
+                            m_waitforeventsinfo.m_szReason,
+                            m_waitforeventsinfo.m_szUri,
+                            m_waitforeventsinfo.m_szMethod,
+                            m_waitforeventsinfo.m_aszHeader,
+                            szData,
+                            m_waitforeventsinfo.m_szUploadFile,
+                            m_waitforeventsinfo.m_szOutputFile,
+                            m_waitforeventsinfo.m_iTimeout,
+                            m_waitforeventsinfo.m_httpreplystyle,
+                            true
+                        );
+                        apicmd.DeviceResponseSetStatus
+                        (
+                            false,
+                            "invalidSessionId",
+                            -1,
+                            "{" +
+                            "\"kind\":\"twainlocalscanner\"," +
+                            "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                            "\"method\":\"waitForEvents\"," +
+                            "\"results\":{" +
+                            "\"success\":false," +
+                            "\"code\":\"invalidSessionId\"" +
+                            "}" + // results
+                            "}", //root
+                            200
+                        );
+                        apicmd.WaitForEventsCallback();
+                        return;
+                    }
+                }
+
+                // Send the RESTful API command...
+                blSuccess = apicmd.HttpRequest
+                (
+                    m_waitforeventsinfo.m_szReason,
+                    m_waitforeventsinfo.m_szUri,
+                    m_waitforeventsinfo.m_szMethod,
+                    m_waitforeventsinfo.m_aszHeader,
+                    szData,
+                    m_waitforeventsinfo.m_szUploadFile,
+                    m_waitforeventsinfo.m_szOutputFile,
+                    m_waitforeventsinfo.m_iTimeout,
+                    m_waitforeventsinfo.m_httpreplystyle
+                );
+
+                // Handle errors...
+                if (!blSuccess)
+                {
+                    switch (apicmd.HttpStatus())
+                    {
+                        // Ruh-roh...
+                        default:
+                            Log.Error("ClientScannerWaitForEventsHelper: bad status..." + apicmd.HttpStatus());
+                            continue;
+
+                        // Issue a new command...
+                        case WebExceptionStatus.ReceiveFailure:
+                        case WebExceptionStatus.Timeout:
+                            continue;
+                    }
+                }
+
+                // Send this off for processing, we have to lock when adding
+                // it to the list...
+                lock (m_waitforeventsinfo.m_objectlapicmdLock)
+                {
+                    m_waitforeventsinfo.m_lapicmdEvents.Add(apicmd);
+                }
+
+                // We need a new one of these for the next long poll, the
+                // code in this function collects the session state and
+                // the session revision...
+                apicmd = new ApiCmd(apicmd, out szSessionState, out lSessionRevision);
+
+                // Wake up the processor...
+                m_autoreseteventWaitForEventsProcessing.Set();
+
+                // We're done, we can stop monitoring for events...
+                if (szSessionState == "noSession")
+                {
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Help with waiting for events (processing)...
+        /// </summary>
+        /// <param name="a_objectParameters">our object</param>
+        private void ClientScannerWaitForEventsProcessingLaunchpad
+        (
+            object a_objectParameters
+        )
+        {
+            TwainLocalScannerClient twainlocalscannerclient;
+            twainlocalscannerclient = (TwainLocalScannerClient)a_objectParameters;
+            twainlocalscannerclient.ClientScannerWaitForEventsProcessingHelper();
+        }
+
+        /// <summary>
+        /// Help with waiting for events (processing)...
+        /// </summary>
+        private void ClientScannerWaitForEventsProcessingHelper()
+        {
+            // Loop until something stops us...
+            for (;;)
+            {
+                // Wait for the communication thread to give us work...
+                if (!m_autoreseteventWaitForEventsProcessing.WaitOne())
+                {
+                    // We've been asked to scoot...
+                    m_autoreseteventWaitForEvents.Set();
+                    return;
+                }
+                if (m_blCancelWaitForEventsProcessing)
+                {
+                    // We've been asked to scoot...
+                    m_autoreseteventWaitForEvents.Set();
+                    return;
+                }
+
+                // Loop for as long as we find data in the list...
+                for (;;)
+                {
+                    ApiCmd apicmd;
+
+                    // Pull the first item from the list, if the list is empty
+                    // then drop out of this loop.  We have to protect this
+                    // action, since the communication thread can add new content
+                    // at any time...
+                    lock (m_waitforeventsinfo.m_objectlapicmdLock)
+                    {
+                        // No more data...
+                        if (m_waitforeventsinfo.m_lapicmdEvents.Count == 0)
+                        {
+                            break;
+                        }
+
+                        // Get the first item...
+                        apicmd = m_waitforeventsinfo.m_lapicmdEvents[0];
+
+                        // Delete the first item from the list...
+                        m_waitforeventsinfo.m_lapicmdEvents.RemoveAt(0);
+                    }
+
+                    // Handle the event, at this point all we ever expect to see
+                    // are updates for the session object...
+                    lock (m_objectLock)
+                    {
+                        string szCode;
+
+                        // Parse the data...
+                        ParseSession(m_waitforeventsinfo.m_szReason, apicmd, out szCode);
+
+                        // If we've gone to noSession, we should scoot, since
+                        // it's no longer possible to receive events...
+                        if ((m_twainlocalsession == null) || (m_twainlocalsession.GetSessionState() == SessionState.noSession))
+                        {
+                            // Do the callback, if we have one...
+                            apicmd.WaitForEventsCallback();
+
+                            // Tell the communication thread to stop...
+                            m_waitforeventsinfo.m_apicmd.HttpAbort();
+                            break;
+                        }
+                    }
+
+                    // Do the callback, if we have one...
+                    apicmd.WaitForEventsCallback();
+                }
+
+                // Wake up anybody who might want to know that an event
+                // has just gone by...
+                m_autoreseteventWaitForEvents.Set();
+            }
+        }
+
+        /// <summary>
+        /// Parse data from the session object.  We do this in a number
+        /// of places, so it makes sense to centralize...
+        /// </summary>
+        /// <param name="a_httpreplystyle">the reply style</param>
+        /// <param name="a_apicmd">the command object</param>
+        /// <param name="a_jsonlookup">data to check</param>
+        /// <returns>true on success</returns>
+        private bool ParseSession(string a_szReason, ApiCmd a_apicmd, out string a_szCode)
+        {
+            bool blSuccess;
+            bool blIsInfoOrInfoex;
+            int ii;
+            int iSessionRevision;
+            long lResponseCharacterOffset;
+            string szImageBlocks;
+            string szFunction = "ParseSession";
+            JsonLookup jsonlookup;
+
+            // Parse the JSON in the response, we always have to make sure
+            // its valid...
+            jsonlookup = new JsonLookup();
+            string szHttpResponseData = a_apicmd.HttpResponseData();
+            blSuccess = jsonlookup.Load(szHttpResponseData, out lResponseCharacterOffset);
+            if (!blSuccess)
+            {
+                ClientReturnError(a_apicmd, false, "invalidJson", lResponseCharacterOffset, a_szReason + ": ClientHttpRequest JSON syntax error...");
+                a_szCode = "critical";
+                return (false);
+            }
+
+            // Are we info or infoex?
+            blIsInfoOrInfoex = ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex"));
+
+            // Run-roh...
+            if (!blIsInfoOrInfoex && jsonlookup.Get("results.success") == "false")
+            {
+                // Get the code...
+                a_szCode = jsonlookup.Get("results.code");
+                if (string.IsNullOrEmpty(a_szCode))
+                {
+                    Log.Error("results.code is missing, so we're assuming 'critical'...");
+                    a_szCode = "critical";
+                }
+
+                // If we've lost the session, we might as well zap things here...
+                switch (a_szCode)
+                {
+                    default: break;
+                    case "critical": SetSessionState(SessionState.noSession); break;
+                    case "invalidSessionId": SetSessionState(SessionState.noSession); break;
+                }
+
+                // Bail...
+                return (false);
+            }
+
+            // We expect success from this point on, unless set otherwise...
+            a_szCode = "success";
+
+            // If we done't have one of these styles, we can't have any session
+            // data, so bail here...
+            if ((a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo)
+                && (a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.Event))
+            {
+                return (true);
+            }
+
+            // Is this /privet/info or /privet/infoex?
+            if (blIsInfoOrInfoex)
+            {
+                // Squirrel away the x-privet-token so that we'll have
+                // it for when createSession is called.  Note that this
+                // is only done for the client, the device never does
+                // anything with this attribute...
+                m_szXPrivetToken = jsonlookup.Get("x-privet-token");
+
+                // All done...
+                return (true);
+            }
+
+            // Handle events...
+            if (a_apicmd.GetHttpReplyStyle() == ApiCmd.HttpReplyStyle.Event)
+            {
+                // Handle any and all of the event data...
+                if (!string.IsNullOrEmpty(jsonlookup.Get("results.events", false)))
+                {
+                    // Loop through it...
+                    for (ii = 0; ; ii++)
+                    {
+                        string szEvent = "results.events[" + ii + "]";
+
+                        // We're out of events...
+                        if (string.IsNullOrEmpty(jsonlookup.Get(szEvent, false)))
+                        {
+                            break;
+                        }
+
+                        // Process this event...
+                        switch (jsonlookup.Get(szEvent + ".event", false))
+                        {
+                            // Ignore unrecognized events...
+                            default:
+                                Log.Verbose(szFunction + ": unrecognized event..." + jsonlookup.Get(szEvent + ".event", false));
+                                break;
+
+                            // Our scanner session went bye-bye on us...
+                            case "critical":
+                                // Our reply...
+                                Log.Info(szFunction + ": critical event...");
+                                if (m_eventcallback != null)
+                                {
+                                    m_eventcallback(m_objectEventCallback, "critical");
+                                }
+
+                                // Wake up anybody watching us...
+                                ClientWaitForSessionUpdateForceSet();
+
+                                // All done...
+                                break;
+
+                            // The session object has been updated, specifically we have a change
+                            // to the imageBlocks array from stuff being added or removed...
+                            case "imageBlocks":
+                                Log.Verbose(szFunction + ": imageBlocks event...");
+                                lock (m_objectLock)
+                                {
+                                    // Check the session revision number...
+                                    if (!int.TryParse(jsonlookup.Get(szEvent + ".session.revision", false), out iSessionRevision))
+                                    {
+                                        Log.Error(szFunction + ": bad session revision number...");
+                                        continue;
+                                    }
+
+                                    // Only do this bit if the number is newer than what
+                                    // we already have...
+                                    if (!m_twainlocalsession.SetSessionRevision(iSessionRevision, true))
+                                    {
+                                        continue;
+                                    }
+
+                                    // Only set the imageBlocksDrained to true if we're told to,
+                                    // don't set them to false.  That's done once during the state
+                                    // change to capturing...
+                                    if (jsonlookup.Get(szEvent + ".session.imageBlocksDrained", false) == "true")
+                                    {
+                                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                                    }
+
+                                    // Get the image blocks...
+                                    m_twainlocalsession.m_alSessionImageBlocks = null;
+                                    szImageBlocks = jsonlookup.Get(szEvent + ".session.imageBlocks", false);
+                                    if (!string.IsNullOrEmpty(szImageBlocks))
+                                    {
+                                        string[] aszImageBlocks = szImageBlocks.Split(new char[] { '[', ' ', ',', ']', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                                        if (aszImageBlocks != null)
+                                        {
+                                            m_twainlocalsession.m_alSessionImageBlocks = new long[aszImageBlocks.Length];
+                                            for (ii = 0; ii < aszImageBlocks.Length; ii++)
+                                            {
+                                                m_twainlocalsession.m_alSessionImageBlocks[ii] = long.Parse(aszImageBlocks[ii]);
+                                            }
+                                        }
+                                    }
+
+                                    // See if we've detected any new problems...
+                                    if (m_twainlocalsession.GetSessionStatusSuccess())
+                                    {
+                                        string szSessionStatusSuccess = jsonlookup.Get(szEvent + ".session.status.success", false);
+                                        if (!string.IsNullOrEmpty(szSessionStatusSuccess) && (szSessionStatusSuccess == "false"))
+                                        {
+                                            string szSessionStatusDetected = jsonlookup.Get(szEvent + ".session.status.detected", false);
+                                            m_twainlocalsession.SetSessionStatusSuccess(false);
+                                            m_twainlocalsession.SetSessionStatusDetected(string.IsNullOrEmpty(szSessionStatusDetected) ? "misfeed" : szSessionStatusDetected);
+                                        }
+                                    }
+
+                                    // Wakeup anybody watching us...
+                                    ClientWaitForSessionUpdateForceSet();
+                                }
+                                break;
+
+                            // Our scanner session went bye-bye on us...
+                            case "sessionTimedOut":
+                                // Our reply...
+                                Log.Info(szFunction + ": sessionTimedOut event...");
+                                if (m_eventcallback != null)
+                                {
+                                    m_eventcallback(m_objectEventCallback, "sessionTimedOut");
+                                }
+
+                                // Wake up anybody watching us...
+                                ClientWaitForSessionUpdateForceSet();
+
+                                // All done...
+                                break;
+
+                            // The event has timed out, we can ignore this one...
+                            case "timeout":
+                                break;
+                        }
+                    }
+                }
+
+                // All done...
+                return (true);
+            }
+
+            // Init stuff...
+            m_twainlocalsession.SetSessionId(jsonlookup.Get("results.session.sessionId"));
+
+            // Set the metadata, if we have any, we don't care if we
+            // succeed, the caller will worry about that...
+            m_twainlocalsession.SetMetadata(jsonlookup.Get("results.metadata", false));
+
+            // If we don't have a session id, then skip the rest of
+            // this function...
+            if (string.IsNullOrEmpty(m_twainlocalsession.GetSessionId()))
+            {
+                a_szCode = "invalidSessionId";
+                return (false);
+            }
+
+            // Check the session revision number...
+            if (!int.TryParse(jsonlookup.Get("results.session.revision", false), out iSessionRevision))
+            {
+                Log.Error(szFunction + ": bad session revision number...");
+                a_szCode = "critical";
+                return (false);
+            }
+
+            // If the session revision number we just received is less
+            // than or equal to the one we already have, then skip the
+            // rest of this function.  Otherwise, save the number...
+            if (!m_twainlocalsession.SetSessionRevision(iSessionRevision))
+            {
+                return (true);
+            }
+
+            // We're going to refresh this...
+            m_twainlocalsession.m_alSessionImageBlocks = null;
+
+            // Protect ourselves from weirdness...
+            try
+            {
+                // Only set the imageBlocksDrained to true if we're told to,
+                // don't set them to false.  That's done once during the state
+                // change to capturing...
+                if (jsonlookup.Get("results.session.imageBlocksDrained", false) == "true")
+                {
+                    m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                }
+
+                // Collect the image blocks data...
+                m_twainlocalsession.m_alSessionImageBlocks = null;
+                szImageBlocks = jsonlookup.Get("results.session.imageBlocks", false);
+                if (!string.IsNullOrEmpty(szImageBlocks))
+                {
+                    string[] aszImageBlocks = szImageBlocks.Split(new char[] { '[', ' ', ',', ']', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (aszImageBlocks != null)
+                    {
+                        m_twainlocalsession.m_alSessionImageBlocks = new long[aszImageBlocks.Length];
+                        for (ii = 0; ii < aszImageBlocks.Length; ii++)
+                        {
+                            m_twainlocalsession.m_alSessionImageBlocks[ii] = int.Parse(aszImageBlocks[ii]);
+                        }
+                    }
+                }
+
+                // Change our state...
+                switch (jsonlookup.Get("results.session.state"))
+                {
+                    // Uh-oh...
+                    default:
+                        Log.Error(szFunction + ":Unrecognized results.session.state..." + jsonlookup.Get("results.session.state"));
+                        a_szCode = "critical";
+                        return (false);
+
+                    case "capturing":
+                        SetSessionState(SessionState.capturing);
+                        break;
+
+                    case "closed":
+                        // We can't truly close until all the imageblocks are resolved...
+                        if ((m_twainlocalsession.m_alSessionImageBlocks == null)
+                            || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))
+                        {
+                            SetSessionState(SessionState.noSession);
+                        }
+                        else
+                        {
+                            SetSessionState(SessionState.closed);
+                        }
+                        break;
+
+                    case "draining":
+                        SetSessionState(SessionState.draining);
+                        break;
+
+                    case "nosession":
+                        SetSessionState(SessionState.noSession);
+                        break;
+
+                    case "ready":
+                        SetSessionState(SessionState.ready);
+                        break;
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error(szFunction + ": exception..." + exception.Message);
+                m_twainlocalsession.SetSessionId(null);
+                m_twainlocalsession.SetCallersHostName(null);
+                m_twainlocalsession.m_alSessionImageBlocks = null;
+                m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                a_szCode = "critical";
+                return (false);
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// Set the session state, and do additional cleanup work, if needed...
+        /// </summary>
+        /// <param name="a_sessionstate">new session state</param>
+        /// <param name="a_szSessionEndedMessage">message to display when going to noSession</param>
+        /// <param name="a_blUserShutdown">the user requested the close</param>
+        /// <returns>the previous session state</returns>
+        protected override SessionState SetSessionState
+        (
+            SessionState a_sessionstate,
+            string a_szSessionEndedMessage = "Session ended...",
+            bool a_blUserShutdown = true
+        )
+        {
+            SessionState sessionstatePrevious;
+
+            // Let the base cleanup...
+            sessionstatePrevious = base.SetSessionState(a_sessionstate, a_szSessionEndedMessage, a_blUserShutdown);
+
+            // Cleanup...
+            if (a_sessionstate == SessionState.noSession)
+            {
+                // Lose the eventing stuff on the client side...
+                if (m_waitforeventsinfo != null)
+                {
+                    m_waitforeventsinfo.Dispose();
+                    m_waitforeventsinfo = null;
+                }
+            }
+
+            // Return the previous state...
+            return (sessionstatePrevious);
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Attributes...
+        // All of the members in this section must be specific to the client
+        // and not to the session.  Session stuff goes into TwainLocalSession.
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Attributes...
+
+        /// <summary>
+        /// Event info...
+        /// </summary>
+        private WaitForEventsInfo m_waitforeventsinfo;
+
+        #endregion
+    }
+
+    /// <summary>
+    /// Stuff shared by TwainLocalScannerDevice and TwainLocalScannerClient...
+    /// </summary>
+    public abstract class TwainLocalScanner : IDisposable
+    {
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Common Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Common Methods...
+
+        /// <summary>
+        /// Init us...
+        /// </summary>
+        /// <param name="a_confirmscan">user must confirm a scan request</param>
+        /// <param name="a_fConfirmScanScale">scale the confirmation dialog</param>
+        /// <param name="a_eventcallback">event function</param>
+        /// <param name="a_objectEventCallback">object that provided the event</param>
+        /// <param name="a_displaycallback">display callback</param>
+        /// <param name="a_blCreateTwainLocalSession">true for the server only</param>
+        public TwainLocalScanner
+        (
+            float a_fConfirmScanScale,
+            EventCallback a_eventcallback,
+            object a_objectEventCallback,
+            DisplayCallback a_displaycallback,
+            bool a_blCreateTwainLocalSession
+        )
+        {
+            int iDefault;
+
+            // Init our command timeout for HTTPS communication...
+            iDefault = 15000; // 15 seconds
+            m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
+            if (m_iHttpTimeoutCommand < 5000)
+            {
+                m_iHttpTimeoutCommand = iDefault;
+            }
+
+            // Init our data timeout for HTTPS communication...
+            iDefault = 30000; // 30 seconds
+            m_iHttpTimeoutData = (int)Config.Get("httpTimeoutData", iDefault);
+            if (m_iHttpTimeoutData < 10000)
+            {
+                m_iHttpTimeoutData = iDefault;
+            }
+
+            // Init stuff...
+            m_szWriteFolder = Config.Get("writeFolder", "");
+            m_fConfirmScanScale = a_fConfirmScanScale;
+            m_eventcallback = a_eventcallback;
+            m_objectEventCallback = a_objectEventCallback;
+            m_displaycallback = a_displaycallback;
+            m_llPendingImageBlocks = new List<long>();
+
+            // Set up session specific content...
+            if (a_blCreateTwainLocalSession)
+            {
+                m_twainlocalsessionInfo = new TwainLocalSession("");
+            }
+
+            // Our locks...
+            m_objectLock = new object();
+            m_objectLockClientFinishImage = new object();
+            m_objectLockDeviceHttpServerStop = new object();
+            m_objectLockOnChangedBridge = new object();
+            m_objectLockOnChangedImageBlocks = new object();
+
+            // We use this to get notification about events...
+            m_blCancelWaitForEventsProcessing = false;
+            m_autoreseteventWaitForEvents = new AutoResetEvent(false);
+            m_autoreseteventWaitForEventsProcessing = new AutoResetEvent(false);
+
+            // This is our default location for storing imageblocks
+            // and metadata...
+            try
+            {
+                m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+                if (!Directory.Exists(m_szImagesFolder))
+                {
+                    Directory.CreateDirectory(m_szImagesFolder);
+                }
+            }
+            catch
+            {
+                throw new Exception("Can't set up the images folder...");
+            }
+        }
+
+        /// <summary>
+        /// Destructor...
+        /// </summary>
+        ~TwainLocalScanner()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public virtual void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Collect information for our device info...
+        /// </summary>
+        /// <returns></returns>
+        public Dnssd.DnssdDeviceInfo GetDnssdDeviceInfo()
+        {
+            Dnssd.DnssdDeviceInfo dnssddeviceinfo;
+
+            // Create it...
+            dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
+
+            // Stock it...
+            dnssddeviceinfo.SetLinkLocal("");
+            dnssddeviceinfo.SetServiceName(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName());
+            dnssddeviceinfo.SetTxtCs("offline");
+            dnssddeviceinfo.SetTxtHttps(true);
+            dnssddeviceinfo.SetTxtId("");
+            dnssddeviceinfo.SetTxtNote(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote());
+            dnssddeviceinfo.SetTxtTxtvers("1");
+            dnssddeviceinfo.SetTxtTy(m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
+            dnssddeviceinfo.SetTxtType("twaindirect");
+
+            // Return it...
+            return (dnssddeviceinfo);
+        }
+
+        /// <summary>
+        /// Return the current images folder...
+        /// </summary>
+        /// <returns>the images folder</returns>
+        public string GetImagesFolder()
+        {
+            return (m_szImagesFolder);
+        }
+
+        /// <summary>
+        /// Returns a path for scratch pad use...
+        /// </summary>
+        /// <param name="a_szFile">an optional file or folder to add to the path</param>
+        /// <returns>the path</returns>
+        public string GetPath(string a_szFile)
+        {
+            string szPath = m_szWriteFolder;
+            if (!string.IsNullOrEmpty(a_szFile))
+            {
+                szPath = Path.Combine(szPath, a_szFile);
+            }
+            if (!Directory.Exists(Path.GetDirectoryName(szPath)))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(szPath));
+            }
+            return (szPath);
+        }
+
+        /// <summary>
+        /// Return the current state...
+        /// </summary>
+        /// <returns>the enum as a string</returns>
+        public string GetState()
+        {
+            if (m_twainlocalsession == null)
+            {
+                return ("noSession");
+            }
+            return (m_twainlocalsession.GetSessionState().ToString());
+        }
+
+        /// <summary>
+        /// Quick access to our platform id.  We probably need a better way to
+        /// figure this all out...
+        /// </summary>
+        /// <returns>a platform</returns>
+        public static Platform GetPlatform()
+        {
+            // First pass...
+            if (ms_platform == Platform.UNKNOWN)
+            {
+                // We're Windows...
+                if (Environment.OSVersion.ToString().Contains("Microsoft Windows"))
+                {
+                    ms_platform = Platform.WINDOWS;
+                }
+
+                // We're Mac OS X (this has to come before LINUX!!!)...
+                else if (Directory.Exists("/Library/Application Support"))
+                {
+                    ms_platform = Platform.MACOSX;
+                }
+
+                // We're Linux...
+                else if (Environment.OSVersion.ToString().Contains("Unix"))
+                {
+                    ms_platform = Platform.LINUX;
+                }
+
+                // We have a problem...
+                else
+                {
+                    ms_platform = Platform.UNKNOWN;
+                    throw new Exception("Unsupported platform...");
+                }
+            }
+
+            // This is it...
+            return (ms_platform);
+        }
+
+        /// <summary>
+        /// Set a new images folder...
+        /// </summary>
+        /// <param name="a_szImagesFolder">the folder to set</param>
+        /// <returns>true on success</returns>
+        public bool SetImagesFolder(string a_szImagesFolder)
+        {
+            // See if we can use it...
+            if (!Directory.Exists(a_szImagesFolder))
+            {
+                try
+                {
+                    Directory.CreateDirectory(a_szImagesFolder);
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("CreateDirectory failed: " + exception.Message);
+                    Log.Error("<" + a_szImagesFolder + ">");
+                    return (false);
+                }
+            }
+
+            // We're good...
+            m_szImagesFolder = a_szImagesFolder;
+            return (true);
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Definitions...
+
+        /// <summary>
+        /// Our supported platforms...
+        /// </summary>
+        public enum Platform
+        {
+            UNKNOWN,
+            WINDOWS,
+            LINUX,
+            MACOSX
+        };
+
+        /// <summary>
+        /// Buttons that a user can press...
+        /// </summary>
+        public enum ButtonPress
+        {
+            OK,
+            Cancel
+        };
+
+        /// <summary>
+        /// TWAIN Direct Client-Scanner API errors.  Be sure to only append to the list,
+        /// treat the numbers as unmodifiable constants, so that we can
+        /// guarantee their value across interfaces...
+        /// </summary>
+        public enum ApiStatus
+        {
+            success = 0,
+            newSessionNotAllowed = 1,
+            invalidSessionId = 2,
+            closedSession = 3,
+            notReady = 4,
+            notCapturing = 5,
+            invalidImageBlockNumber = 6,
+            invalidCapturingOptions = 7
+        }
+
+        /// <summary>
+        /// A place to keep our command information...
+        /// </summary>
+        public struct Command
+        {
+            public string szDeviceName;
+            public string szJson;
+        }
+
+        /// <summary>
+        /// Delegate for the long poll event processor.  This function
+        /// is called for every event received from the scanner.
+        /// </summary>
+        /// <param name="a_object">An object supplied by the caller when it registers the callback</param>
+        public delegate void WaitForEventsProcessingCallback(ApiCmd a_apicmd, object a_object);
+
+        /// <summary>
+        /// Delegate for the scan callback...
+        /// </summary>
+        /// <param name="a_szMetadata">metadata for this imageBlock</param>
+        /// <param name="a_szImageBlock">file for this imageBlock</param>
+        /// <returns></returns>
+        public delegate bool ScanCallback(string a_szMetadata, string a_szImageBlock);
+
+        /// <summary>
+        /// Delegate for event callback...
+        /// </summary>
+        /// <param name="a_object">caller's object</param>
+        /// <param name="a_szEvent">event</param>
+        public delegate void EventCallback(object a_object, string a_szEvent);
+
+        /// <summary>
+        /// Display callback...
+        /// </summary>
+        /// <param name="a_szText">text to display</param>
+        public delegate void DisplayCallback(string a_szText);
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Protected Common methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Protected Common Methods...
+
+        /// <summary>
+        /// Display a message, if we have a callback for it...
+        /// </summary>
+        /// <param name="a_szMsg">the message to display</param>
+        protected void Display(string a_szMsg)
+        {
+            if (m_displaycallback != null)
+            {
+                m_displaycallback(a_szMsg);
+            }
+        }
+
+        /// <summary>
+        /// Set the session state, and do additional cleanup work, if needed...
+        /// </summary>
+        /// <param name="a_sessionstate">new session state</param>
+        /// <param name="a_szSessionEndedMessage">message to display when going to noSession</param>
+        /// <param name="a_blUserShutdown">the user requested the close</param>
+        /// <returns>the previous session state</returns>
+        protected virtual SessionState SetSessionState
+        (
+            SessionState a_sessionstate,
+            string a_szSessionEndedMessage = "Session ended...",
+            bool a_blUserShutdown = true
+        )
+        {
+            SessionState sessionstatePrevious = SessionState.noSession;
+
+            // First set the session's state...
+            if (m_twainlocalsession != null)
+            {
+                sessionstatePrevious = m_twainlocalsession.GetSessionState();
+                m_twainlocalsession.SetSessionState(a_sessionstate);
+            }
+
+            // Cleanup...
+            if (a_sessionstate == SessionState.noSession)
+            {
+                // Don't let the event timeout fire...
+                if (m_timerEvent != null)
+                {
+                    m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+                    m_timerEvent.Dispose();
+                    m_timerEvent = null;
+                }
+
+                // Lose the eventing stuff on the device side...
+                if (m_apicmdEvent != null)
+                {
+                    m_apicmdEvent.HttpAbort();
+                    m_apicmdEvent = null;
+                }
+
+                // Lose the session...
+                if (m_twainlocalsession != null)
+                {
+                    m_twainlocalsession.SetUserShutdown(a_blUserShutdown);
+                    m_twainlocalsession.Dispose();
+                    m_twainlocalsession = null;
+                }
+
+                // Display what happened...
+                Display(a_szSessionEndedMessage);
+            }
+
+            // Return the previous state...
+            return (sessionstatePrevious);
+        }
+
+        /// <summary>
+        /// Set the error return for client functions...
+        /// </summary>
+        /// <param name="a_apicmd">the current command</param>
+        /// <param name="a_blSuccess">our success status</param>
+        /// <param name="a_szResponseCode">the error code</param>
+        /// <param name="a_lResponseCharacterOffset">the offset of a JSON error, or -1</param>
+        /// <param name="a_szResponseText">extra info about the error</param>
+        protected void ClientReturnError(ApiCmd a_apicmd, bool a_blSuccess, string a_szResponseCode, long a_lResponseCharacterOffset, string a_szResponseText)
+        {
+            long lJsonErrorIndex;
+
+            // Only log something if we have something...
+            if (!string.IsNullOrEmpty(a_szResponseText))
+            {
+                Log.Error(a_szResponseText);
+            }
+
+            // Handle protocol errors...
+            if (a_apicmd.GetResponseStatus() != 200)
+            {
+                string szResponseText = a_apicmd.GetResponseText();
+                if (string.IsNullOrEmpty(szResponseText))
+                {
+                    a_apicmd.DeviceResponseSetStatus(false, "protocolError", 0, "unrecognized protocol error, sorry.");
+                }
+                else
+                {
+                    JsonLookup jsonlookup = new JsonLookup();
+                    jsonlookup.Load(szResponseText, out lJsonErrorIndex);
+                    string szError = jsonlookup.Get("error");
+                    if (string.IsNullOrEmpty(szError))
+                    {
+                        szError = "protocolError";
+                    }
+                    a_apicmd.DeviceResponseSetStatus(false, szError, 0, szResponseText);
+                }
+
+                // All done...
+                return;
+            }
+
+            // Set the command's error return...
+            a_apicmd.DeviceResponseSetStatus(a_blSuccess, a_szResponseCode, a_lResponseCharacterOffset, a_szResponseText);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        internal void Dispose(bool a_blDisposing)
+        {
+            // Free managed resources...
+            if (a_blDisposing)
+            {
+                if (m_autoreseteventWaitForEvents != null)
+                {
+                    m_autoreseteventWaitForEvents.Dispose();
+                    m_autoreseteventWaitForEvents = null;
+                }
+                if (m_autoreseteventWaitForEventsProcessing != null)
+                {
+                    m_autoreseteventWaitForEventsProcessing.Dispose();
+                    m_autoreseteventWaitForEventsProcessing = null;
+                }
+                if (m_twainlocalsession != null)
+                {
+                    m_twainlocalsession.SetUserShutdown(true);
+                    m_twainlocalsession.Dispose();
+                    m_twainlocalsession = null;
+                }
+                if (m_twainlocalsessionInfo != null)
+                {
+                    m_twainlocalsessionInfo.Dispose();
+                    m_twainlocalsessionInfo = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Convert a C# DateTime to a Unix Epoch-based timestamp in milliseconds...
+        /// </summary>
+        /// <param name="dateTime">value to convert</param>
+        /// <returns>result</returns>
+        public static long DateTimeToUnixTimeMs(DateTime a_datetime)
+        {
+            DateTime datetimeUnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            long u64Ticks = (long)(a_datetime.ToUniversalTime() - datetimeUnixEpoch).Ticks;
+            return (u64Ticks / TimeSpan.TicksPerMillisecond);
+        }
+
+        /// <summary>
+        /// Allow us to kick ourselves out of a wait...
+        /// </summary>
+        /// <returns></returns>
+        public void ClientWaitForSessionUpdateForceSet()
+        {
+            if (m_twainlocalsession != null)
+            {
+                m_twainlocalsession.ClientWaitForSessionUpdateForceSet();
+            }
+        }
+
+        // Run curl...get the stdout as a string, log the command and the result...
+        private string Run(string szProgram, string a_szArguments)
+        {
+            // Log what we're doing...
+            Log.Info("run>>> " + szProgram);
+            Log.Info("run>>> " + a_szArguments);
+
+            // Start the child process.
+            Process p = new Process();
+
+            // Redirect the output stream of the child process.
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.WorkingDirectory = Path.GetDirectoryName(szProgram);
+            p.StartInfo.CreateNoWindow = true;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.FileName = szProgram;
+            p.StartInfo.Arguments = a_szArguments;
+            p.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            p.Start();
+
+            // Do not wait for the child process to exit before
+            // reading to the end of its redirected stream.
+            // p.WaitForExit();
+            // Read the output stream first and then wait.
+            string szOutput = p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+
+            // Log any output...
+            Log.Info("run>>> " + szOutput);
+
+            // All done...
+            return (szOutput);
+        }
+
+        /// <summary>
+        /// Convert a Unix Epoch-based timestamp in milliseconds to a C# DateTime...
+        /// </summary>
+        /// <param name="a_lUnixTimeMs">value to convert</param>
+        /// <returns>result</returns>
+        public static DateTime UnixTimeMsToDateTime(long a_lUnixTimeMs)
+        {
+            DateTime datetimeUnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            long u64Ticks = (long)(a_lUnixTimeMs * TimeSpan.TicksPerMillisecond);
+            return (new DateTime(datetimeUnixEpoch.Ticks + u64Ticks));
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Protected Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Protected Definitions...
 
         /// <summary>
         /// Ways of getting to the server...
         /// </summary>
-        private enum HttpMethod
+        protected enum HttpMethod
         {
             Undefined,
             Curl,
@@ -5541,7 +5749,7 @@ namespace TwainDirect.Support
         /// draining - we're transfering images (go to ready when done)
         /// closed - we're transfering images (go to noSession when done)
         /// </summary>
-        private enum SessionState
+        protected enum SessionState
         {
             noSession,
             ready,
@@ -5553,7 +5761,7 @@ namespace TwainDirect.Support
         /// <summary>
         /// Information for waiting for events...
         /// </summary>
-        private sealed class WaitForEventsInfo : IDisposable
+        protected sealed class WaitForEventsInfo : IDisposable
         {
             /// <summary>
             /// Constructor...
@@ -5663,41 +5871,41 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Attributes...
+        // Protected Attributes...
         // All of the members in this section must be specific to the device
         // and not to the session.  Session stuff goes into TwainLocalSession.
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Attributes...
+        #region Protected Attributes...
 
         /// <summary>
         /// Use this with the /privet/info and /privet/infoex commands...
         /// </summary>
-        private TwainLocalSession m_twainlocalsessionInfo;
+        protected TwainLocalSession m_twainlocalsessionInfo;
 
         /// <summary>
         /// All of the data we need for /privet/twaindirect/session...
         /// </summary>
-        private TwainLocalSession m_twainlocalsession;
+        protected TwainLocalSession m_twainlocalsession;
 
         /// <summary>
-        /// Our session timer for /privet/twaindirect/session...
+        /// Optional callback for displaying text, this could
+        /// be useful for debugging...
         /// </summary>
-        private Timer m_timerSession;
+        protected DisplayCallback m_displaycallback;
+
+        /// <summary>
+        /// Event callback function...
+        /// </summary>
+        protected EventCallback m_eventcallback;
 
         /// <summary>
         /// Something we can lock...
         /// </summary>
-        private object m_objectLock;
-        private object m_objectLockClientFinishImage;
-        private object m_objectLockDeviceHttpServerStop;
-        private object m_objectLockOnChangedBridge;
-        private object m_objectLockOnChangedImageBlocks;
-
-        /// <summary>
-        /// Our HTTP server, all sessions must past through
-        /// one server...
-        /// </summary>
-        private HttpServer m_httpserver;
+        protected object m_objectLock;
+        protected object m_objectLockClientFinishImage;
+        protected object m_objectLockDeviceHttpServerStop;
+        protected object m_objectLockOnChangedBridge;
+        protected object m_objectLockOnChangedImageBlocks;
 
         /// <summary>
         /// We only need this value long enough to get it from
@@ -5705,96 +5913,60 @@ namespace TwainDirect.Support
         /// into the TwainLocalSession object, which will maintain
         /// it for the life of the session...
         /// </summary>
-        private string m_szXPrivetToken;
-
-        /// <summary>
-        /// This value is generated whenever the TWAIN Local
-        /// Scanner object is created, and it exists only for
-        /// so long as the object exists.  We use this to
-        /// generatre our X-Privet-Token.  Knowing this value
-        /// allows us to validate it without having to keep
-        /// a table around...
-        /// </summary>
-        private string m_szDeviceSecret;
+        protected string m_szXPrivetToken;
 
         /// <summary>
         /// A place to store data, like logs and stuff...
         /// </summary>
-        private string m_szWriteFolder;
+        protected string m_szWriteFolder;
 
         /// <summary>
         /// This is where the imageblocks and metadata are stored.
         /// </summary>
-        private string m_szImagesFolder;
+        protected string m_szImagesFolder;
 
         /// <summary>
         /// Our current platform...
         /// </summary>
-        private static Platform ms_platform = Platform.UNKNOWN;
-
-        /// <summary>
-        /// Use this to confirm a scan request...
-        /// </summary>
-        private ConfirmScan m_confirmscan;
+        protected static Platform ms_platform = Platform.UNKNOWN;
 
         /// <summary>
         /// So we can have a bigger form...
         /// </summary>
-        private float m_fConfirmScanScale;
-
-        /// <summary>
-        /// Event callback function...
-        /// </summary>
-        private EventCallback m_eventcallback;
+        protected float m_fConfirmScanScale;
 
         /// <summary>
         /// Caller's object for the event callback function...
         /// </summary>
-        private object m_objectEventCallback;
-
-        /// <summary>
-        /// Optional callback for displaying text, this could
-        /// be useful for debugging...
-        /// </summary>
-        private DisplayCallback m_displaycallback;
+        protected object m_objectEventCallback;
 
         /// <summary>
         /// Command timeout, this should be short (and in milliseconds)...
         /// </summary>
-        private int m_iHttpTimeoutCommand;
+        protected int m_iHttpTimeoutCommand;
 
         /// <summary>
         /// Data timeout, this should be long (and in milliseconds)...
         /// </summary>
-        private int m_iHttpTimeoutData;
-
-        /// <summary>
-        /// Idle time before a session times out (in milliseconds)...
-        /// </summary>
-        private long m_lSessionTimeout;
-
-        /// <summary>
-        /// Event info...
-        /// </summary>
-        private WaitForEventsInfo m_waitforeventsinfo;
+        protected int m_iHttpTimeoutData;
 
         /// <summary>
         /// Our signal to the client that an event has arrived...
         /// </summary>
-        private AutoResetEvent m_autoreseteventWaitForEvents;
-        private AutoResetEvent m_autoreseteventWaitForEventsProcessing;
-        private bool m_blCancelWaitForEventsProcessing;
+        protected AutoResetEvent m_autoreseteventWaitForEvents;
+        protected AutoResetEvent m_autoreseteventWaitForEventsProcessing;
+        protected bool m_blCancelWaitForEventsProcessing;
 
         /// <summary>
         /// The long poll is on this guy, we'll respond to him when
         /// and if we have an event...
         /// </summary>
-        private ApiCmd m_apicmdEvent;
+        protected ApiCmd m_apicmdEvent;
 
         /// <summary>
         /// Our event timer for m_apicmdEvent...
         /// </summary>
-        private Timer m_timerEvent;
+        protected Timer m_timerEvent;
 
         // If we're splitting up the TWAIN Bridge images into smaller
         // chunks, then we have to create a new sequence of image
@@ -5803,13 +5975,13 @@ namespace TwainDirect.Support
         // images, this value doesn't get used (because we're just
         // renaming the *.xxxtmp files to *.xxx, which will preserve
         // the number we got from the TWAIN driver...
-        private long m_lImageBlockNumber;
+        protected long m_lImageBlockNumber;
 
         /// <summary>
         /// We maintain a list of the image blocks that we've not
         /// yet turned into finished images.
         /// </summary>
-        private List<long> m_llPendingImageBlocks;
+        protected List<long> m_llPendingImageBlocks;
 
         #endregion
 
@@ -5824,19 +5996,19 @@ namespace TwainDirect.Support
         // We need to associate some information with our file system
         // watcher.  Specifically, the TwainLocalSscanner and the
         // pending ApiCmd used for events...
-        private class FileSystemWatcherHelper : FileSystemWatcher
+        protected class FileSystemWatcherHelper : FileSystemWatcher
         {
-            public FileSystemWatcherHelper(TwainLocalScanner a_twainlocalscanner)
+            public FileSystemWatcherHelper(TwainLocalScannerDevice a_twainlocalscannerdevice)
             {
-                m_twainlocalsscanner = a_twainlocalscanner;
+                m_twainlocalsscanner = a_twainlocalscannerdevice;
             }
 
-            public TwainLocalScanner GetTwainLocalScanner()
+            public TwainLocalScannerDevice GetTwainLocalScanner()
             {
                 return (m_twainlocalsscanner);
             }
 
-            private TwainLocalScanner m_twainlocalsscanner;
+            private TwainLocalScannerDevice m_twainlocalsscanner;
         }
 
         #endregion
@@ -5853,7 +6025,7 @@ namespace TwainDirect.Support
         /// <summary>
         /// TWAIN Local session information that we need to keep track of...
         /// </summary>
-        private class TwainLocalSession : IDisposable
+        protected class TwainLocalSession : IDisposable
         {
             ///////////////////////////////////////////////////////////////////////////
             // Public Methods
@@ -6066,7 +6238,7 @@ namespace TwainDirect.Support
             /// </summary>
             /// <param name="a_szFile">the file to load it from</param>
             /// <returns>try if successful</returns>
-            public bool DeviceRegisterLoad(TwainLocalScanner a_twainlocalscanner, string a_szFile)
+            public bool DeviceRegisterLoad(string a_szFile)
             {
                 return (m_deviceregister.Load(a_szFile));
             }

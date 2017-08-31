@@ -119,8 +119,7 @@ namespace TwainDirect.Scanner
             (
                 m_resourcemanager,
                 Display,
-                StopNotification,
-                blConfirmScan ? ConfirmScan : (TwainLocalScanner.ConfirmScan)null,
+                blConfirmScan ? ConfirmScan : (TwainLocalScannerDevice.ConfirmScan)null,
                 fScale,
                 out m_blNoDevices
             );
@@ -251,21 +250,6 @@ namespace TwainDirect.Scanner
                     m_buttonStart.Enabled = false;
                     m_buttonStop.Enabled = true;
                     break;
-            }
-        }
-
-        /// <summary>
-        /// We've been told that monitoring has stopped...
-        /// </summary>
-        private void StopNotification(bool a_blNoDevices)
-        {
-            if (a_blNoDevices)
-            {
-                SetButtons(ButtonState.NoDevices);
-            }
-            else
-            {
-                SetButtons(ButtonState.WaitingForStart);
             }
         }
 
@@ -664,14 +648,14 @@ namespace TwainDirect.Scanner
         #region Private Attributes...
 
         /// <summary>
-        /// Localized text...
-        /// </summary>
-        private ResourceManager m_resourcemanager;
-
-        /// <summary>
         /// Our scanner interface...
         /// </summary>
         private Scanner m_scanner;
+
+        /// <summary>
+        /// Localized text...
+        /// </summary>
+        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// True if we have no devices...

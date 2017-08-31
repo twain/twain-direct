@@ -49,6 +49,8 @@ namespace TwainDirect.App
         // Our constructor...
         public FormSelect(Dnssd a_dnssd, float a_fScale, out bool a_blResult)
         {
+            ResourceManager resourcemanager;
+
             // Init stuff...
             InitializeComponent();
             m_listviewSelect.MouseDoubleClick += new MouseEventHandler(m_listviewSelect_MouseDoubleClick);
@@ -74,15 +76,15 @@ namespace TwainDirect.App
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
+                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
-            m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpen");
-            m_labelSelect.Text = m_resourcemanager.GetString("strLabelSelectScanner");
-            this.Text = m_resourcemanager.GetString("strFormSelectTitle");
+            m_buttonOpen.Text = resourcemanager.GetString("strButtonOpen");
+            m_labelSelect.Text = resourcemanager.GetString("strLabelSelectScanner");
+            this.Text = resourcemanager.GetString("strFormSelectTitle");
 
             // Hang onto this...
             m_dnssd = a_dnssd;
@@ -367,7 +369,6 @@ namespace TwainDirect.App
         private Dnssd m_dnssd;
         private Dnssd.DnssdDeviceInfo m_dnssddeviceinfoSelected;
         private Dnssd.DnssdDeviceInfo[] m_adnssddeviceinfoCompare;
-        private ResourceManager m_resourcemanager;
 
         #endregion
     }

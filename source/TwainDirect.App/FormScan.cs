@@ -60,6 +60,8 @@ namespace TwainDirect.App
         /// <param name="a_fScale">scale factor for our form</param>
         public FormScan()
         {
+            ResourceManager resourcemanager;
+
             // Build our form...
             InitializeComponent();
 
@@ -89,19 +91,19 @@ namespace TwainDirect.App
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
+                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
-            m_buttonClose.Text = m_resourcemanager.GetString("strButtonClose");
-            m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpen");
-            m_buttonSelect.Text = m_resourcemanager.GetString("strButtonSelectEllipsis");
-            m_buttonScan.Text = m_resourcemanager.GetString("strButtonScan");
-            m_buttonSetup.Text = m_resourcemanager.GetString("strButtonSetupEllipsis");
-            m_buttonStop.Text = m_resourcemanager.GetString("strButtonStop");
-            this.Text = m_resourcemanager.GetString("strFormScanTitle");
+            m_buttonClose.Text = resourcemanager.GetString("strButtonClose");
+            m_buttonOpen.Text = resourcemanager.GetString("strButtonOpen");
+            m_buttonSelect.Text = resourcemanager.GetString("strButtonSelectEllipsis");
+            m_buttonScan.Text = resourcemanager.GetString("strButtonScan");
+            m_buttonSetup.Text = resourcemanager.GetString("strButtonSetupEllipsis");
+            m_buttonStop.Text = resourcemanager.GetString("strButtonStop");
+            this.Text = resourcemanager.GetString("strFormScanTitle");
 
             // Help with scaling...
             this.Resize += new EventHandler(FormScan_Resize);
@@ -146,7 +148,7 @@ namespace TwainDirect.App
             m_dnssd.MonitorStart(null,IntPtr.Zero);
 
             // Get our TWAIN Local interface.
-            m_twainlocalscanner = new TwainLocalScanner(null, 0, EventCallback, this, null, false);
+            m_twainlocalscannerclient = new TwainLocalScannerClient(0, EventCallback, this, null, false);
         }
 
         /// <summary>
@@ -244,7 +246,7 @@ namespace TwainDirect.App
             // not checking it with all the other stuff.  Inatead, we're going
             // to catch it at the very end to explain what's happened...
             string szDetected;
-            if (!m_twainlocalscanner.ClientGetSessionStatusSuccess(out szDetected))
+            if (!m_twainlocalscannerclient.ClientGetSessionStatusSuccess(out szDetected))
             {
                 MessageBox.Show(szDetected);
             }
@@ -315,8 +317,8 @@ namespace TwainDirect.App
             // dialog, so when we get here there's nothing left to do...
 
             // Send the task to the scanner... 
-            m_twainlocalscanner.ClientScannerSendTask(m_formsetup.GetTask(), ref apicmd);
-            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerSendTask", ref apicmd);
+            m_twainlocalscannerclient.ClientScannerSendTask(m_formsetup.GetTask(), ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerSendTask", ref apicmd);
             if (!blSuccess)
             {
                 a_apicmd = apicmd;
@@ -330,8 +332,8 @@ namespace TwainDirect.App
             }
 
             // Start capturing...
-            m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd);
-            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerStartCapturing", ref apicmd);
+            m_twainlocalscannerclient.ClientScannerStartCapturing(ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStartCapturing", ref apicmd);
             if (!blSuccess)
             {
                 a_apicmd = apicmd;
@@ -349,7 +351,7 @@ namespace TwainDirect.App
             {
                 // Scoot if the scanner says it's done sending images, or if
                 // we've received a failure status...
-                if (m_blStopCapturing || !blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
+                if (m_blStopCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -362,7 +364,7 @@ namespace TwainDirect.App
                     // Wait for the session object to be updated.  If this command
                     // returns false, it means that somebody wants us to stop
                     // scanning...
-                    blSuccess = m_twainlocalscanner.ClientWaitForSessionUpdate(long.MaxValue);
+                    blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue);
                     if (m_blStopCapturing)
                     {
                         break;
@@ -379,8 +381,8 @@ namespace TwainDirect.App
                     }
 
                     // If we have an imageBlock pop out, we're going to transfer it...
-                    alImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
-                    if (m_twainlocalscanner.ClientGetImageBlocksDrained() || ((alImageBlocks != null) && (alImageBlocks.Length > 0)))
+                    alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
+                    if (m_twainlocalscannerclient.ClientGetImageBlocksDrained() || ((alImageBlocks != null) && (alImageBlocks.Length > 0)))
                     {
                         break;
                     }
@@ -388,7 +390,7 @@ namespace TwainDirect.App
 
                 // Scoot if the scanner says it's done sending images, or if
                 // we've received a failure status...
-                if (m_blStopCapturing || !blSuccess || m_twainlocalscanner.ClientGetImageBlocksDrained())
+                if (m_blStopCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -408,8 +410,8 @@ namespace TwainDirect.App
                     // reported, such as the imageNumber, imagePart, and moreParts...
                     if (!a_blGetMetadataWithImage)
                     {
-                        m_twainlocalscanner.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref apicmd);
-                        blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref apicmd);
+                        m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref apicmd);
+                        blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref apicmd);
                         if (m_blStopCapturing)
                         {
                             break;
@@ -427,8 +429,8 @@ namespace TwainDirect.App
                     }
 
                     // Get the corresponding image block in the array...
-                    m_twainlocalscanner.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
-                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
+                    m_twainlocalscannerclient.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
                     if (m_blStopCapturing)
                     {
                         break;
@@ -445,8 +447,8 @@ namespace TwainDirect.App
                     }
 
                     // Release the image block...
-                    m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
-                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
+                    m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
                     if (m_blStopCapturing)
                     {
                         break;
@@ -463,7 +465,7 @@ namespace TwainDirect.App
                     }
 
                     // If we're out of imageBlocks, exit this loop...
-                    alImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
+                    alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
                     if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
                     {
                         break;
@@ -472,8 +474,8 @@ namespace TwainDirect.App
             }
 
             // Stop capturing...
-            m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
-            blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
             if (!blSuccess)
             {
                 if (blSuccessClientScan)
@@ -486,21 +488,21 @@ namespace TwainDirect.App
 
             // As long as we're in the capturing or draining states, we need to
             // keep releasing images.
-            while (   (m_twainlocalscanner.ClientGetSessionState() == "capturing")
-                   || (m_twainlocalscanner.ClientGetSessionState() == "draining"))
+            while (   (m_twainlocalscannerclient.ClientGetSessionState() == "capturing")
+                   || (m_twainlocalscannerclient.ClientGetSessionState() == "draining"))
             {
                 // Do we have anything to release?
-                alImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
+                alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
                 if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
                 {
                     Thread.Sleep(100);
-                    m_twainlocalscanner.ClientScannerGetSession(ref apicmd);
+                    m_twainlocalscannerclient.ClientScannerGetSession(ref apicmd);
                     continue;
                 }
 
                 // Release them...
-                m_twainlocalscanner.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[alImageBlocks.Length - 1], ref apicmd);
-                blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
+                m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[alImageBlocks.Length - 1], ref apicmd);
+                blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
                 if (!blSuccess)
                 {
                     if (blSuccessClientScan)
@@ -557,8 +559,8 @@ namespace TwainDirect.App
         /// </summary>
         private void Critical()
         {
-            SetButtons(EBUTTONSTATE.UNDEFINED);            
-            m_twainlocalscanner.ClientCertificationTwainLocalSessionDestroy(true);
+            SetButtons(EBUTTONSTATE.UNDEFINED);
+            m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
             SetButtons(EBUTTONSTATE.CLOSED);
             MessageBox.Show("Your scanner session has aborted.", "Notification");
         }
@@ -569,7 +571,7 @@ namespace TwainDirect.App
         private void SessionTimedOut()
         {
             SetButtons(EBUTTONSTATE.UNDEFINED);
-            m_twainlocalscanner.ClientCertificationTwainLocalSessionDestroy(true);
+            m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
             SetButtons(EBUTTONSTATE.CLOSED);
             MessageBox.Show("Your scanner session has timed out.", "Notification");
         }
@@ -807,7 +809,7 @@ namespace TwainDirect.App
             // from the imageBlocks...
             szBasename = Path.Combine(m_szWriteFolder, "images");
             szBasename = Path.Combine(szBasename, "img" + (m_lImageCount + 1).ToString("D6"));
-            if (!m_twainlocalscanner.ClientFinishImage(szMetadata, a_szImageBlock, szBasename))
+            if (!m_twainlocalscannerclient.ClientFinishImage(szMetadata, a_szImageBlock, szBasename))
             {
                 // We don't have a complete image, so scoot...
                 return (blGotImage);
@@ -1204,12 +1206,12 @@ namespace TwainDirect.App
             }
 
             // Close session, if needed...
-            if ((m_twainlocalscanner != null) && (m_twainlocalscanner.ClientGetSessionState() != "noSession"))
+            if ((m_twainlocalscannerclient != null) && (m_twainlocalscannerclient.ClientGetSessionState() != "noSession"))
             {
-                blSuccess = m_twainlocalscanner.ClientScannerCloseSession(ref apicmd);
+                blSuccess = m_twainlocalscannerclient.ClientScannerCloseSession(ref apicmd);
                 if (blSuccess)
                 {
-                    blSuccess = m_twainlocalscanner.ClientCheckForApiErrors("ClientScannerCloseSession", ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerCloseSession", ref apicmd);
                     if (!blSuccess)
                     {
                         string[] aszDescriptions = apicmd.GetApiErrorDescriptions();
@@ -1307,9 +1309,9 @@ namespace TwainDirect.App
         private void m_buttonStop_Click(object sender, EventArgs e)
         {
             m_blStopCapturing = true;
-            if (m_twainlocalscanner != null)
+            if (m_twainlocalscannerclient != null)
             {
-                m_twainlocalscanner.ClientWaitForSessionUpdateForceSet();
+                m_twainlocalscannerclient.ClientWaitForSessionUpdateForceSet();
             }
         }
 
@@ -1325,7 +1327,7 @@ namespace TwainDirect.App
             apicmd = new ApiCmd(m_dnssddeviceinfo);
 
             // We need this to get the x-privet-token...
-            blSuccess = m_twainlocalscanner.ClientInfo(ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientInfo(ref apicmd);
             if (!blSuccess)
             {
                 Log.Error("ClientInfo failed: " + apicmd.HttpResponseData());
@@ -1335,7 +1337,7 @@ namespace TwainDirect.App
             }
 
             // Create session...
-            blSuccess = m_twainlocalscanner.ClientScannerCreateSession(ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientScannerCreateSession(ref apicmd);
             if (!blSuccess)
             {
                 Log.Error("ClientScannerCreateSession failed: " + apicmd.HttpResponseData());
@@ -1366,7 +1368,7 @@ namespace TwainDirect.App
             apicmd = new ApiCmd(m_dnssddeviceinfo);
 
             // Wait for events...
-            blSuccess = m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientScannerWaitForEvents(ref apicmd);
             if (!blSuccess)
             {
                 // Log it, but stay open...
@@ -1381,7 +1383,7 @@ namespace TwainDirect.App
             Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.GetLinkLocal() + ")";
 
             // Create the setup form...
-            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscanner);
+            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient);
         }
 
         #endregion
@@ -1414,7 +1416,7 @@ namespace TwainDirect.App
         /// <summary>
         /// Our TWAIN Local interface to the scanning api...
         /// </summary>
-        private TwainLocalScanner m_twainlocalscanner;
+        private TwainLocalScannerClient m_twainlocalscannerclient;
 
         /// <summary>
         /// The thread we'll scan in, so that our UI remains
@@ -1436,11 +1438,6 @@ namespace TwainDirect.App
         /// List devices on the local area network...
         /// </summary>
         private Dnssd m_dnssd;
-
-        /// <summary>
-        /// Localized text...
-        /// </summary>
-        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// Use if something really bad happens...

@@ -76,8 +76,7 @@ namespace TwainDirect.Scanner
             (
                 m_resourcemanager,
                 Display,
-                null,
-                blConfirmScan ? (TwainLocalScanner.ConfirmScan)null : (TwainLocalScanner.ConfirmScan)null,
+                blConfirmScan ? (TwainLocalScannerDevice.ConfirmScan)null : (TwainLocalScannerDevice.ConfirmScan)null,
                 0,
                 out m_blNoDevices
             );

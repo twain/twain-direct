@@ -58,11 +58,12 @@ namespace TwainDirect.App
         /// Init stuff...
         /// </summary>
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
-        /// <param name="a_twainlocalscanner">our interface to the scanner</param>
-        public FormSetup(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, TwainLocalScanner a_twainlocalscanner)
+        /// <param name="a_twainlocalscannerclient">our interface to the scanner</param>
+        public FormSetup(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, TwainLocalScannerClient a_twainlocalscannerclient)
         {
             float fScale;
             string szWriteFolder;
+            ResourceManager resourcemanager;
 
             // Init stuff...
             InitializeComponent();
@@ -94,17 +95,17 @@ namespace TwainDirect.App
             }
             try
             {
-                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
+                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
-            m_labelSelectDestinationFolder.Text = m_resourcemanager.GetString("strLabelSelectImageDestination");
-            this.Text = m_resourcemanager.GetString("strFormSetupTitle");
+            m_labelSelectDestinationFolder.Text = resourcemanager.GetString("strLabelSelectImageDestination");
+            this.Text = resourcemanager.GetString("strFormSetupTitle");
 
             // More init stuff...
-            m_twainlocalscanner = a_twainlocalscanner;
+            m_twainlocalscannerclient = a_twainlocalscannerclient;
             this.FormClosing += new FormClosingEventHandler(FormSetup_FormClosing);
 
             // Location of current task...
@@ -249,18 +250,18 @@ namespace TwainDirect.App
                 string szSaveSpot = m_szTasksFolder;
                 if (!Directory.Exists(szSaveSpot))
                 {
-                    return (m_twainlocalscanner.GetImagesFolder());
+                    return (m_twainlocalscannerclient.GetImagesFolder());
                 }
                 szSaveSpot = File.ReadAllText(Path.Combine(szSaveSpot, "folder"));
                 if (!Directory.Exists(szSaveSpot))
                 {
-                    return (m_twainlocalscanner.GetImagesFolder());
+                    return (m_twainlocalscannerclient.GetImagesFolder());
                 }
                 return (szSaveSpot);
             }
             catch
             {
-                return (m_twainlocalscanner.GetImagesFolder());
+                return (m_twainlocalscannerclient.GetImagesFolder());
             }
         }
 
@@ -410,13 +411,13 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void m_textboxFolder_TextChanged(object sender, EventArgs e)
         {
-            if (m_twainlocalscanner.SetImagesFolder(m_textboxFolder.Text))
+            if (m_twainlocalscannerclient.SetImagesFolder(m_textboxFolder.Text))
             {
                 SaveFolder(m_textboxFolder.Text);
             }
             else
             {
-                m_textboxFolder.Text = m_twainlocalscanner.GetImagesFolder();
+                m_textboxFolder.Text = m_twainlocalscannerclient.GetImagesFolder();
             }
         }
 
@@ -431,17 +432,12 @@ namespace TwainDirect.App
         /// <summary>
         /// So we can pick a new images folder...
         /// </summary>
-        private TwainLocalScanner m_twainlocalscanner;
+        private TwainLocalScannerClient m_twainlocalscannerclient;
 
         /// <summary>
         /// The device we're talking to...
         /// </summary>
         private Dnssd.DnssdDeviceInfo m_dnssddeviceinfo;
-
-        /// <summary>
-        /// Localized strings...
-        /// </summary>
-        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// The settings folder...

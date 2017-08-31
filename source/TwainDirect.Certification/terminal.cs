@@ -62,7 +62,7 @@ namespace TwainDirect.Certification
             m_blSilentEvents = false;
             m_adnssddeviceinfoSnapshot = null;
             m_dnssddeviceinfoSelected = null;
-            m_twainlocalscanner = null;
+            m_twainlocalscannerclient = null;
             m_lkeyvalue = new List<KeyValue>();
             m_transactionLast = null;
             m_lcallstack = new List<CallStack>();
@@ -189,15 +189,15 @@ namespace TwainDirect.Certification
                 m_transactionLast = functionarguments.transaction;
 
                 // Update the prompt with state information...
-                if (m_twainlocalscanner == null)
+                if (m_twainlocalscannerclient == null)
                 {
                     interpreter.SetPrompt(szPrompt + ">>> ");
                 }
                 else
                 {
-                    switch (m_twainlocalscanner.GetState())
+                    switch (m_twainlocalscannerclient.GetState())
                     {
-                        default: interpreter.SetPrompt(szPrompt + "." + m_twainlocalscanner.GetState() + ">>> "); break;
+                        default: interpreter.SetPrompt(szPrompt + "." + m_twainlocalscannerclient.GetState() + ">>> "); break;
                         case "noSession": interpreter.SetPrompt(szPrompt + ">>> "); break;
                         case "ready": interpreter.SetPrompt(szPrompt + ".rdy>>> "); break;
                         case "capturing": interpreter.SetPrompt(szPrompt + ".cap>>> "); break;
@@ -224,7 +224,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -232,7 +232,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerCloseSession(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerCloseSession(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -254,7 +254,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -262,7 +262,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerCreateSession(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerCreateSession(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -284,7 +284,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -292,7 +292,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerGetSession(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerGetSession(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -314,7 +314,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -322,7 +322,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientInfo(ref apicmd, "info");
+            m_twainlocalscannerclient.ClientInfo(ref apicmd, "info");
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -344,7 +344,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -352,7 +352,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientInfo(ref apicmd, "infoex");
+            m_twainlocalscannerclient.ClientInfo(ref apicmd, "infoex");
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -374,7 +374,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -382,7 +382,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerInvalidCommand(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerInvalidCommand(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -404,7 +404,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -412,7 +412,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerInvalidUri(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerInvalidUri(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -436,7 +436,7 @@ namespace TwainDirect.Certification
             bool blGetThumbnail;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -469,7 +469,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerReadImageBlockMetadata(lImageBlock, blGetThumbnail, null, ref apicmd);
+            m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(lImageBlock, blGetThumbnail, null, ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -493,7 +493,7 @@ namespace TwainDirect.Certification
             bool blGetMetadataWithImage;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -526,7 +526,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerReadImageBlock(lImageBlock, blGetMetadataWithImage, null, ref apicmd);
+            m_twainlocalscannerclient.ClientScannerReadImageBlock(lImageBlock, blGetMetadataWithImage, null, ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -550,7 +550,7 @@ namespace TwainDirect.Certification
             long lLastImageBlock;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -578,7 +578,7 @@ namespace TwainDirect.Certification
             {
                 // Make the call...
                 apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-                m_twainlocalscanner.ClientScannerReleaseImageBlocks(lFirstImageBlock, lLastImageBlock, ref apicmd);
+                m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(lFirstImageBlock, lLastImageBlock, ref apicmd);
 
                 // Squirrel away the transaction...
                 a_functionarguments.transaction = apicmd.GetTransaction();
@@ -624,7 +624,7 @@ namespace TwainDirect.Certification
             string szTask;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -657,7 +657,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerSendTask(szTask, ref apicmd);
+            m_twainlocalscannerclient.ClientScannerSendTask(szTask, ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -679,7 +679,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -687,7 +687,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerStartCapturing(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerStartCapturing(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -709,7 +709,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -717,7 +717,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscanner.ClientScannerStopCapturing(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -739,7 +739,7 @@ namespace TwainDirect.Certification
             ApiCmd apicmd;
 
             // Validate...
-            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscanner == null))
+            if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
                 DisplayError("must first select a scanner...");
                 return (false);
@@ -755,7 +755,7 @@ namespace TwainDirect.Certification
             // Make the call, this is where we register the callback we
             // want to fire when events show up...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected, WaitForEventsCallbackLaunchpad, this);
-            m_twainlocalscanner.ClientScannerWaitForEvents(ref apicmd);
+            m_twainlocalscannerclient.ClientScannerWaitForEvents(ref apicmd);
 
             // Squirrel away the partial transaction (we usually won't have a reply)...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -2352,15 +2352,15 @@ namespace TwainDirect.Certification
                 }
 
                 // Update the prompt with state information...
-                if (m_twainlocalscanner == null)
+                if (m_twainlocalscannerclient == null)
                 {
                     szPrompt = "tdc>>> ";
                 }
                 else
                 {
-                    switch (m_twainlocalscanner.GetState())
+                    switch (m_twainlocalscannerclient.GetState())
                     {
-                        default: szPrompt = "tdc." + m_twainlocalscanner.GetState() + ">>> "; break;
+                        default: szPrompt = "tdc." + m_twainlocalscannerclient.GetState() + ">>> "; break;
                         case "noSession": szPrompt = "tdc>>> "; break;
                         case "ready": szPrompt = "tdc.rdy>>> "; break;
                         case "capturing": szPrompt = "tdc.cap>>> "; break;
@@ -2409,10 +2409,10 @@ namespace TwainDirect.Certification
 
             // Clear the last selected scanner...
             m_dnssddeviceinfoSelected = null;
-            if (m_twainlocalscanner != null)
+            if (m_twainlocalscannerclient != null)
             {
-                m_twainlocalscanner.Dispose();
-                m_twainlocalscanner = null;
+                m_twainlocalscannerclient.Dispose();
+                m_twainlocalscannerclient = null;
             }
 
             // If we don't have a snapshot, get one...
@@ -2477,7 +2477,7 @@ namespace TwainDirect.Certification
                 {
                     Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv6() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
                 }
-                m_twainlocalscanner = new TwainLocalScanner(null, 1, null, null, null, false);
+                m_twainlocalscannerclient = new TwainLocalScannerClient(1, null, null, null, false);
                 SetReturnValue("true");
             }
             else
@@ -2660,11 +2660,11 @@ namespace TwainDirect.Certification
             {
                 if ((a_functionarguments.aszCmd.Length < 3) || string.IsNullOrEmpty(a_functionarguments.aszCmd[2]))
                 {
-                    m_twainlocalscanner.ClientCertificationTwainLocalSessionCreate();
+                    m_twainlocalscannerclient.ClientCertificationTwainLocalSessionCreate();
                 }
                 else
                 {
-                    m_twainlocalscanner.ClientCertificationTwainLocalSessionCreate(a_functionarguments.aszCmd[2]);
+                    m_twainlocalscannerclient.ClientCertificationTwainLocalSessionCreate(a_functionarguments.aszCmd[2]);
                 }
                 return (false);
             }
@@ -2672,7 +2672,7 @@ namespace TwainDirect.Certification
             // Destroy a session...
             if (a_functionarguments.aszCmd[1] == "destroy")
             {
-                m_twainlocalscanner.ClientCertificationTwainLocalSessionDestroy();
+                m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy();
                 return (false);
             }
 
@@ -2711,7 +2711,7 @@ namespace TwainDirect.Certification
             }
 
             // Wait...
-            blSignaled = m_twainlocalscanner.ClientWaitForSessionUpdate(lTimeout);
+            blSignaled = m_twainlocalscannerclient.ClientWaitForSessionUpdate(lTimeout);
 
             // Update the return value...
             callstack = m_lcallstack[m_lcallstack.Count - 1];
@@ -2898,7 +2898,7 @@ namespace TwainDirect.Certification
                     szStatus = "(running)";
 
                     // Perform the test...
-                    blSuccess = m_twainlocalscanner.ClientScannerSendTask(aszTestData[1], ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientScannerSendTask(aszTestData[1], ref apicmd);
                     if (!blSuccess)
                     {
                         //mlmtbd Add errror check...
@@ -3244,10 +3244,10 @@ namespace TwainDirect.Certification
             // Free managed resources...
             if (a_blDisposing)
             {
-                if (m_twainlocalscanner != null)
+                if (m_twainlocalscannerclient != null)
                 {
-                    m_twainlocalscanner.Dispose();
-                    m_twainlocalscanner = null;
+                    m_twainlocalscannerclient.Dispose();
+                    m_twainlocalscannerclient = null;
                 }
                 if (m_dnssd != null)
                 {
@@ -3567,7 +3567,7 @@ namespace TwainDirect.Certification
                         // Image blocks value...
                         if (szTarget.StartsWith("imageBlocks[") && szTarget.EndsWith("]"))
                         {
-                            if (m_twainlocalscanner != null)
+                            if (m_twainlocalscannerclient != null)
                             {
                                 string[] szIndex = szTarget.Split(new string[] { "[", "]" }, StringSplitOptions.None);
                                 if ((szIndex == null) || (szIndex.Length < 2) || !int.TryParse(szIndex[1], out iIndex))
@@ -3576,7 +3576,7 @@ namespace TwainDirect.Certification
                                 }
                                 else
                                 {
-                                    long[] lImageBlocks = m_twainlocalscanner.ClientGetImageBlocks();
+                                    long[] lImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
                                     if ((lImageBlocks != null) && (iIndex >= 0) && (iIndex < lImageBlocks.Length))
                                     {
                                         szValue = lImageBlocks[iIndex].ToString();
@@ -3589,9 +3589,9 @@ namespace TwainDirect.Certification
                         else if (szTarget == "imageBlocksDrained")
                         {
                             szValue = "true";
-                            if (m_twainlocalscanner != null)
+                            if (m_twainlocalscannerclient != null)
                             {
-                                szValue = m_twainlocalscanner.ClientGetImageBlocksDrained() ? "true" : "false";
+                                szValue = m_twainlocalscannerclient.ClientGetImageBlocksDrained() ? "true" : "false";
                             }
                         }
 
@@ -3599,9 +3599,9 @@ namespace TwainDirect.Certification
                         else if (szTarget == "state")
                         {
                             szValue = "noSession";
-                            if (m_twainlocalscanner != null)
+                            if (m_twainlocalscannerclient != null)
                             {
-                                szValue = m_twainlocalscanner.ClientGetSessionState();
+                                szValue = m_twainlocalscannerclient.ClientGetSessionState();
                             }
                         }
                     }
@@ -3899,7 +3899,7 @@ namespace TwainDirect.Certification
         /// <summary>
         /// The connection to our device...
         /// </summary>
-        private TwainLocalScanner m_twainlocalscanner;
+        private TwainLocalScannerClient m_twainlocalscannerclient;
 
         /// <summary>
         /// Script to call when waitForEvents returns events...
