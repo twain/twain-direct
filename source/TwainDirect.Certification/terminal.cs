@@ -2477,7 +2477,7 @@ namespace TwainDirect.Certification
                 {
                     Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv6() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
                 }
-                m_twainlocalscannerclient = new TwainLocalScannerClient(1, null, null, null, false);
+                m_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
                 SetReturnValue("true");
             }
             else

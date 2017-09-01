@@ -82,32 +82,36 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_confirmscan">user must confirm a scan request</param>
         /// <param name="a_fConfirmScanScale">scale the confirmation dialog</param>
-        /// <param name="a_eventcallback">event function</param>
-        /// <param name="a_objectEventCallback">object that provided the event</param>
         /// <param name="a_displaycallback">display callback</param>
         /// <param name="a_blCreateTwainLocalSession">true for the server only</param>
         public TwainLocalScannerDevice
         (
             ConfirmScan a_confirmscan,
             float a_fConfirmScanScale,
-            EventCallback a_eventcallback,
-            object a_objectEventCallback,
             DisplayCallback a_displaycallback,
             bool a_blCreateTwainLocalSession
         ) : base
         (
-            a_fConfirmScanScale,
-            a_eventcallback,
-            a_objectEventCallback,
-            a_displaycallback,
             a_blCreateTwainLocalSession
         )
         {
             // Save the confirmscan callback, if given one...
             m_confirmscan = a_confirmscan;
 
+            // So we can change the size of the confirmation dialog...
+            m_fConfirmScanScale = a_fConfirmScanScale;
+
             // Keep this for the life of the bridge...
             m_szDeviceSecret = Guid.NewGuid().ToString();
+
+            // Used to display status on the console...
+            m_displaycallback = a_displaycallback;
+
+            // Our locks...
+            m_objectLockDeviceApi = new object();
+            m_objectLockDeviceHttpServerStop = new object();
+            m_objectLockOnChangedBridge = new object();
+            m_objectLockOnChangedImageBlocks = new object();
 
             // Init our idle session timeout...
             long lSessionTimeout = 300000; // five minutes
@@ -348,7 +352,7 @@ namespace TwainDirect.Support
 
             // If we are running a session, make sure that the command's session id matches
             // our session's id...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // If we have no session, and we're not processing "createSession" then
                 // we have a problem.  We can get here if the session timeout was hit...
@@ -722,6 +726,12 @@ namespace TwainDirect.Support
         /// <returns>button the user pressed</returns>
         public delegate ButtonPress ConfirmScan(float a_fConfirmScanScale);
 
+        /// <summary>
+        /// Display callback...
+        /// </summary>
+        /// <param name="a_szText">text to display</param>
+        public delegate void DisplayCallback(string a_szText);
+
         #endregion
 
 
@@ -878,7 +888,7 @@ namespace TwainDirect.Support
         )
         {
             // Guard us...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // We only have an event if we have a session...
                 if (m_twainlocalsession != null)
@@ -897,18 +907,25 @@ namespace TwainDirect.Support
         /// <param name="a_objectState"></param>
         internal void DeviceEventTimerCallback(object a_objectState)
         {
-            // Turn us off...
-            m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
-
             // Get our scanner object...
             TwainLocalScannerDevice twainlocalscannerdevice = (TwainLocalScannerDevice)a_objectState;
 
+            // We shouldn't be here...
+            if ((m_timerEvent == null) || (m_twainlocalsession == null) || (m_twainlocalsession.GetSessionState() == SessionState.noSession))
+            {
+                if (m_timerEvent != null)
+                {
+                    m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+                return;
+            }
+
+            // Turn us off...
+            m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+
             // Tell the application that this event has timed out, so it
             // needs to set up a new one...
-            if (m_twainlocalsession != null)
-            {
-                twainlocalscannerdevice.DeviceSendEvent("timeout", m_twainlocalsession.GetSessionState(), false);
-            }
+            twainlocalscannerdevice.DeviceSendEvent("timeout", m_twainlocalsession.GetSessionState(), false);
         }
 
         /// <summary>
@@ -1440,7 +1457,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerCloseSession";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
@@ -1565,7 +1582,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerCreateSession";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Create it if we need it...
                 if (m_twainlocalsession == null)
@@ -1714,6 +1731,18 @@ namespace TwainDirect.Support
             return (true);
         }
 
+        /// <summary>
+        /// Display a message, if we have a callback for it...
+        /// </summary>
+        /// <param name="a_szMsg">the message to display</param>
+        private void Display(string a_szMsg)
+        {
+            if (m_displaycallback != null)
+            {
+                m_displaycallback(a_szMsg);
+            }
+        }
+
         private void TwainLocalScanner_Exited(object sender, EventArgs e)
         {
             DeviceSessionExited(false);
@@ -1748,7 +1777,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerGetSession";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 //////////////////////////////////////////////////////////////////////
                 // This path is taken for getSession
@@ -1920,7 +1949,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerReadImageBlock";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
@@ -2018,7 +2047,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerReadImageBlockMetadata";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
@@ -2114,7 +2143,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerReleaseImageBlocks";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
@@ -2236,7 +2265,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerSendTask";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
@@ -2613,7 +2642,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerStartCapturing";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
@@ -2729,7 +2758,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceScannerStopCapturing";
 
             // Protect our stuff...
-            lock (m_objectLock)
+            lock (m_objectLockDeviceApi)
             {
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
@@ -2880,11 +2909,29 @@ namespace TwainDirect.Support
             // Cleanup...
             if (a_sessionstate == SessionState.noSession)
             {
+                // Lose the eventing stuff on the device side...
+                if (m_apicmdEvent != null)
+                {
+                    m_apicmdEvent.HttpAbort();
+                    m_apicmdEvent = null;
+                }
+
+                // Don't let the event timeout fire...
+                if (m_timerEvent != null)
+                {
+                    m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+                    m_timerEvent.Dispose();
+                    m_timerEvent = null;
+                }
+
                 // Lose the timer...
                 if (m_timerSession != null)
                 {
                     m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
                 }
+
+                // Display what happened...
+                Display(a_szSessionEndedMessage);
             }
 
             // Return the previous state...
@@ -2902,9 +2949,20 @@ namespace TwainDirect.Support
         #region Private Attributes...
 
         /// <summary>
+        /// The long poll is on this guy, we'll respond to him when
+        /// and if we have an event...
+        /// </summary>
+        private ApiCmd m_apicmdEvent;
+
+        /// <summary>
         /// Use this to confirm a scan request...
         /// </summary>
         private ConfirmScan m_confirmscan;
+
+        /// <summary>
+        /// So we can have a bigger form...
+        /// </summary>
+        private float m_fConfirmScanScale;
 
         /// <summary>
         /// This value is generated whenever the TWAIN Local
@@ -2917,15 +2975,43 @@ namespace TwainDirect.Support
         private string m_szDeviceSecret;
 
         /// <summary>
+        /// Optional callback for displaying text, this could
+        /// be useful for debugging...
+        /// </summary>
+        private DisplayCallback m_displaycallback;
+
+        /// <summary>
         /// Our HTTP server, all sessions must past through
         /// one server...
         /// </summary>
         private HttpServer m_httpserver;
 
+        // If we're splitting up the TWAIN Bridge images into smaller
+        // chunks, then we have to create a new sequence of image
+        // block numbers.  In that case this counter keeps track of
+        // those image block numbers.  If we're not splitting up the
+        // images, this value doesn't get used (because we're just
+        // renaming the *.xxxtmp files to *.xxx, which will preserve
+        // the number we got from the TWAIN driver...
+        private long m_lImageBlockNumber;
+
+        /// <summary>
+        /// Something we can lock...
+        /// </summary>
+        private object m_objectLockDeviceApi;
+        private object m_objectLockDeviceHttpServerStop;
+        private object m_objectLockOnChangedBridge;
+        private object m_objectLockOnChangedImageBlocks;
+
         /// <summary>
         /// Idle time before a session times out (in milliseconds)...
         /// </summary>
         private long m_lSessionTimeout;
+
+        /// <summary>
+        /// Our event timer for m_apicmdEvent...
+        /// </summary>
+        private Timer m_timerEvent;
 
         /// <summary>
         /// Our session timer for /privet/twaindirect/session...
@@ -2948,29 +3034,59 @@ namespace TwainDirect.Support
         /// <summary>
         /// Init us...
         /// </summary>
-        /// <param name="a_confirmscan">user must confirm a scan request</param>
         /// <param name="a_fConfirmScanScale">scale the confirmation dialog</param>
         /// <param name="a_eventcallback">event function</param>
         /// <param name="a_objectEventCallback">object that provided the event</param>
-        /// <param name="a_displaycallback">display callback</param>
         /// <param name="a_blCreateTwainLocalSession">true for the server only</param>
         public TwainLocalScannerClient
         (
-            float a_fConfirmScanScale,
             EventCallback a_eventcallback,
             object a_objectEventCallback,
-            DisplayCallback a_displaycallback,
             bool a_blCreateTwainLocalSession
         ) : base
         (
-            a_fConfirmScanScale,
-            a_eventcallback,
-            a_objectEventCallback,
-            a_displaycallback,
             a_blCreateTwainLocalSession
         )
         {
-            // Nothing needed yet...
+            int iDefault;
+
+            // We use this to get notification about events...
+            m_blCancelWaitForEventsProcessing = false;
+            m_autoreseteventWaitForEvents = new AutoResetEvent(false);
+            m_autoreseteventWaitForEventsProcessing = new AutoResetEvent(false);
+
+            // The callback we use to send messages about events,
+            // such as critical and sessionTimedOut...
+            m_eventcallback = a_eventcallback;
+
+            // The payload for the event callback, probably the
+            // caller's object...
+            m_objectEventCallback = a_objectEventCallback;
+
+            // Init our command timeout for HTTPS communication...
+            iDefault = 15000; // 15 seconds
+            m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
+            if (m_iHttpTimeoutCommand < 5000)
+            {
+                m_iHttpTimeoutCommand = iDefault;
+            }
+
+            // Init our data timeout for HTTPS communication...
+            iDefault = 30000; // 30 seconds
+            m_iHttpTimeoutData = (int)Config.Get("httpTimeoutData", iDefault);
+            if (m_iHttpTimeoutData < 10000)
+            {
+                m_iHttpTimeoutData = iDefault;
+            }
+
+            // Our locks...
+            m_objectLockClientApi = new object();
+            m_objectLockClientFinishImage = new object();
+
+            // The list of image blocks that we've received from
+            // the scanner, and which we need to merge into finished
+            // images...
+            m_llPendingImageBlocks = new List<long>();
         }
 
         /// <summary>
@@ -2983,6 +3099,20 @@ namespace TwainDirect.Support
             {
                 m_waitforeventsinfo.Dispose();
                 m_waitforeventsinfo = null;
+            }
+
+            // No more triggers...
+            if (m_autoreseteventWaitForEvents != null)
+            {
+                m_autoreseteventWaitForEvents.Dispose();
+                m_autoreseteventWaitForEvents = null;
+            }
+
+            // No more triggers...
+            if (m_autoreseteventWaitForEventsProcessing != null)
+            {
+                m_autoreseteventWaitForEventsProcessing.Dispose();
+                m_autoreseteventWaitForEventsProcessing = null;
             }
 
             // Zap the rest of it...
@@ -3501,7 +3631,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerCloseSession";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -3572,7 +3702,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerCreateSession";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 // Create it if we need it...
                 if (m_twainlocalsession == null)
@@ -3632,7 +3762,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerGetSession";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -3688,7 +3818,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerInvalidCommand";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
@@ -3731,7 +3861,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerInvalidUri";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
@@ -3780,7 +3910,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerReadImageBlock";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -3894,7 +4024,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerReadImageBlockMetadata";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -4012,7 +4142,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerReleaseImageBlocks";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -4089,7 +4219,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerSendTask";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -4145,7 +4275,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerStartCapturing";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -4206,7 +4336,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerStopCapturing";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
@@ -4261,7 +4391,7 @@ namespace TwainDirect.Support
             string szFunction = "ClientScannerWaitForEvents";
 
             // Lock this command to protect the session object...
-            lock (m_objectLock)
+            lock (m_objectLockClientApi)
             {
                 string szSessionId = "";
 
@@ -4386,6 +4516,21 @@ namespace TwainDirect.Support
                 m_twainlocalsession = null;
             }
         }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Definitions...
+
+        /// <summary>
+        /// Delegate for event callback...
+        /// </summary>
+        /// <param name="a_object">caller's object</param>
+        /// <param name="a_szEvent">event</param>
+        public delegate void EventCallback(object a_object, string a_szEvent);
 
         #endregion
 
@@ -4771,7 +4916,7 @@ namespace TwainDirect.Support
 
                     // Handle the event, at this point all we ever expect to see
                     // are updates for the session object...
-                    lock (m_objectLock)
+                    lock (m_objectLockClientApi)
                     {
                         string szCode;
 
@@ -4926,7 +5071,7 @@ namespace TwainDirect.Support
                             // to the imageBlocks array from stuff being added or removed...
                             case "imageBlocks":
                                 Log.Verbose(szFunction + ": imageBlocks event...");
-                                lock (m_objectLock)
+                                lock (m_objectLockClientApi)
                                 {
                                     // Check the session revision number...
                                     if (!int.TryParse(jsonlookup.Get(szEvent + ".session.revision", false), out iSessionRevision))
@@ -5169,9 +5314,56 @@ namespace TwainDirect.Support
         #region Private Attributes...
 
         /// <summary>
+        /// Event callback function...
+        /// </summary>
+        private EventCallback m_eventcallback;
+
+        /// <summary>
+        /// Caller's object for the event callback function...
+        /// </summary>
+        private object m_objectEventCallback;
+
+        /// <summary>
+        /// Command timeout, this should be short (and in milliseconds)...
+        /// </summary>
+        private int m_iHttpTimeoutCommand;
+
+        /// <summary>
+        /// Data timeout, this should be long (and in milliseconds)...
+        /// </summary>
+        private int m_iHttpTimeoutData;
+
+        /// <summary>
+        /// Something we can lock...
+        /// </summary>
+        private object m_objectLockClientApi;
+        private object m_objectLockClientFinishImage;
+
+        /// <summary>
+        /// We maintain a list of the image blocks that we've not
+        /// yet turned into finished images.
+        /// </summary>
+        private List<long> m_llPendingImageBlocks;
+
+        /// <summary>
+        /// We only need this value long enough to get it from
+        /// info or infoex to createSession, and specifically
+        /// into the TwainLocalSession object, which will maintain
+        /// it for the life of the session...
+        /// </summary>
+        private string m_szXPrivetToken;
+
+        /// <summary>
         /// Event info...
         /// </summary>
         private WaitForEventsInfo m_waitforeventsinfo;
+
+        /// <summary>
+        /// Our signal to the client that an event has arrived...
+        /// </summary>
+        private AutoResetEvent m_autoreseteventWaitForEvents;
+        private AutoResetEvent m_autoreseteventWaitForEventsProcessing;
+        private bool m_blCancelWaitForEventsProcessing;
 
         #endregion
     }
@@ -5189,64 +5381,20 @@ namespace TwainDirect.Support
         /// <summary>
         /// Init us...
         /// </summary>
-        /// <param name="a_confirmscan">user must confirm a scan request</param>
-        /// <param name="a_fConfirmScanScale">scale the confirmation dialog</param>
-        /// <param name="a_eventcallback">event function</param>
-        /// <param name="a_objectEventCallback">object that provided the event</param>
-        /// <param name="a_displaycallback">display callback</param>
         /// <param name="a_blCreateTwainLocalSession">true for the server only</param>
         public TwainLocalScanner
         (
-            float a_fConfirmScanScale,
-            EventCallback a_eventcallback,
-            object a_objectEventCallback,
-            DisplayCallback a_displaycallback,
             bool a_blCreateTwainLocalSession
         )
         {
-            int iDefault;
-
-            // Init our command timeout for HTTPS communication...
-            iDefault = 15000; // 15 seconds
-            m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
-            if (m_iHttpTimeoutCommand < 5000)
-            {
-                m_iHttpTimeoutCommand = iDefault;
-            }
-
-            // Init our data timeout for HTTPS communication...
-            iDefault = 30000; // 30 seconds
-            m_iHttpTimeoutData = (int)Config.Get("httpTimeoutData", iDefault);
-            if (m_iHttpTimeoutData < 10000)
-            {
-                m_iHttpTimeoutData = iDefault;
-            }
-
             // Init stuff...
             m_szWriteFolder = Config.Get("writeFolder", "");
-            m_fConfirmScanScale = a_fConfirmScanScale;
-            m_eventcallback = a_eventcallback;
-            m_objectEventCallback = a_objectEventCallback;
-            m_displaycallback = a_displaycallback;
-            m_llPendingImageBlocks = new List<long>();
 
             // Set up session specific content...
             if (a_blCreateTwainLocalSession)
             {
                 m_twainlocalsessionInfo = new TwainLocalSession("");
             }
-
-            // Our locks...
-            m_objectLock = new object();
-            m_objectLockClientFinishImage = new object();
-            m_objectLockDeviceHttpServerStop = new object();
-            m_objectLockOnChangedBridge = new object();
-            m_objectLockOnChangedImageBlocks = new object();
-
-            // We use this to get notification about events...
-            m_blCancelWaitForEventsProcessing = false;
-            m_autoreseteventWaitForEvents = new AutoResetEvent(false);
-            m_autoreseteventWaitForEventsProcessing = new AutoResetEvent(false);
 
             // This is our default location for storing imageblocks
             // and metadata...
@@ -5484,19 +5632,6 @@ namespace TwainDirect.Support
         /// <returns></returns>
         public delegate bool ScanCallback(string a_szMetadata, string a_szImageBlock);
 
-        /// <summary>
-        /// Delegate for event callback...
-        /// </summary>
-        /// <param name="a_object">caller's object</param>
-        /// <param name="a_szEvent">event</param>
-        public delegate void EventCallback(object a_object, string a_szEvent);
-
-        /// <summary>
-        /// Display callback...
-        /// </summary>
-        /// <param name="a_szText">text to display</param>
-        public delegate void DisplayCallback(string a_szText);
-
         #endregion
 
 
@@ -5504,18 +5639,6 @@ namespace TwainDirect.Support
         // Protected Common methods...
         ///////////////////////////////////////////////////////////////////////////////
         #region Protected Common Methods...
-
-        /// <summary>
-        /// Display a message, if we have a callback for it...
-        /// </summary>
-        /// <param name="a_szMsg">the message to display</param>
-        protected void Display(string a_szMsg)
-        {
-            if (m_displaycallback != null)
-            {
-                m_displaycallback(a_szMsg);
-            }
-        }
 
         /// <summary>
         /// Set the session state, and do additional cleanup work, if needed...
@@ -5543,21 +5666,6 @@ namespace TwainDirect.Support
             // Cleanup...
             if (a_sessionstate == SessionState.noSession)
             {
-                // Don't let the event timeout fire...
-                if (m_timerEvent != null)
-                {
-                    m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
-                    m_timerEvent.Dispose();
-                    m_timerEvent = null;
-                }
-
-                // Lose the eventing stuff on the device side...
-                if (m_apicmdEvent != null)
-                {
-                    m_apicmdEvent.HttpAbort();
-                    m_apicmdEvent = null;
-                }
-
                 // Lose the session...
                 if (m_twainlocalsession != null)
                 {
@@ -5565,9 +5673,6 @@ namespace TwainDirect.Support
                     m_twainlocalsession.Dispose();
                     m_twainlocalsession = null;
                 }
-
-                // Display what happened...
-                Display(a_szSessionEndedMessage);
             }
 
             // Return the previous state...
@@ -5629,16 +5734,6 @@ namespace TwainDirect.Support
             // Free managed resources...
             if (a_blDisposing)
             {
-                if (m_autoreseteventWaitForEvents != null)
-                {
-                    m_autoreseteventWaitForEvents.Dispose();
-                    m_autoreseteventWaitForEvents = null;
-                }
-                if (m_autoreseteventWaitForEventsProcessing != null)
-                {
-                    m_autoreseteventWaitForEventsProcessing.Dispose();
-                    m_autoreseteventWaitForEventsProcessing = null;
-                }
                 if (m_twainlocalsession != null)
                 {
                     m_twainlocalsession.SetUserShutdown(true);
@@ -5888,40 +5983,12 @@ namespace TwainDirect.Support
         protected TwainLocalSession m_twainlocalsession;
 
         /// <summary>
-        /// Optional callback for displaying text, this could
-        /// be useful for debugging...
-        /// </summary>
-        protected DisplayCallback m_displaycallback;
-
-        /// <summary>
-        /// Event callback function...
-        /// </summary>
-        protected EventCallback m_eventcallback;
-
-        /// <summary>
-        /// Something we can lock...
-        /// </summary>
-        protected object m_objectLock;
-        protected object m_objectLockClientFinishImage;
-        protected object m_objectLockDeviceHttpServerStop;
-        protected object m_objectLockOnChangedBridge;
-        protected object m_objectLockOnChangedImageBlocks;
-
-        /// <summary>
-        /// We only need this value long enough to get it from
-        /// info or infoex to createSession, and specifically
-        /// into the TwainLocalSession object, which will maintain
-        /// it for the life of the session...
-        /// </summary>
-        protected string m_szXPrivetToken;
-
-        /// <summary>
         /// A place to store data, like logs and stuff...
         /// </summary>
         protected string m_szWriteFolder;
 
         /// <summary>
-        /// This is where the imageblocks and metadata are stored.
+        /// This is where the imageBlocks and metadata are stored.
         /// </summary>
         protected string m_szImagesFolder;
 
@@ -5929,59 +5996,6 @@ namespace TwainDirect.Support
         /// Our current platform...
         /// </summary>
         protected static Platform ms_platform = Platform.UNKNOWN;
-
-        /// <summary>
-        /// So we can have a bigger form...
-        /// </summary>
-        protected float m_fConfirmScanScale;
-
-        /// <summary>
-        /// Caller's object for the event callback function...
-        /// </summary>
-        protected object m_objectEventCallback;
-
-        /// <summary>
-        /// Command timeout, this should be short (and in milliseconds)...
-        /// </summary>
-        protected int m_iHttpTimeoutCommand;
-
-        /// <summary>
-        /// Data timeout, this should be long (and in milliseconds)...
-        /// </summary>
-        protected int m_iHttpTimeoutData;
-
-        /// <summary>
-        /// Our signal to the client that an event has arrived...
-        /// </summary>
-        protected AutoResetEvent m_autoreseteventWaitForEvents;
-        protected AutoResetEvent m_autoreseteventWaitForEventsProcessing;
-        protected bool m_blCancelWaitForEventsProcessing;
-
-        /// <summary>
-        /// The long poll is on this guy, we'll respond to him when
-        /// and if we have an event...
-        /// </summary>
-        protected ApiCmd m_apicmdEvent;
-
-        /// <summary>
-        /// Our event timer for m_apicmdEvent...
-        /// </summary>
-        protected Timer m_timerEvent;
-
-        // If we're splitting up the TWAIN Bridge images into smaller
-        // chunks, then we have to create a new sequence of image
-        // block numbers.  In that case this counter keeps track of
-        // those image block numbers.  If we're not splitting up the
-        // images, this value doesn't get used (because we're just
-        // renaming the *.xxxtmp files to *.xxx, which will preserve
-        // the number we got from the TWAIN driver...
-        protected long m_lImageBlockNumber;
-
-        /// <summary>
-        /// We maintain a list of the image blocks that we've not
-        /// yet turned into finished images.
-        /// </summary>
-        protected List<long> m_llPendingImageBlocks;
 
         #endregion
 

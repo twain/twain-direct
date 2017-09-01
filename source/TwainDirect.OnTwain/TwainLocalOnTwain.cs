@@ -1014,11 +1014,33 @@ namespace TwainDirect.OnTwain
             a_szSession = "";
 
             // Make sure the images folder is empty...
-            if (Directory.Exists(m_szImagesFolder))
+            try
             {
-                Directory.Delete(m_szImagesFolder, true);
+                if (Directory.Exists(m_szImagesFolder))
+                {
+                    Directory.Delete(m_szImagesFolder, true);
+                }
             }
-            Directory.CreateDirectory(m_szImagesFolder);
+            catch (Exception exception)
+            {
+                TWAINWorkingGroup.Log.Error("Could not delete <" + m_szImagesFolder + "> - " + exception.Message);
+            }
+
+            // Make sure we have an images folder...
+            try
+            {
+                if (Directory.Exists(m_szImagesFolder))
+                {
+                    Directory.CreateDirectory(m_szImagesFolder);
+                }
+            }
+            catch (Exception exception)
+            {
+                TWAINWorkingGroup.Log.Error("Could not create <" + m_szImagesFolder + "> - " + exception.Message);
+                m_twaincstoolkit = null;
+                m_szTwainDriverIdentity = null;
+                return (TwainLocalScanner.ApiStatus.newSessionNotAllowed);
+            }
 
             // Create the toolkit...
             try

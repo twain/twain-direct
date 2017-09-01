@@ -57,7 +57,7 @@ namespace TwainDirect.Scanner
         public Scanner
         (
             ResourceManager a_resourcemanager,
-            TwainLocalScanner.DisplayCallback a_displaycallback,
+            TwainLocalScannerDevice.DisplayCallback a_displaycallback,
             TwainLocalScannerDevice.ConfirmScan a_confirmscan,
             float a_fConfirmScanScale,
             out bool a_blNoDevices
@@ -96,7 +96,7 @@ namespace TwainDirect.Scanner
             }
 
             // Get our TWAIN Local interface...
-            m_twainlocalscannerdevice = new TwainLocalScannerDevice(a_confirmscan, a_fConfirmScanScale, null, null, Display, true);
+            m_twainlocalscannerdevice = new TwainLocalScannerDevice(a_confirmscan, a_fConfirmScanScale, Display, true);
             if (m_twainlocalscannerdevice == null)
             {
                 Log.Error("Failed to create TwainLocalScanner");
