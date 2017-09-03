@@ -2442,25 +2442,31 @@ namespace TwainDirect.Support
                         m_twainlocalsession.SetSessionDoneCapturing(File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")));
                     }
 
-                    // Set the flag if we can't get any more images...
+                    // If we can't get any more images, then we need to start
+                    // checking if we've drained the pool...
                     if ((m_twainlocalsession != null) && m_twainlocalsession.GetSessionDoneCapturing())
                     {
-                        // Make a note of this...
-                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
-
-                        // Where we go next depends on our current state...
-                        switch (GetState())
+                        // We've run out of stuff to send...
+                        string[] aszTd = Directory.GetFiles(m_szTdImagesFolder, "*.td*");
+                        if ((aszTd == null) || (aszTd.Length == 0))
                         {
-                            default:
-                                // Ignore it...
-                                break;
-                            case "draining":
-                                SetSessionState(SessionState.ready);
-                                break;
-                            case "closed":
-                                SetSessionState(SessionState.noSession);
-                                DeviceShutdownTwainDirectOnTwain(false);
-                                break;
+                            // Make a note of this...
+                            m_twainlocalsession.SetSessionImageBlocksDrained(true);
+
+                            // Where we go next depends on our current state...
+                            switch (GetState())
+                            {
+                                default:
+                                    // Ignore it...
+                                    break;
+                                case "draining":
+                                    SetSessionState(SessionState.ready);
+                                    break;
+                                case "closed":
+                                    SetSessionState(SessionState.noSession);
+                                    DeviceShutdownTwainDirectOnTwain(false);
+                                    break;
+                            }
                         }
                     }
                 }
@@ -3941,19 +3947,6 @@ namespace TwainDirect.Support
                     ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
                 }
-
-                // A session can be closed with pending imageBlocks, in which case
-                // it's in a closed state, but it can't transition to NoSession
-                // until all of the images have been released...
-                if ((m_twainlocalsession.m_alSessionImageBlocks == null)
-                    || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))
-                {
-                    SetSessionState(SessionState.noSession);
-                }
-                else
-                {
-                    SetSessionState(SessionState.closed);
-                }
             }
 
             // All done...
@@ -4014,9 +4007,6 @@ namespace TwainDirect.Support
                     }
                     return (false);
                 }
-
-                // Set our state (to get this far, things must be okay)...
-                SetSessionState(SessionState.ready);
             }
 
             // All done...
@@ -4453,25 +4443,6 @@ namespace TwainDirect.Support
                 {
                     ClientReturnError(a_apicmd, false, "", 0, "");
                     return (false);
-                }
-
-                // If closeSession was previously called, we can be in a closed
-                // state, until all of the image blocks have been released.  We'll
-                // also go noSession if our m_twainlocalsession has gone bye-bye...
-                if ((m_twainlocalsession == null)
-                    || ((m_twainlocalsession.GetSessionState() == SessionState.closed)
-                    && ((m_twainlocalsession.m_alSessionImageBlocks == null) || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))))
-                {
-                    SetSessionState(SessionState.noSession);
-                }
-
-                // If stopCapturing was previously called, we can be in a draining
-                // state, until all of the image blocks have been released...
-                else if ((m_twainlocalsession.GetSessionState() == SessionState.draining)
-                         && ((m_twainlocalsession.m_alSessionImageBlocks == null)
-                         || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0)))
-                {
-                    SetSessionState(SessionState.ready);
                 }
             }
 
