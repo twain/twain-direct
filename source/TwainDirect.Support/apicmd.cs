@@ -350,6 +350,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Are will still capturing new images?
+        /// </summary>
+        /// <returns>try if capturing is done</returns>
+        public bool GetDoneCapturing()
+        {
+            return (m_blSessionDoneCapturing);
+        }
+
+        /// <summary>
         /// Return the image blocks drained flag for this command...
         /// </summary>
         /// <returns>true if we're out of images</returns>
@@ -514,7 +523,9 @@ namespace TwainDirect.Support
                     // We've run out of images...
                     if (m_blSessionImageBlocksDrained)
                     {
-                        return (
+                        return
+                        (
+                            "\"doneCapturing\":" + ((m_blSessionDoneCapturing) ? "true," : "false,") +
                             "\"imageBlocksDrained\":true," +
                             "\"imageBlocks\":[],"
                         );
@@ -523,6 +534,7 @@ namespace TwainDirect.Support
                     // We may have more images coming...
                     return
                     (
+                        "\"doneCapturing\":" + ((m_blSessionDoneCapturing) ? "true," : "false,") +
                         "\"imageBlocksDrained\":false," +
                         "\"imageBlocks\":" + (string.IsNullOrEmpty(m_szImageBlocks) ? "[]" : m_szImageBlocks) + ","
                     );
@@ -563,7 +575,7 @@ namespace TwainDirect.Support
             }
 
             // Return whatever we found...
-            return (m_jsonlookupReceived.Get(a_szJsonKey));
+            return (m_jsonlookupReceived.Get(a_szJsonKey, false));
         }
 
         /// <summary>
@@ -1856,17 +1868,58 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_jsonlookup">data being collected</param>
         /// <param name="a_blCapturing">we're capturing or draining</param>
-        /// <param name="a_szImagesFolder">the images folder</param>
-        public void UpdateUsingIpcData(JsonLookup a_jsonlookup, bool a_blCapturing, string a_szImagesFolder)
+        /// <param name="a_szTdImagesFolder">output to app</param>
+        /// <param name="a_szTwImagesFolder">input from twain</param>
+        public void UpdateUsingIpcData(JsonLookup a_jsonlookup, bool a_blCapturing, string a_szTdImagesFolder, string a_szTwImagesFolder)
         {
+            int iImageBlock;
             string szMeta;
             string szImageBlocksDrainedMeta;
 
-            // Get the image blocks (if we have any)...
-            m_szImageBlocks = a_jsonlookup.Get("session.imageBlocks",false);
-            if (m_szImageBlocks != null)
+            // Okay, let's turn all this stuff into an array of imageblocks...
+            m_szImageBlocks = "";
+            if (a_blCapturing)
             {
-                m_szImageBlocks = m_szImageBlocks.Replace("\r", "").Replace("\n", "");
+                // We used to get this from TwainDirect.OnTwain, and we could
+                // get away with that when there was a 1:1 correspondence
+                // between images and imageBlocks.  But that doesn't fly when
+                // we're splitting things up.  So we have to look at our
+                // tdimages folder to see what we currently have...
+                string[] aszImageBlocks = null;
+                try
+                {
+                    aszImageBlocks = Directory.GetFiles(a_szTdImagesFolder, "img*.meta");
+                    if ((aszImageBlocks != null) && (aszImageBlocks.Length > 0))
+                    {
+                        Array.Sort(aszImageBlocks);
+                    }
+                }
+                catch
+                {
+                    Log.Error("UpdateUsingIpcData: Directory.GetFiles failed...");
+                    return;
+                }
+
+                // Build our imageBlocks array...
+                if ((aszImageBlocks != null) && (aszImageBlocks.Length > 0))
+                {
+                    m_szImageBlocks = "[";
+                    foreach (string szImageBlock in aszImageBlocks)
+                    {
+                        // Get the image number from the name, if this proves to
+                        // be a stupid idea, then open the file, JSON parse it,
+                        // and get it that way...
+                        if (!int.TryParse(Path.GetFileNameWithoutExtension(szImageBlock).Replace("img", ""), out iImageBlock))
+                        {
+                            Log.Error("UpdateUsingIpcData: parsing failed..." + szImageBlock);
+                            return;
+                        }
+
+                        // Tack it on, we're making [1,2,3...]
+                        m_szImageBlocks += (m_szImageBlocks == "[") ? iImageBlock.ToString() : "," + iImageBlock;
+                    }
+                    m_szImageBlocks += "]";
+                }
             }
 
             // Get the image file (if we have one)...
@@ -1875,16 +1928,18 @@ namespace TwainDirect.Support
             // Get the thumbnail file (if we have one)...
             m_szThumbnailFile = a_jsonlookup.Get("thumbnailFile", false);
 
-            // We can't just rely on the imageBlocks array...
+            // Unfortunately, we can't just rely on the imageBlocks array,
+            // we have to know if there's pending *.tw* content...
             string[] aszTw = null;
             try
             {
-                Directory.GetFiles(a_szImagesFolder, "*.tw*");
+                aszTw = Directory.GetFiles(a_szTwImagesFolder, "*.tw*");
             }
             catch
             {
-                // This is just a convenience...
-                Directory.CreateDirectory(a_szImagesFolder);
+                // This shouldn't happen...
+                Log.Error("UpdateUsingIpcData: Directory.GetFiles failed...");
+                return;
             }
 
             // End of job...
@@ -1893,16 +1948,17 @@ namespace TwainDirect.Support
             // - if we have intermediate *.tw* files, we're not done -or-
             // - if we don't have imageBlocksDrained.meta, we're not done
             m_blSessionImageBlocksDrained = true;
+            m_blSessionDoneCapturing = File.Exists(Path.Combine(a_szTdImagesFolder, "imageBlocksDrained.meta"));
             if (    a_blCapturing
                 &&  (!string.IsNullOrEmpty(m_szImageBlocks)
                 ||  ((aszTw != null) && (aszTw.Length > 0))
-                ||  !File.Exists(Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta"))))
+                ||  !m_blSessionDoneCapturing))
             {
                 m_blSessionImageBlocksDrained = false;
             }
 
             // Get a reason for there being no more images...
-            szImageBlocksDrainedMeta = Path.Combine(a_szImagesFolder, "imageBlocksDrained.meta");
+            szImageBlocksDrainedMeta = Path.Combine(a_szTdImagesFolder, "imageBlocksDrained.meta");
             if (File.Exists(szImageBlocksDrainedMeta))
             {
                 JsonLookup jsonlookupDrained = new JsonLookup();
@@ -2631,6 +2687,16 @@ namespace TwainDirect.Support
 
         // End of job (true if we're not scanning)...
         private bool m_blSessionImageBlocksDrained;
+
+        /// <summary>
+        /// We're no longer capturing.  Depending on processing
+        /// more imageBlocks could show up.  This information can
+        /// be used by an application to closeSession, if they
+        /// have no plans to issue another startCapturing, which
+        /// means they can release control of a scanner sooner for
+        /// those scanners that support multiple sessions...
+        /// </summary>
+        private bool m_blSessionDoneCapturing;
 
         /// <summary>
         /// Set to false if we've detected a problem...

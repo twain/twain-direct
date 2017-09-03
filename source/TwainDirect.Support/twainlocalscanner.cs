@@ -95,6 +95,8 @@ namespace TwainDirect.Support
             a_blCreateTwainLocalSession
         )
         {
+            bool blSuccess;
+
             // Save the confirmscan callback, if given one...
             m_confirmscan = a_confirmscan;
 
@@ -106,6 +108,15 @@ namespace TwainDirect.Support
 
             // Used to display status on the console...
             m_displaycallback = a_displaycallback;
+
+            // Get our folder paths and clean them out...
+            m_szTdImagesFolder = Path.Combine(m_szWriteFolder, "tdimages");
+            m_szTwImagesFolder = Path.Combine(m_szWriteFolder, "twimages");
+            blSuccess = CleanImageFolders();
+            if (!blSuccess)
+            {
+                throw new Exception("Can't set up the tdimages/twimages folders...");
+            }
 
             // Our locks...
             m_objectLockDeviceApi = new object();
@@ -128,8 +139,16 @@ namespace TwainDirect.Support
         /// <summary>
         /// Cleanup...
         /// </summary>
-        public override void Dispose()
+        public sealed override void Dispose()
         {
+            // Cleanup the timeout event...
+            if (m_timerEvent != null)
+            {
+                m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+                m_timerEvent.Dispose();
+                m_timerEvent = null;
+            }
+
             // Don't timeout the session...
             if (m_timerSession != null)
             {
@@ -739,6 +758,60 @@ namespace TwainDirect.Support
         // Private Methods...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Methods...
+
+        private bool CleanImageFolders()
+        {
+            string[] aszFiles;
+
+            // Scrub the TWAIN Direct folder that we use to send data
+            // to the application...
+            try
+            {
+                if (!Directory.Exists(m_szTdImagesFolder))
+                {
+                    Directory.CreateDirectory(m_szTdImagesFolder);
+                }
+                else
+                {
+                    aszFiles = Directory.GetFiles(m_szTdImagesFolder, "*.*");
+                    foreach (string szFile in aszFiles)
+                    {
+                        File.Delete(szFile);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("CleanImageFolders: CreateDirectory tdimages failed..." + exception.Message);
+                return (false);
+            }
+
+            // Scrub the TWAIN Bridge folder that we use to receive
+            // data from the TWAIN driver...
+            try
+            {
+                if (!Directory.Exists(m_szTwImagesFolder))
+                {
+                    Directory.CreateDirectory(m_szTwImagesFolder);
+                }
+                else
+                {
+                    aszFiles = Directory.GetFiles(m_szTwImagesFolder, "*.*");
+                    foreach (string szFile in aszFiles)
+                    {
+                        File.Delete(szFile);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("CleanImageFolders: CreateDirectory twimages failed..." + exception.Message);
+                return (false);
+            }
+
+            // All done...
+            return (true);
+        }
 
         /// <summary>
         /// Create an X-Privet-Token, we do this to generate a brand new value,
@@ -1508,11 +1581,11 @@ namespace TwainDirect.Support
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                 }
 
@@ -1622,7 +1695,7 @@ namespace TwainDirect.Support
 
                 // Arguments to the progream...
                 szArguments = "ipc=\"" + m_twainlocalsession.GetIpcTwainDirectOnTwain().GetConnectionInfo() + "\"";
-                szArguments += " images=\"" + m_szImagesFolder + "\"";
+                szArguments += " images=\"" + m_szTwImagesFolder + "\"";
                 szArguments += " twainlist=\"" + Path.Combine(m_szWriteFolder, "twainlist.txt") + "\"";
 
                 // Get ready to start the child process...
@@ -1702,7 +1775,7 @@ namespace TwainDirect.Support
                 }
 
                 // Update the ApiCmd command object...
-                a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
 
                 // Reply to the command with a session object, this is where we create our
                 // session id, public session id and set the revision to 0...
@@ -1825,11 +1898,11 @@ namespace TwainDirect.Support
                     switch (m_twainlocalsession.GetSessionState())
                     {
                         default:
-                            a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                            a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
                             break;
                         case SessionState.capturing:
                         case SessionState.draining:
-                            a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                            a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
                             break;
                     }
 
@@ -1906,11 +1979,11 @@ namespace TwainDirect.Support
                         switch (m_twainlocalsession.GetSessionState())
                         {
                             default:
-                                apicmdEvent.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                                apicmdEvent.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
                                 break;
                             case SessionState.capturing:
                             case SessionState.draining:
-                                apicmdEvent.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                                apicmdEvent.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
                                 break;
                         }
 
@@ -1944,8 +2017,14 @@ namespace TwainDirect.Support
         {
             bool blSuccess;
             bool blWithMetadata;
+            int iImageBlock;
+            long lJsonErrorIndex;
             long lResponseCharacterOffset;
             string szIpc;
+            string szPdf;
+            string szWithMetadata;
+            string szMetadataFile;
+            JsonLookup jsonlookup;
             string szFunction = "DeviceScannerReadImageBlock";
 
             // Protect our stuff...
@@ -1971,13 +2050,30 @@ namespace TwainDirect.Support
                         break;
                 }
 
-                // Do we want the metadata?
-                blWithMetadata = false;
-                if (a_apicmd.GetJsonReceived("params.withMetadata") == "true")
+                // Get our imageblock number...
+                if (!int.TryParse(a_apicmd.GetJsonReceived("params.imageBlockNum"), out iImageBlock))
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.imageBlockNum", -1);
+                    return (false);
+                }
+
+                // Do we want a thumbnail?
+                szWithMetadata = a_apicmd.GetJsonReceived("params.withMetadata");
+                if (string.IsNullOrEmpty(szWithMetadata) || (szWithMetadata == "false"))
+                {
+                    blWithMetadata = false;
+                }
+                else if (szWithMetadata == "true")
                 {
                     blWithMetadata = true;
                 }
+                else
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.withMetadata", -1);
+                    return (false);
+                }
 
+                /*****************************************************************
                 // Pass the data along to our helper...
                 m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
                 (
@@ -1996,16 +2092,38 @@ namespace TwainDirect.Support
                     DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lResponseCharacterOffset);
                     return (false);
                 }
+                *****************************************************************/
+
+                // The image file, make sure we have forward slashes
+                // before passing it to the JSON parser...
+                szPdf = Path.Combine(m_szTdImagesFolder, "img" + iImageBlock.ToString("D6") + ".pdf").Replace("\\", "/");
+
+                // Build the metadata filename, if we don't have one, we have a problem...
+                szMetadataFile = "";
+                if (blWithMetadata)
+                {
+                    szMetadataFile = szPdf.Replace(".pdf", ".meta");
+                }
+
+                // Kinda stuck with this notation for now...
+                szIpc =
+                    "{" +
+                    "\"status\":\"success\"," +
+                    "\"imageFile\":\"" + szPdf + "\"," +
+                    "\"meta\":\"" + szMetadataFile + "\"" +
+                    "}";
+                jsonlookup = new JsonLookup();
+                jsonlookup.Load(szIpc, out lJsonErrorIndex);
 
                 // Update the ApiCmd command object...
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                 }
 
@@ -2040,10 +2158,16 @@ namespace TwainDirect.Support
         /// <returns>true on success</returns>
         private bool DeviceScannerReadImageBlockMetadata(ref ApiCmd a_apicmd)
         {
+            int iImageBlock;
+            long lJsonErrorIndex;
             bool blSuccess;
             bool blWithThumbnail = false;
             long lResponseCharacterOffset;
             string szIpc;
+            string szPdf;
+            string szThumbnailFile;
+            string szWithThumbnail;
+            JsonLookup jsonlookup;
             string szFunction = "DeviceScannerReadImageBlockMetadata";
 
             // Protect our stuff...
@@ -2069,40 +2193,63 @@ namespace TwainDirect.Support
                         return (false);
                 }
 
+                // Get our imageblock number...
+                if (!int.TryParse(a_apicmd.GetJsonReceived("params.imageBlockNum"), out iImageBlock))
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.imageBlockNum", -1);
+                    return (false);
+                }
+
                 // Do we want a thumbnail?
-                if (a_apicmd.GetJsonReceived("params.withThumbnail") == "true")
+                szWithThumbnail = a_apicmd.GetJsonReceived("params.withThumbnail");
+                if (string.IsNullOrEmpty(szWithThumbnail) || (szWithThumbnail == "false"))
+                {
+                    blWithThumbnail = false;
+                }
+                else if (szWithThumbnail == "true")
                 {
                     blWithThumbnail = true;
                 }
-
-                // Pass this along to our helper process...
-                m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
-                (
-                    "{" +
-                    "\"method\":\"readImageBlockMetadata\"," +
-                    "\"imageBlockNum\":\"" + a_apicmd.GetJsonReceived("params.imageBlockNum") + "\"," +
-                    "\"withThumbnail\":" + (blWithThumbnail ? "true" : "false") +
-                    "}"
-                );
-
-                // Get the result...
-                JsonLookup jsonlookup = new JsonLookup();
-                szIpc = m_twainlocalsession.GetIpcTwainDirectOnTwain().Read();
-                if (!jsonlookup.Load(szIpc, out lResponseCharacterOffset))
+                else
                 {
-                    DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lResponseCharacterOffset);
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.withThumbnail", -1);
                     return (false);
                 }
+
+                // The image file, make sure we have forward slashes
+                // before passing it to the JSON parser...
+                szPdf = Path.Combine(m_szTdImagesFolder, "img" + iImageBlock.ToString("D6") + ".pdf").Replace("\\", "/");
+
+                // Generate a thumbnail...
+                szThumbnailFile = "";
+                if (blWithThumbnail)
+                {
+                    szThumbnailFile = szPdf.Replace(".pdf", "_thumbnail.pdf");
+                    blSuccess = PdfRaster.CreatePdfRasterThumbnail(szPdf, szThumbnailFile);
+                }
+
+                // Build the metadata filename, if we don't have one, we have a problem...
+                string szMetadataFile = szPdf.Replace(".pdf", ".meta");
+
+                // Kinda stuck with this notation for now...
+                szIpc =
+                    "{" +
+                    "\"status\":\"success\"," +
+                    "\"meta\":\"" + szMetadataFile + "\"," +
+                    "\"thumbnailFile\":\"" + szThumbnailFile + "\"" +
+                    "}";
+                jsonlookup = new JsonLookup();
+                jsonlookup.Load(szIpc, out lJsonErrorIndex);
 
                 // Update the ApiCmd command object...
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                 }
 
@@ -2138,8 +2285,13 @@ namespace TwainDirect.Support
         private bool DeviceScannerReleaseImageBlocks(ref ApiCmd a_apicmd)
         {
             bool blSuccess;
+            int ii;
+            int iImageBlockNum;
+            int iLastImageBlockNum;
+            long lJsonErrorIndex;
             long lResponseCharacterOffset;
             string szIpc;
+            JsonLookup jsonlookup;
             string szFunction = "DeviceScannerReleaseImageBlocks";
 
             // Protect our stuff...
@@ -2165,6 +2317,7 @@ namespace TwainDirect.Support
                         return (false);
                 }
 
+                /***********************************************************************
                 // Get the current session info...
                 m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
                 (
@@ -2184,16 +2337,76 @@ namespace TwainDirect.Support
                     DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lResponseCharacterOffset);
                     return (false);
                 }
+                **********************************************************************/
+
+                // Get the values...
+                if (!int.TryParse(a_apicmd.GetJsonReceived("params.imageBlockNum"), out iImageBlockNum))
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.imageBlockNum", -1);
+                    return (false);
+                }
+                if (!int.TryParse(a_apicmd.GetJsonReceived("params.lastImageBlockNum"), out iLastImageBlockNum))
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.lastImageBlockNum", -1);
+                    return (false);
+                }
+                if (iImageBlockNum <= 0)
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.imageBlockNum", -1);
+                    return (false);
+                }
+                if ((iLastImageBlockNum <= 0) || (iLastImageBlockNum < iImageBlockNum))
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "badValue", "params.lastImageBlockNum", -1);
+                    return (false);
+                }
+
+                // Loopy...
+                for (ii = iImageBlockNum; ii <= iLastImageBlockNum; ii++)
+                {
+                    // Build the filename...
+                    string szFile = Path.Combine(m_szTdImagesFolder, "img" + ii.ToString("D6"));
+                    if (File.Exists(szFile + ".meta"))
+                    {
+                        try
+                        {
+                            File.Delete(szFile + ".meta");
+                        }
+                        catch
+                        {
+                            // We don't care if this fails...
+                        }
+                    }
+                    if (File.Exists(szFile + ".pdf"))
+                    {
+                        try
+                        {
+                            File.Delete(szFile + ".pdf");
+                        }
+                        catch
+                        {
+                            // We don't care if this fails...
+                        }
+                    }
+                }
+
+                // Kinda stuck with this notation for now...
+                szIpc =
+                    "{" +
+                    "\"status\":\"success\"" +
+                    "}";
+                jsonlookup = new JsonLookup();
+                jsonlookup.Load(szIpc, out lJsonErrorIndex);
 
                 // Update the ApiCmd command object...
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                 }
 
@@ -2223,8 +2436,14 @@ namespace TwainDirect.Support
                 // then transition to noSession or ready...
                 if (string.IsNullOrEmpty(a_apicmd.GetImageBlocks()))
                 {
+                    // The scanner has no more data for us...
+                    if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
+                    {
+                        m_twainlocalsession.SetSessionDoneCapturing(File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")));
+                    }
+
                     // Set the flag if we can't get any more images...
-                    if ((m_twainlocalsession != null) && File.Exists(Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta")))
+                    if ((m_twainlocalsession != null) && m_twainlocalsession.GetSessionDoneCapturing())
                     {
                         // Make a note of this...
                         m_twainlocalsession.SetSessionImageBlocksDrained(true);
@@ -2333,11 +2552,11 @@ namespace TwainDirect.Support
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
                         break;
                 }
 
@@ -2389,10 +2608,10 @@ namespace TwainDirect.Support
                 while (true)
                 {
                     // Find all of the TWAIN *.twmeta files, scoot if we don't find any...
-                    aszMetatmp = Directory.GetFiles(m_szImagesFolder, "*.twmeta"); // Metadata from the TWAIN Driver or the bridge
+                    aszMetatmp = Directory.GetFiles(m_szTwImagesFolder, "*.twmeta"); // Metadata from the TWAIN Driver or the bridge
                     if ((aszMetatmp == null) || (aszMetatmp.Length == 0))
                     {
-                        return;
+                        break;
                     }
 
                     // Figure out what our imageblock size is, a value <= 8192 causes
@@ -2411,7 +2630,7 @@ namespace TwainDirect.Support
                         foreach (string szMetatmp in aszMetatmp)
                         {
                             // Get the files with this basename...
-                            aszBase = Directory.GetFiles(m_szImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".*");
+                            aszBase = Directory.GetFiles(m_szTwImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".*");
 
                             // Walk all the files, except for .twmeta, which we must do last...
                             foreach (string szFile in aszBase)
@@ -2431,7 +2650,11 @@ namespace TwainDirect.Support
                                 // Rename it from .twxxx to .xxx...
                                 try
                                 {
-                                    File.Move(szFile, szFile.Replace(".tw", "."));
+                                    File.Move
+                                    (
+                                        szFile, // from twimages
+                                        szFile.Replace("twimages", "tdimages").Replace(".tw", ".") // to tdimages
+                                    );
                                 }
                                 catch (Exception exception)
                                 {
@@ -2454,13 +2677,20 @@ namespace TwainDirect.Support
                                 // Rename it from .xxxtmp to .xxx...
                                 try
                                 {
-                                    File.Move(szFile, szFile.Replace(".tw", "."));
+                                    File.Move
+                                    (
+                                        szFile, // from twimages
+                                        szFile.Replace(m_szTwImagesFolder, m_szTdImagesFolder).Replace(".tw", ".") // to tdimages
+                                    );
                                 }
                                 catch (Exception exception)
                                 {
                                     Log.Error("rename failed <" + szFile + "> <" + szFile.Substring(0, szFile.Length - 3) + "> - " + exception.Message);
                                 }
                             }
+
+                            // Notify the other bit...
+                            DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
                         }
                     }
                     #endregion
@@ -2481,7 +2711,7 @@ namespace TwainDirect.Support
                             // Get the .twpdf files with this basename, make sure
                             // it's sorted, because we're going to be messing
                             // with the imageBlock number...
-                            aszBase = Directory.GetFiles(m_szImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".twpdf");
+                            aszBase = Directory.GetFiles(m_szTwImagesFolder, Path.GetFileNameWithoutExtension(szMetatmp) + ".twpdf");
                             Array.Sort(aszBase);
 
                             // Walk all the .twpdf files, skipping any thumbnails, we'll
@@ -2505,7 +2735,7 @@ namespace TwainDirect.Support
                                 for (long ll = 0; ll < lImageBlocks; ll++)
                                 {
                                     int iBytesRead;
-                                    szImageBlockName = Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".pdf");
+                                    szImageBlockName = Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".pdf");
                                     FileStream filestreamWrite = new FileStream(szImageBlockName, FileMode.Create);
                                     iBytesRead = filestreamRead.Read(abData, 0, (int)lImageBlockSize);
                                     filestreamWrite.Write(abData, 0, iBytesRead);
@@ -2561,7 +2791,7 @@ namespace TwainDirect.Support
                                         jsonlookupMetadataAddress.Override("metadata.address.imagePart", (ll + 1).ToString());
                                         jsonlookupMetadataAddress.Override("metadata.address.moreParts", "morePartsPending");
                                         szMetadataAddress = jsonlookupMetadataAddress.Dump();
-                                        szImageBlockName = Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".meta");
+                                        szImageBlockName = Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".meta");
                                         File.WriteAllText(szImageBlockName, szMetadataAddress);
                                     }
 
@@ -2582,13 +2812,13 @@ namespace TwainDirect.Support
                                     File.Move
                                     (
                                         szImageBlockName,
-                                        Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + "_thumbnail.pdf")
+                                        Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + "_thumbnail.pdf")
                                     );
                                 }
 
                                 // Write out the .meta for the final image block, this
                                 // triggers processing of the last block...
-                                szImageBlockName = Path.Combine(m_szImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + ".meta");
+                                szImageBlockName = Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + ".meta");
                                 jsonlookupLast.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
                                 jsonlookupLast.Override("metadata.address.imagePart", lImageBlocks.ToString());
                                 jsonlookupLast.Override("metadata.address.moreParts", "lastPartInFile");
@@ -2600,8 +2830,29 @@ namespace TwainDirect.Support
                                 m_lImageBlockNumber += lImageBlocks;
                             }
                         }
+
+                        // Notify the other bit...
+                        DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
                     }
                     #endregion
+                }
+
+                // Check to see if we should move the imageBlocksDrained.meta file...
+                if (File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
+                {
+                    // Check for any pending files, if we have none, then we're
+                    // done and it's safe to say-so, regardless of how many files
+                    // have been transferred.  The reason being that we can
+                    // guarantee that no new imageBlocks will be added...
+                    aszMetatmp = Directory.GetFiles(m_szTwImagesFolder, "*.tw*");
+                    if ((aszMetatmp == null) || (aszMetatmp.Length == 0))
+                    {
+                        File.Move
+                        (
+                            Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta"),
+                            Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")
+                        );
+                    }
                 }
             }
         }
@@ -2678,7 +2929,7 @@ namespace TwainDirect.Support
                 }
 
                 // Update the ApiCmd command object...
-                a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
 
                 // Reply to the command with a session object...
                 blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.capturing, -1, null);
@@ -2699,46 +2950,40 @@ namespace TwainDirect.Support
                     }
                 }
 
-                // Start monitoring for imageblocks...
-                // TBD: getting the images folder this way is a hack
-                if (!Directory.Exists(m_szImagesFolder))
+                // Clean the image folders...
+                blSuccess = CleanImageFolders();
+                if (!blSuccess)
                 {
-                    try
-                    {
-                        Directory.CreateDirectory(m_szImagesFolder);
-                    }
-                    catch (Exception exception)
-                    {
-                        Log.Error(szFunction + ": CreateDirectory failed..." + exception.Message);
-                        return (false);
-                    }
+                    DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
+                    Log.Error(szFunction + ": CleanImageFolders failed...");
+                    return (false);
                 }
 
                 // KEYWORD:imageBlock
                 //
-                // Watch for *.twmeta files coming from the Bridge...
+                // Watch for *.*meta files coming from the Bridge...
                 filesystemwatcherhelper = new FileSystemWatcherHelper(this);
-                filesystemwatcherhelper.Path = m_szImagesFolder;
-                filesystemwatcherhelper.Filter = "*.twmeta";
-                filesystemwatcherhelper.IncludeSubdirectories = true;
+                filesystemwatcherhelper.Path = m_szTwImagesFolder;
+                filesystemwatcherhelper.Filter = "*.*meta";
+                filesystemwatcherhelper.IncludeSubdirectories = false;
                 filesystemwatcherhelper.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
                 filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedBridge);
                 filesystemwatcherhelper.EnableRaisingEvents = true;
-                m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(filesystemwatcherhelper);
+                m_twainlocalsession.SetFileSystemWatcherHelperBridge(filesystemwatcherhelper);
 
                 // KEYWORD:imageBlock
                 //
                 // Configure the event monitoring for updating the session object, we
                 // do this when we see a *.meta file appear.  Note that any associated
                 // files, such as .pdf MUST be created before the .meta file...
-                filesystemwatcherhelper = new FileSystemWatcherHelper(this);
-                filesystemwatcherhelper.Path = m_szImagesFolder;
-                filesystemwatcherhelper.Filter = "*.meta";
-                filesystemwatcherhelper.IncludeSubdirectories = true;
-                filesystemwatcherhelper.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
-                filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedImageBlocks);
-                filesystemwatcherhelper.EnableRaisingEvents = true;
-                m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(filesystemwatcherhelper);
+                //filesystemwatcherhelper = new FileSystemWatcherHelper(this);
+                //filesystemwatcherhelper.Path = m_szTdImagesFolder;
+                //filesystemwatcherhelper.Filter = "*.meta";
+                //filesystemwatcherhelper.IncludeSubdirectories = false;
+                //filesystemwatcherhelper.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
+                //filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedImageBlocks);
+                //filesystemwatcherhelper.EnableRaisingEvents = true;
+                //m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(filesystemwatcherhelper);
             }
 
             // All done...
@@ -2802,16 +3047,15 @@ namespace TwainDirect.Support
                 switch (m_twainlocalsession.GetSessionState())
                 {
                     default:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTdImagesFolder);
                         break;
                     case SessionState.capturing:
                     case SessionState.draining:
-                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szImagesFolder);
+                        a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTdImagesFolder);
                         break;
                 }
 
-                // If we're out of images, we can go to a ready state, otherwise go to
-                // draining...
+                // If we're out of images, we can go to a ready state, otherwise go to draining...
                 if (a_apicmd.GetImageBlocksDrained())
                 {
                     SetSessionState(SessionState.ready);
@@ -3009,6 +3253,12 @@ namespace TwainDirect.Support
         private long m_lSessionTimeout;
 
         /// <summary>
+        /// This is where the TWAIN Direct imageBlocks and metadata
+        /// are stored.  The ones we'll be sending to the app...
+        /// </summary>
+        private string m_szTdImagesFolder;
+
+        /// <summary>
         /// Our event timer for m_apicmdEvent...
         /// </summary>
         private Timer m_timerEvent;
@@ -3017,6 +3267,13 @@ namespace TwainDirect.Support
         /// Our session timer for /privet/twaindirect/session...
         /// </summary>
         private Timer m_timerSession;
+
+        /// <summary>
+        /// This is where the TWAIN Bridge imageBlocks and metadata
+        /// are stored.  The ones're we're getting from the TWAIN
+        /// driver...
+        /// </summary>
+        private string m_szTwImagesFolder;
 
         #endregion
     }
@@ -3079,6 +3336,21 @@ namespace TwainDirect.Support
                 m_iHttpTimeoutData = iDefault;
             }
 
+            // This is our default location for storing imageblocks
+            // and metadata...
+            try
+            {
+                m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+                if (!Directory.Exists(m_szImagesFolder))
+                {
+                    Directory.CreateDirectory(m_szImagesFolder);
+                }
+            }
+            catch
+            {
+                throw new Exception("Can't set up the images folder...");
+            }
+
             // Our locks...
             m_objectLockClientApi = new object();
             m_objectLockClientFinishImage = new object();
@@ -3092,7 +3364,7 @@ namespace TwainDirect.Support
         /// <summary>
         /// Cleanup...
         /// </summary>
-        public override void Dispose()
+        public sealed override void Dispose()
         {
             // Stop waiting for events...
             if (m_waitforeventsinfo != null)
@@ -4315,6 +4587,7 @@ namespace TwainDirect.Support
                     ClientReturnError(a_apicmd, false, "", 0, "");
                     if (m_twainlocalsession != null)
                     {
+                        m_twainlocalsession.SetSessionDoneCapturing(true);
                         m_twainlocalsession.SetSessionImageBlocksDrained(true);
                     }
                     return (false);
@@ -4515,6 +4788,42 @@ namespace TwainDirect.Support
                 m_twainlocalsession.Dispose();
                 m_twainlocalsession = null;
             }
+        }
+
+        /// <summary>
+        /// Return the current images folder...
+        /// </summary>
+        /// <returns>the images folder</returns>
+        public string GetImagesFolder()
+        {
+            return (m_szImagesFolder);
+        }
+
+        /// <summary>
+        /// Set a new images folder...
+        /// </summary>
+        /// <param name="a_szImagesFolder">the folder to set</param>
+        /// <returns>true on success</returns>
+        public bool SetImagesFolder(string a_szImagesFolder)
+        {
+            // See if we can use it...
+            if (!Directory.Exists(a_szImagesFolder))
+            {
+                try
+                {
+                    Directory.CreateDirectory(a_szImagesFolder);
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("CreateDirectory failed: " + exception.Message);
+                    Log.Error("<" + a_szImagesFolder + ">");
+                    return (false);
+                }
+            }
+
+            // We're good...
+            m_szImagesFolder = a_szImagesFolder;
+            return (true);
         }
 
         #endregion
@@ -5346,17 +5655,22 @@ namespace TwainDirect.Support
         private List<long> m_llPendingImageBlocks;
 
         /// <summary>
+        /// This is where the imageBlocks and metadata are stored.
+        /// </summary>
+        private string m_szImagesFolder;
+
+        /// <summary>
+        /// Event info...
+        /// </summary>
+        private WaitForEventsInfo m_waitforeventsinfo;
+
+        /// <summary>
         /// We only need this value long enough to get it from
         /// info or infoex to createSession, and specifically
         /// into the TwainLocalSession object, which will maintain
         /// it for the life of the session...
         /// </summary>
         private string m_szXPrivetToken;
-
-        /// <summary>
-        /// Event info...
-        /// </summary>
-        private WaitForEventsInfo m_waitforeventsinfo;
 
         /// <summary>
         /// Our signal to the client that an event has arrived...
@@ -5394,21 +5708,6 @@ namespace TwainDirect.Support
             if (a_blCreateTwainLocalSession)
             {
                 m_twainlocalsessionInfo = new TwainLocalSession("");
-            }
-
-            // This is our default location for storing imageblocks
-            // and metadata...
-            try
-            {
-                m_szImagesFolder = Path.Combine(m_szWriteFolder, "images");
-                if (!Directory.Exists(m_szImagesFolder))
-                {
-                    Directory.CreateDirectory(m_szImagesFolder);
-                }
-            }
-            catch
-            {
-                throw new Exception("Can't set up the images folder...");
             }
         }
 
@@ -5453,15 +5752,6 @@ namespace TwainDirect.Support
 
             // Return it...
             return (dnssddeviceinfo);
-        }
-
-        /// <summary>
-        /// Return the current images folder...
-        /// </summary>
-        /// <returns>the images folder</returns>
-        public string GetImagesFolder()
-        {
-            return (m_szImagesFolder);
         }
 
         /// <summary>
@@ -5534,33 +5824,6 @@ namespace TwainDirect.Support
 
             // This is it...
             return (ms_platform);
-        }
-
-        /// <summary>
-        /// Set a new images folder...
-        /// </summary>
-        /// <param name="a_szImagesFolder">the folder to set</param>
-        /// <returns>true on success</returns>
-        public bool SetImagesFolder(string a_szImagesFolder)
-        {
-            // See if we can use it...
-            if (!Directory.Exists(a_szImagesFolder))
-            {
-                try
-                {
-                    Directory.CreateDirectory(a_szImagesFolder);
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("CreateDirectory failed: " + exception.Message);
-                    Log.Error("<" + a_szImagesFolder + ">");
-                    return (false);
-                }
-            }
-
-            // We're good...
-            m_szImagesFolder = a_szImagesFolder;
-            return (true);
         }
 
         #endregion
@@ -5983,14 +6246,9 @@ namespace TwainDirect.Support
         protected TwainLocalSession m_twainlocalsession;
 
         /// <summary>
-        /// A place to store data, like logs and stuff...
+        /// A place where we can write stuff...
         /// </summary>
         protected string m_szWriteFolder;
-
-        /// <summary>
-        /// This is where the imageBlocks and metadata are stored.
-        /// </summary>
-        protected string m_szImagesFolder;
 
         /// <summary>
         /// Our current platform...
@@ -6065,6 +6323,7 @@ namespace TwainDirect.Support
                 m_lWaitForEventsSessionRevision = 0;
                 m_szSessionSnapshot = "";
                 m_alSessionImageBlocks = null;
+                SetSessionDoneCapturing(true);  // we start empty and ready to scoot
                 SetSessionImageBlocksDrained(true); // we start empty and ready to scoot
                 m_szXPrivetToken = a_szXPrivetToken;
 
@@ -6339,6 +6598,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Get the done capturing flag...
+            /// </summary>
+            /// <returns>true if the scanner is done capturing images</returns>
+            public bool GetSessionDoneCapturing()
+            {
+                return (m_blSessionDoneCapturing);
+            }
+
+            /// <summary>
             /// Get the session id...
             /// </summary>
             /// <returns>the session id</returns>
@@ -6495,6 +6763,15 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// Set the session done capturing flag...
+            /// </summary>
+            /// <param name="a_blSessionImageBlocksDrained">true if drained</param>
+            public void SetSessionDoneCapturing(bool a_blSessionDoneCapturing)
+            {
+                m_blSessionDoneCapturing = a_blSessionDoneCapturing;
+            }
+
+            /// <summary>
             /// Set the session id...
             /// </summary>
             /// <param name="a_szSessionId">the new session id</param>
@@ -6564,9 +6841,11 @@ namespace TwainDirect.Support
                     // Set it...
                     m_sessionstate = a_sessionstate;
 
-                    // If we just started capturing, then we can't be drained...
+                    // If we just started capturing, then we can't be done
+                    // or drained...
                     if (m_sessionstate == SessionState.capturing)
                     {
+                        SetSessionDoneCapturing(false);
                         SetSessionImageBlocksDrained(false);
                     }
 
@@ -6783,6 +7062,11 @@ namespace TwainDirect.Support
             /// to the client...
             /// </summary>
             public long[] m_alSessionImageBlocks;
+
+            /// <summary>
+            /// The scanner is no longer capturing new stuff...
+            /// </summary>
+            private bool m_blSessionDoneCapturing;
 
             /// <summary>
             /// true if imageBlocksDrained has been set to true...

@@ -1013,23 +1013,12 @@ namespace TwainDirect.OnTwain
             // Init stuff...
             a_szSession = "";
 
-            // Make sure the images folder is empty...
+            // Make sure we have an images folder.  This is just a failsafe,
+            // if TwainDirect.Scanner isn't already doing this, we have a
+            // problem...
             try
             {
-                if (Directory.Exists(m_szImagesFolder))
-                {
-                    Directory.Delete(m_szImagesFolder, true);
-                }
-            }
-            catch (Exception exception)
-            {
-                TWAINWorkingGroup.Log.Error("Could not delete <" + m_szImagesFolder + "> - " + exception.Message);
-            }
-
-            // Make sure we have an images folder...
-            try
-            {
-                if (Directory.Exists(m_szImagesFolder))
+                if (!Directory.Exists(m_szImagesFolder))
                 {
                     Directory.CreateDirectory(m_szImagesFolder);
                 }
