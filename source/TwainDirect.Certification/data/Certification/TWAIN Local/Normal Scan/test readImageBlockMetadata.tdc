@@ -69,6 +69,7 @@ run 'function CheckJsonProperty' 'TL.NSCN.RIBM.012' 'readimageblockmetadataresul
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.013' 'readimageblockmetadataresult' 'results.metadata.status'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.014' 'readimageblockmetadataresult' 'results.metadata.status.success' == 'true'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.015' 'readimageblockmetadataresult' 'results.metadata.address'
+; Make sure the first block has 1's
 if '${arg:1}' > '1' goto READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
 	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.016f' 'readimageblockmetadataresult' 'results.metadata.address.imageNumber' '==' '1'
 	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.017f' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '==' '1'
@@ -79,19 +80,22 @@ if '${arg:1}' > '1' goto READIMAGEBLOCKMETADATA.CHECKOTHERIMAGEBLOCKS
 	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.017' 'readimageblockmetadataresult' 'results.metadata.address.imagePart' '!=' ''
 	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.018' 'readimageblockmetadataresult' 'results.metadata.address.sheetNumber' '!=' ''
 :READIMAGEBLOCKMETADATA.SKIPOTHERIMAGEBLOCKS
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.019' 'readimageblockmetadataresult' 'results.metadata.address.moreParts' '==' 'lastPartInFile' 'moreParts' 'lastPartInFileMoreParts'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.019' 'readimageblockmetadataresult' 'results.metadata.address.moreParts' '==' 'lastPartInFile' 'morePartsPending' 'lastPartInFileMorePartsPending'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.020' 'readimageblockmetadataresult' 'results.metadata.address.source' '==' 'flatbed' 'feederFront' 'feederRear'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.021' 'readimageblockmetadataresult' 'results.metadata.address.streamName' '==' 'stream0'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.022' 'readimageblockmetadataresult' 'results.metadata.address.sourceName' '==' 'source0'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.023' 'readimageblockmetadataresult' 'results.metadata.address.pixelFormatName' '==' 'pixelFormat0'
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.024' 'readimageblockmetadataresult' 'results.metadata.image'
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.025' 'readimageblockmetadataresult' 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.026' 'readimageblockmetadataresult' 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.027' 'readimageblockmetadataresult' 'results.metadata.image.pixelHeight' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.028' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetX' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.029' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetY' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.030' 'readimageblockmetadataresult' 'results.metadata.image.pixelWidth' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.031' 'readimageblockmetadataresult' 'results.metadata.image.resolution' != ''
+; image is only in the lastPartInFile
+if '${rj:results.metadata.address.moreParts}' != 'lastPartInFile' goto READIMAGEBLOCKMETADATA.SKIPIMAGE
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.024' 'readimageblockmetadataresult' 'results.metadata.image'
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.025' 'readimageblockmetadataresult' 'results.metadata.image.compression' == 'none' 'group4' 'jpeg'
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.026' 'readimageblockmetadataresult' 'results.metadata.image.pixelFormat' == 'bw1' 'gray8' 'rgb24'
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.027' 'readimageblockmetadataresult' 'results.metadata.image.pixelHeight' != ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.028' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetX' != ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.029' 'readimageblockmetadataresult' 'results.metadata.image.pixelOffsetY' != ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.030' 'readimageblockmetadataresult' 'results.metadata.image.pixelWidth' != ''
+	run 'function CheckJsonProperty' 'TL.NSCN.RIBM.031' 'readimageblockmetadataresult' 'results.metadata.image.resolution' != ''
+:READIMAGEBLOCKMETADATA.SKIPIMAGE
 return '${get:readimageblockmetadataresult}'
 
 

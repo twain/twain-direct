@@ -2782,7 +2782,10 @@ namespace TwainDirect.Support
                                         "{" +
                                         "\"metadata\":{" +
                                         "\"address\":" +
-                                        jsonlookup.Get("metadata.address") +
+                                        jsonlookup.Get("metadata.address") + "," + // includes address' {}
+                                        "\"status\":{" +
+                                        "\"success\":true" +
+                                        "}" + // status
                                         "}" + //metadata
                                         "}"; // root
 
@@ -2841,7 +2844,10 @@ namespace TwainDirect.Support
                         }
 
                         // Notify the other bit...
-                        DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
+                        if (m_apicmdEvent != null)
+                        {
+                            DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
+                        }
                     }
                     #endregion
                 }
