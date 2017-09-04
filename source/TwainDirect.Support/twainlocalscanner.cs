@@ -1,12 +1,16 @@
 ﻿///////////////////////////////////////////////////////////////////////////////////////
 //
+// TwainDirect.Support.TwainLocalScannerDevice
+// TwainDirect.Support.TwainLocalScannerClient
 // TwainDirect.Support.TwainLocalScanner
+// TwainDirect.Support.TwainLocalScanner.FileSystemWatcherHelper
 // TwainDirect.Support.TwainLocalScanner.TwainLocalSession
 //
-// Interface to TWAIN Local scanners scanners.  This class is used by applications
-// and scanners, since they share enough common features to make it worthwhile to
-// consolodate the functionality.  Hopefully, it also helps to make things a little
-// more clear as to what's going on.
+// Interface to TWAIN Local scanners.  This module is used by applications and
+// scanners, since they share enough common features to make it worthwhile to
+// consolodate the functionality.  Hopefully, it also helps to make things a
+// little more clear as to what's going on.  However, they are split across
+// classes, with TwainLocalScanner providing content common to both.
 //
 // Functions used by applications are marked as "Client" and functions used by
 // scanners are marked as "Device".  Functions common to both have no designation.
@@ -19,12 +23,49 @@
 // so we need to be able to pass its objects up and down the stack.  This is why
 // it's publically accessible.
 //
-// It is a central tenet of this class that communication with the device does
-// not occur, unless the client believes that communication is warrented.  Therefore
-// we test state based on the client's understanding of where it currently is in the
-// finite state machine.  This means that it's not impossible to get out of sync
-// with the device (though it's unlikely), so we have to confirm in every command
-// that we are actually where we expect to be.
+// The scanner manages the state machine.  Clients could check state, but that's
+// not recommended.  A client's state comes from the scanner.
+//
+// TWAIN Local moves image data around using imageBlocks.  An imageBlock holds
+// either all or part of an image. TwainDirect.OnTwain generates .twpdf and
+// .twmeta files inside of TwainDirect.Scanner's twimages folder.  These files
+// are split into one or more imageBlocks by TwainDirect.Scanner and moves into
+// its tdimages folder.  This constitutes the array of imageBlocks, which the
+// application must transfer.  TwainDirect.Scanner also generates the thumbnail
+// file, if it's asked for.  The thumbnail file contains the metadata for the
+// final imageBlock.  When files are moved from twimages to tdimages, they no
+// longer exist in twimages.
+//
+// TwainDirect.App and TwainDirect.Certification get data from TwainDirect.Scanner's
+// tdimages folder (meta, pdf, and thumbnail).  When they release an imageBlock
+// the corresponding files are deleted in TwainDirect.Scanner's tdimages folder,
+// and this updates the session.imageBlocks array.  These data are given .td*
+// names in the images folder (ex: .tdpdf, .tdmeta, _thumbnail.tdpdf).
+//
+// The ClientFinishImage() function examines the metadata, and when it sees that
+// it has all of the (.tdmeta) imageBlocks for a complete image it stitches the
+// .tdpdf files into a single .pdf file with a basename representing the current
+// image count.  The .tdmeta and _thumbnail.pdf (if present) are renamed to have
+// the same basename as the .pdf file.  This operating deletes the .td* files.
+//
+// Here's an example, we're tranferring two images, the first one takes up three
+// image blocks, the second one takes two:
+// TwainDirect.OnTwain      TwainDirect.Scanner     imageBlock      TwainDirect.App
+// img000001.twpdf          img0000001.tdpdf        1               
+//                          img0000002.tdpdf        2
+//                          img0000003.tdpdf        3               img000001.pdf
+// img000002.twpdf          img0000004.tdpdf        4   
+//                          img0000005.tdpdf        5               img000002.pdf
+//
+// There are two reasons for splitting up the images.  First, if the image is too
+// large it may fail to be transferred, especially on wifi networks.  Smaller blocks
+// have greater success of completing transfer.  Second, the application has the
+// option to ask for multiple imageBlocks, which boosts performance by avoiding the
+// transaction delays that occur between transations.  If the application asks for
+// imageBlock 1, transfers it, and then asks for imageBlock 2, there's a period of
+// time when no data is being transferred.  Instead the application should ask for
+// imageBlock 1 and imageBlock 2 (and maybe more), and as soon as any of them are
+// complete it should immediately ask for the next imageBlock.
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
