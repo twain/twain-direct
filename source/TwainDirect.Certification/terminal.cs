@@ -112,6 +112,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdDir,                          new string[] { "dir", "ls" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdFinishImage,                  new string[] { "finishimage" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGc,                           new string[] { "gc" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
@@ -1045,6 +1046,79 @@ namespace TwainDirect.Certification
             {
                 Display(szLine, true);
             }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Finishing an image involves examining the metadata we've
+        /// collected looking for sequences of morePartsInFile followed
+        /// by a lastPartInFile.  When we've identified one of these
+        /// we stitch the corresponding .tdpdf files into a single .pdf
+        /// that represents the complete captured image.  The intermediate
+        /// .tdmeta and .tdpdf files are removed.  Note that this does not
+        /// affect the way the imageBlocks work.  Those are tracked in
+        /// the scanner.
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdFinishImage(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int iImageBlock;
+            string szMetadata;
+            string szBasename;
+            string szImageBlock;
+            string szImagesFolder;
+
+            // Validate...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            {
+                Display("Please provide an imageBlock number", true);
+                return (false);
+            }
+            if (!int.TryParse(a_functionarguments.aszCmd[1], out iImageBlock))
+            {
+                Display("Please provide an imageBlock number", true);
+                return (false);
+            }
+
+            // The images folder...
+            szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
+
+            // Build the imageblock name...
+            szImageBlock = Path.Combine(szImagesFolder, "img" + iImageBlock.ToString("D6"));
+
+            // Read the metadata...
+            try
+            {
+                szMetadata = File.ReadAllText(szImageBlock + ".tdmeta");
+            }
+            catch (Exception exception)
+            {
+                Display("Error reading imageBlock metadata - " + exception.Message, true);
+                return (false);
+            }
+
+            // Figure out the basename of the image/metadata/thumbnail for
+            // the finished product, if one gets stitched together...
+            szBasename = Path.Combine(szImagesFolder, "img" + (m_lImageCount + 1).ToString("D6"));
+
+            // This function creates a finished image, metadata, and thumbnail
+            // from the imageBlocks...
+            if (!m_twainlocalscannerclient.ClientFinishImage(szMetadata, szImageBlock + ".tdpdf", szBasename))
+            {
+                // We don't have a complete image, so scoot...
+                SetReturnValue("skip");
+                return (false);
+            }
+
+            // Return the base path to the new image, adding a .meta, a
+            // .pdf, or a _thumbnail.pdf will get the various files...
+            SetReturnValue(szBasename);
+
+            // Bump the image count...
+            m_lImageCount += 1;
 
             // All done...
             return (false);
@@ -3942,6 +4016,11 @@ namespace TwainDirect.Certification
         /// The opening banner (program, version, etc)...
         /// </summary>
         private string m_szBanner;
+
+        /// <summary>
+        /// The image count for the session...
+        /// </summary>
+        private long m_lImageCount;
 
         #endregion
     }

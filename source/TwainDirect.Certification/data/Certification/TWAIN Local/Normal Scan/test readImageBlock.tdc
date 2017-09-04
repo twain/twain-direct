@@ -52,6 +52,12 @@ return '${get:readimageblockresult}'
 ; Send the command...
 readImageBlock '${arg:1}' '${arg:2}'
 ;
+; Images can be sent across multiple imageBlocks, this
+; function stitches all the pieces together to give us
+; a finished product, which we'll need at the end when
+; we check the validity of the pdf/raster images...
+finishimage '${arg:1}'
+;
 ; Check the headers...
 run 'function CheckHeader' 'TL.NSCN.RDIB.001' 'readimageblockresult' 'Content-Type' ~contains 'multipart/mixed' 'boundary='
 run 'function CheckHeader' 'TL.NSCN.RDIB.002' 'readimageblockresult' 'Content-Length' == '${rdata:#}'

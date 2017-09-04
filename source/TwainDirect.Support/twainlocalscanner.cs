@@ -2696,7 +2696,10 @@ namespace TwainDirect.Support
                             }
 
                             // Notify the other bit...
-                            DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
+                            if (m_apicmdEvent != null)
+                            {
+                                DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
+                            }
                         }
                     }
                     #endregion
