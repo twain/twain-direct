@@ -1514,6 +1514,9 @@ namespace TwainDirect.Certification
                 Display("  can be # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular");
                 Display("  header.");
                 Display("");
+                Display("  '${localtime:[format]}'");
+                Display("  Returns the current local time using the DateTime format.");
+                Display("");
                 Display("  '${ret:}'");
                 Display("  The value supplied to the return command that ended the last run, runv, or call.  It's also");
                 Display("  used by the WAITFORSESSIONUPDATE command.");
@@ -3515,7 +3518,8 @@ namespace TwainDirect.Certification
                         ||  szSymbol.StartsWith("${hdrthumbnailkey:")
                         ||  szSymbol.StartsWith("${hdrthumbnailvalue:")
                         ||  szSymbol.StartsWith("${txt:")
-                        ||  szSymbol.StartsWith("${txtx:"))
+                        ||  szSymbol.StartsWith("${txtx:")
+                        ||  szSymbol.StartsWith("${localtime:"))
                     {
                         int iSymbolIndexLeft = szSymbol.IndexOf(":") + 1;
                         int iSymbolIndexLength;
@@ -3816,6 +3820,21 @@ namespace TwainDirect.Certification
                                     break;
                                 }
                             }
+                        }
+                    }
+
+                    // Access to the local time...
+                    else if (szSymbol.StartsWith("${localtime:"))
+                    {
+                        DateTime datetime = DateTime.Now;
+                        string szFormat = szSymbol.Substring(0, szSymbol.Length - 1).Substring(12);
+                        try
+                        {
+                            szValue = datetime.ToString(szFormat);
+                        }
+                        catch
+                        {
+                            szValue = datetime.ToString();
                         }
                     }
 

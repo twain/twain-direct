@@ -69,7 +69,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
-//  M.McLaughlin    15-Oct-2017     Initial Release
+//  M.McLaughlin    15-Oct-2016     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Copyright (C) 2016-2017 Kodak Alaris Inc.
 //
@@ -114,9 +114,9 @@ namespace TwainDirect.Support
     public sealed class TwainLocalScannerDevice : TwainLocalScanner
     {
         ///////////////////////////////////////////////////////////////////////////////
-        // Public Methods...
+        // Public Methods
         ///////////////////////////////////////////////////////////////////////////////
-        #region Public Methods...
+        #region Public Methods
 
         /// <summary>
         /// Init us...
@@ -742,7 +742,44 @@ namespace TwainDirect.Support
 
                 // Scrag the session...
                 SetSessionState(SessionState.noSession, "Session critical...", a_blUserShutdown);
+                EndSession();
             }
+        }
+
+        /// <summary>
+        /// End a session, and do all the cleanup work...
+        /// </summary>
+        public override void EndSession()
+        {
+            // Let the base cleanup...
+            base.EndSession();
+
+            // Cleanup the device stuff..
+            if (m_timerEvent != null)
+            {
+                m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+                m_timerEvent = null;
+            }
+            if (m_timerSession != null)
+            {
+                m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+
+            // Lose the session...
+            if (m_twainlocalsession != null)
+            {
+                m_twainlocalsession.Dispose();
+                m_twainlocalsession = null;
+            }
+
+            // Lose this...
+            if (m_apicmdEvent != null)
+            {
+                m_apicmdEvent = null;
+            }
+
+            // Try to leave nothing behind...
+            CleanImageFolders();
         }
 
         /// <summary>
@@ -776,9 +813,9 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Public Definitions...
+        // Public Definitions
         ///////////////////////////////////////////////////////////////////////////////
-        #region Public Definitions...
+        #region Public Definitions
 
         /// <summary>
         /// Prompt the user to confirm a request to scan...
@@ -796,9 +833,9 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Methods...
+        // Private Methods
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Methods...
+        #region Private Methods
 
         private bool CleanImageFolders()
         {
@@ -982,6 +1019,7 @@ namespace TwainDirect.Support
             {
                 Log.Error("Lost connection...");
                 SetSessionState(SessionState.noSession, "Lost connection...");
+                EndSession();
             }
 
             // All done...
@@ -1065,6 +1103,7 @@ namespace TwainDirect.Support
 
             // Scrag the session...
             twainlocalscannerdevice.SetSessionState(SessionState.noSession, "Session timeout...");
+            EndSession();
         }
 
         /// <summary>
@@ -1261,6 +1300,7 @@ namespace TwainDirect.Support
                 {
                     Log.Error("Lost connection...");
                     SetSessionState(SessionState.noSession, "Lost connection...");
+                    EndSession();
                 }
 
                 // All done...
@@ -1353,6 +1393,8 @@ namespace TwainDirect.Support
                 {
                     Log.Error("Lost connection...");
                     SetSessionState(SessionState.noSession, "Lost connection...");
+                    EndSession();
+                    return (true);
                 }
 
                 // Okay, now do the state transition...
@@ -1521,6 +1563,7 @@ namespace TwainDirect.Support
                     {
                         Log.Error("Lost connection...");
                         SetSessionState(SessionState.noSession, "Lost connection...");
+                        EndSession();
                     }
 
                     // All done...
@@ -1652,9 +1695,9 @@ namespace TwainDirect.Support
                 // Figure out the session state we want to transition to.  If
                 // we've lost our session, or we're ready, or we have no more
                 // images to deliver, then transition to noSession...
-                if ((m_twainlocalsession == null)
-                    || (m_twainlocalsession.GetSessionState() == SessionState.ready)
-                    || m_twainlocalsession.GetSessionImageBlocksDrained())
+                if (    (m_twainlocalsession == null)
+                    ||  (m_twainlocalsession.GetSessionState() == SessionState.ready)
+                    ||  m_twainlocalsession.GetSessionImageBlocksDrained())
                 {
                     sessionstate = SessionState.noSession;
                 }
@@ -1674,6 +1717,12 @@ namespace TwainDirect.Support
                 // Shutdown TWAIN Direct on TWAIN, but only if we've run out of
                 // images...
                 DeviceShutdownTwainDirectOnTwain(false);
+
+                // If we're done, cleanup...
+                if (sessionstate == SessionState.noSession)
+                {
+                    EndSession();
+                }
             }
 
             // All done...
@@ -2505,6 +2554,7 @@ namespace TwainDirect.Support
                                     break;
                                 case "closed":
                                     SetSessionState(SessionState.noSession);
+                                    EndSession();
                                     DeviceShutdownTwainDirectOnTwain(false);
                                     break;
                             }
@@ -2903,11 +2953,18 @@ namespace TwainDirect.Support
                     aszMetatmp = Directory.GetFiles(m_szTwImagesFolder, "*.tw*");
                     if ((aszMetatmp == null) || (aszMetatmp.Length == 0))
                     {
-                        File.Move
-                        (
-                            Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta"),
-                            Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")
-                        );
+                        try
+                        {
+                            File.Move
+                            (
+                                Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta"),
+                                Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")
+                            );
+                        }
+                        catch (Exception exception)
+                        {
+                            Log.Error("moving imageBlocksDrained failed - " + exception.Message);
+                        }
                     }
                 }
             }
@@ -3209,27 +3266,6 @@ namespace TwainDirect.Support
             // Cleanup...
             if (a_sessionstate == SessionState.noSession)
             {
-                // Lose the eventing stuff on the device side...
-                if (m_apicmdEvent != null)
-                {
-                    m_apicmdEvent.HttpAbort();
-                    m_apicmdEvent = null;
-                }
-
-                // Don't let the event timeout fire...
-                if (m_timerEvent != null)
-                {
-                    m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
-                    m_timerEvent.Dispose();
-                    m_timerEvent = null;
-                }
-
-                // Lose the timer...
-                if (m_timerSession != null)
-                {
-                    m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
-                }
-
                 // Display what happened...
                 Display(a_szSessionEndedMessage);
             }
@@ -3242,11 +3278,11 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Attributes...
+        // Private Attributes
         // All of the members in this section must be specific to the device
         // and not to the session.  Session stuff goes into TwainLocalSession.
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Attributes...
+        #region Private Attributes
 
         /// <summary>
         /// The long poll is on this guy, we'll respond to him when
@@ -3340,9 +3376,9 @@ namespace TwainDirect.Support
     public sealed class TwainLocalScannerClient : TwainLocalScanner
     {
         ///////////////////////////////////////////////////////////////////////////////
-        // Public Methods...
+        // Public Methods
         ///////////////////////////////////////////////////////////////////////////////
-        #region Public Methods...
+        #region Public Methods
 
         /// <summary>
         /// Init us...
@@ -3364,8 +3400,6 @@ namespace TwainDirect.Support
             int iDefault;
 
             // We use this to get notification about events...
-            m_blCancelWaitForEventsProcessing = false;
-            m_autoreseteventWaitForEvents = new AutoResetEvent(false);
             m_autoreseteventWaitForEventsProcessing = new AutoResetEvent(false);
 
             // The callback we use to send messages about events,
@@ -3410,6 +3444,7 @@ namespace TwainDirect.Support
             // Our locks...
             m_objectLockClientApi = new object();
             m_objectLockClientFinishImage = new object();
+            m_objectLockEndSession = new object();
 
             // The list of image blocks that we've received from
             // the scanner, and which we need to merge into finished
@@ -3425,15 +3460,14 @@ namespace TwainDirect.Support
             // Stop waiting for events...
             if (m_waitforeventsinfo != null)
             {
+                m_blCancelWaitForEventsProcessing = true;
+                m_autoreseteventWaitForEventsProcessing.Set();
+                if (m_waitforeventsinfo.m_apicmd != null)
+                {
+                    m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                }
                 m_waitforeventsinfo.Dispose();
                 m_waitforeventsinfo = null;
-            }
-
-            // No more triggers...
-            if (m_autoreseteventWaitForEvents != null)
-            {
-                m_autoreseteventWaitForEvents.Dispose();
-                m_autoreseteventWaitForEvents = null;
             }
 
             // No more triggers...
@@ -3617,6 +3651,45 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// End a session, and do all the cleanup work...
+        /// </summary>
+        public override void EndSession()
+        {
+            lock (m_objectLockEndSession)
+            {
+                // We're already clean...
+                if (m_twainlocalsession == null)
+                {
+                    return;
+                }
+
+                // Take out the event communication and processing threads...
+                if (m_waitforeventsinfo != null)
+                {
+                    m_blCancelWaitForEventsProcessing = true;
+                    m_autoreseteventWaitForEventsProcessing.Set();
+                    m_waitforeventsinfo.EndSession();
+                    Thread.Sleep(100);
+                }
+
+                // Lose the eventing stuff on the client side...
+                if (m_waitforeventsinfo != null)
+                {
+                    if (m_waitforeventsinfo.m_apicmd != null)
+                    {
+                        m_blCancelWaitForEventsProcessing = true;
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                    }
+                    m_waitforeventsinfo.Dispose();
+                    m_waitforeventsinfo = null;
+                }
+
+                // Let the base cleanup...
+                base.EndSession();
+            }
+        }
+
+        /// <summary>
         /// Images are transferred using one or more imageBlocks.  This function
         /// recognizes when all of the imageBlocks for an image have been received.
         /// It creates the finished image, and ties the .meta and thumbnails to the
@@ -3708,19 +3781,43 @@ namespace TwainDirect.Support
                 if ((m_llPendingImageBlocks.Count > 0) && (iImageNumber == m_llPendingImageBlocks[0]) && (iImagePart == 1) && (szMoreParts == "lastPartInFile"))
                 {
                     // Rename the .tdpdf file...
-                    File.Move(a_szImageBlock, a_szBasename + ".pdf");
+                    try
+                    {
+                        File.Move(a_szImageBlock, a_szBasename + ".pdf");
+                    }
+                    catch (Exception exception)
+                    {
+                        Log.Error("move failed: <" + a_szImageBlock + "> --> <" + a_szBasename + ".pdf" + "> - " + exception.Message);
+                        return (false);
+                    }
 
                     // If we have a thumbnail, rename it...
                     szThumbnail = a_szImageBlock.Replace(".tdpdf", "_thumbnail.tdpdf");
                     if (File.Exists(szThumbnail))
                     {
-                        File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
+                        try
+                        {
+                            File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
+                        }
+                        catch (Exception exception)
+                        {
+                            Log.Error("move failed: <" + szThumbnail + "> --> <" + a_szBasename + "_thumbnail.pdf" + "> - " + exception.Message);
+                            return (false);
+                        }
                     }
 
                     // Always handle the .tdmeta last, because the creation
                     // of a .meta file indicates that all of the files associated
                     // with an image are ready for access...
-                    File.Move(a_szImageBlock.Replace(".tdpdf", ".tdmeta"), a_szBasename + ".meta");
+                    try
+                    {
+                        File.Move(a_szImageBlock.Replace(".tdpdf", ".tdmeta"), a_szBasename + ".meta");
+                    }
+                    catch (Exception exception)
+                    {
+                        Log.Error("move failed: <" + a_szImageBlock.Replace(".tdpdf", ".tdmeta") + "> --> <" + a_szBasename + ".meta" + "> - " + exception.Message);
+                        return (false);
+                    }
 
                     // Remove this item from our list...
                     m_llPendingImageBlocks.RemoveAt(0);
@@ -3990,7 +4087,7 @@ namespace TwainDirect.Support
                     null,
                     null,
                     m_iHttpTimeoutCommand,
-                    ApiCmd.HttpReplyStyle.SimpleReply
+                    ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo
                 );
                 if (!blSuccess)
                 {
@@ -4706,7 +4803,7 @@ namespace TwainDirect.Support
 
                 // Send the RESTful API command...
                 // Both @@@COMMANDID@@@ and @@@SESSIONREVISION@@@ are resolved
-                // inside of the ClientScannerWaitForEventsHelper thread...
+                // inside of the ClientScannerWaitForEventsCommunicationHelper thread...
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
@@ -4803,12 +4900,7 @@ namespace TwainDirect.Support
             }
 
             // Take out the session...
-            if (m_twainlocalsession != null)
-            {
-                m_twainlocalsession.SetUserShutdown(true);
-                m_twainlocalsession.Dispose();
-                m_twainlocalsession = null;
-            }
+            EndSession();
         }
 
         /// <summary>
@@ -4851,9 +4943,9 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Public Definitions...
+        // Public Definitions
         ///////////////////////////////////////////////////////////////////////////////
-        #region Public Definitions...
+        #region Public Definitions
 
         /// <summary>
         /// Delegate for event callback...
@@ -4866,9 +4958,9 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Methods...
+        // Private Methods
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Methods...
+        #region Private Methods
 
         /// <summary>
         /// Build the HTTP headers needed by the client.  I didn't want to write this
@@ -5014,6 +5106,9 @@ namespace TwainDirect.Support
                     m_waitforeventsinfo = null;
                 }
 
+                // Make sure the cancel flag is off...
+                m_blCancelWaitForEventsProcessing = false;
+
                 // Squirrel the information away for the new thread...
                 m_waitforeventsinfo = new WaitForEventsInfo();
                 m_waitforeventsinfo.m_apicmd = a_apicmd;
@@ -5093,7 +5188,7 @@ namespace TwainDirect.Support
 
                     // If we've gone to noSession, we should scoot, since
                     // it's no longer possible to receive events...
-                    if ((m_twainlocalsession == null) || (sessionstate == SessionState.noSession))
+                    if (m_twainlocalsession == null/* || (sessionstate == SessionState.noSession)*/)
                     {
                         // Initialize the object, and that's it...
                         apicmd.HttpRequest
@@ -5130,6 +5225,12 @@ namespace TwainDirect.Support
                     }
                 }
 
+                // We've been asked to scoot...
+                if (m_blCancelWaitForEventsProcessing)
+                {
+                    return;
+                }
+
                 // Send the RESTful API command...
                 blSuccess = apicmd.HttpRequest
                 (
@@ -5143,6 +5244,12 @@ namespace TwainDirect.Support
                     m_waitforeventsinfo.m_iTimeout,
                     m_waitforeventsinfo.m_httpreplystyle
                 );
+
+                // We've been asked to scoot...
+                if (m_blCancelWaitForEventsProcessing)
+                {
+                    return;
+                }
 
                 // Handle errors...
                 if (!blSuccess)
@@ -5177,7 +5284,7 @@ namespace TwainDirect.Support
                 m_autoreseteventWaitForEventsProcessing.Set();
 
                 // We're done, we can stop monitoring for events...
-                if (szSessionState == "noSession")
+                if ((sessionstate == SessionState.noSession) || (szSessionState == "noSession"))
                 {
                     return;
                 }
@@ -5195,6 +5302,7 @@ namespace TwainDirect.Support
         {
             TwainLocalScannerClient twainlocalscannerclient;
             twainlocalscannerclient = (TwainLocalScannerClient)a_objectParameters;
+            m_blCancelWaitForEventsProcessing = false;
             twainlocalscannerclient.ClientScannerWaitForEventsProcessingHelper();
         }
 
@@ -5206,17 +5314,36 @@ namespace TwainDirect.Support
             // Loop until something stops us...
             for (;;)
             {
+                // We've been cancelled...
+                if (m_blCancelWaitForEventsProcessing)
+                {
+                    // We've been asked to scoot...
+                    if ((m_waitforeventsinfo != null) && (m_waitforeventsinfo.m_apicmd != null))
+                    {
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                    }
+                    return;
+                }
+
                 // Wait for the communication thread to give us work...
                 if (!m_autoreseteventWaitForEventsProcessing.WaitOne())
                 {
                     // We've been asked to scoot...
-                    m_autoreseteventWaitForEvents.Set();
+                    if ((m_waitforeventsinfo != null) && (m_waitforeventsinfo.m_apicmd != null))
+                    {
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                    }
                     return;
                 }
+
+                // We've been cancelled...
                 if (m_blCancelWaitForEventsProcessing)
                 {
                     // We've been asked to scoot...
-                    m_autoreseteventWaitForEvents.Set();
+                    if ((m_waitforeventsinfo != null) && (m_waitforeventsinfo.m_apicmd != null))
+                    {
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                    }
                     return;
                 }
 
@@ -5259,9 +5386,6 @@ namespace TwainDirect.Support
                         {
                             // Do the callback, if we have one...
                             apicmd.WaitForEventsCallback();
-
-                            // Tell the communication thread to stop...
-                            m_waitforeventsinfo.m_apicmd.HttpAbort();
                             break;
                         }
                     }
@@ -5269,10 +5393,6 @@ namespace TwainDirect.Support
                     // Do the callback, if we have one...
                     apicmd.WaitForEventsCallback();
                 }
-
-                // Wake up anybody who might want to know that an event
-                // has just gone by...
-                m_autoreseteventWaitForEvents.Set();
             }
         }
 
@@ -5325,8 +5445,14 @@ namespace TwainDirect.Support
                 switch (a_szCode)
                 {
                     default: break;
-                    case "critical": SetSessionState(SessionState.noSession); break;
-                    case "invalidSessionId": SetSessionState(SessionState.noSession); break;
+                    case "critical":
+                        SetSessionState(SessionState.noSession);
+                        EndSession();
+                        break;
+                    case "invalidSessionId":
+                        SetSessionState(SessionState.noSession);
+                        EndSession();
+                        break;
                 }
 
                 // Bail...
@@ -5336,15 +5462,17 @@ namespace TwainDirect.Support
             // We expect success from this point on, unless set otherwise...
             a_szCode = "success";
 
-            // If we done't have one of these styles, we can't have any session
+            // If we don't have one of these styles, we can't have any session
             // data, so bail here...
-            if ((a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo)
-                && (a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.Event))
+            if (    (a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.SimpleReplyWithSessionInfo)
+                &&  (a_apicmd.GetHttpReplyStyle() != ApiCmd.HttpReplyStyle.Event))
             {
                 return (true);
             }
 
-            // Is this /privet/info or /privet/infoex?
+
+            // Handle /privet/info and /privet/infoex
+            #region Handle /privet/info and /privet/infoex
             if (blIsInfoOrInfoex)
             {
                 // Squirrel away the x-privet-token so that we'll have
@@ -5356,8 +5484,11 @@ namespace TwainDirect.Support
                 // All done...
                 return (true);
             }
+            #endregion
 
-            // Handle events...
+
+            // Handle events
+            #region Handle Events
             if (a_apicmd.GetHttpReplyStyle() == ApiCmd.HttpReplyStyle.Event)
             {
                 // Handle any and all of the event data...
@@ -5374,16 +5505,82 @@ namespace TwainDirect.Support
                             break;
                         }
 
-                        // Process this event...
+                        // Check the session revision number...
+                        if (!int.TryParse(jsonlookup.Get(szEvent + ".session.revision", false), out iSessionRevision))
+                        {
+                            Log.Error(szFunction + ": bad session revision number...");
+                            continue;
+                        }
+
+                        // Only do this bit if the number is newer than what
+                        // we already have...
+                        if (!m_twainlocalsession.SetSessionRevision(iSessionRevision, true))
+                        {
+                            continue;
+                        }
+
+                        // Change our state...
+                        bool blNoSession = false;
+                        switch (jsonlookup.Get(szEvent + ".session.state"))
+                        {
+                            // Uh-oh...
+                            default:
+                                Log.Error(szFunction + ":Unrecognized session.state..." + jsonlookup.Get(szEvent + ".session.state"));
+                                a_szCode = "critical";
+                                return (false);
+
+                            case "capturing":
+                                SetSessionState(SessionState.capturing);
+                                break;
+
+                            case "closed":
+                                // We can't truly close until all the imageblocks are resolved...
+                                if ((m_twainlocalsession.m_alSessionImageBlocks == null)
+                                    || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))
+                                {
+                                    SetSessionState(SessionState.noSession);
+                                    EndSession();
+                                }
+                                else
+                                {
+                                    SetSessionState(SessionState.closed);
+                                }
+                                break;
+
+                            case "draining":
+                                SetSessionState(SessionState.draining);
+                                break;
+
+                            case "noSession":
+                                blNoSession = true;
+                                break;
+
+                            case "ready":
+                                SetSessionState(SessionState.ready);
+                                break;
+                        }
+
+                        // Okay, now we can process this event...
                         switch (jsonlookup.Get(szEvent + ".event", false))
                         {
                             // Ignore unrecognized events...
                             default:
                                 Log.Verbose(szFunction + ": unrecognized event..." + jsonlookup.Get(szEvent + ".event", false));
+                                if (blNoSession)
+                                {
+                                    SetSessionState(SessionState.noSession);
+                                    EndSession();
+                                }
                                 break;
 
                             // Our scanner session went bye-bye on us...
                             case "critical":
+                                // We'd like the events communication and processing threads
+                                // to exit, however we might be in the processing thread when
+                                // we get this message, so just set the flag...
+                                m_blCancelWaitForEventsProcessing = true;
+                                m_autoreseteventWaitForEventsProcessing.Set();
+
                                 // Our reply...
                                 Log.Info(szFunction + ": critical event...");
                                 if (m_eventcallback != null)
@@ -5394,6 +5591,13 @@ namespace TwainDirect.Support
                                 // Wake up anybody watching us...
                                 ClientWaitForSessionUpdateForceSet();
 
+                                // End session.
+                                if (blNoSession)
+                                {
+                                    SetSessionState(SessionState.noSession);
+                                    EndSession();
+                                }
+
                                 // All done...
                                 break;
 
@@ -5403,20 +5607,6 @@ namespace TwainDirect.Support
                                 Log.Verbose(szFunction + ": imageBlocks event...");
                                 lock (m_objectLockClientApi)
                                 {
-                                    // Check the session revision number...
-                                    if (!int.TryParse(jsonlookup.Get(szEvent + ".session.revision", false), out iSessionRevision))
-                                    {
-                                        Log.Error(szFunction + ": bad session revision number...");
-                                        continue;
-                                    }
-
-                                    // Only do this bit if the number is newer than what
-                                    // we already have...
-                                    if (!m_twainlocalsession.SetSessionRevision(iSessionRevision, true))
-                                    {
-                                        continue;
-                                    }
-
                                     // Only set the imageBlocksDrained to true if we're told to,
                                     // don't set them to false.  That's done once during the state
                                     // change to capturing...
@@ -5455,16 +5645,35 @@ namespace TwainDirect.Support
 
                                     // Wakeup anybody watching us...
                                     ClientWaitForSessionUpdateForceSet();
+
+                                    // End session.
+                                    if (blNoSession)
+                                    {
+                                        SetSessionState(SessionState.noSession);
+                                    }
                                 }
                                 break;
 
                             // Our scanner session went bye-bye on us...
                             case "sessionTimedOut":
+                                // We'd like the events communication and processing threads
+                                // to exit, however we might be in the processing thread when
+                                // we get this message, so just set the flag...
+                                m_blCancelWaitForEventsProcessing = true;
+                                m_autoreseteventWaitForEventsProcessing.Set();
+
                                 // Our reply...
                                 Log.Info(szFunction + ": sessionTimedOut event...");
                                 if (m_eventcallback != null)
                                 {
                                     m_eventcallback(m_objectEventCallback, "sessionTimedOut");
+                                }
+
+                                // End session.
+                                if (blNoSession)
+                                {
+                                    SetSessionState(SessionState.noSession);
+                                    EndSession();
                                 }
 
                                 // Wake up anybody watching us...
@@ -5475,6 +5684,12 @@ namespace TwainDirect.Support
 
                             // The event has timed out, we can ignore this one...
                             case "timeout":
+                                // End session.
+                                if (blNoSession)
+                                {
+                                    SetSessionState(SessionState.noSession);
+                                    EndSession();
+                                }
                                 break;
                         }
                     }
@@ -5483,6 +5698,11 @@ namespace TwainDirect.Support
                 // All done...
                 return (true);
             }
+            #endregion
+
+
+            // Handle API responses
+            #region Handle API responses
 
             // Init stuff...
             m_twainlocalsession.SetSessionId(jsonlookup.Get("results.session.sessionId"));
@@ -5564,6 +5784,7 @@ namespace TwainDirect.Support
                             || (m_twainlocalsession.m_alSessionImageBlocks.Length == 0))
                         {
                             SetSessionState(SessionState.noSession);
+                            EndSession();
                         }
                         else
                         {
@@ -5575,8 +5796,9 @@ namespace TwainDirect.Support
                         SetSessionState(SessionState.draining);
                         break;
 
-                    case "nosession":
+                    case "noSession":
                         SetSessionState(SessionState.noSession);
+                        EndSession();
                         break;
 
                     case "ready":
@@ -5597,6 +5819,8 @@ namespace TwainDirect.Support
 
             // All done...
             return (true);
+
+            #endregion
         }
 
         /// <summary>
@@ -5615,19 +5839,8 @@ namespace TwainDirect.Support
         {
             SessionState sessionstatePrevious;
 
-            // Let the base cleanup...
+            // Let the base set it's session state...
             sessionstatePrevious = base.SetSessionState(a_sessionstate, a_szSessionEndedMessage, a_blUserShutdown);
-
-            // Cleanup...
-            if (a_sessionstate == SessionState.noSession)
-            {
-                // Lose the eventing stuff on the client side...
-                if (m_waitforeventsinfo != null)
-                {
-                    m_waitforeventsinfo.Dispose();
-                    m_waitforeventsinfo = null;
-                }
-            }
 
             // Return the previous state...
             return (sessionstatePrevious);
@@ -5637,11 +5850,11 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Attributes...
+        // Private Attributes
         // All of the members in this section must be specific to the client
         // and not to the session.  Session stuff goes into TwainLocalSession.
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Attributes...
+        #region Private Attributes
 
         /// <summary>
         /// Event callback function...
@@ -5668,6 +5881,7 @@ namespace TwainDirect.Support
         /// </summary>
         private object m_objectLockClientApi;
         private object m_objectLockClientFinishImage;
+        private object m_objectLockEndSession;
 
         /// <summary>
         /// We maintain a list of the image blocks that we've not
@@ -5696,9 +5910,170 @@ namespace TwainDirect.Support
         /// <summary>
         /// Our signal to the client that an event has arrived...
         /// </summary>
-        private AutoResetEvent m_autoreseteventWaitForEvents;
         private AutoResetEvent m_autoreseteventWaitForEventsProcessing;
         private bool m_blCancelWaitForEventsProcessing;
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Wait For Events Info
+        // A waitForEvents manager, it takes care of creating and running a
+        // thread that receives and dispatches events, and issues a new
+        // waitForEvents command.
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Class: Wait For Events Info
+
+        /// <summary>
+        /// Information for waiting for events...
+        /// </summary>
+        private sealed class WaitForEventsInfo : IDisposable
+        {
+            /// <summary>
+            /// Constructor...
+            /// </summary>
+            public WaitForEventsInfo()
+            {
+                m_lapicmdEvents = new List<ApiCmd>();
+                m_objectlapicmdLock = new object();
+            }
+
+            /// <summary>
+            /// Destructor...
+            /// </summary>
+            ~WaitForEventsInfo()
+            {
+                Dispose(false);
+            }
+
+            /// <summary>
+            /// Cleanup...
+            /// </summary>
+            public void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            /// <summary>
+            /// Cleanup...
+            /// </summary>
+            /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+            internal void Dispose(bool a_blDisposing)
+            {
+                if (m_apicmd != null)
+                {
+                    try
+                    {
+                        m_apicmd.HttpAbortClientRequest();
+                    }
+                    catch
+                    {
+                    }
+                    m_apicmd = null;
+                }
+                if (m_threadCommunication != null)
+                {
+                    try
+                    {
+                        m_threadCommunication.Abort();
+                        m_threadCommunication.Join();
+                    }
+                    catch
+                    {
+                    }
+                    m_threadCommunication = null;
+                }
+                if (m_threadProcessing != null)
+                {
+                    try
+                    {
+                        m_threadProcessing.Abort();
+                        m_threadProcessing.Join();
+                    }
+                    catch
+                    {
+                    }
+                    m_threadProcessing = null;
+                }
+            }
+
+            /// <summary>
+            /// Close down our threads...
+            /// </summary>
+            public void EndSession()
+            {
+                // Make sure the event api command knows to exit...
+                if (m_apicmd != null)
+                {
+                    m_apicmd.HttpAbortClientRequest();
+                }
+
+                // Shutdown the communication thread...
+                if (m_threadCommunication != null)
+                {
+                    try
+                    {
+                        m_threadCommunication.Abort();
+                        //m_threadCommunication.Join();
+                    }
+                    catch
+                    {
+                    }
+                    m_threadCommunication = null;
+                }
+
+                // Shutdown the processing thread...
+                if (m_threadProcessing != null)
+                {
+                    try
+                    {
+                        //m_threadProcessing.Abort();
+                        //m_threadProcessing.Join();
+                    }
+                    catch
+                    {
+                    }
+                    m_threadProcessing = null;
+                }
+            }
+
+            // The ApiCmd used to issue the waitForCommand...
+            public ApiCmd m_apicmd;
+
+            /// <summary>
+            /// The communication thread issues the long poll HTTP
+            /// request, which is sent to the processing thread...
+            /// </summary>
+            public Thread m_threadCommunication;
+
+            /// <summary>
+            /// The processing thread does the real work on whatever
+            /// is received from the communication thread...
+            /// </summary>
+            public Thread m_threadProcessing;
+
+            /// <summary>
+            /// Our list of events passed from the communication thread
+            /// to the processing thread.  If they come in fast, before
+            /// we have a chance to process any of them, they'll bunch
+            /// up here.  This list is protected by a lock...
+            /// </summary>
+            public List<ApiCmd> m_lapicmdEvents;
+            public object m_objectlapicmdLock;
+
+            // Arguments for the waitForEvents command...
+            public string m_szReason;
+            public Dnssd.DnssdDeviceInfo m_dnssddeviceinfo;
+            public string m_szUri;
+            public string m_szMethod;
+            public string[] m_aszHeader;
+            public string m_szData;
+            public string m_szUploadFile;
+            public string m_szOutputFile;
+            public int m_iTimeout;
+            public ApiCmd.HttpReplyStyle m_httpreplystyle;
+        }
 
         #endregion
     }
@@ -5709,9 +6084,9 @@ namespace TwainDirect.Support
     public abstract class TwainLocalScanner : IDisposable
     {
         ///////////////////////////////////////////////////////////////////////////////
-        // Public Common Methods...
+        // Public Methods
         ///////////////////////////////////////////////////////////////////////////////
-        #region Public Common Methods...
+        #region Public Methods
 
         /// <summary>
         /// Init us...
@@ -5747,6 +6122,21 @@ namespace TwainDirect.Support
         {
             Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// End the session, and do all necessary cleanup...
+        /// </summary>
+        public virtual void EndSession()
+        {
+            // Lose the session...
+            if (m_twainlocalsession != null)
+            {
+                m_twainlocalsession.SetUserShutdown(false);
+                m_twainlocalsession.EndSession();
+                m_twainlocalsession.Dispose();
+                m_twainlocalsession = null;
+            }
         }
 
         /// <summary>
@@ -5851,9 +6241,9 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Public Definitions...
+        // Public Definitions
         ///////////////////////////////////////////////////////////////////////////////
-        #region Public Definitions...
+        #region Public Definitions
 
         /// <summary>
         /// Our supported platforms...
@@ -5920,9 +6310,9 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Protected Common methods...
+        // Protected methods
         ///////////////////////////////////////////////////////////////////////////////
-        #region Protected Common Methods...
+        #region Protected Common Methods
 
         /// <summary>
         /// Set the session state, and do additional cleanup work, if needed...
@@ -5945,18 +6335,6 @@ namespace TwainDirect.Support
             {
                 sessionstatePrevious = m_twainlocalsession.GetSessionState();
                 m_twainlocalsession.SetSessionState(a_sessionstate);
-            }
-
-            // Cleanup...
-            if (a_sessionstate == SessionState.noSession)
-            {
-                // Lose the session...
-                if (m_twainlocalsession != null)
-                {
-                    m_twainlocalsession.SetUserShutdown(a_blUserShutdown);
-                    m_twainlocalsession.Dispose();
-                    m_twainlocalsession = null;
-                }
             }
 
             // Return the previous state...
@@ -6106,9 +6484,9 @@ namespace TwainDirect.Support
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Protected Definitions...
+        // Protected Definitions
         ///////////////////////////////////////////////////////////////////////////////
-        #region Protected Definitions...
+        #region Protected Definitions
 
         /// <summary>
         /// Ways of getting to the server...
@@ -6137,124 +6515,15 @@ namespace TwainDirect.Support
             closed
         }
 
-        /// <summary>
-        /// Information for waiting for events...
-        /// </summary>
-        protected sealed class WaitForEventsInfo : IDisposable
-        {
-            /// <summary>
-            /// Constructor...
-            /// </summary>
-            public WaitForEventsInfo()
-            {
-                m_lapicmdEvents = new List<ApiCmd>();
-                m_objectlapicmdLock = new object();
-            }
-
-            /// <summary>
-            /// Destructor...
-            /// </summary>
-            ~WaitForEventsInfo()
-            {
-                Dispose(false);
-            }
-
-            /// <summary>
-            /// Cleanup...
-            /// </summary>
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-
-            /// <summary>
-            /// Cleanup...
-            /// </summary>
-            /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
-            internal void Dispose(bool a_blDisposing)
-            {
-                if (m_apicmd != null)
-                {
-                    try
-                    {
-                        m_apicmd.HttpAbort();
-                    }
-                    catch
-                    {
-                    }
-                    m_apicmd = null;
-                }
-                if (m_threadCommunication != null)
-                {
-                    try
-                    {
-                        m_threadCommunication.Abort();
-                        m_threadCommunication.Join();
-                    }
-                    catch
-                    {
-                    }
-                    m_threadCommunication = null;
-                }
-                if (m_threadProcessing != null)
-                {
-                    try
-                    {
-                        m_threadProcessing.Abort();
-                        m_threadProcessing.Join();
-                    }
-                    catch
-                    {
-                    }
-                    m_threadProcessing = null;
-                }
-            }
-
-            // Stuff needed for the thread...
-            public ApiCmd m_apicmd;
-
-            /// <summary>
-            /// The communication thread issues the long poll HTTP
-            /// request, which is sent to the processing thread...
-            /// </summary>
-            public Thread m_threadCommunication;
-
-            /// <summary>
-            /// The processing thread does the real work...
-            /// </summary>
-            public Thread m_threadProcessing;
-
-            // Arguments for the HTTP request...
-            public string m_szReason;
-            public Dnssd.DnssdDeviceInfo m_dnssddeviceinfo;
-            public string m_szUri;
-            public string m_szMethod;
-            public string[] m_aszHeader;
-            public string m_szData;
-            public string m_szUploadFile;
-            public string m_szOutputFile;
-            public int m_iTimeout;
-            public ApiCmd.HttpReplyStyle m_httpreplystyle;
-
-            /// <summary>
-            /// Our list of events.  If they come in fast, before we have
-            /// a chance to process any of them, they'll bunch up here.
-            /// Note that this list is protected by a lock...
-            /// </summary>
-            public List<ApiCmd> m_lapicmdEvents;
-            public object m_objectlapicmdLock;
-        }
-
         #endregion
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Protected Attributes...
+        // Protected Attributes
         // All of the members in this section must be specific to the device
         // and not to the session.  Session stuff goes into TwainLocalSession.
         ///////////////////////////////////////////////////////////////////////////////
-        #region Protected Attributes...
+        #region Protected Attributes
 
         /// <summary>
         /// Use this with the /privet/info and /privet/infoex commands...
@@ -6553,6 +6822,29 @@ namespace TwainDirect.Support
             public bool DeviceRegisterSave(string a_szFile)
             {
                 return (m_deviceregister.Save(a_szFile));
+            }
+
+            /// <summary>
+            /// End the session and do all cleanup...
+            /// </summary>
+            public void EndSession()
+            {
+                // Don't set anything, unless we see a change...
+                if (m_sessionstate != SessionState.noSession)
+                {
+                    // Log it...
+                    Log.Info("SetSessionState: " + m_sessionstate + " --> noSession");
+
+                    // Set it...
+                    m_sessionstate = SessionState.noSession;
+                }
+
+                // Cleanup...
+                ResetSessionRevision();
+                SetSessionId(null);
+                SetCallersHostName(null);
+                ResetSessionRevision();
+                SetSessionSnapshot("");
             }
 
             /// <summary>
@@ -6869,18 +7161,6 @@ namespace TwainDirect.Support
                         SetSessionDoneCapturing(false);
                         SetSessionImageBlocksDrained(false);
                     }
-
-                    // Cleanup, we need to do this to make sure that we're
-                    // reset if a new session is started, and this is the
-                    // most central place to handle it...
-                    if (m_sessionstate == SessionState.noSession)
-                    {
-                        ResetSessionRevision();
-                        SetSessionId(null);
-                        SetCallersHostName(null);
-                        ResetSessionRevision();
-                        SetSessionSnapshot("");
-                    }
                 }
             }
 
@@ -6957,6 +7237,7 @@ namespace TwainDirect.Support
                     if (m_autoreseteventWaitForSessionUpdate != null)
                     {
                         m_autoreseteventWaitForSessionUpdate.Set();
+                        Thread.Sleep(0);
                         m_autoreseteventWaitForSessionUpdate.Dispose();
                         m_filesystemwatcherhelperBridge = null;
                         m_filesystemwatcherhelperImageBlocks = null;

@@ -18,7 +18,6 @@ del /f /s /q %appdata%\twaindirect\TwainDirect.Certification\images\*.*
 :: TwainDirectOnTwain
 ::
 del /f /s /q %appdata%\twaindirect\TwainDirect.OnTwain\*.Log
-del /f /s /q %appdata%\twaindirect\TwainDirect.OnTwain\images\*.*
 del /f /s /q %appdata%\twaindirect\TwainDirect.OnTwain\ipc\*.*
 
 :: 
@@ -39,3 +38,5 @@ del /f /s /q %appdata%\twaindirect\TwainDirect.Scanner\list.txt
 del /f /s /q %appdata%\twaindirect\TwainDirect.Scanner\metadata.txt
 del /f /s /q %appdata%\twaindirect\TwainDirect.Scanner\reply.txt
 del /f /s /q %appdata%\twaindirect\TwainDirect.Scanner\task.txt
+del /f /s /q %appdata%\twaindirect\TwainDirect.Scanner\tdimages\*.*
+del /f /s /q %appdata%\twaindirect\TwainDirect.Scanner\twimages\*.*
