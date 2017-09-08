@@ -7436,12 +7436,30 @@ namespace TwainDirect.OnTwain
                     return (m_swordstatus);
                 }
 
-                // Try to convert it...
-                if (int.TryParse(m_szTdValue, out iNumberofsheets))
+                // If we support CAP_SHEETCOUNT, go with that...
+                if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetSheetCount())
                 {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_SHEETCOUNT,TWON_ONEVALUE,TWTY_INT32," + iNumberofsheets;
-                    return (m_swordstatus);
+                    if (int.TryParse(m_szTdValue, out iNumberofsheets))
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_SHEETCOUNT,TWON_ONEVALUE,TWTY_INT32," + iNumberofsheets;
+                        return (m_swordstatus);
+                    }
+                }
+
+                // Otherwise, see what we can do with CAP_XFERCOUNT, we need
+                // to find a way to hook this to CAP_DUPLEXENABLED.  For now
+                // we're just going to assume that we should mulitply it by
+                // 2.  This is okay for flatbeds, they'll just give us the
+                // one image...
+                else
+                {
+                    if (int.TryParse(m_szTdValue, out iNumberofsheets))
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_XFERCOUNT,TWON_ONEVALUE,TWTY_INT16," + (iNumberofsheets * 2);
+                        return (m_swordstatus);
+                    }
                 }
 
                 // Well foo, that didn't work...

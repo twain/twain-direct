@@ -86,6 +86,9 @@ namespace TwainDirect.OnTwain
             // Init stuff...
             m_blFlatbed = false;
             m_blDuplex = false;
+
+            // Log stuff...
+            TWAINWorkingGroup.Log.Info("TWAIN images folder: " + m_szImagesFolder);
         }
 
         /// <summary>
@@ -450,7 +453,7 @@ namespace TwainDirect.OnTwain
                 }
                 catch
                 {
-                    TWAINWorkingGroup.Log.Error("ReportImage: unable to create the image destination directory: " + m_szImagesFolder);
+                    TWAINWorkingGroup.Log.Error("ReportImage: unable to create the images folder: " + m_szImagesFolder);
                     m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
                     return (TWAINCSToolkit.MSG.RESET);
@@ -1642,7 +1645,7 @@ namespace TwainDirect.OnTwain
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
-                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        //return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                     }
                 }
             }

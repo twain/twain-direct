@@ -153,6 +153,8 @@ namespace TwainDirect.Support
             // Get our folder paths and clean them out...
             m_szTdImagesFolder = Path.Combine(m_szWriteFolder, "tdimages");
             m_szTwImagesFolder = Path.Combine(m_szWriteFolder, "twimages");
+            Log.Info("TWAIN images folder (input):         " + m_szTwImagesFolder);
+            Log.Info("TWAIN Direct images folder (output): " + m_szTdImagesFolder);
             blSuccess = CleanImageFolders();
             if (!blSuccess)
             {
