@@ -3464,7 +3464,7 @@ namespace TwainDirect.Support
                 m_autoreseteventWaitForEventsProcessing.Set();
                 if (m_waitforeventsinfo.m_apicmd != null)
                 {
-                    m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                    m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
                 }
                 m_waitforeventsinfo.Dispose();
                 m_waitforeventsinfo = null;
@@ -3678,7 +3678,7 @@ namespace TwainDirect.Support
                     if (m_waitforeventsinfo.m_apicmd != null)
                     {
                         m_blCancelWaitForEventsProcessing = true;
-                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
                     }
                     m_waitforeventsinfo.Dispose();
                     m_waitforeventsinfo = null;
@@ -5320,7 +5320,7 @@ namespace TwainDirect.Support
                     // We've been asked to scoot...
                     if ((m_waitforeventsinfo != null) && (m_waitforeventsinfo.m_apicmd != null))
                     {
-                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
                     }
                     return;
                 }
@@ -5331,7 +5331,7 @@ namespace TwainDirect.Support
                     // We've been asked to scoot...
                     if ((m_waitforeventsinfo != null) && (m_waitforeventsinfo.m_apicmd != null))
                     {
-                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
                     }
                     return;
                 }
@@ -5342,7 +5342,7 @@ namespace TwainDirect.Support
                     // We've been asked to scoot...
                     if ((m_waitforeventsinfo != null) && (m_waitforeventsinfo.m_apicmd != null))
                     {
-                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest();
+                        m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
                     }
                     return;
                 }
@@ -5965,7 +5965,7 @@ namespace TwainDirect.Support
                 {
                     try
                     {
-                        m_apicmd.HttpAbortClientRequest();
+                        m_apicmd.HttpAbortClientRequest(false);
                     }
                     catch
                     {
@@ -6006,7 +6006,7 @@ namespace TwainDirect.Support
                 // Make sure the event api command knows to exit...
                 if (m_apicmd != null)
                 {
-                    m_apicmd.HttpAbortClientRequest();
+                    m_apicmd.HttpAbortClientRequest(false);
                 }
 
                 // Shutdown the communication thread...

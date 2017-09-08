@@ -719,8 +719,9 @@ namespace TwainDirect.Support
         /// Abort a pending HTTP request issued by a client,
         /// this is usually going to hit waitForEvents...
         /// </summary>
-        public void HttpAbortClientRequest()
+        public void HttpAbortClientRequest(bool a_blTimeout)
         {
+            m_blTimeout = a_blTimeout;
             m_blAbortClientRequest = true;
             if (m_httpwebrequest != null)
             {
@@ -728,6 +729,15 @@ namespace TwainDirect.Support
             }
         }
 
+        /******************************************************************************************
+        *******************************************************************************************
+        **
+        ** I'm leaving this code here for now (07-Sep-2017) because it's easier to follow
+        ** than the async code, and because if we ever switch to .NET 4.5 which has better
+        ** async functions, it might be nice to have this as a reference.  Just be aware
+        ** that it's not being maintained, so as time passes bug fixes made to the current
+        ** async code won't be reflected here...
+        **
         /// <summary>
         /// We make decisions about how the HttpRequestAttempt went.  It keeps
         /// the code cleaner this way, especially for the retry loop.
@@ -743,7 +753,7 @@ namespace TwainDirect.Support
         /// <param name="a_httpreplystyle">how the reply will be handled</param>
         /// <param name="a_blInitOnly">init only (used in error cases)</param>
         /// <returns>true on success</returns>
-        public bool HttpRequest2
+        public bool HttpRequestSerial
         (
             string a_szReason,
             string a_szUri,
@@ -1558,6 +1568,8 @@ namespace TwainDirect.Support
 
             #endregion
         }
+        *******************************************************************************************
+        ******************************************************************************************/
 
         /// <summary>
         /// Abort the request if the timer fires.
@@ -1568,11 +1580,8 @@ namespace TwainDirect.Support
         {
             if (a_blTimedOut)
             {
-                HttpWebRequest httpwebrequest = a_objectState as HttpWebRequest;
-                if (httpwebrequest != null)
-                {
-                    httpwebrequest.Abort();
-                }
+                ApiCmd apicmd = a_objectState as ApiCmd;
+                apicmd.HttpAbortClientRequest(true);
             }
         }
 
@@ -1837,23 +1846,6 @@ namespace TwainDirect.Support
             catch (Exception exception)
             {
                 CollectException("GetData", exception);
-                return;
-            }
-
-            // Cleanup...
-            m_httpwebresponse.Close();
-
-            // Log what we got back......
-            Log.Info("http>>> recvdata " + m_szResponseData);
-
-            // All done, final check...
-            m_szResponseHttpStatus = ((int)m_httpwebresponse.StatusCode).ToString();
-            if (int.Parse(m_szResponseHttpStatus) >= 300)
-            {
-                Log.Error(m_szReason + " failed...");
-                Log.Error("http>>> sts " + m_szResponseHttpStatus);
-                Log.Error("http>>> stsreason " + m_szReason + " (" + m_szResponseData + ")");
-                m_blResponseSuccess = false;
                 return;
             }
 
@@ -2464,7 +2456,9 @@ namespace TwainDirect.Support
             m_szSendCommand = a_szData;
             m_httpreplystyle = a_httpreplystyle;
             m_szOutputFile = a_szOutputFile;
-            m_szReason = a_szMethod;
+            m_szReason = a_szReason;
+            m_szMethod = a_szMethod;
+
 
             // Pick our URI, prefix the default server, unless the user gives us an override...
             //
@@ -2629,7 +2623,7 @@ namespace TwainDirect.Support
 
                 // this line implements the timeout, if there is a timeout, the callback fires and the request becomes aborted
                 m_waithandle = iasyncresult.AsyncWaitHandle;
-                m_registeredwaithandle = ThreadPool.RegisterWaitForSingleObject(iasyncresult.AsyncWaitHandle, new WaitOrTimerCallback(TimeoutCallback), m_httpwebrequest, a_iTimeout, true);
+                m_registeredwaithandle = ThreadPool.RegisterWaitForSingleObject(iasyncresult.AsyncWaitHandle, new WaitOrTimerCallback(TimeoutCallback), this, a_iTimeout, true);
 
                 // The response came in the allowed time. The work processing will happen in the 
                 // callback function.
@@ -2641,6 +2635,12 @@ namespace TwainDirect.Support
 
                 // Release the HttpWebResponse...
                 m_httpwebrequest.GetResponse().Close();
+
+                // Handle a timeout...
+                if (m_blTimeout)
+                {
+                    return (CollectWebException("GetResponse", new WebException("Timeout", WebExceptionStatus.Timeout)));
+                }
             }
             catch (WebException webexception)
             {
@@ -2659,7 +2659,21 @@ namespace TwainDirect.Support
                 return (CollectException("GetResponse", exception));
             }
 
-            // All done...
+            // Log what we got back......
+            Log.Info("http>>> recvdata " + m_szResponseData);
+
+            // All done, final check...
+            m_szResponseHttpStatus = ((int)m_httpwebresponse.StatusCode).ToString();
+            m_httpwebresponse.Close();
+            if (int.Parse(m_szResponseHttpStatus) >= 300)
+            {
+                Log.Error(a_szReason + " failed...");
+                Log.Error("http>>> sts " + m_szResponseHttpStatus);
+                Log.Error("http>>> stsreason " + a_szReason + " (" + m_szResponseData + ")");
+                m_blResponseSuccess = false;
+                return (false);
+            }
+            m_blResponseSuccess = true;
             return (true);
 
             #endregion
@@ -3913,6 +3927,7 @@ namespace TwainDirect.Support
         /// We need to scoot on any HTTP exceptions...
         /// </summary>
         private bool m_blAbortClientRequest;
+        private bool m_blTimeout;
 
         /// <summary>
         /// true if the reply indicates success...
