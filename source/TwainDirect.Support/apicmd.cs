@@ -1575,7 +1575,6 @@ namespace TwainDirect.Support
         /// <param name="a_iXfer">number of bytes from last read</param>
         private void LogXfer(string a_szFunction, int a_iXfer)
         {
-            Log.SetFlush(true);
             Log.Verbose
             (
                 "http>>> " + a_szFunction + ":" +
@@ -1594,7 +1593,6 @@ namespace TwainDirect.Support
         /// <param name="a_iXfer">number of bytes from last read</param>
         private void LogWrite(string a_szFunction, long a_lOffset, long a_lXfer)
         {
-            Log.SetFlush(true);
             Log.Verbose
             (
                 "http>>> " + a_szFunction + ":" +

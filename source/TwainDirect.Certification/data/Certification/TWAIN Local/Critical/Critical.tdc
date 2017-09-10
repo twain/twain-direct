@@ -1,11 +1,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; SessionTimedOut
+; Critical
 ; arg:1 - scanner to use
 ; returns: pass or fail
 ;
-; Open the scanner and wait for the session to time out.  This test shows
-; that the scanner can be configured so that no one user can permanently
-; lock out all other users, if their session is idle.
+; Open the scanner and wait for the session to go critical.  This test
+; show that the scanner does its best to alert an application when it
+; has to abruptly end a session.
 ;
 
 
@@ -14,9 +14,9 @@
 ; Display the banner...
 ;
 echo
-echo 'SessionTimedOut v1.0 04-Sep-2017'
-set sessiontimedoutgetsessionresult 'pass'
-set sessiontimedoutwaitforeventsresult 'skip'
+echo 'Critical v1.0 10-Sep-2017'
+set criticalgetsessionresult 'pass'
+set criticalwaitforeventsresult 'skip'
 
 
 
@@ -55,23 +55,22 @@ if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
 ; constructed...
 ;
 echo 'CMD: waitForEvents'
-waitForEvents 'test waitForEvents' 'sessiontimedout' 'sessiontimedoutwaitforeventsresult'
+waitForEvents 'test waitForEvents' 'critical' 'criticalwaitforeventsresult'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Snooze until we get a sessionTimedOut event, if we don't
-; see anything after ten minutes, declare the test a bust.
-; We check every 15 seconds for 10 minutes.  Note that the
-; recommended timeout is 5 minutes...
+; Snooze until we get a critical event, if we don't see
+; anything after one minute, declare the test a bust.
+; We check every 5 seconds for 1 minute.
 ;
 set tt 0
 :MAIN.WAIT
-	if '${get:tt}' > 600000 goto MAIN.WAITFAIL
-	if '${get:sessiontimedoutwaitforeventsresult}' == 'pass' goto MAIN.WAITDONE
-	if '${get:sessiontimedoutwaitforeventsresult}' == 'fail' goto MAIN.WAITDONE
-	increment tt '${get:tt}' 15000
-	sleep 15000
+	if '${get:tt}' > 60000 goto MAIN.WAITFAIL
+	if '${get:criticalwaitforeventsresult}' == 'pass' goto MAIN.WAITDONE
+	if '${get:criticalwaitforeventsresult}' == 'fail' goto MAIN.WAITDONE
+	increment tt '${get:tt}' 5000
+	sleep 5000
 goto MAIN.WAIT
 
 
@@ -80,8 +79,8 @@ goto MAIN.WAIT
 ; How did we do?
 ;
 :MAIN.WAITDONE
-if '${get:sessiontimedoutwaitforeventsresult}' != 'pass' goto MAIN.FAIL
-echopassfail 'SessionTimedOut' 'pass'
+if '${get:criticalwaitforeventsresult}' != 'pass' goto MAIN.FAIL
+echopassfail 'Critical' 'pass'
 log info '#Test result:                 pass'
 return 'pass'
 
@@ -92,6 +91,6 @@ return 'pass'
 ;
 :MAIN.FAIL
 closeSession
-echopassfail 'SessionTimedOut' 'fail (timeout not seen)'
-log info '#Test result:                 fail (timeout not seen)'
+echopassfail 'Critical' 'fail (critical not seen)'
+log info '#Test result:                 fail (critical not seen)'
 return 'fail'

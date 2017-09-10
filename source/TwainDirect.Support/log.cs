@@ -145,10 +145,19 @@ namespace TwainDirect.Support
         /// <summary>
         /// Set the debugging level
         /// </summary>
-        /// <param name="a_iLevel"></param>
+        /// <param name="a_iLevel">a bitmask</param>
         public static void SetLevel(int a_iLevel)
         {
+            // Squirrel this value away...
             ms_iLevel = a_iLevel;
+
+            // Turn flush on, we do this to guarantee that all log
+            // messages make it to disk.  But be careful, it can
+            // really slow things down...
+            if ((a_iLevel & 0x4) == 0x4)
+            {
+                SetFlush(true);
+            }
         }
 
         /// <summary>
