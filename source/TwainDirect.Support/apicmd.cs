@@ -203,7 +203,6 @@ namespace TwainDirect.Support
             }
 
             // Squirrel away the rest of it...
-            m_blResponseSuccess = a_blSuccess;
             m_szResponseCode = a_szResponseCode;
             m_lResponseCharacterOffset = a_lResponseCharacterOffset;
             m_szResponseText = a_szResponseText;
@@ -1560,16 +1559,51 @@ namespace TwainDirect.Support
                 Log.Error(a_szReason + " failed...");
                 Log.Error("http>>> sts " + m_szResponseHttpStatus);
                 Log.Error("http>>> stsreason " + a_szReason + " (" + m_szResponseData + ")");
-                m_blResponseSuccess = false;
                 return (false);
             }
-            m_blResponseSuccess = true;
             return (true);
 
             #endregion
         }
         *******************************************************************************************
         ******************************************************************************************/
+
+        /// <summary>
+        /// Log details of the data transfer...
+        /// </summary>
+        /// <param name="a_szFunction">three letter code for the function we're in</param>
+        /// <param name="a_iXfer">number of bytes from last read</param>
+        private void LogXfer(string a_szFunction, int a_iXfer)
+        {
+            Log.SetFlush(true);
+            Log.Verbose
+            (
+                "http>>> " + a_szFunction + ":" +
+                " xfr=" + a_iXfer.ToString("D7") +
+                " mpx=" + m_lMultipartXferred.ToString("D7") +
+                " mpt=" + m_lMultipartContentLength.ToString("D7") +
+                " clx=" + m_lResponseBytesXferred.ToString("D7") +
+                " clt=" + m_lContentLength.ToString("D7")
+            );
+        }
+
+        /// <summary>
+        /// Log details of the data transfer...
+        /// </summary>
+        /// <param name="a_szFunction">three letter code for the function we're in</param>
+        /// <param name="a_iXfer">number of bytes from last read</param>
+        private void LogWrite(string a_szFunction, long a_lOffset, long a_lXfer)
+        {
+            Log.SetFlush(true);
+            Log.Verbose
+            (
+                "http>>> " + a_szFunction + ":" +
+                " off=" + a_lOffset.ToString("D7") +
+                " xfr=" + a_lXfer.ToString("D7") +
+                " mpx=" + m_lWritten.ToString("D7") +
+                " mpt=" + m_lMultipartContentLength.ToString("D7")
+            );
+        }
 
         /// <summary>
         /// Abort the request if the timer fires.
@@ -1714,6 +1748,8 @@ namespace TwainDirect.Support
                 // All we have is just a JSON reply...
                 if (!blMultipart)
                 {
+                    m_lWritten = 0;
+                    m_lMultipartXferred = 0;
                     m_streamHttpWebResponse = m_httpwebresponse.GetResponseStream();
                     m_abBufferHttpWebResponse = new byte[0x65536];
                     m_lResponseBytesXferred = 0;
@@ -1723,8 +1759,10 @@ namespace TwainDirect.Support
                 // We're a multipart...
                 else
                 {
+                    m_lWritten = 0;
+                    m_lMultipartXferred = 0;
                     m_streamHttpWebResponse = m_httpwebresponse.GetResponseStream();
-                    m_abBufferHttpWebResponse = new byte[0x200000];
+                    m_abBufferHttpWebResponse = new byte[0x65536];
                     m_lResponseBytesXferred = 0;
 
                     // This is our block separator, it has the dashes and the
@@ -1802,11 +1840,11 @@ namespace TwainDirect.Support
                 // If we got data, then get more data, we'll keep doing
                 // this callback until we've gotten all of the data...
                 iRead = m_streamHttpWebResponse.EndRead(a_iasyncresult);
+                m_lMultipartXferred += iRead;
+                m_lResponseBytesXferred += iRead;
+                LogXfer("jsn", iRead);
                 if (iRead > 0)
                 {
-                    // Bump up the number of bytes we've read...
-                    m_lResponseBytesXferred += iRead;
-
                     // Protect us against a buffer that's too small...
                     if ((m_abBufferHttpWebResponse.Length - m_lResponseBytesXferred) < 8192)
                     {
@@ -1849,8 +1887,8 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // Success...
-            m_blResponseSuccess = true;
+            // Success, we set the web request here, because we've
+            // transferred all of the data...
             m_autoreseteventHttpWebRequest.Set();
             return;
         }
@@ -1933,10 +1971,11 @@ namespace TwainDirect.Support
                     iXfer = m_streamHttpWebResponse.EndRead(a_iasyncresult);
                     m_lRead += iXfer;
                     m_lResponseBytesXferred += iXfer;
-
+                    LogXfer("hdr", iXfer);
                 }
-                catch
+                catch (Exception exception)
                 {
+                    Log.Error("httphdr>>> EndRead failed - " + exception.Message);
                     m_autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -1945,6 +1984,7 @@ namespace TwainDirect.Support
                 // we don't have anything cached from a prior read, so we can bail...
                 if (m_lRead == 0)
                 {
+                    Log.Verbose("httphdr>>> done...");
                     m_autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -1955,12 +1995,13 @@ namespace TwainDirect.Support
                     // If we filled the buffer, we're a sad panda...
                     if (m_abBufferHttpWebResponse.Length == m_lRead)
                     {
-                        Log.Error(m_szReason + ": filled our buffer without finding CRLF/CRLF, that's not right...");
+                        Log.Error("httphdr>>> filled our buffer without finding CRLF/CRLF, that's not right...");
                         m_autoreseteventHttpWebRequest.Set();
                         return;
                     }
 
                     // Start the read...
+                    //xxxLog.Verbose("httphdr>>> read: off=" + m_lRead + " len=" + (m_abBufferHttpWebResponse.Length - m_lRead));
                     iasyncresult = m_streamHttpWebResponse.BeginRead
                     (
                         m_abBufferHttpWebResponse,
@@ -1970,8 +2011,7 @@ namespace TwainDirect.Support
                         this
                     );
 
-                    // Scoot...
-                    m_autoreseteventHttpWebRequest.Set();
+                    // Scoot, don't set the web request, we're not done yet...
                     return;
                 }
 
@@ -1980,13 +2020,13 @@ namespace TwainDirect.Support
                 lImageBlockSeperator = IndexOf(m_abBufferHttpWebResponse, m_abImageBlockSeperator, m_lOffset);
                 if (lImageBlockSeperator == -1)
                 {
-                    Log.Error(m_szReason + ": missing --boundary in multipart/mixed");
+                    Log.Error("httphdr>>> missing --boundary in multipart/mixed");
                     m_autoreseteventHttpWebRequest.Set();
                     return;
                 }
                 if (lImageBlockSeperator != m_lOffset)
                 {
-                    Log.Error(m_szReason + ": misaligned --boundary in multipart/mixed");
+                    Log.Error("httphdr>>> misaligned --boundary in multipart/mixed");
                     m_autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -2011,7 +2051,7 @@ namespace TwainDirect.Support
                     // Ruh-roh, ran out of data, that's not good...
                     if (lCRLF == -1)
                     {
-                        Log.Error(m_szReason + ": unexpected end of header block in multipart/mixed");
+                        Log.Error("httphdr>>> unexpected end of header block in multipart/mixed");
                         m_autoreseteventHttpWebRequest.Set();
                         return;
                     }
@@ -2060,7 +2100,7 @@ namespace TwainDirect.Support
                             string szLength = aszSplit[1].Trim();
                             if (!long.TryParse(szLength, out m_lMultipartContentLength))
                             {
-                                Log.Error(m_szReason + ": badly constructed content-length");
+                                Log.Error("httphdr>>> badly constructed content-length");
                                 m_autoreseteventHttpWebRequest.Set();
                                 return;
                             }
@@ -2116,7 +2156,7 @@ namespace TwainDirect.Support
                 // transfer, then we have an issue...
                 if (m_blApplicationJsonSeen)
                 {
-                    Log.Error(m_szReason + ": multiple application/json blocks confuse and irritate us...");
+                    Log.Error("httphdr>>> multiple application/json blocks confuse and irritate us...");
                     m_autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -2128,7 +2168,7 @@ namespace TwainDirect.Support
                 // seems very unlikely...
                 if ((m_lOffset + m_lMultipartContentLength) > m_abBufferHttpWebResponse.Length)
                 {
-                    Log.Error(m_szReason + ": data overflow...");
+                    Log.Error("httphdr>>> data overflow...");
                     m_autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -2146,6 +2186,7 @@ namespace TwainDirect.Support
                 ConsumeEndOfBoundary();
 
                 // Start the read for the next multipart header...
+                //xxxLog.Verbose("httphdr>>> readhdr: off=" + m_lRead + " len=" + (m_abBufferHttpWebResponse.Length - m_lRead));
                 iasyncresult = m_streamHttpWebResponse.BeginRead
                 (
                     m_abBufferHttpWebResponse,
@@ -2190,6 +2231,9 @@ namespace TwainDirect.Support
                 if (m_lMultipartContentLength <= (m_lRead - m_lOffset))
                 {
                     // Write out the data segment we have...
+                    m_lMultipartXferred += (m_lRead - m_lOffset);
+                    m_lWritten += (m_lRead - m_lOffset);
+                    LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", m_lOffset, (m_lRead - m_lOffset));
                     m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, (int)m_lOffset, (int)(m_lRead - m_lOffset));
                     m_lOffset = 0;
 
@@ -2200,6 +2244,7 @@ namespace TwainDirect.Support
                     ConsumeEndOfBoundary();
 
                     // Start the read for the next multipart header...
+                    //xxxLog.Verbose("httphdr>>> readhdr: off=" + m_lRead + " len=" + (m_abBufferHttpWebResponse.Length - m_lRead));
                     iasyncresult = m_streamHttpWebResponse.BeginRead
                     (
                         m_abBufferHttpWebResponse,
@@ -2209,13 +2254,16 @@ namespace TwainDirect.Support
                         this
                     );
 
-                    // All done...
+                    // All done, don't set the web request, we're not done yet...
                     return;
                 }
 
                 // Write out the data segment we have...
                 if ((m_lRead - m_lOffset) > 0)
                 {
+                    m_lMultipartXferred += (m_lRead - m_lOffset);
+                    m_lWritten += (m_lRead - m_lOffset);
+                    LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", m_lOffset, (m_lRead - m_lOffset));
                     m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, (int)m_lOffset, (int)(m_lRead - m_lOffset));
                     m_lRead = m_lRead - m_lOffset; // we're tracking the content-length
                 }
@@ -2223,6 +2271,7 @@ namespace TwainDirect.Support
                 // Start the read for the multipart pdf data...
                 m_lRead = 0;
                 m_lOffset = 0;
+                //xxxLog.Verbose("httphdr>>> readpdf: off=0 len=" + m_abBufferHttpWebResponse.Length);
                 iasyncresult = m_streamHttpWebResponse.BeginRead
                 (
                     m_abBufferHttpWebResponse,
@@ -2232,14 +2281,17 @@ namespace TwainDirect.Support
                     this
                 );
 
-                // All done...
+                // All done, we're not done yet, so don't set the web request...
                 return;
             }
 
-            // We've been given something that we don't recognize...
+            // TBD
+            // We've been given something that we don't recognize, we could
+            // skip over this, but I'll add that later...
             else
             {
-                Log.Error(m_szReason + ": unrecognized data block in multipart/mixed, it wasn't application/json or application/pdf...");
+                Log.Error("httphdr>>> unrecognized data block in multipart/mixed, it wasn't application/json or application/pdf...");
+                m_autoreseteventHttpWebRequest.Set();
                 return;
             }
         }
@@ -2268,15 +2320,20 @@ namespace TwainDirect.Support
             // Get the data...
             iXfer = m_streamHttpWebResponse.EndRead(a_iasyncresult);
             m_lRead += iXfer;
+            m_lMultipartXferred += iXfer;
+            m_lResponseBytesXferred += iXfer;
+            LogXfer("pdf", iXfer);
 
             // If we actually read data, write it out and read more data...
             if (iXfer > 0)
             {
                 // We haven't reached the end of the PDF data, so we can
                 // write out the whole thing and get more...
-                if (m_lRead <= m_lMultipartContentLength)
+                if (m_lMultipartXferred <= m_lMultipartContentLength)
                 {
                     // Write what we have...
+                    m_lWritten += iXfer;
+                    LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", 0, iXfer);
                     m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, 0, iXfer);
                     m_lOffset += iXfer;
 
@@ -2300,9 +2357,14 @@ namespace TwainDirect.Support
             // data.  We figure this out from the difference between
             // the amount of data in the PDF and how much we've already
             // written to disk.
-            m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, 0, (int)(m_lMultipartContentLength - m_lOffset));
-            int iRemainder = iXfer - (int)(m_lMultipartContentLength - m_lOffset);
-            m_lOffset = iXfer - iRemainder;
+            long lLastWrite = iXfer - (m_lMultipartXferred - m_lMultipartContentLength);
+            long lRemainder = iXfer - lLastWrite;
+            if (lLastWrite > 0)
+            {
+                m_lWritten += lLastWrite;
+                LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", 0, lLastWrite);
+                m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, 0, (int)lLastWrite);
+            }
 
             // We've completed the file, so close it...
             m_filestreamOutputFile.Close();
@@ -2314,17 +2376,18 @@ namespace TwainDirect.Support
             //
             // TBD (we may need another read here, if we didn't get
             // all of the CRLF data!!!)
-            if (iRemainder > 0)
+            if (lRemainder > 0)
             {
-                Array.ConstrainedCopy(m_abBufferHttpWebResponse, (int)m_lOffset, m_abBufferHttpWebResponse, 0, iRemainder);
+                Array.ConstrainedCopy(m_abBufferHttpWebResponse, (int)lLastWrite, m_abBufferHttpWebResponse, 0, (int)lRemainder);
             }
             m_lOffset = 0;
-            m_lRead = iRemainder;
+            m_lRead = lRemainder;
 
             // Consume the end of the block...
             ConsumeEndOfBoundary();
 
             // Start the read for the next multipart header...
+            //xxxLog.Verbose("httphdr>>> readhdr: off=" + m_lRead + " len=" + (m_abBufferHttpWebResponse.Length - m_lRead));
             iasyncresult = m_streamHttpWebResponse.BeginRead
             (
                 m_abBufferHttpWebResponse,
@@ -2670,10 +2733,8 @@ namespace TwainDirect.Support
                 Log.Error(a_szReason + " failed...");
                 Log.Error("http>>> sts " + m_szResponseHttpStatus);
                 Log.Error("http>>> stsreason " + a_szReason + " (" + m_szResponseData + ")");
-                m_blResponseSuccess = false;
                 return (false);
             }
-            m_blResponseSuccess = true;
             return (true);
 
             #endregion
@@ -3478,12 +3539,14 @@ namespace TwainDirect.Support
             }
 
             // Handle it...
-            m_blResponseSuccess = false;
             m_szResponseHttpStatus = ApiCmd.c_szNonHttpError;
             m_iResponseHttpStatus = int.Parse(ApiCmd.c_szNonHttpError);
             m_szResponseCode = "communicationError";
             m_szResponseText = a_exception.Message;
-            m_httpwebresponse.Close();
+            if (m_httpwebresponse != null)
+            {
+                m_httpwebresponse.Close();
+            }
             return (false);
         }
 
@@ -3534,7 +3597,6 @@ namespace TwainDirect.Support
                 }
 
                 // Handle it...
-                m_blResponseSuccess = false;
                 if (a_webexception != null)
                 {
                     switch (a_webexception.Status)
@@ -3580,7 +3642,6 @@ namespace TwainDirect.Support
             Log.Error("http>>> stsdata " + szStatusData);
 
             // Return it...
-            m_blResponseSuccess = false;
             m_webexceptionstatus = a_webexception.Status;
             m_szResponseHttpStatus = m_iResponseHttpStatus.ToString();
             m_szResponseCode = "critical";
@@ -3639,7 +3700,6 @@ namespace TwainDirect.Support
             m_dnssddeviceinfo = a_dnssddeviceinfo;
             m_waitforeventprocessingcallback = a_waitforeventprocessingcallback;
             m_objectWaitforeventprocessingcallback = a_objectWaitforeventprocessingcallback;
-            m_blResponseSuccess = false;
             m_szResponseHttpStatus = null;
             m_szResponseCode = null;
             m_szResponseText = null;
@@ -3820,6 +3880,8 @@ namespace TwainDirect.Support
         private bool m_blMultipartApplicationPdfThumbnail;
         private bool m_blMultipartApplicationPdfImage;
         private long m_lMultipartContentLength;
+        private long m_lMultipartXferred;
+        private long m_lWritten;
         private int m_iHeaders;
         private string[] m_aszHeaders;
         private WaitHandle m_waithandle;
@@ -3928,11 +3990,6 @@ namespace TwainDirect.Support
         /// </summary>
         private bool m_blAbortClientRequest;
         private bool m_blTimeout;
-
-        /// <summary>
-        /// true if the reply indicates success...
-        /// </summary>
-        private bool m_blResponseSuccess;
 
         /// <summary>
         /// The HTTP status that comes with the reply...
