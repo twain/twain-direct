@@ -2989,7 +2989,7 @@ namespace TwainDirect.Certification
                     lTaskIndex = (szSendCommand.IndexOf("\"task\":") + 7);
 
                     // Check out the reply...
-                    string szHttpReplyData = apicmd.HttpResponseData();
+                    string szHttpReplyData = apicmd.GetHttpResponseData();
                     jsonlookupReply = new JsonLookup();
                     blSuccess = jsonlookupReply.Load(szHttpReplyData, out lJsonErrorIndex);
                     if (!blSuccess)

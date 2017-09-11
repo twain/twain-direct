@@ -1330,8 +1330,8 @@ namespace TwainDirect.App
             blSuccess = m_twainlocalscannerclient.ClientInfo(ref apicmd);
             if (!blSuccess)
             {
-                Log.Error("ClientInfo failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientInfo failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+                Log.Error("ClientInfo failed: " + apicmd.GetHttpResponseData());
+                MessageBox.Show("ClientInfo failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1340,8 +1340,8 @@ namespace TwainDirect.App
             blSuccess = m_twainlocalscannerclient.ClientScannerCreateSession(ref apicmd);
             if (!blSuccess)
             {
-                Log.Error("ClientScannerCreateSession failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerCreateSession failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+                Log.Error("ClientScannerCreateSession failed: " + apicmd.GetHttpResponseData());
+                MessageBox.Show("ClientScannerCreateSession failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1372,8 +1372,8 @@ namespace TwainDirect.App
             if (!blSuccess)
             {
                 // Log it, but stay open...
-                Log.Error("ClientScannerWaitForEvents failed: " + apicmd.HttpResponseData());
-                MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.HttpResponseData(), "Error");
+                Log.Error("ClientScannerWaitForEvents failed: " + apicmd.GetHttpResponseData());
+                MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
             }
 
             // New state...

@@ -1676,9 +1676,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
-                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply (but we're going to continue)...");
@@ -2007,9 +2007,9 @@ namespace TwainDirect.Support
                     }
 
                     // Parse it...
-                    if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                    if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                     {
-                        blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                        blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                         if (!blSuccess)
                         {
                             Log.Error(szFunction + ": error parsing the reply...");
@@ -2228,9 +2228,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
-                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
@@ -2354,9 +2354,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
-                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
@@ -2514,9 +2514,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
-                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
@@ -2668,9 +2668,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
-                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
@@ -3055,9 +3055,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
-                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
@@ -3189,9 +3189,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.HttpResponseData()))
+                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
-                    blSuccess = jsonlookup.Load(a_apicmd.HttpResponseData(), out lResponseCharacterOffset);
+                    blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
@@ -5420,7 +5420,7 @@ namespace TwainDirect.Support
             // Parse the JSON in the response, we always have to make sure
             // its valid...
             jsonlookup = new JsonLookup();
-            string szHttpResponseData = a_apicmd.HttpResponseData();
+            string szHttpResponseData = a_apicmd.GetHttpResponseData();
             blSuccess = jsonlookup.Load(szHttpResponseData, out lResponseCharacterOffset);
             if (!blSuccess)
             {
@@ -6364,21 +6364,21 @@ namespace TwainDirect.Support
             // Handle protocol errors...
             if (a_apicmd.GetResponseStatus() != 200)
             {
-                string szResponseText = a_apicmd.GetResponseText();
-                if (string.IsNullOrEmpty(szResponseText))
+                string szResponseData = a_apicmd.GetResponseData();
+                if (string.IsNullOrEmpty(szResponseData))
                 {
                     a_apicmd.DeviceResponseSetStatus(false, "protocolError", 0, "unrecognized protocol error, sorry.");
                 }
                 else
                 {
                     JsonLookup jsonlookup = new JsonLookup();
-                    jsonlookup.Load(szResponseText, out lJsonErrorIndex);
+                    jsonlookup.Load(szResponseData, out lJsonErrorIndex);
                     string szError = jsonlookup.Get("error");
                     if (string.IsNullOrEmpty(szError))
                     {
                         szError = "protocolError";
                     }
-                    a_apicmd.DeviceResponseSetStatus(false, szError, 0, szResponseText);
+                    a_apicmd.DeviceResponseSetStatus(false, szError, 0, szResponseData);
                 }
 
                 // All done...

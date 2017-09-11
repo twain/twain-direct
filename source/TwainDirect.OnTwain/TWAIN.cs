@@ -9595,12 +9595,25 @@ namespace TWAINWorkingGroup
         }
 
         /// <summary>
-        /// Write a verbose message...
+        /// Write a verbose message, this is extra info that isn't normally
+        /// needed to diagnose problems, but may provide insight into what
+        /// the code is doing...
         /// </summary>
         /// <param name="a_szMessage">message to log</param>
         public static void Verbose(string a_szMessage)
         {
             WriteEntry("V", a_szMessage, ms_blFlush);
+        }
+
+        /// <summary>
+        /// Write a verbose data message, this is extra info, specifically
+        /// data transfers, that isn't normally needed to diagnose problems.
+        /// Turning this one can really bloat the logs...
+        /// </summary>
+        /// <param name="a_szMessage">message to log</param>
+        public static void VerboseData(string a_szMessage)
+        {
+            WriteEntry("D", a_szMessage, ms_blFlush);
         }
 
         /// <summary>
@@ -9646,15 +9659,6 @@ namespace TWAINWorkingGroup
         public static SetFlushDelegate SetFlush;
         public static SetLevelDelegate SetLevel;
         public static WriteEntryDelegate WriteEntry;
-
-        #endregion
-
-
-        // Public Definitions...
-        #region Private Definitions
-
-        [DllImport("kernel32.dll")]
-        private static extern uint GetCurrentThreadId();
 
         #endregion
 
@@ -9751,7 +9755,16 @@ namespace TWAINWorkingGroup
         /// <param name="a_iLevel"></param>
         private static void SetLevelLocal(int a_iLevel)
         {
+            // Squirrel this value away...
             ms_iLevel = a_iLevel;
+
+            // Turn flush on, we do this to guarantee that all log
+            // messages make it to disk.  But be careful, it can
+            // really slow things down...
+            if ((a_iLevel & c_iDebugFlush) == c_iDebugFlush)
+            {
+                SetFlush(true);
+            }
         }
 
         /// <summary>
@@ -9774,7 +9787,7 @@ namespace TWAINWorkingGroup
 
                 // Log informationals when bit-0 is set...
                 case ".":
-                    if ((ms_iLevel & 0x0001) != 0)
+                    if ((ms_iLevel & c_iDebugInfo) != 0)
                     {
                         break;
                     }
@@ -9782,7 +9795,16 @@ namespace TWAINWorkingGroup
 
                 // Log verbose when bit-1 is set...
                 case "V":
-                    if ((ms_iLevel & 0x0002) != 0)
+                    if ((ms_iLevel & c_iDebugVerbose) != 0)
+                    {
+                        a_szSeverity = ".";
+                        break;
+                    }
+                    return;
+
+                // Log verbose data when bit-1 is set...
+                case "D":
+                    if ((ms_iLevel & c_iDebugVerboseData) != 0)
                     {
                         a_szSeverity = ".";
                         break;
@@ -9872,6 +9894,23 @@ namespace TWAINWorkingGroup
                 Trace.Flush();
             }
         }
+
+        #endregion
+
+
+        // Private Definitions...
+        #region Private Definitions
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        /// <summary>
+        /// LogLevel bitmask...
+        /// </summary>
+        private const int c_iDebugInfo = 0x0001;
+        private const int c_iDebugVerbose = 0x0002;
+        private const int c_iDebugVerboseData = 0x0004;
+        private const int c_iDebugFlush = 0x0008;
 
         #endregion
 
