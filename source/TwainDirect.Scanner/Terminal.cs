@@ -72,8 +72,7 @@ namespace TwainDirect.Scanner
             (
                 m_resourcemanager,
                 Display,
-                null,
-                blConfirmScan ? ConfirmScan : (TwainLocalScanner.ConfirmScan)null,
+                blConfirmScan ? ConfirmScan : (TwainLocalScannerDevice.ConfirmScan)null,
                 0,
                 out m_blNoDevices
             );
@@ -338,7 +337,7 @@ namespace TwainDirect.Scanner
             }
 
             // Stop...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
         }
 
         #endregion
@@ -447,7 +446,7 @@ namespace TwainDirect.Scanner
         private void Stop(object sender, EventArgs e)
         {
             // Staaaaaaahp...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
             Display("Stop...");
         }
 

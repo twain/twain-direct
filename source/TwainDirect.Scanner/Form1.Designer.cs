@@ -120,6 +120,7 @@
             this.Controls.Add(this.m_buttonRegister);
             this.Controls.Add(this.m_buttonStop);
             this.Controls.Add(this.m_buttonStart);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimumSize = new System.Drawing.Size(383, 274);
             this.Name = "Form1";
             this.Text = "TWAIN Direct: Scanner";

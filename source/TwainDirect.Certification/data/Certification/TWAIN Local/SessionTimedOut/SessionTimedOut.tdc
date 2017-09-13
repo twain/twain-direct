@@ -1,0 +1,97 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SessionTimedOut
+; arg:1 - scanner to use
+; returns: pass or fail
+;
+; Open the scanner and wait for the session to time out.  This test shows
+; that the scanner can be configured so that no one user can permanently
+; lock out all other users, if their session is idle.
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display the banner...
+;
+echo
+echo 'SessionTimedOut v1.0 04-Sep-2017'
+set sessiontimedoutgetsessionresult 'pass'
+set sessiontimedoutwaitforeventsresult 'skip'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pick a scanner...
+;
+select '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Get the scanner info, including its x-privet-token...
+;
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Create a new session...
+;
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Wait for events, we're passing in the test we want to
+; perform, and the variable we want to be set when it's
+; complete.  We need two result variables, because we
+; need to make sure the waitForSession content is correctly
+; constructed...
+;
+echo 'CMD: waitForEvents'
+waitForEvents 'test waitForEvents' 'sessiontimedout' 'sessiontimedoutwaitforeventsresult'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Snooze until we get a sessionTimedOut event, if we don't
+; see anything after ten minutes, declare the test a bust.
+; We check every 15 seconds for 10 minutes.  Note that the
+; recommended timeout is 5 minutes...
+;
+set tt 0
+:MAIN.WAIT
+	if '${get:tt}' > 600000 goto MAIN.WAITFAIL
+	if '${get:sessiontimedoutwaitforeventsresult}' == 'pass' goto MAIN.WAITDONE
+	if '${get:sessiontimedoutwaitforeventsresult}' == 'fail' goto MAIN.WAITDONE
+	increment tt '${get:tt}' 15000
+	sleep 15000
+goto MAIN.WAIT
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; How did we do?
+;
+:MAIN.WAITDONE
+if '${get:sessiontimedoutwaitforeventsresult}' != 'pass' goto MAIN.FAIL
+echopassfail 'SessionTimedOut' 'pass'
+log info '#Test result:                 pass'
+return 'pass'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAIL
+;
+:MAIN.FAIL
+closeSession
+echopassfail 'SessionTimedOut' 'fail (timeout not seen)'
+log info '#Test result:                 fail (timeout not seen)'
+return 'fail'

@@ -57,9 +57,8 @@ namespace TwainDirect.Scanner
         public Scanner
         (
             ResourceManager a_resourcemanager,
-            TwainLocalScanner.DisplayCallback a_displaycallback,
-            StopNotification a_stopnotification,
-            TwainLocalScanner.ConfirmScan a_confirmscan,
+            TwainLocalScannerDevice.DisplayCallback a_displaycallback,
+            TwainLocalScannerDevice.ConfirmScan a_confirmscan,
             float a_fConfirmScanScale,
             out bool a_blNoDevices
         )
@@ -73,9 +72,7 @@ namespace TwainDirect.Scanner
             a_blNoDevices = true;
             m_resourcemanager = a_resourcemanager;
             m_displaycallback = a_displaycallback;
-            m_stopnotification = a_stopnotification;
             m_confirmscan = a_confirmscan;
-            m_fConfirmScanScale = a_fConfirmScanScale;
 
             // Get the config and command line argument values...
             szExecutablePath = Config.Get("executablePath", "");
@@ -99,8 +96,8 @@ namespace TwainDirect.Scanner
             }
 
             // Get our TWAIN Local interface...
-            m_twainlocalscanner = new TwainLocalScanner(a_confirmscan,a_fConfirmScanScale, null, null, Display, true);
-            if (m_twainlocalscanner == null)
+            m_twainlocalscannerdevice = new TwainLocalScannerDevice(a_confirmscan, a_fConfirmScanScale, Display, true);
+            if (m_twainlocalscannerdevice == null)
             {
                 Log.Error("Failed to create TwainLocalScanner");
                 throw new Exception("Failed to create TwainLocalScanner");
@@ -134,7 +131,7 @@ namespace TwainDirect.Scanner
         public string GetAvailableScanners()
         {
             string szList;
-            string szListFile = m_twainlocalscanner.GetPath("twainlist.txt");
+            string szListFile = m_twainlocalscannerdevice.GetPath("twainlist.txt");
 
             // Get the list of available drivers...
             string aszDrivers = Run(m_szTwainDirectOn, "\"twainlist=" + szListFile + "\"");
@@ -163,14 +160,14 @@ namespace TwainDirect.Scanner
         public void GetInfo()
         {
             // Ain't got one...
-            if (m_twainlocalscanner == null)
+            if (m_twainlocalscannerdevice == null)
             {
                 Console.Out.WriteLine("no TWAIN Local session...");
                 return;
             }
 
             // Info...
-            Console.Out.WriteLine("State: " + m_twainlocalscanner.GetState());
+            Console.Out.WriteLine("State: " + m_twainlocalscannerdevice.GetState());
         }
 
         /// <summary>
@@ -182,7 +179,7 @@ namespace TwainDirect.Scanner
             bool blSuccess;
 
             // Start monitoring for commands...
-            blSuccess = m_twainlocalscanner.DeviceHttpServerStart();
+            blSuccess = m_twainlocalscannerdevice.DeviceHttpServerStart();
             if (!blSuccess)
             {
                 Log.Error("DeviceHttpServerStart failed...");
@@ -195,10 +192,15 @@ namespace TwainDirect.Scanner
 
         /// <summary>
         /// Stop polling for tasks...
+        /// <param name="a_blUserShutdown">the user requested the close</param>
         /// </summary>
-        public void MonitorTasksStop()
+        public void MonitorTasksStop(bool a_blUserShutdown)
         {
-            m_twainlocalscanner.DeviceHttpServerStop();
+            // Bid adieu to any connected sessions...
+            m_twainlocalscannerdevice.DeviceSessionExited(a_blUserShutdown);
+
+            // Stop advertising us...
+            m_twainlocalscannerdevice.DeviceHttpServerStop();
         }
 
         /// <summary>
@@ -207,7 +209,7 @@ namespace TwainDirect.Scanner
         /// <returns>the vendors friendly name</returns>
         public string GetTwainLocalTy()
         {
-            return (m_twainlocalscanner.GetTwainLocalTy());
+            return (m_twainlocalscannerdevice.GetTwainLocalTy());
         }
 
         /// <summary>
@@ -216,7 +218,7 @@ namespace TwainDirect.Scanner
         /// <returns>the users preferred name</returns>
         public string GetTwainLocalNote()
         {
-            return (m_twainlocalscanner.GetTwainLocalNote());
+            return (m_twainlocalscannerdevice.GetTwainLocalNote());
         }
 
         /// <summary>
@@ -230,14 +232,14 @@ namespace TwainDirect.Scanner
         public bool RegisterScanner(JsonLookup a_jsonlookup, int a_iScanner, string a_szNote, ref ApiCmd a_apicmd)
         {
             // Register it...
-            if (!m_twainlocalscanner.DeviceRegister(a_jsonlookup, a_iScanner, a_szNote, ref a_apicmd))
+            if (!m_twainlocalscannerdevice.DeviceRegister(a_jsonlookup, a_iScanner, a_szNote, ref a_apicmd))
             {
                 Log.Error("DeviceRegister failed...");
                 return (false);
             }
 
             // Save the file...
-            m_twainlocalscanner.DeviceRegisterSave();
+            m_twainlocalscannerdevice.DeviceRegisterSave();
 
             // All done...
             return (true);
@@ -274,10 +276,10 @@ namespace TwainDirect.Scanner
             // Free managed resources...
             if (a_blDisposing)
             {
-                if (m_twainlocalscanner != null)
+                if (m_twainlocalscannerdevice != null)
                 {
-                    m_twainlocalscanner.Dispose();
-                    m_twainlocalscanner = null;
+                    m_twainlocalscannerdevice.Dispose();
+                    m_twainlocalscannerdevice = null;
                 }
             }
         }
@@ -304,7 +306,7 @@ namespace TwainDirect.Scanner
             bool blSuccess;
 
             // Load our device register, if we have one...
-            blSuccess = m_twainlocalscanner.DeviceRegisterLoad();
+            blSuccess = m_twainlocalscannerdevice.DeviceRegisterLoad();
             if (!blSuccess)
             {
                 m_displaycallback(m_resourcemanager.GetString("strTextNoScannersRegistered")); // "No scanners registered..."
@@ -313,13 +315,13 @@ namespace TwainDirect.Scanner
             }
 
             // Do we have any devices?
-            blNoDevices = string.IsNullOrEmpty(m_twainlocalscanner.GetTwainLocalTy());
+            blNoDevices = string.IsNullOrEmpty(m_twainlocalscannerdevice.GetTwainLocalTy());
 
             // If yes, display the names...
             if (m_displaycallback != null)
             {
                 m_displaycallback(m_resourcemanager.GetString("strTextListingScannersBegin")); // "Listing registered scanners...(please wait for the list)"
-                m_displaycallback(m_twainlocalscanner.GetTwainLocalTy());
+                m_displaycallback(m_twainlocalscannerdevice.GetTwainLocalTy());
                 m_displaycallback(m_resourcemanager.GetString("strTextListingScannersEnd")); // "Listing complete..."
             }
 
@@ -485,41 +487,31 @@ namespace TwainDirect.Scanner
         #region Private Attributes...
 
         /// <summary>
+        /// Our scanner interface...
+        /// </summary>
+        private TwainLocalScannerDevice m_twainlocalscannerdevice;
+
+        /// <summary>
         /// Resource for localization...
         /// </summary>
         private ResourceManager m_resourcemanager;
 
         /// <summary>
-        /// Our scanner interface...
+        /// Optional display callback...
         /// </summary>
-        private TwainLocalScanner m_twainlocalscanner;
+        private TwainLocalScannerDevice.DisplayCallback m_displaycallback;
+
+        /// <summary>
+        /// If not null, then use this to prompt the user to
+        /// confirm a scan request...
+        /// </summary>
+        private TwainLocalScannerDevice.ConfirmScan m_confirmscan;
 
         /// <summary>
         /// Full path to TWAIN-Direct-on-TWAIN or TWAIN-Direct-
         /// on-SANE...
         /// </summary>
         private string m_szTwainDirectOn;
-
-        /// <summary>
-        /// Optional display callback...
-        /// </summary>
-        private TwainLocalScanner.DisplayCallback m_displaycallback;
-
-        /// <summary>
-        /// Notification that we've stopped monitoring...
-        /// </summary>
-        private StopNotification m_stopnotification;
-
-        /// <summary>
-        /// If not null, then use this to prompt the user to
-        /// confirm a scan request...
-        /// </summary>
-        private TwainLocalScanner.ConfirmScan m_confirmscan;
-
-        /// <summary>
-        /// Beause sometimes forms are too darn small...
-        /// </summary>
-        private float m_fConfirmScanScale;
 
         #endregion
     }

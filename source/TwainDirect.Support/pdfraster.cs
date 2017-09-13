@@ -348,18 +348,18 @@ namespace TwainDirect.Support
                         szXmp =
                             "<?xpacket begin=\"?\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>" +
                             "<x:xmpdata xmlns:x=\"adobe:ns:meta/\">" +
-                            "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">" +
-                            "<rdf:Description rdf:about=\"\" xmlns:twaindirect=\"http://www.twaindirect.org/metadata/1.0\">" +
-                            "<twaindirect:twaindirect>" +
+                            "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:twaindirect=\"http://www.twaindirect.org/twaindirect\">" +
+                            "<rdf:Description rdf:about=\"http://www.twaindirect.org/twaindirect#metadata\">" +
+                            "<twaindirect:metadata>" +
                             szMetadataXml +
-                            "</twaindirect:twaindirect>" +
+                            "</twaindirect:metadata>" +
                             "</rdf:Description>" +
                             "</rdf:RDF>" +
                             "</x:xmpdata>" +
                             "<?xpacket end=\"w\"?>";
 
                         // Write it...
-                        pdfRasWr.encoder_write_page_xmp(enc, szXmp);
+                        pdfRasWr.encoder_write_document_xmp(enc, szXmp);
                     }
                 }
 

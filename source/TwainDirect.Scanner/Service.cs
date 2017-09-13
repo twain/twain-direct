@@ -76,8 +76,7 @@ namespace TwainDirect.Scanner
             (
                 m_resourcemanager,
                 Display,
-                null,
-                blConfirmScan ? (TwainLocalScanner.ConfirmScan)null : (TwainLocalScanner.ConfirmScan)null,
+                blConfirmScan ? (TwainLocalScannerDevice.ConfirmScan)null : (TwainLocalScannerDevice.ConfirmScan)null,
                 0,
                 out m_blNoDevices
             );
@@ -276,7 +275,7 @@ namespace TwainDirect.Scanner
             Console.In.ReadLine();
 
             // Stop...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
         }
 
         /// <summary>
@@ -285,7 +284,7 @@ namespace TwainDirect.Scanner
         protected override void OnStop()
         {
             // Staaaaaaahp...
-            m_scanner.MonitorTasksStop();
+            m_scanner.MonitorTasksStop(true);
             Display("Stop...");
         }
 

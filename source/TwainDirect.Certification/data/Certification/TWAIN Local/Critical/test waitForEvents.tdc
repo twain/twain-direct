@@ -1,0 +1,70 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test waitForEvents callback v1.0 04-Sep-2017
+; arg:1 - test to run
+; arg:2 - variable to set with the result
+; returns: pass or fail
+;
+; Exercise the waitForEvents command.  We're called by other scripts.  This script runs as a callback
+; when the waitForEvents thread processes a response.
+;
+; - confirm that we see sessionTimedOut at some point
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; We don't have a banner, because we're called from other scripts...
+;
+set waitforeventsresultname '${arg:2}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Dispatch the test...
+;
+if '${arg:1}' == 'critical' goto CRITICAL
+echopassfail 'event waitForEvents - ${arg:1}' 'fail (no test specified)'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CRITICAL, watch for the session to go critical.
+;
+:CRITICAL
+;
+; Analyze the result, we have to check all the events...
+set ii 0
+:CRITICAL.EVENTSNEXT
+	;
+	; We've run out of events.
+	if '${ej:results.events[${get:ii}]}' == '' goto CRITICAL.SKIP
+	;
+	;
+	echo 'event waitForEvents - ${ej:results.events[${get:ii}]}'
+	;
+	; We got a critical event.
+	if '${ej:results.events[${get:ii}].event}' == 'critical' goto CRITICAL.PASS
+	;
+	; We need to leave.
+	if '${ej:results.events[${get:ii}].event}' == 'sessionTimedOut' goto CRITICAL.FAIL
+	;
+	; Next event.
+	increment ii '${get:ii}' 1
+	goto CRITICAL.EVENTSNEXT
+;
+; We're good, we found one...
+:CRITICAL.PASS
+echopassfail 'event waitForEvents - ${arg:1}' 'pass'
+set '${get:waitforeventsresultname}' 'pass'
+return 'pass'
+;
+; We didn't see it this time...
+:CRITICAL.SKIP
+return 'skip'
+;
+; Ruh-roh...
+:CRITICAL.FAIL
+echopassfail 'event waitForEvents - ${arg:1}' 'fail'
+set '${get:waitforeventsresultname}' 'fail'
+return 'fail'

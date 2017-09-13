@@ -488,14 +488,27 @@ namespace TwainDirect.Support
         /// <param name="a_szValue"></param>
         public void Override(string a_szKey, string a_szValue)
         {
-            KeyValue keyvalue = new KeyValue();
-            keyvalue.szKey = a_szKey;
-            keyvalue.szValue = a_szValue;
+            // Make sure we have our list...
             if (m_lkeyvalueOverride == null)
             {
                 m_lkeyvalueOverride = new List<KeyValue>();
             }
-            m_lkeyvalueOverride.Add(keyvalue);
+
+            // If we already have this key, remove it...
+            int iIndex = m_lkeyvalueOverride.FindIndex(item => item.szKey == a_szKey);
+            if (iIndex >= 0)
+            {
+                m_lkeyvalueOverride.RemoveAt(iIndex);
+            }
+
+            // Add the new data to our list...
+            if (a_szValue != null)
+            {
+                KeyValue keyvalue = new KeyValue();
+                keyvalue.szKey = a_szKey;
+                keyvalue.szValue = a_szValue;
+                m_lkeyvalueOverride.Add(keyvalue);
+            }
         }
 
         #endregion

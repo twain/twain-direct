@@ -49,6 +49,15 @@ goto:done
 	netsh http delete urlacl "url=https://+:34034/privet/infoex/" > NUL
 	netsh http delete urlacl "url=http://+:34034/privet/twaindirect/session/" > NUL
 	netsh http delete urlacl "url=https://+:34034/privet/twaindirect/session/" > NUL
+       	netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+       	netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete sslcert ipport=0.0.0.0:55555 > NUL
 	netsh http delete sslcert ipport=0.0.0.0:34034 > NUL
 	netsh http add urlacl "url=http://+:34034/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
 	netsh http add urlacl "url=http://+:34034/privet/infoex/" "sddl=D:(A;;GX;;;S-1-2-0)"
@@ -65,6 +74,15 @@ goto:done
 	netsh http delete urlacl "url=https://+:34034/privet/infoex/" > NUL
 	netsh http delete urlacl "url=http://+:34034/privet/twaindirect/session/" > NUL
 	netsh http delete urlacl "url=https://+:34034/privet/twaindirect/session/" > NUL
+       	netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+       	netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete sslcert ipport=0.0.0.0:55555 > NUL
 	netsh http delete sslcert ipport=0.0.0.0:34034 > NUL
 	netsh http add urlacl "url=https://+:34034/privet/info/" "sddl=D:(A;;GX;;;S-1-2-0)"
 	netsh http add urlacl "url=https://+:34034/privet/infoex/" "sddl=D:(A;;GX;;;S-1-2-0)"
@@ -93,6 +111,15 @@ goto:done
 	netsh http delete urlacl "url=https://+:34034/privet/infoex/"
 	netsh http delete urlacl "url=http://+:34034/privet/twaindirect/session/"
 	netsh http delete urlacl "url=https://+:34034/privet/twaindirect/session/"
+       	netsh http delete urlacl "url=http://+:55555/twaindirect/v1/commands/" > NUL
+       	netsh http delete urlacl "url=https://+:55555/twaindirect/v1/commands/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/info/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/infoex/" > NUL
+	netsh http delete urlacl "url=http://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete urlacl "url=https://+:55555/privet/twaindirect/session/" > NUL
+	netsh http delete sslcert ipport=0.0.0.0:55555
 	netsh http delete sslcert ipport=0.0.0.0:34034
 	goto:done
 
