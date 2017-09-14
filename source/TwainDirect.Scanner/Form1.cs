@@ -200,7 +200,13 @@ namespace TwainDirect.Scanner
             ConfirmScan confirmscan;
 
             // Ask the question...
-            confirmscan = new ConfirmScan(a_fScale);
+            confirmscan = new ConfirmScan
+            (
+                (int)Config.Get("confirmTimeout", 10000),
+                (Config.Get("useBeep", "yes") == "yes"),
+                a_fScale,
+                m_scanner.GetSessionUserDns()
+            );
             dialogresult = confirmscan.ShowDialog(this);
             confirmscan.Dispose();
             confirmscan = null;

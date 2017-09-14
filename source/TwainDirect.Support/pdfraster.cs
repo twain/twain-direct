@@ -38,6 +38,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace TwainDirect.Support
 {
@@ -331,36 +332,27 @@ namespace TwainDirect.Support
                 // Add the metadata...
                 if (!string.IsNullOrEmpty(a_szMetadataJson))
                 {
-                    bool blSuccessLoad;
-                    long lJsonErrorIndex;
-                    JsonLookup jsonlookup = new JsonLookup();
-                    blSuccessLoad = jsonlookup.Load(a_szMetadataJson, out lJsonErrorIndex);
-                    if (!blSuccessLoad)
-                    {
-                        Log.Error("Failed to load metadata: " + a_szMetadataJson);
-                    }
-                    else
-                    {
-                        string szXmp;
-                        string szMetadataXml = jsonlookup.GetXml();
+                    string szXmp;
 
-                        // Try to build an XMP string that makes some kind of sense...
-                        szXmp =
-                            "<?xpacket begin=\"?\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>" +
-                            "<x:xmpdata xmlns:x=\"adobe:ns:meta/\">" +
-                            "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:twaindirect=\"http://www.twaindirect.org/twaindirect\">" +
-                            "<rdf:Description rdf:about=\"http://www.twaindirect.org/twaindirect#metadata\">" +
-                            "<twaindirect:metadata>" +
-                            szMetadataXml +
-                            "</twaindirect:metadata>" +
-                            "</rdf:Description>" +
-                            "</rdf:RDF>" +
-                            "</x:xmpdata>" +
-                            "<?xpacket end=\"w\"?>";
+                    // Convert our metadata to a UTF-8 byte array...
+                    byte[] abMetadataJson = Encoding.UTF8.GetBytes(a_szMetadataJson);
 
-                        // Write it...
-                        pdfRasWr.encoder_write_document_xmp(enc, szXmp);
-                    }
+                    // Try to build an XMP string that makes some kind of sense...
+                    szXmp =
+                        "<?xpacket begin=\"?\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>" +
+                        "<x:xmpdata xmlns:x=\"adobe:ns:meta/\">" +
+                        "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:twaindirect=\"http://www.twaindirect.org/twaindirect\">" +
+                        "<rdf:Description rdf:about=\"http://www.twaindirect.org/twaindirect#metadata\">" +
+                        "<twaindirect:metadata>" +
+                        Convert.ToBase64String(abMetadataJson) +
+                        "</twaindirect:metadata>" +
+                        "</rdf:Description>" +
+                        "</rdf:RDF>" +
+                        "</x:xmpdata>" +
+                        "<?xpacket end=\"w\"?>";
+
+                    // Write it...
+                    pdfRasWr.encoder_write_page_xmp(enc, szXmp);
                 }
 
                 // End of page...

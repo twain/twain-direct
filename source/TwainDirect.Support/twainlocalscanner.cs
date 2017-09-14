@@ -567,6 +567,19 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// The DNS name of the user owning the current createSession...
+        /// </summary>
+        /// <returns></returns>
+        public string DeviceGetSessionUserDns()
+        {
+            if (m_twainlocalsession != null)
+            {
+                return (m_twainlocalsession.GetCallersHostName());
+            }
+            return ("");
+        }
+
+        /// <summary>
         /// Start monitoring for HTTP commands...
         /// </summary>
         /// <returns></returns>

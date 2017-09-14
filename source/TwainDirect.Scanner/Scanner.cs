@@ -171,6 +171,19 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
+        /// The DNS name of the user that has the current createSession...
+        /// </summary>
+        /// <returns></returns>
+        public string GetSessionUserDns()
+        {
+            if (m_twainlocalscannerdevice != null)
+            {
+                return (m_twainlocalscannerdevice.DeviceGetSessionUserDns());
+            }
+            return ("???");
+        }
+
+        /// <summary>
         /// Start polling for tasks...
         /// </summary>
         /// <returns>true on success</returns>
