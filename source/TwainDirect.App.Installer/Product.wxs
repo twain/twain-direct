@@ -27,7 +27,11 @@
       
       <ComponentRef Id="TwainDirect.Support.dll"/>
       <ComponentRef Id="pdfras_reader_managed.dll"/>
-      <ComponentRef Id="pdfras_writer_managed.dll"/>      
+      <ComponentRef Id="pdfras_writer_managed.dll"/>
+
+      <!-- Resource files -->
+      <ComponentGroupRef Id="TwainDirect.Tasks"/>
+
     </Feature>
 
     <!-- UI -->
