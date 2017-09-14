@@ -1773,7 +1773,6 @@ namespace TwainDirect.Support
                 // Init stuff...
                 szTwainDirectOnTwain = Config.Get("executablePath", "");
                 szTwainDirectOnTwain = szTwainDirectOnTwain.Replace("TwainDirect.Scanner", "TwainDirect.OnTwain");
-                m_blReadImageBlocksDrainedMeta = false;
 
                 // State check...
                 if (m_twainlocalsession.GetSessionState() != SessionState.noSession)
@@ -3135,6 +3134,7 @@ namespace TwainDirect.Support
 
                 // We start by assuming that any problems with the scanner have
                 // been resoved by the user...
+                m_blReadImageBlocksDrainedMeta = false;
                 m_twainlocalsession.SetSessionStatusSuccess(true);
                 m_twainlocalsession.SetSessionStatusDetected("nominal");
 
@@ -4049,7 +4049,14 @@ namespace TwainDirect.Support
                 // Always handle the .tdmeta last, because the creation
                 // of a .meta file indicates that all of the files associated
                 // with an image are ready for access...
-                File.Move(szLastBasename + ".tdmeta", a_szBasename + ".meta");
+                try
+                {
+                    File.Move(szLastBasename + ".tdmeta", a_szBasename + ".meta");
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("move failed: " + szLastBasename + ".tdmeta --> " + a_szBasename + ".meta - " + exception.Message);
+                }
 
                 // All done, we created our finished image...
                 return (true);

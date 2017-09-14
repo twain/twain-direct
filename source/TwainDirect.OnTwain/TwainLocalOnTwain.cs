@@ -904,6 +904,16 @@ namespace TwainDirect.OnTwain
         /// <param name="a_sts">status of end of job</param>
         private void SetImageBlocksDrained(TWAIN.STS a_sts)
         {
+            // KEYWORD:DEVELOPER
+            // Use this to help test for errors like PAPERJAM and DOUBLEFEED, note that
+            // these are TWRC_ and TWCC_ names...
+            string szOverride = Config.Get("developerForceSetImageBlocksDrained", "");
+            if (!string.IsNullOrEmpty(szOverride))
+            {
+                TWAINWorkingGroup.Log.Error("Developer is forcing scanning to end with: " + szOverride);
+            }
+
+            // Update the file...
             string szSessionImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
             if (!File.Exists(szSessionImageBlocksDrained))
             {
@@ -914,7 +924,7 @@ namespace TwainDirect.OnTwain
                     (
                         szSessionImageBlocksDrained,
                         "{" +
-                        "\"detected\":\"" + a_sts + "\"" +
+                        "\"detected\":\"" + (string.IsNullOrEmpty(szOverride) ? a_sts.ToString() : szOverride) + "\"" +
                         "}"
                     );
                 }
