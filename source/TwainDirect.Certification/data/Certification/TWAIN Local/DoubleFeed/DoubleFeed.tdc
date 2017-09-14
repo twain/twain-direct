@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; DoubleFeed v1.0 11-Jul-2017
+; DoubleFeed
 ; arg:1 - scanner to use
 ; arg:2 - task (optional)
 ; returns: pass or fail
@@ -20,7 +20,7 @@
 ; Display the banner...
 ;
 echo
-echo 'DoubleFeed v1.0 12-Jul-2017'
+echo 'DoubleFeed v1.0 14-Sep-2017'
 set doublefeedgetsessionresult 'pass'
 set doublefeedwaitforeventsresult 'fail'
 set doublefeedwaitforeventssyntaxresult 'pass'
@@ -38,19 +38,19 @@ if '${ret:}' != 'true' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Get the scanner info, including its x-privet-token...
 ;
-echo 'CMD: infoex'
 infoex
 if '${rj:x-privet-token}' == '' goto MAIN.FAIL
+echopassfail 'TL.DBFD.INFX.001' 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Create a new session...
 ;
-echo 'CMD: createSession'
 createSession
 if '${rj:results.success}' != 'true' goto MAIN.FAIL
 if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
+echopassfail 'TL.DBFD.CREA.001' 'pass'
 
 
 
@@ -61,7 +61,6 @@ if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
 ; need to make sure the waitForSession content is correctly
 ; constructed...
 ;
-echo 'CMD: waitForEvents'
 waitForEvents 'test waitForEvents' 'doublefeed' 'doublefeedwaitforeventsresult' 'doublefeedwaitforeventssyntaxresult'
 
 
@@ -73,19 +72,19 @@ set task '${arg:2}'
 if '${get:task}' != '' goto MAIN.SENDTASK
 set task '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"attributes":[{"attribute":"doubleFeedDetection","values":[{"value":"on"}]}]}]}]}]}]}'
 :MAIN.SENDTASK
-echo 'CMD: sendTask'
 sendTask '${get:task}'
 if '${rj:results.success}' != 'true' goto MAIN.FAIL
+echopassfail 'TL.DBFD.STSK.001' 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Start capturing images...
 ;
-echo 'CMD: startCapturing'
 startCapturing
 if '${rj:results.success}' != 'true' goto MAIN.FAIL
 if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
+echopassfail 'TL.DBFD.STRT.001' 'pass'
 
 
 
@@ -102,7 +101,7 @@ if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
 	; Wait for the session object to be updated...
 	:MAIN.WAITFORSESSIONUPDATE
 	waitforsessionupdate 5000
-	echo 'signaled: ${ret:}'
+	echo 'waiting...'
 
 	; If we have an image, get it...
 	set firstimageblock '${session:imageBlocks[0]}'
@@ -129,29 +128,26 @@ goto MAIN.GETIMAGE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Get session, if we see false/doubleFeed, we pass...
 ;
-echo 'CMD: getSession'
 getSession
-;
-; Check success...
 call CHECK 'results.session.status.success' '==' 'false'
 call CHECK 'results.session.status.detected' '==' 'doubleFeed'
-
+echopassfail 'TL.DBFD.GETS.001' 'pass'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Stop capturing images...
 ;
 :MAIN.STOPCAPTURING
-echo 'CMD: stopCapturing'
 stopCapturing
+echopassfail 'TL.DBFD.STOP.001' 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Close the session...
 ;
-echo 'CMD: closeSession'
 closeSession
+echopassfail 'TL.DBFD.CLOS.001' 'pass'
 
 
 
@@ -159,11 +155,11 @@ closeSession
 ; How did we do?
 ;
 if '${get:doublefeedgetsessionresult}' != 'pass' goto MAIN.FAILGETSESSION
-if '${get:doublefeedgetsessionresult}' != 'pass' goto MAIN.FAILWAITFOREVENTS
-if '${get:doublefeedgetsessionsyntaxresult}' != 'pass' goto MAIN.FAILWAITFOREVENTSSYNTAX
-echopassfail 'DoubleFeed' 'pass'
+if '${get:doublefeedwaitforeventsresult}' != 'pass' goto MAIN.FAILWAITFOREVENTS
+if '${get:doublefeedwaitforeventssyntaxresult}' != 'pass' goto MAIN.FAILWAITFOREVENTSSYNTAX
+echopassfail 'Summary' 'pass'
 log info '#Test result:                 pass'
-return pass
+return 'pass'
 
 
 
@@ -173,7 +169,7 @@ return pass
 :MAIN.FAIL
 stopCapturing
 closeSession
-echopassfail 'DoubleFeed' 'fail (problem during scanning)'
+echopassfail 'Summary' 'fail (problem during scanning)'
 log info '#Test result:                 fail (problem during scanning)'
 return 'fail'
 
@@ -183,7 +179,7 @@ return 'fail'
 ; MAIN.FAILGETSESSION
 ;
 :MAIN.FAILGETSESSION
-echopassfail 'DoubleFeed' 'fail (getSession did not see doubleFeed)'
+echopassfail 'Summary' 'fail (getSession did not see doubleFeed)'
 log info '#Test result:                 fail (getSession did not see doubleFeed)'
 return 'fail'
 
@@ -193,7 +189,7 @@ return 'fail'
 ; MAIN.FAILWAITFOREVENTS
 ;
 :MAIN.FAILWAITFOREVENTS
-echopassfail 'DoubleFeed' 'fail (waitForEvents did not see doubleFeed)'
+echopassfail 'Summary' 'fail (waitForEvents did not see doubleFeed)'
 log info '#Test result:                 fail (waitForEvents did not see doubleFeed)'
 return 'fail'
 
@@ -203,7 +199,7 @@ return 'fail'
 ; MAIN.FAILWAITFOREVENTSSYNTAX
 ;
 :MAIN.FAILWAITFOREVENTSSYNTAX
-echopassfail 'DoubleFeed' 'fail (waitForEvents was missing fields)'
+echopassfail 'Summary' 'fail (waitForEvents was missing fields)'
 log info '#Test result:                 fail (waitForEvents was missing fields)'
 return 'fail'
 
@@ -240,5 +236,4 @@ return 'fail'
 ;
 ; We're good...
 :CHECK.PASS
-echopassfail 'event check ${arg:1}' 'pass'
 return 'pass'

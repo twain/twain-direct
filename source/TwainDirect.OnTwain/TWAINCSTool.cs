@@ -1744,7 +1744,7 @@ namespace TWAINWorkingGroupToolkit
             // as possible, so that we can get to the next image.
             //
             // This is the point where TWAIN tells us about things like jams and
-            // multifeeds.
+            // doublefeeds.
 
             // Init some more stuff...
             blXferDone = false;

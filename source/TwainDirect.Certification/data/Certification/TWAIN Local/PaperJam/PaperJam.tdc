@@ -1,15 +1,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; PaperJam v1.0 11-Jul-2017
+; PaperJam
 ; arg:1 - scanner to use
 ; arg:2 - task (optional)
 ; returns: pass or fail
 ;
-; Scan looking for a paper jam error, this is to confirm that
-; the scanner correctly reports paper jams when they happen.
-; If the scanner is incapable of experiencing a paper jam, this
+; Scan looking for a paperJam error, this is to confirm that
+; the scanner correctly reports paperJam's when they happen.
+; If the scanner is incapable of experiencing a paperJam, this
 ; test may be skipped.
 ;
-; We're looking for the paperjam to first show up as an event
+; We're looking for the paperJam to first show up as an event
 ; responding to waitForEvents and then we'll confirm that
 ; getSession also sees it.
 ;
@@ -20,7 +20,7 @@
 ; Display the banner...
 ;
 echo
-echo 'PaperJam v1.0 11-Jul-2017'
+echo 'PaperJam v1.0 14-Sep-2017'
 set paperjamgetsessionresult 'pass'
 set paperjamwaitforeventsresult 'fail'
 set paperjamwaitforeventssyntaxresult 'pass'
@@ -38,19 +38,19 @@ if '${ret:}' != 'true' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Get the scanner info, including its x-privet-token...
 ;
-echo 'CMD: infoex'
 infoex
 if '${rj:x-privet-token}' == '' goto MAIN.FAIL
+echopassfail 'TL.PJAM.INFX.001' 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Create a new session...
 ;
-echo 'CMD: createSession'
 createSession
 if '${rj:results.success}' != 'true' goto MAIN.FAIL
 if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
+echopassfail 'TL.PJAM.CREA.001' 'pass'
 
 
 
@@ -61,7 +61,6 @@ if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
 ; need to make sure the waitForSession content is correctly
 ; constructed...
 ;
-echo 'CMD: waitForEvents'
 waitForEvents 'test waitForEvents' 'paperjam' 'paperjamwaitforeventsresult' 'paperjamwaitforeventssyntaxresult'
 
 
@@ -73,19 +72,19 @@ set task '${arg:2}'
 if '${get:task}' != '' goto MAIN.SENDTASK
 set task '{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any"}]}]}]}'
 :MAIN.SENDTASK
-echo 'CMD: sendTask'
 sendTask '${get:task}'
 if '${rj:results.success}' != 'true' goto MAIN.FAIL
+echopassfail 'TL.PJAM.STSK.001' 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Start capturing images...
 ;
-echo 'CMD: startCapturing'
 startCapturing
 if '${rj:results.success}' != 'true' goto MAIN.FAIL
 if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
+echopassfail 'TL.PJAM.STRT.001' 'pass'
 
 
 
@@ -94,6 +93,7 @@ if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
 ;
 ; Loop here until we see an image, or scanning ends...
 :MAIN.WAIT
+
 	; We should only wait if more images could be coming...
 	if '${session:imageBlocksDrained}' == 'false' goto MAIN.WAITFORSESSIONUPDATE
 	goto MAIN.DONE
@@ -101,22 +101,26 @@ if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
 	; Wait for the session object to be updated...
 	:MAIN.WAITFORSESSIONUPDATE
 	waitforsessionupdate 5000
-	echo 'signaled: ${ret:}'
+	echo 'waiting...'
 
 	; If we have an image, get it...
 	set firstimageblock '${session:imageBlocks[0]}'
 	if '${get:firstimageblock}' != '' goto MAIN.GETIMAGE
 	goto MAIN.WAIT
 
+goto MAIN.WAITNEXT
+
 ; Keep releasing images as long as we have some...
 :MAIN.GETIMAGE
+
 	; release the first image block...
 	releaseImageBlocks '${get:firstimageblock}' '${get:firstimageblock}'
 	set firstimageblock '${rj:results.session.imageBlocks[0]}'
-	if '${rj:results.success}' != 'true' goto MAIN.DONE
+	if '${rj:results.success}' != 'true' goto MAIN.FAIL
 	if '${rj:results.session.imageBlocksDrained}' != 'false' goto MAIN.DONE
 	if '${get:firstimageblock}' == '' goto MAIN.WAIT
-	goto MAIN.GETIMAGE
+
+goto MAIN.GETIMAGE
 :MAIN.DONE
 
 
@@ -124,36 +128,26 @@ if '${rj:results.session.state}' != 'capturing' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Get session, if we see false/paperJam, we pass...
 ;
-echo 'CMD: getSession'
 getSession
-;
-; Check success...
 call CHECK 'results.session.status.success' '==' 'false'
 call CHECK 'results.session.status.detected' '==' 'paperJam'
-
+echopassfail 'TL.PJAM.GETS.001' 'pass'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Stop capturing images...
 ;
-echo 'CMD: stopCapturing'
+:MAIN.STOPCAPTURING
 stopCapturing
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Release any images that might still be pending...
-;
-echo 'CMD: releaseImageBlocks'
-releaseImageBlocks 1 999999999
+echopassfail 'TL.PJAM.STOP.001' 'pass'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Close the session...
 ;
-echo 'CMD: closeSession'
 closeSession
+echopassfail 'TL.PJAM.CLOS.001' 'pass'
 
 
 
@@ -161,11 +155,11 @@ closeSession
 ; How did we do?
 ;
 if '${get:paperjamgetsessionresult}' != 'pass' goto MAIN.FAILGETSESSION
-;if '${get:paperjamwaitforeventsresult}' != 'pass' goto MAIN.FAILWAITFOREVENTS
-;if '${get:paperjamwaitforeventssyntaxresult}' != 'pass' goto MAIN.FAILWAITFOREVENTSSYNTAX
-echopassfail 'PaperJam' 'pass'
+if '${get:paperjamwaitforeventsresult}' != 'pass' goto MAIN.FAILWAITFOREVENTS
+if '${get:paperjamwaitforeventssyntaxresult}' != 'pass' goto MAIN.FAILWAITFOREVENTSSYNTAX
+echopassfail 'Summary' 'pass'
 log info '#Test result:                 pass'
-return pass
+return 'pass'
 
 
 
@@ -175,7 +169,7 @@ return pass
 :MAIN.FAIL
 stopCapturing
 closeSession
-echopassfail 'PaperJam' 'fail (problem during scanning)'
+echopassfail 'Summary' 'fail (problem during scanning)'
 log info '#Test result:                 fail (problem during scanning)'
 return 'fail'
 
@@ -185,7 +179,7 @@ return 'fail'
 ; MAIN.FAILGETSESSION
 ;
 :MAIN.FAILGETSESSION
-echopassfail 'PaperJam' 'fail (getSession did not see paperJam)'
+echopassfail 'Summary' 'fail (getSession did not see paperJam)'
 log info '#Test result:                 fail (getSession did not see paperJam)'
 return 'fail'
 
@@ -195,7 +189,7 @@ return 'fail'
 ; MAIN.FAILWAITFOREVENTS
 ;
 :MAIN.FAILWAITFOREVENTS
-echopassfail 'PaperJam' 'fail (waitForEvents did not see paperJam)'
+echopassfail 'Summary' 'fail (waitForEvents did not see paperJam)'
 log info '#Test result:                 fail (waitForEvents did not see paperJam)'
 return 'fail'
 
@@ -205,7 +199,7 @@ return 'fail'
 ; MAIN.FAILWAITFOREVENTSSYNTAX
 ;
 :MAIN.FAILWAITFOREVENTSSYNTAX
-echopassfail 'PaperJam' 'fail (waitForEvents was missing fields)'
+echopassfail 'Summary' 'fail (waitForEvents was missing fields)'
 log info '#Test result:                 fail (waitForEvents was missing fields)'
 return 'fail'
 
@@ -242,5 +236,4 @@ return 'fail'
 ;
 ; We're good...
 :CHECK.PASS
-echopassfail 'event check ${arg:1}' 'pass'
 return 'pass'

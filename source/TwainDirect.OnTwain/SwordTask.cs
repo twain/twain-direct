@@ -4032,7 +4032,7 @@ namespace TwainDirect.OnTwain
                 ICAP_LIGHTSOURCE,
                 ICAP_FEEDERTYPE,
 
-                ICAP_DOUBLEFEEDDETECTION,
+                CAP_DOUBLEFEEDDETECTION,
                     CAP_DOUBLEFEEDDETECTIONLENGTH,
                     CAP_DOUBLEFEEDDETECTIONSENSITIVITY,
                     CAP_DOUBLEFEEDDETECTIONRESPONSE,
@@ -6684,6 +6684,7 @@ namespace TwainDirect.OnTwain
 
                     // We're good, keep going...
                     case "compression":
+                    case "doubleFeedDectection":
                     case "numberOfSheets":
                     case "pixelFormat":
                     case "resolution":
@@ -7041,7 +7042,14 @@ namespace TwainDirect.OnTwain
                             }
                             break;
 
-			            case "imageMerge":
+                        case "doubleFeedDetection":
+                            if (ProcessDoublefeeddetection() != SwordStatus.Success)
+                            {
+                                goto ABORT;
+                            }
+                            break;
+
+                        case "imageMerge":
                             if (ProcessImagemerge() != SwordStatus.Success)
 				            {
 					            goto ABORT;
@@ -7321,6 +7329,7 @@ namespace TwainDirect.OnTwain
                 {
                     m_aszTwValue = new string[1];
                     m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,-1"; // TWBP_AUTO
+                    return (m_swordstatus);
                 }
 
                 // Keep blank images...
@@ -7328,6 +7337,34 @@ namespace TwainDirect.OnTwain
                 {
                     m_aszTwValue = new string[1];
                     m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,-2"; // TWBP_DISABLE
+                    return (m_swordstatus);
+                }
+
+                // Oh well...
+                m_swordstatus = SwordStatus.SuccessIgnore;
+                return (m_swordstatus);
+            }
+
+            /// <summary>
+            /// Process doubleFeedDetection...
+            /// </summary>
+            /// <returns>our status</returns>
+            public SwordStatus ProcessDoublefeeddetection()
+            {
+                // Detect doublefeeds...
+                if (m_szTdValue == "on")
+                {
+                    m_aszTwValue = new string[1];
+                    m_aszTwValue[0] = "CAP_DOUBLEFEEDDETECTION,TWON_ARRAY,TWTY_UINT16,1,0"; // TWDF_ULTRASONIC
+                    return (m_swordstatus);
+                }
+
+                // Don't detect doublefeeds...
+                if (m_szTdValue == "off")
+                {
+                    m_aszTwValue = new string[1];
+                    m_aszTwValue[0] = "CAP_DOUBLEFEEDDETECTION,TWON_ARRAY,TWTY_UINT16,0"; // (empty array)
+                    return (m_swordstatus);
                 }
 
                 // Oh well...

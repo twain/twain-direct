@@ -153,6 +153,7 @@ namespace TwainDirect.Support
             // Get our folder paths and clean them out...
             m_szTdImagesFolder = Path.Combine(m_szWriteFolder, "tdimages");
             m_szTwImagesFolder = Path.Combine(m_szWriteFolder, "twimages");
+            m_szImageBlocksDrainedMeta = Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta");
             Log.Info("TWAIN images folder (input):         " + m_szTwImagesFolder);
             Log.Info("TWAIN Direct images folder (output): " + m_szTdImagesFolder);
             blSuccess = CleanImageFolders();
@@ -1759,6 +1760,7 @@ namespace TwainDirect.Support
                 // Init stuff...
                 szTwainDirectOnTwain = Config.Get("executablePath", "");
                 szTwainDirectOnTwain = szTwainDirectOnTwain.Replace("TwainDirect.Scanner", "TwainDirect.OnTwain");
+                m_blReadImageBlocksDrainedMeta = false;
 
                 // State check...
                 if (m_twainlocalsession.GetSessionState() != SessionState.noSession)
@@ -2693,6 +2695,7 @@ namespace TwainDirect.Support
         /// <param name="e"></param>
         private void OnChangedBridge(object source, FileSystemEventArgs e)
         {
+            bool blSendImageBlocksEvent = false;
             long lImageBlocks;
             long lImageBlockSize;
             string szImageBlockName;
@@ -2706,6 +2709,99 @@ namespace TwainDirect.Support
                 // Loop for as long as we find .twmeta files...
                 while (true)
                 {
+                    // Get a reason for there being no more images...
+                    if (!m_blReadImageBlocksDrainedMeta && (m_twainlocalsession != null) && File.Exists(m_szImageBlocksDrainedMeta))
+                    {
+                        JsonLookup jsonlookupDrained = new JsonLookup();
+                        m_blReadImageBlocksDrainedMeta = true;
+                        try
+                        {
+                            // Just using this to make the code nicer, not to loop...
+                            while (true)
+                            {
+                                // Read the file...
+                                long lJsonErrorIndex;
+                                string szReason = File.ReadAllText(m_szImageBlocksDrainedMeta);
+                                if (string.IsNullOrEmpty(szReason))
+                                {
+                                    Log.Error("empty imageBlocksDrained.meta (we'd like a reason)...");
+                                    break;
+                                }
+
+                                // Load the JSON...
+                                if (!jsonlookupDrained.Load(szReason, out lJsonErrorIndex))
+                                {
+                                    Log.Error("bad JSON in imageBlocksDrained.meta - <" + szReason + ">");
+                                    break;
+                                }
+
+                                // Get the "detected" property...
+                                Log.Info("imageBlocksDrained.meta: " + szReason);
+                                string szDetected = jsonlookupDrained.Get("detected");
+                                if (string.IsNullOrEmpty(szDetected))
+                                {
+                                    Log.Error("detected not found in imageBlocksDrained.meta (we'd like a reason) - " + szReason);
+                                    break;
+                                }
+
+                                // Convert the TWAIN status to TWAIN Direct...
+                                switch (szDetected.ToLowerInvariant())
+                                {
+                                    // If we don't recognize it, use the misfeed option...
+                                    default:
+                                        m_twainlocalsession.SetSessionStatusSuccess(false);
+                                        m_twainlocalsession.SetSessionStatusDetected("misfeed");
+                                        break;
+
+                                    // Make no changes, we're initialized to true/nominal...
+                                    case "success":
+                                    case "cancel":
+                                        break;
+
+                                    // I wonder if anybody has actually implemented this...
+                                    case "damagedcorner":
+                                        m_twainlocalsession.SetSessionStatusSuccess(false);
+                                        m_twainlocalsession.SetSessionStatusDetected("foldedCorner");
+                                        break;
+
+                                    // It's funny how the old names got into TWAIN Direct...
+                                    case "interlock":
+                                        m_twainlocalsession.SetSessionStatusSuccess(false);
+                                        m_twainlocalsession.SetSessionStatusDetected("coverOpen");
+                                        break;
+
+                                    // We couldn't find the first sheet...
+                                    case "nomedia":
+                                        m_twainlocalsession.SetSessionStatusSuccess(false);
+                                        m_twainlocalsession.SetSessionStatusDetected("noMedia");
+                                        break;
+
+                                    // We scan faster if we slug feed all the docs... :)
+                                    case "paperdoublefeed":
+                                        m_twainlocalsession.SetSessionStatusSuccess(false);
+                                        m_twainlocalsession.SetSessionStatusDetected("doubleFeed");
+                                        break;
+
+                                    // The scanner is eating our docs...
+                                    case "paperjam":
+                                        m_twainlocalsession.SetSessionStatusSuccess(false);
+                                        m_twainlocalsession.SetSessionStatusDetected("paperJam");
+                                        break;
+                                }
+
+                                // Make a note to send an event...
+                                blSendImageBlocksEvent = true;
+
+                                // Bye-bye loop...
+                                break;
+                            }
+                        }
+                        catch (Exception exception)
+                        {
+                            Log.Error("trouble processing imageBlocksDrained.meta - " + exception.Message);
+                        }
+                    }
+
                     // Find all of the TWAIN *.twmeta files, scoot if we don't find any...
                     aszMetatmp = Directory.GetFiles(m_szTwImagesFolder, "*.twmeta"); // Metadata from the TWAIN Driver or the bridge
                     if ((aszMetatmp == null) || (aszMetatmp.Length == 0))
@@ -2788,11 +2884,8 @@ namespace TwainDirect.Support
                                 }
                             }
 
-                            // Notify the other bit...
-                            if (m_apicmdEvent != null)
-                            {
-                                DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
-                            }
+                            // Make a note to send an event...
+                            blSendImageBlocksEvent = true;
                         }
                     }
                     #endregion
@@ -2936,17 +3029,14 @@ namespace TwainDirect.Support
                             }
                         }
 
-                        // Notify the other bit...
-                        if (m_apicmdEvent != null)
-                        {
-                            DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
-                        }
+                        // Make a note to send an event...
+                        blSendImageBlocksEvent = true;
                     }
                     #endregion
                 }
 
                 // Check to see if we should move the imageBlocksDrained.meta file...
-                if (File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
+                if (File.Exists(m_szImageBlocksDrainedMeta))
                 {
                     // Check for any pending files, if we have none, then we're
                     // done and it's safe to say-so, regardless of how many files
@@ -2957,17 +3047,27 @@ namespace TwainDirect.Support
                     {
                         try
                         {
+                            // Move it...
                             File.Move
                             (
-                                Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta"),
+                                m_szImageBlocksDrainedMeta,
                                 Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")
                             );
+
+                            // Make a note to send an event...
+                            blSendImageBlocksEvent = true;
                         }
                         catch (Exception exception)
                         {
                             Log.Error("moving imageBlocksDrained failed - " + exception.Message);
                         }
                     }
+                }
+
+                // Generate an event...
+                if (blSendImageBlocksEvent && (m_apicmdEvent != null))
+                {
+                    DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
                 }
             }
         }
@@ -3368,6 +3468,17 @@ namespace TwainDirect.Support
         /// driver...
         /// </summary>
         private string m_szTwImagesFolder;
+
+        /// <summary>
+        /// The file that tells us when TwainDirect.OnTwain is no longer
+        /// capturing images from the scanner...
+        /// </summary>
+        private string m_szImageBlocksDrainedMeta;
+
+        /// <summary>
+        /// We've read the file once...
+        /// </summary>
+        private bool m_blReadImageBlocksDrainedMeta;
 
         #endregion
     }
@@ -3933,12 +4044,29 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Return the doneCapturing flag...
+        /// </summary>
+        /// <returns>true if the scanner is no longer munching on paper</returns>
+        public bool ClientGetDoneCapturing()
+        {
+            if (m_twainlocalsession != null)
+            {
+                return (m_twainlocalsession.GetSessionDoneCapturing());
+            }
+            return (true);
+        }
+
+        /// <summary>
         /// Return the current image blocks...
         /// </summary>
         /// <returns>array of image blocks</returns>
         public long[] ClientGetImageBlocks()
         {
-            return (m_twainlocalsession.m_alSessionImageBlocks);
+            if (m_twainlocalsession != null)
+            {
+                return (m_twainlocalsession.m_alSessionImageBlocks);
+            }
+            return (null);
         }
 
         /// <summary>
@@ -3947,7 +4075,11 @@ namespace TwainDirect.Support
         /// <returns>true if the scanner has no more images</returns>
         public bool ClientGetImageBlocksDrained()
         {
-            return (m_twainlocalsession.GetSessionImageBlocksDrained());
+            if (m_twainlocalsession != null)
+            {
+                return (m_twainlocalsession.GetSessionImageBlocksDrained());
+            }
+            return (true);
         }
 
         /// <summary>
@@ -6686,11 +6818,17 @@ namespace TwainDirect.Support
             /// <returns>true if an update was detected, false if the command timed out</returns>
             public bool ClientWaitForSessionUpdate(long a_lMilliseconds)
             {
-                bool blSignaled;
+                bool blSignaled = false;
 
                 // Wait for it...
-                blSignaled = m_autoreseteventWaitForSessionUpdate.WaitOne((int)a_lMilliseconds);
-                m_autoreseteventWaitForSessionUpdate.Reset();
+                if (!m_blCancelWaitForSessionUpdate)
+                {
+                    blSignaled = m_autoreseteventWaitForSessionUpdate.WaitOne((int)a_lMilliseconds);
+                    if (!m_blCancelWaitForSessionUpdate)
+                    {
+                        m_autoreseteventWaitForSessionUpdate.Reset();
+                    }
+                }
 
                 // All done...
                 return (blSignaled);
@@ -7172,7 +7310,10 @@ namespace TwainDirect.Support
             /// <param name="a_blSessionStatusSuccess">false if the scanner needs attention</param>
             public void SetSessionStatusSuccess(bool a_blSessionStatusSuccess)
             {
-                m_blSessionStatusSuccess = a_blSessionStatusSuccess;
+                lock (m_szSessionStatusDetected)
+                {
+                    m_blSessionStatusSuccess = a_blSessionStatusSuccess;
+                }
             }
 
             /// <summary>
@@ -7181,7 +7322,10 @@ namespace TwainDirect.Support
             /// <param name="a_szSessionStatusDetected">the reason the scanner needs attention</param>
             public void SetSessionStatusDetected(string a_szSessionStatusDetected)
             {
-                m_szSessionStatusDetected = a_szSessionStatusDetected;
+                lock (m_szSessionStatusDetected)
+                {
+                    m_szSessionStatusDetected = a_szSessionStatusDetected;
+                }
             }
 
             /// <summary>
@@ -7238,6 +7382,7 @@ namespace TwainDirect.Support
                     // Wake up anybody checking this event...
                     if (m_autoreseteventWaitForSessionUpdate != null)
                     {
+                        m_blCancelWaitForSessionUpdate = true;
                         m_autoreseteventWaitForSessionUpdate.Set();
                         Thread.Sleep(0);
                         m_autoreseteventWaitForSessionUpdate.Dispose();
@@ -7353,6 +7498,7 @@ namespace TwainDirect.Support
             /// Triggered when the session object had been updated...
             /// </summary>
             private AutoResetEvent m_autoreseteventWaitForSessionUpdate;
+            private bool m_blCancelWaitForSessionUpdate;
 
             /// <summary>
             /// This holds a JSON subset of the session object, so that we can

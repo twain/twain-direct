@@ -33,7 +33,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Permissions;
 using System.Threading;
 
@@ -117,6 +116,8 @@ namespace TwainDirect.Support
         /// <param name="a_iLevel">debug level</param>
         public static void Open(string a_szName, string a_szPath, int a_iLevel)
         {
+            string szLogFile;
+
             // Init stuff...
             ms_blFirstPass = true;
             ms_blOpened = true;
@@ -137,8 +138,30 @@ namespace TwainDirect.Support
                 Environment.SetEnvironmentVariable("TWAINDSM_MODE", "w");
             }
 
+            // Backup old stuff...
+            szLogFile = Path.Combine(a_szPath, a_szName);
+            try
+            {
+                if (File.Exists(szLogFile + "_backup_2.log"))
+                {
+                    File.Delete(szLogFile + "_backup_2.log");
+                }
+                if (File.Exists(szLogFile + "_backup_1.log"))
+                {
+                    File.Move(szLogFile + "_backup_1.log", szLogFile + "_backup_2.log");
+                }
+                if (File.Exists(szLogFile + ".log"))
+                {
+                    File.Move(szLogFile + ".log", szLogFile + "_backup_1.log");
+                }
+            }
+            catch
+            {
+                // Don't care, keep going...
+            }
+
             // Turn on the listener...
-            ms_filestream = File.Open(Path.Combine(a_szPath, a_szName + ".log"), FileMode.Append, FileAccess.Write, FileShare.Read);
+            ms_filestream = File.Open(szLogFile + ".log", FileMode.Append, FileAccess.Write, FileShare.Read);
             Trace.Listeners.Add(new TextWriterTraceListener(ms_filestream, a_szName + "Listener"));
         }
 
@@ -151,10 +174,13 @@ namespace TwainDirect.Support
             // Squirrel this value away...
             ms_iLevel = a_iLevel;
 
-            // Turn flush on, we do this to guarantee that all log
-            // messages make it to disk.  But be careful, it can
-            // really slow things down...
-            if ((a_iLevel & c_iDebugFlush) == c_iDebugFlush)
+            // One has to opt out of flushing, since the consequence
+            // of turning it off often involves losing log data...
+            if ((a_iLevel & c_iDebugNoFlush) == c_iDebugNoFlush)
+            {
+                SetFlush(false);
+            }
+            else
             {
                 SetFlush(true);
             }
@@ -391,7 +417,7 @@ namespace TwainDirect.Support
         private const int c_iDebugInfo = 0x0001;
         private const int c_iDebugVerbose = 0x0002;
         private const int c_iDebugVerboseData = 0x0004;
-        private const int c_iDebugFlush = 0x0008;
+        private const int c_iDebugNoFlush = 0x0008;
 
         #endregion
 

@@ -3663,6 +3663,16 @@ namespace TwainDirect.Certification
                             }
                         }
 
+                        // Done capturing...
+                        else if (szTarget == "doneCapturing")
+                        {
+                            szValue = "true";
+                            if (m_twainlocalscannerclient != null)
+                            {
+                                szValue = m_twainlocalscannerclient.ClientGetImageBlocksDrained() ? "true" : "false";
+                            }
+                        }
+
                         // Image blocks drained...
                         else if (szTarget == "imageBlocksDrained")
                         {

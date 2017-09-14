@@ -47,23 +47,29 @@ set ii 0
 	; We've run out of events.
 	if '${ej:results.events[${get:ii}]}' == '' goto PAPERJAM.EVENTSEND
 	;
-	; Skip events that aren't imageBlocks...
-	if '${ej:results.events[${get:ii}]}.event' != 'imageBlocks' goto PAPERJAM.INCREMENT
+	; Skip timeout...
+	if '${ej:results.events[${get:ii}].event}' == 'timeout' goto PAPERJAM.INCREMENT
+	;
+	; Critical ends us...
+	if '${ej:results.events[${get:ii}].event}' == 'critical' goto PAPERJAM.FAIL
+	;
+	; It should be okay to skip any other non-imageBlocks event...
+	if '${ej:results.events[${get:ii}].event}' != 'imageBlocks' goto PAPERJAM.INCREMENT
 	;
 	; We're looking for success to be false, if it's
 	; missing that's a fail, if it's true we'll skip
 	; this event.
 	call CHECK 'results.events[${get:ii}].session.status.success' '==' 'false'
-	if '${ret:}' == 'SKIP' goto PAPERJAM.INCREMENT
-	if '${ret:}' == 'FAIL' goto PAPERJAM.FAIL
+	if '${ret:}' == 'skip' goto PAPERJAM.INCREMENT
+	if '${ret:}' == 'fail' goto PAPERJAM.FAIL
 	;
 	; We're looking for detected to be paperJam, if
 	; it's missing that's a fail, if it's not paperJam
 	; we'll skip this event.
 	call CHECK 'results.events[${get:ii}].session.status.detected' '==' 'paperJam'
-	if '${ret:}' == 'SKIP' goto PAPERJAM.INCREMENT
-	if '${ret:}' == 'FAIL' goto PAPERJAM.FAIL
-	if '${ret:}' == 'PASS' goto PAPERJAM.PASS
+	if '${ret:}' == 'skip' goto PAPERJAM.INCREMENT
+	if '${ret:}' == 'fail' goto PAPERJAM.FAIL
+	if '${ret:}' == 'pass' goto PAPERJAM.PASS
 	;
 	; Next event.
 	:PAPERJAM.INCREMENT
@@ -74,18 +80,17 @@ goto PAPERJAM.SKIP
 ;
 ; We're good, we found one...
 :PAPERJAM.PASS
-echopassfail 'event waitForEvents - ${arg:1}' 'pass'
+echopassfail 'TL.PJAM.WAIT.001' 'pass'
 set '${get:waitforeventsresultname}' 'pass'
 return 'pass'
 ;
 ; We didn't see it this time...
 :PAPERJAM.SKIP
-echopassfail 'event waitForEvents - ${arg:1}' 'skip'
 return 'skip'
 ;
 ; There's a problem in the event...
 :PAPERJAM.FAIL
-echopassfail 'event waitForEvents - ${arg:1}' 'fail'
+echopassfail 'TL.PJAM.WAIT.001' 'fail (event=${ej:results.events[${get:ii}].event})'
 return 'fail'
 
 
@@ -110,7 +115,6 @@ if '${ej:${arg:1}}' '${arg:2}' '${arg:3}' goto CHECK.PASS
 ;
 ; The if-statement failed, in this instance this is
 ; a skip...
-echopassfail 'event check ${arg:1}' 'skip (if '<${ej:${arg:1}}>' '${arg:2}' '<${arg:3}>')'
 return 'skip'
 ;
 ; The property is missing, we can't accept this, so mark
