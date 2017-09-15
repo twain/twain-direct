@@ -29,6 +29,23 @@ echo.yellow 'Normal Scan v1.0 15-Sep-2017'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Instructions to the user...
+;
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow 'This test performs a normal scan.  If using a flatbed place a sheet'
+echo.yellow 'of paper on it.  If using an automatic document feeder, more than one'
+echo.yellow 'sheet may be used.  All of the sheets will be scanned.'
+echo.yellow
+echo.yellow 'When ready, type "y" and press the Enter key.'
+echo.yellow
+input 'Is the scanner ready? ' 'Y' 'A'
+if '${ret:}' ~~ 'A' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Work out values for getThumbnail and getMetadata...
 ;
 ; Work out a value for getThumbnail...

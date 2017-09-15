@@ -28,15 +28,8 @@ set criticalwaitforeventsresult 'skip'
 ;
 echo.yellow
 echo.yellow 'This test checks that the scanner returns a "critical" event when the scanner'
-echo.yellow 'is turned off in the middle of an active session.'
-echo.yellow
-echo.yellow 'When prompted, please turn the scanner off.  If TWAIN Bridge is being used'
-echo.yellow 'with a TWAIN driver, do not turn the scanner off.  Instead, please press the'
-echo.yellow '"Stop" button on the TWAIN Bridge console.'
-echo.yellow
-echo.yellow 'After the test is complete there will be a prompt to turn the scanner back on.'
-echo.yellow 'If TWAIN Bridge is being used, press the "Start" button on the TWAIN Bridge'
-echo.yellow 'console.'
+echo.yellow 'is turned off in the middle of an active session.  The test pauses twice to'
+echo.yellow 'provide instructions, so watch closely.'
 echo.yellow
 
 
@@ -83,9 +76,22 @@ waitForEvents 'test waitForEvents' 'critical' 'criticalwaitforeventsresult'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Prompt the user to turn the scanner off...
 ;
-echo
-echo 'Please turn the scanner off, enter "y" and press the Enter key when ready.'
-input 'Is the scanner off? ' 'Y' 'A'
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow 'If this is a TWAIN Bridge scanner, bring up the TWAIN Bridge console and'
+echo.yellow 'press the "Stop" button.'
+echo.yellow
+echo.yellow 'If this is a native TWAIN Direct scanner, press its power button to turn'
+echo.yellow 'it off.'
+echo.yellow
+echo.yellow 'The Certification Tool is currently monitoring for events.  When an event'
+echo.yellow 'is detected, it will be immediately displayed.  If you want to get back'
+echo.yellow 'to the prompt, just press the Enter key.'
+echo.yellow
+echo.yellow 'When done, type "y" and press the Enter key.'
+echo.yellow
+input 'Is the scanner turned off? ' 'Y' 'A'
 if '${ret:}' ~~ 'A' goto MAIN.FAIL
 
 
@@ -110,12 +116,27 @@ goto MAIN.WAIT
 ; How did we do?
 ;
 :MAIN.WAITDONE
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow 'If this is a TWAIN Bridge scanner, bring up the TWAIN Bridge console and'
+echo.yellow 'press the "Start" button.'
+echo.yellow
+echo.yellow 'If this is a native TWAIN Direct scanner, press its power button to turn'
+echo.yellow 'it back on.'
+echo.yellow
+echo.yellow 'When done, type "y" and press the Enter key.'
+echo.yellow
+input 'Is the scanner turned on? ' 'Y'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; How did we do?
+;
 if '${get:criticalwaitforeventsresult}' != 'pass' goto MAIN.FAIL
 echopassfail 'Critical' 'pass'
 log info '#Test result:                 pass'
-echo
-echo 'Please turn the scanner back on, enter "y" and press the Enter key when ready.'
-input 'Is the scanner on? ' 'Y'
 return 'pass'
 
 

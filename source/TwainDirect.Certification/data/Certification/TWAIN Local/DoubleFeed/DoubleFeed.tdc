@@ -31,6 +31,28 @@ set doublefeedwaitforeventssyntaxresult 'pass'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Instructions to the user...
+;
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow 'This test configures the scanner to detect double feeds.  A double feed'
+echo.yellow 'occurs when more than one sheet of paper passes through the scanner at'
+echo.yellow 'the same time.'
+echo.yellow
+echo.yellow 'One way to force a doubleFeed is to tape two or more sheets on top of'
+echo.yellow 'each other.  The test will be skipped if the Certification Tool cannot'
+echo.yellow 'confirm that the scanner supports double feed detection.'
+echo.yellow
+echo.yellow 'When ready, type "y" and press the Enter key.'
+echo.yellow
+input 'Is the scanner ready with paper in the feeder? ' 'Y' 'A'
+if '${ret:}' ~~ 'A' goto MAIN.FAIL
+echo
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Pick a scanner...
 ;
 select '${arg:1}'

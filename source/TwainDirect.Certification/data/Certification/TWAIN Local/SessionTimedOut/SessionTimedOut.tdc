@@ -65,7 +65,7 @@ waitForEvents 'test waitForEvents' 'sessiontimedout' 'sessiontimedoutwaitforeven
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Snooze until we get a sessionTimedOut event, if we don't
 ; see anything after ten minutes, declare the test a bust.
-; We check every 15 seconds for 10 minutes.  Note that the
+; We check every 5 seconds for 10 minutes.  Note that the
 ; recommended timeout is 5 minutes...
 ;
 set tt 0
@@ -73,8 +73,8 @@ set tt 0
 	if '${get:tt}' > 600000 goto MAIN.WAITFAIL
 	if '${get:sessiontimedoutwaitforeventsresult}' == 'pass' goto MAIN.WAITDONE
 	if '${get:sessiontimedoutwaitforeventsresult}' == 'fail' goto MAIN.WAITDONE
-	increment tt '${get:tt}' 15000
-	sleep 15000
+	increment tt '${get:tt}' 5000
+	sleep 5000
 goto MAIN.WAIT
 
 
