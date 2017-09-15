@@ -19,8 +19,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Display the banner...
 ;
-echo
-echo 'DoubleFeed v1.0 14-Sep-2017'
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow '********************************************************************************'
+echo.yellow 'DoubleFeed v1.0 15-Sep-2017'
 set doublefeedgetsessionresult 'pass'
 set doublefeedwaitforeventsresult 'fail'
 set doublefeedwaitforeventssyntaxresult 'pass'

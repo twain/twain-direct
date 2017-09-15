@@ -45,7 +45,7 @@
             // m_buttonYes
             // 
             this.m_buttonYes.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonYes.Location = new System.Drawing.Point(115, 82);
+            this.m_buttonYes.Location = new System.Drawing.Point(181, 82);
             this.m_buttonYes.Name = "m_buttonYes";
             this.m_buttonYes.Size = new System.Drawing.Size(75, 23);
             this.m_buttonYes.TabIndex = 1;
@@ -57,7 +57,7 @@
             // 
             this.m_buttonNo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.m_buttonNo.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.m_buttonNo.Location = new System.Drawing.Point(197, 82);
+            this.m_buttonNo.Location = new System.Drawing.Point(263, 82);
             this.m_buttonNo.Name = "m_buttonNo";
             this.m_buttonNo.Size = new System.Drawing.Size(75, 23);
             this.m_buttonNo.TabIndex = 2;
@@ -71,7 +71,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.m_buttonNo;
-            this.ClientSize = new System.Drawing.Size(279, 111);
+            this.ClientSize = new System.Drawing.Size(345, 111);
             this.ControlBox = false;
             this.Controls.Add(this.m_buttonNo);
             this.Controls.Add(this.m_buttonYes);

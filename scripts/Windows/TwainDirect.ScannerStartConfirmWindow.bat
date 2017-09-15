@@ -3,7 +3,7 @@
 ::
 if exist %~dp0\..\..\source\TwainDirect.Scanner\bin\x86\Debug\TwainDirect.Scanner.exe (
 	cd "%~dp0\..\..\source\TwainDirect.Scanner\bin\x86\Debug"
-	start /b TwainDirect.Scanner.exe mode=window command=start confirmscan scale=2
+	start /b TwainDirect.Scanner.exe mode=window command=start confirmscan scale=1
 	exit
 )
 
@@ -12,6 +12,6 @@ if exist %~dp0\..\..\source\TwainDirect.Scanner\bin\x86\Debug\TwainDirect.Scanne
 ::
 if exist %~dp0\..\..\source\TwainDirect.Scanner\bin\x86\Release\TwainDirect.Scanner.exe (
 	cd "%~dp0\..\..\source\TwainDirect.Scanner\bin\x86\Release"
-	start /b TwainDirect.Scanner.exe mode=window command=start confirmscan scale=2
+	start /b TwainDirect.Scanner.exe mode=window command=start confirmscan scale=1
 	exit
 )

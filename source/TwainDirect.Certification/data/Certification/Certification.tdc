@@ -1,0 +1,70 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TWAIN Direct Certification
+; This runs all of the tests needed to pass certification for TWAIN Direct and TWAIN Local.
+;
+; Arguments
+; arg:1 - scanner to test
+;
+; Locals
+; (none)
+;
+; returns: pass or fail
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Run all of our tests, start by assuming success...
+;
+echo
+set certifyresult pass
+call CERTIFY 'TWAIN Direct' '${arg:1}'
+call CERTIFY 'TWAIN Local' '${arg:1}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; How did we do?
+;
+if '${get:certifyresult}' != 'pass' goto MAIN.FAIL
+echo
+echo '********************************'
+echo 'The scanner passed Certification'
+echo '********************************'
+log info '#'
+log info '*********************************'
+log info '#The scanner passed Certification'
+log info '*********************************'
+return 'pass'
+;
+:MAIN.FAIL
+echo
+echo '**************************************'
+echo 'The scanner did not pass Certification'
+echo '**************************************'
+log info '#'
+log info '#**************************************'
+log info '#The scanner did not pass Certification'
+log info '#**************************************'
+return 'fail'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Function: Certify
+; arg:1 - folder to step into
+; arg:2 - scanner to test
+; returns: pass or fail
+;
+:CERTIFY
+;
+cd '${arg:1}'
+run 'Certification' '${arg:2}'
+if '${ret:}' != 'pass' goto CERTIFY.FAIL
+cd ..
+return 'pass'
+;
+:CERTIFY.FAIL
+set certifyresult fail
+cd ..
+return 'fail'

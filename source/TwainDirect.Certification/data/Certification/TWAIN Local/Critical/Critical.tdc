@@ -13,10 +13,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Display the banner...
 ;
-echo
-echo 'Critical v1.0 10-Sep-2017'
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow '********************************************************************************'
+echo.yellow 'Critical v1.0 10-Sep-2017'
 set criticalgetsessionresult 'pass'
 set criticalwaitforeventsresult 'skip'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Instructions to the user...
+;
+echo.yellow
+echo.yellow 'This test checks that the scanner returns a "critical" event when the scanner'
+echo.yellow 'is turned off in the middle of an active session.'
+echo.yellow
+echo.yellow 'When prompted, please turn the scanner off.  If TWAIN Bridge is being used'
+echo.yellow 'with a TWAIN driver, do not turn the scanner off.  Instead, please press the'
+echo.yellow '"Stop" button on the TWAIN Bridge console.'
+echo.yellow
+echo.yellow 'After the test is complete there will be a prompt to turn the scanner back on.'
+echo.yellow 'If TWAIN Bridge is being used, press the "Start" button on the TWAIN Bridge'
+echo.yellow 'console.'
+echo.yellow
 
 
 
@@ -60,6 +81,16 @@ waitForEvents 'test waitForEvents' 'critical' 'criticalwaitforeventsresult'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Prompt the user to turn the scanner off...
+;
+echo
+echo 'Please turn the scanner off, enter "y" and press the Enter key when ready.'
+input 'Is the scanner off? ' 'Y' 'A'
+if '${ret:}' ~~ 'A' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Snooze until we get a critical event, if we don't see
 ; anything after one minute, declare the test a bust.
 ; We check every 5 seconds for 1 minute.
@@ -82,6 +113,9 @@ goto MAIN.WAIT
 if '${get:criticalwaitforeventsresult}' != 'pass' goto MAIN.FAIL
 echopassfail 'Critical' 'pass'
 log info '#Test result:                 pass'
+echo
+echo 'Please turn the scanner back on, enter "y" and press the Enter key when ready.'
+input 'Is the scanner on? ' 'Y'
 return 'pass'
 
 

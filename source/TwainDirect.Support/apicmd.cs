@@ -49,7 +49,7 @@ namespace TwainDirect.Support
     /// Manage a single command as it moves through the system, this includes
     /// its lifecycle and responses, including errors...
     /// </summary>
-    public sealed class ApiCmd
+    public sealed class ApiCmd : IDisposable
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...
@@ -170,6 +170,23 @@ namespace TwainDirect.Support
         )
         {
             ApiCmdHelper(a_dnssddeviceinfo, a_jsonlookup, ref a_httplistenercontext, null, null);
+        }
+
+        /// <summary>
+        /// Destructor...
+        /// </summary>
+        ~ApiCmd()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -3099,7 +3116,6 @@ namespace TwainDirect.Support
         {
             int iImageBlock;
             string szMeta;
-            string szImageBlocksDrainedMeta;
 
             // Okay, let's turn all this stuff into an array of imageblocks...
             m_szImageBlocks = "";
@@ -3448,6 +3464,87 @@ namespace TwainDirect.Support
         #region Private Methods...
 
         /// <summary>
+        /// Initialize the command with the JSON we received, we use this
+        /// in places where we don't have any JSON data, so we allow that
+        /// field to be null
+        /// </summary>
+        /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
+        /// <param name="a_jsonlookup">the command data or null</param>
+        /// <param name="a_httplistenercontext">the request that delivered the jsonlookup data</param>
+        /// <param name="a_waitforeventprocessingcallback">callback for each event</param>
+        /// <param name="a_objectWaitforeventprocessingcallback">object to pass to the callback</param>
+        public void ApiCmdHelper
+        (
+            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
+            JsonLookup a_jsonlookup,
+            ref HttpListenerContext a_httplistenercontext,
+            TwainLocalScanner.WaitForEventsProcessingCallback a_waitforeventprocessingcallback,
+            object a_objectWaitforeventprocessingcallback
+        )
+        {
+            // Should we use HTTP or HTTPS?  Our default behavior is to
+            // require HTTPS...
+            switch (Config.Get("useHttps", "yes"))
+            {
+                // auto causes us to check the
+                // https= field in the mDNS TXT record...
+                case "auto":
+                    if (a_dnssddeviceinfo != null)
+                    {
+                        m_blUseHttps = a_dnssddeviceinfo.GetTxtHttps();
+                    }
+                    break;
+
+                // Force us to use HTTPS, use this to guarantee
+                // a secure connection...
+                default:
+                case "yes":
+                    m_blUseHttps = true;
+                    break;
+
+                // Force us to use HTTP, use this to force us to
+                // use an unsecure connection...
+                case "no":
+                    m_blUseHttps = false;
+                    break;
+            }
+
+            // We always need this...
+            m_dnssddeviceinfo = a_dnssddeviceinfo;
+            m_waitforeventprocessingcallback = a_waitforeventprocessingcallback;
+            m_objectWaitforeventprocessingcallback = a_objectWaitforeventprocessingcallback;
+            m_httpresponsedata.iResponseHttpStatus = 0;
+            m_httpresponsedata.szTwainLocalResponseCode = null;
+            m_httpresponsedata.lResponseCharacterOffset = -1;
+            m_httpresponsedata.szResponseData = null;
+            m_szImageBlocks = "[]";
+            m_jsonlookupReceived = null;
+            m_httplistenerdata.szUri = null;
+            m_httplistenerdata.httplistenercontext = null;
+            m_httplistenerdata.httplistenerresponse = null;
+            m_sessiondata.blSessionStatusSuccess = true;
+            m_sessiondata.szSessionStatusDetected = "nominal";
+
+            // If this is null, we're the initiator, meaning that we're running
+            // inside of the application (like TwainDirect.App), so we're
+            // done.  Later on this could be TwainDirect.Scanner talking to TWAIN
+            // Cloud, but we'll worry about that later...
+            if (a_httplistenercontext == null)
+            {
+                return;
+            }
+
+            // Code from this point on is only going to run inside of the
+            // TwainDirect.Scanner program for TWAIN Local...
+
+            // Squirrel these away...
+            m_jsonlookupReceived = a_jsonlookup;
+            m_httplistenerdata.szUri = a_httplistenercontext.Request.RawUrl.ToString();
+            m_httplistenerdata.httplistenercontext = a_httplistenercontext;
+            m_httplistenerdata.httplistenerresponse = m_httplistenerdata.httplistenercontext.Response;
+        }
+
+        /// <summary>
         /// Collect and log information about an exception...
         /// </summary>
         /// <param name="a_szReason">source of the message</param>
@@ -3583,84 +3680,17 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Initialize the command with the JSON we received, we use this
-        /// in places where we don't have any JSON data, so we allow that
-        /// field to be null
+        /// Cleanup...
         /// </summary>
-        /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
-        /// <param name="a_jsonlookup">the command data or null</param>
-        /// <param name="a_httplistenercontext">the request that delivered the jsonlookup data</param>
-        /// <param name="a_waitforeventprocessingcallback">callback for each event</param>
-        /// <param name="a_objectWaitforeventprocessingcallback">object to pass to the callback</param>
-        public void ApiCmdHelper
-        (
-            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
-            JsonLookup a_jsonlookup,
-            ref HttpListenerContext a_httplistenercontext,
-            TwainLocalScanner.WaitForEventsProcessingCallback a_waitforeventprocessingcallback,
-            object a_objectWaitforeventprocessingcallback
-        )
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        internal void Dispose(bool a_blDisposing)
         {
-            // Should we use HTTP or HTTPS?  Our default behavior is to
-            // require HTTPS...
-            switch (Config.Get("useHttps", "yes"))
+            // Free managed resources...
+            if (m_filestreamOutputFile != null)
             {
-                // auto causes us to check the
-                // https= field in the mDNS TXT record...
-                case "auto":
-                    if (a_dnssddeviceinfo != null)
-                    {
-                        m_blUseHttps = a_dnssddeviceinfo.GetTxtHttps();
-                    }
-                    break;
-
-                // Force us to use HTTPS, use this to guarantee
-                // a secure connection...
-                default:
-                case "yes":
-                    m_blUseHttps = true;
-                    break;
-
-                // Force us to use HTTP, use this to force us to
-                // use an unsecure connection...
-                case "no":
-                    m_blUseHttps = false;
-                    break;
+                m_filestreamOutputFile.Dispose();
+                m_filestreamOutputFile = null;
             }
-
-            // We always need this...
-            m_dnssddeviceinfo = a_dnssddeviceinfo;
-            m_waitforeventprocessingcallback = a_waitforeventprocessingcallback;
-            m_objectWaitforeventprocessingcallback = a_objectWaitforeventprocessingcallback;
-            m_httpresponsedata.iResponseHttpStatus = 0;
-            m_httpresponsedata.szTwainLocalResponseCode = null;
-            m_httpresponsedata.lResponseCharacterOffset = -1;
-            m_httpresponsedata.szResponseData = null;
-            m_szImageBlocks = "[]";
-            m_jsonlookupReceived = null;
-            m_httplistenerdata.szUri = null;
-            m_httplistenerdata.httplistenercontext = null;
-            m_httplistenerdata.httplistenerresponse = null;
-            m_sessiondata.blSessionStatusSuccess = true;
-            m_sessiondata.szSessionStatusDetected = "nominal";
-
-            // If this is null, we're the initiator, meaning that we're running
-            // inside of the application (like TwainDirect.App), so we're
-            // done.  Later on this could be TwainDirect.Scanner talking to TWAIN
-            // Cloud, but we'll worry about that later...
-            if (a_httplistenercontext == null)
-            {
-                return;
-            }
-
-            // Code from this point on is only going to run inside of the
-            // TwainDirect.Scanner program for TWAIN Local...
-
-            // Squirrel these away...
-            m_jsonlookupReceived = a_jsonlookup;
-            m_httplistenerdata.szUri = a_httplistenercontext.Request.RawUrl.ToString();
-            m_httplistenerdata.httplistenercontext = a_httplistenercontext;
-            m_httplistenerdata.httplistenerresponse = m_httplistenerdata.httplistenercontext.Response;
         }
 
         /// <summary>

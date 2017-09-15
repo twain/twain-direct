@@ -19,8 +19,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Display the banner...
 ;
-echo
-echo 'PaperJam v1.0 14-Sep-2017'
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow '********************************************************************************'
+echo.yellow 'PaperJam v1.0 15-Sep-2017'
 set paperjamgetsessionresult 'pass'
 set paperjamwaitforeventsresult 'fail'
 set paperjamwaitforeventssyntaxresult 'pass'

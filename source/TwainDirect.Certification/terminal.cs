@@ -64,6 +64,7 @@ namespace TwainDirect.Certification
             m_dnssddeviceinfoSelected = null;
             m_twainlocalscannerclient = null;
             m_lkeyvalue = new List<KeyValue>();
+            m_objectKeyValue = new object();
             m_transactionLast = null;
             m_lcallstack = new List<CallStack>();
 
@@ -111,12 +112,17 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdClean,                        new string[] { "clean" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdDir,                          new string[] { "dir", "ls" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEcho,                         new string[] { "echo" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchoBlue,                     new string[] { "echo.blue" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchoGreen,                    new string[] { "echo.green" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchoRed,                      new string[] { "echo.red" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchoYellow,                   new string[] { "echo.yellow" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdEchopassfail,                 new string[] { "echopassfail" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdFinishImage,                  new string[] { "finishimage" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGc,                           new string[] { "gc" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdGoto,                         new string[] { "goto" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIf,                           new string[] { "if" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdIncrement,                    new string[] { "increment" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdInput,                        new string[] { "input" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdJson2Xml,                     new string[] { "json2xml" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdLog,                          new string[] { "log" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdReturn,                       new string[] { "return" }));
@@ -979,6 +985,56 @@ namespace TwainDirect.Certification
         /// <returns>true to quit</returns>
         private bool CmdEcho(ref Interpreter.FunctionArguments a_functionarguments)
         {
+            return (CmdEchoColor(ref a_functionarguments, ConsoleColor.White));
+        }
+
+        /// <summary>
+        /// Echo text as blue...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdEchoBlue(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (CmdEchoColor(ref a_functionarguments, ConsoleColor.Blue));
+        }
+
+        /// <summary>
+        /// Echo text as green...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdEchoGreen(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (CmdEchoColor(ref a_functionarguments, ConsoleColor.Green));
+        }
+
+        /// <summary>
+        /// Echo text as red...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdEchoRed(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (CmdEchoColor(ref a_functionarguments, ConsoleColor.Red));
+        }
+
+        /// <summary>
+        /// Echo text as yellow...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdEchoYellow(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (CmdEchoColor(ref a_functionarguments, ConsoleColor.Yellow));
+        }
+
+        /// <summary>
+        /// Echo text as white...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdEchoColor(ref Interpreter.FunctionArguments a_functionarguments, ConsoleColor a_consolecolor)
+        {
             int ii;
             string szLine = "";
             string[] aszCmd;
@@ -997,12 +1053,35 @@ namespace TwainDirect.Certification
             // Expand the symbols...
             Expansion(ref aszCmd);
 
-            // Turn it into a line, and spit it out...
+            // Turn it into a line...
             for (ii = 1; ii < aszCmd.Length; ii++)
             {
                 szLine += ((szLine == "") ? "" : " ") + aszCmd[ii];
             }
-            Display(szLine, true);
+
+            // Spit it out...
+            switch (a_consolecolor)
+            {
+                default:
+                    Display(szLine, true);
+                    break;
+
+                case ConsoleColor.Blue:
+                    DisplayBlue(szLine, true);
+                    break;
+
+                case ConsoleColor.Green:
+                    DisplayGreen(szLine, true);
+                    break;
+
+                case ConsoleColor.Red:
+                    DisplayRed(szLine, true);
+                    break;
+
+                case ConsoleColor.Yellow:
+                    DisplayYellow(szLine, true);
+                    break;
+            }
 
             // All done...
             return (false);
@@ -2055,6 +2134,77 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Accept command input from the user.  The data is returned in the
+        /// ${ret:} variable.  The first argument is a prompt, the rest of
+        /// the arguments are optional, and indicate values that must be
+        /// entered if the input command is going to return...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdInput(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int ii;
+            string szCmd = "";
+            string szPrompt = "enter input: ";
+            List<string> lszCommands = new List<string>();
+
+            // Get the prompt...
+            if ((a_functionarguments.aszCmd.Length >= 2) && (a_functionarguments.aszCmd[1] != null))
+            {
+                szPrompt = a_functionarguments.aszCmd[1];
+            }
+
+            // Get the commands...
+            for (ii = 3; true; ii++)
+            {
+                if ((ii >= a_functionarguments.aszCmd.Length) || string.IsNullOrEmpty(a_functionarguments.aszCmd[ii - 1]))
+                {
+                    break;
+                }
+                lszCommands.Add(a_functionarguments.aszCmd[ii - 1]);
+            }
+
+            // Loopy...
+            Interpreter interpreter = new Interpreter(szPrompt);
+            while (true)
+            {
+                // Get the command...
+                szCmd = interpreter.Prompt(m_streamreaderConsole);
+
+                // If we have no commands to compare it against, we're done...
+                if (lszCommands.Count == 0)
+                {
+                    break;
+                }
+
+                // Otherwise, we have to look for a match...
+                bool blFound = false;
+                foreach (string szCommand in lszCommands)
+                {
+                    if (szCmd.ToLowerInvariant() == szCommand.ToLowerInvariant())
+                    {
+                        blFound = true;
+                        break;
+                    }
+                }
+
+                // We got a match...
+                if (blFound)
+                {
+                    break;
+                }
+            }
+
+            // Update the return value...
+            CallStack callstack = m_lcallstack[m_lcallstack.Count - 1];
+            callstack.functionarguments.szReturnValue = szCmd;
+            m_lcallstack[m_lcallstack.Count - 1] = callstack;
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// List scanners, both ones on the LAN and ones that are
         /// available in the cloud (when we get that far)...
         /// </summary>
@@ -2580,57 +2730,64 @@ namespace TwainDirect.Certification
             // If we don't have any arguments, list what we have...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
-                if (m_lkeyvalue.Count == 0)
+                lock (m_objectKeyValue)
                 {
-                    DisplayError("no keys to list...");
-                    return (false);
-                }
+                        if (m_lkeyvalue.Count == 0)
+                    {
+                        DisplayError("no keys to list...");
+                        return (false);
+                    }
 
-                // Loopy...
-                Display("KEY/VALUE PAIRS");
-                foreach (KeyValue keyvalue in m_lkeyvalue)
-                {
-                    Display(keyvalue.szKey + "=" + keyvalue.szValue);
+                    // Loopy...
+                    Display("KEY/VALUE PAIRS");
+                    foreach (KeyValue keyvalue in m_lkeyvalue)
+                    {
+                        Display(keyvalue.szKey + "=" + keyvalue.szValue);
+                    }
                 }
 
                 // All done...
                 return (false);
             }
 
-            // Find the value for this key...
-            for (iKey = 0; iKey < m_lkeyvalue.Count; iKey++)
+            // We need protection...
+            lock (m_objectKeyValue)
             {
-                if (m_lkeyvalue[iKey].szKey == a_functionarguments.aszCmd[1])
+                // Find the value for this key...
+                for (iKey = 0; iKey < m_lkeyvalue.Count; iKey++)
                 {
-                    break;
+                    if (m_lkeyvalue[iKey].szKey == a_functionarguments.aszCmd[1])
+                    {
+                        break;
+                    }
                 }
-            }
 
-            // If we have no value to set, then delete this item...
-            if ((a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[2] == null))
-            {
+                // If we have no value to set, then delete this item...
+                if ((a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[2] == null))
+                {
+                    if (iKey < m_lkeyvalue.Count)
+                    {
+                        m_lkeyvalue.Remove(m_lkeyvalue[iKey]);
+                    }
+                    return (false);
+                }
+
+                // Create a new keyvalue...
+                KeyValue keyvalueNew = new KeyValue();
+                keyvalueNew.szKey = a_functionarguments.aszCmd[1];
+                keyvalueNew.szValue = a_functionarguments.aszCmd[2];
+
+                // If the key already exists, update it's value...
                 if (iKey < m_lkeyvalue.Count)
                 {
-                    m_lkeyvalue.Remove(m_lkeyvalue[iKey]);
+                    m_lkeyvalue[iKey] = keyvalueNew;
+                    return (false);
                 }
-                return (false);
+
+                // Otherwise, add it, and sort...
+                m_lkeyvalue.Add(keyvalueNew);
+                m_lkeyvalue.Sort(SortByKeyAscending);
             }
-
-            // Create a new keyvalue...
-            KeyValue keyvalueNew = new KeyValue();
-            keyvalueNew.szKey = a_functionarguments.aszCmd[1];
-            keyvalueNew.szValue = a_functionarguments.aszCmd[2];
-
-            // If the key already exists, update it's value...
-            if (iKey < m_lkeyvalue.Count)
-            {
-                m_lkeyvalue[iKey] = keyvalueNew;
-                return (false);
-            }
-
-            // Otherwise, add it, and sort...
-            m_lkeyvalue.Add(keyvalueNew);
-            m_lkeyvalue.Sort(SortByKeyAscending);
 
             // All done...
             return (false);
@@ -3255,6 +3412,48 @@ namespace TwainDirect.Certification
         /// Display text (if allowed)...
         /// </summary>
         /// <param name="a_szText">the text to display</param>
+        private void DisplayBlue(string a_szText, bool a_blForce = false)
+        {
+            if (!m_blSilent || a_blForce)
+            {
+                if (Console.BackgroundColor == ConsoleColor.Black)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Out.WriteLine(a_szText);
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+                else
+                {
+                    Console.Out.WriteLine(a_szText);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Display text (if allowed)...
+        /// </summary>
+        /// <param name="a_szText">the text to display</param>
+        private void DisplayGreen(string a_szText, bool a_blForce = false)
+        {
+            if (!m_blSilent || a_blForce)
+            {
+                if (Console.BackgroundColor == ConsoleColor.Black)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Out.WriteLine(a_szText);
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+                else
+                {
+                    Console.Out.WriteLine(a_szText);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Display text (if allowed)...
+        /// </summary>
+        /// <param name="a_szText">the text to display</param>
         private void DisplayRed(string a_szText, bool a_blForce = false)
         {
             if (!m_blSilent || a_blForce)
@@ -3262,6 +3461,27 @@ namespace TwainDirect.Certification
                 if (Console.BackgroundColor == ConsoleColor.Black)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Out.WriteLine(a_szText);
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+                else
+                {
+                    Console.Out.WriteLine(a_szText);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Display text (if allowed)...
+        /// </summary>
+        /// <param name="a_szText">the text to display</param>
+        private void DisplayYellow(string a_szText, bool a_blForce = false)
+        {
+            if (!m_blSilent || a_blForce)
+            {
+                if (Console.BackgroundColor == ConsoleColor.Black)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.Out.WriteLine(a_szText);
                     Console.ForegroundColor = ConsoleColor.Gray;
                 }
@@ -3452,8 +3672,8 @@ namespace TwainDirect.Certification
                 // the get, the arg will be handled inside of the rj, so that means
                 // we have to properly count our way to the closing } for rj...
                 for (iIndexLeft = a_aszCmd[iCmd].IndexOf("${");
-                     iIndexLeft >= 0;
-                     iIndexLeft = a_aszCmd[iCmd].IndexOf("${"))
+                        iIndexLeft >= 0;
+                        iIndexLeft = a_aszCmd[iCmd].IndexOf("${"))
                 {
                     string szSymbol;
                     string szValue;
@@ -3497,29 +3717,29 @@ namespace TwainDirect.Certification
                     // Expand the stuff to the right of the source, so if we have
                     // ${rj:x} we'll get x back, but if we have ${rj:${arg:1}}, we'll
                     // get the value of ${arg:1} back...
-                    if (    szSymbol.StartsWith("${rdata:")
-                        ||  szSymbol.StartsWith("${rj:")
-                        ||  szSymbol.StartsWith("${rjx:")
-                        ||  szSymbol.StartsWith("${rsts:")
-                        ||  szSymbol.StartsWith("${edata:")
-                        ||  szSymbol.StartsWith("${ej:")
-                        ||  szSymbol.StartsWith("${ejx:")
-                        ||  szSymbol.StartsWith("${ests:")
-                        ||  szSymbol.StartsWith("${session:")
-                        ||  szSymbol.StartsWith("${get:")
-                        ||  szSymbol.StartsWith("${arg:")
-                        ||  szSymbol.StartsWith("${ret:")
-                        ||  szSymbol.StartsWith("${hdrkey:")
-                        ||  szSymbol.StartsWith("${hdrvalue:")
-                        ||  szSymbol.StartsWith("${hdrjsonkey:")
-                        ||  szSymbol.StartsWith("${hdrjsonvalue:")
-                        ||  szSymbol.StartsWith("${hdrimagekey:")
-                        ||  szSymbol.StartsWith("${hdrimagevalue:")
-                        ||  szSymbol.StartsWith("${hdrthumbnailkey:")
-                        ||  szSymbol.StartsWith("${hdrthumbnailvalue:")
-                        ||  szSymbol.StartsWith("${txt:")
-                        ||  szSymbol.StartsWith("${txtx:")
-                        ||  szSymbol.StartsWith("${localtime:"))
+                    if (szSymbol.StartsWith("${rdata:")
+                        || szSymbol.StartsWith("${rj:")
+                        || szSymbol.StartsWith("${rjx:")
+                        || szSymbol.StartsWith("${rsts:")
+                        || szSymbol.StartsWith("${edata:")
+                        || szSymbol.StartsWith("${ej:")
+                        || szSymbol.StartsWith("${ejx:")
+                        || szSymbol.StartsWith("${ests:")
+                        || szSymbol.StartsWith("${session:")
+                        || szSymbol.StartsWith("${get:")
+                        || szSymbol.StartsWith("${arg:")
+                        || szSymbol.StartsWith("${ret:")
+                        || szSymbol.StartsWith("${hdrkey:")
+                        || szSymbol.StartsWith("${hdrvalue:")
+                        || szSymbol.StartsWith("${hdrjsonkey:")
+                        || szSymbol.StartsWith("${hdrjsonvalue:")
+                        || szSymbol.StartsWith("${hdrimagekey:")
+                        || szSymbol.StartsWith("${hdrimagevalue:")
+                        || szSymbol.StartsWith("${hdrthumbnailkey:")
+                        || szSymbol.StartsWith("${hdrthumbnailvalue:")
+                        || szSymbol.StartsWith("${txt:")
+                        || szSymbol.StartsWith("${txtx:")
+                        || szSymbol.StartsWith("${localtime:"))
                     {
                         int iSymbolIndexLeft = szSymbol.IndexOf(":") + 1;
                         int iSymbolIndexLength;
@@ -3698,15 +3918,18 @@ namespace TwainDirect.Certification
                     // case, it has to be an empty string...
                     else if (szSymbol.StartsWith("${get:"))
                     {
-                        if (m_lkeyvalue.Count >= 0)
+                        lock (m_objectKeyValue)
                         {
-                            string szGet = szSymbol.Substring(0, szSymbol.Length - 1).Substring(6);
-                            foreach (KeyValue keyvalue in m_lkeyvalue)
+                            if (m_lkeyvalue.Count >= 0)
                             {
-                                if (keyvalue.szKey == szGet)
+                                string szGet = szSymbol.Substring(0, szSymbol.Length - 1).Substring(6);
+                                foreach (KeyValue keyvalue in m_lkeyvalue)
                                 {
-                                    szValue = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
-                                    break;
+                                    if (keyvalue.szKey == szGet)
+                                    {
+                                        szValue = (keyvalue.szValue == null) ? "" : keyvalue.szValue;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -4035,6 +4258,7 @@ namespace TwainDirect.Certification
         /// The list of key/value pairs created by the SET command...
         /// </summary>
         private List<KeyValue> m_lkeyvalue;
+        private object m_objectKeyValue;
 
         /// <summary>
         /// A last in first off stack of function calls...

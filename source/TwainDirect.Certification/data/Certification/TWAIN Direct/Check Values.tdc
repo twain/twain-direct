@@ -24,7 +24,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Initialize...
 ;
-call INITIALIZE 'Check Values v1.0 21-Jul-2017' '${arg:1}'
+call INITIALIZE 'Check Values v1.0 15-Sep-2017' '${arg:1}'
 if '${ret:}' != 'true' goto MAIN.ERROR
 
 
@@ -120,8 +120,11 @@ return 'fail'
 ;
 :INITIALIZE
 ;
-echo
-echo '${arg:1}'
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow '********************************************************************************'
+echo.yellow '${arg:1}'
 ;
 ; Pick a scanner, default to the first scanner if we
 ; don't get one...

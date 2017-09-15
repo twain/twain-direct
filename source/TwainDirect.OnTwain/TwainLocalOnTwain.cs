@@ -32,7 +32,6 @@
 // Helpers...
 using System;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -102,10 +101,7 @@ namespace TwainDirect.OnTwain
             bool blSetAppCapabilities = false;
             long lResponseCharacterOffset;
             string szJson;
-            string szMetadataFile;
-            string szThumbnailFile;
             string szSession;
-            string szImageFile;
             Ipc ipc;
             ProcessSwordTask processswordtask;
             TwainLocalScanner.ApiStatus apistatus;
@@ -139,7 +135,12 @@ namespace TwainDirect.OnTwain
                 // Dispatch the command...
                 switch (jsonlookup.Get("method"))
                 {
+                    // Stuff we don't recognize.  Some commands never make it this
+                    // far...
                     default:
+                    case "readImageBlock":
+                    case "readImageBlockMetadata":
+                    case "releaseImageBlocks":
                         break;
 
                     case "closeSession":
@@ -204,96 +205,6 @@ namespace TwainDirect.OnTwain
 
                     case "getSession":
                         apistatus = DeviceScannerGetSession(out szSession);
-                        if (apistatus == TwainLocalScanner.ApiStatus.success)
-                        {
-                            blSuccess = ipc.Write
-                            (
-                                "{" +
-                                "\"status\":\"" + apistatus + "\"," +
-                                szSession +
-                                "}"
-                            );
-                        }
-                        else
-                        {
-                            blSuccess = ipc.Write
-                            (
-                                "{" +
-                                "\"status\":\"" + apistatus + "\"" +
-                                "}"
-                            );
-                        }
-                        if (!blSuccess)
-                        {
-                            TWAINWorkingGroup.Log.Info("IPC channel disconnected...");
-                            blRunning = false;
-                        }
-                        break;
-
-                    case "readImageBlock":
-                        apistatus = DeviceScannerReadImageBlock(jsonlookup, out szImageFile, out szMetadataFile);
-                        if (apistatus == TwainLocalScanner.ApiStatus.success)
-                        {
-                            apistatus = DeviceScannerGetSession(out szSession);
-                            blSuccess = ipc.Write
-                            (
-                                "{" +
-                                "\"status\":\"" + apistatus + "\"," +
-                                ((jsonlookup.Get("withMetadata", false) == "true") ? "\"meta\":\"" + szMetadataFile + "\"," : "") +
-                                "\"imageFile\":\"" + szImageFile + "\"" +
-                                (!string.IsNullOrEmpty(szSession) ? "," + szSession : "") +
-                                "}"
-                            );
-                        }
-                        else
-                        {
-                            blSuccess = ipc.Write
-                            (
-                                "{" +
-                                "\"status\":\"" + apistatus + "\"" +
-                                "}"
-                            );
-                        }
-                        if (!blSuccess)
-                        {
-                            TWAINWorkingGroup.Log.Info("IPC channel disconnected...");
-                            blRunning = false;
-                        }
-                        break;
-
-                    case "readImageBlockMetadata":
-                        apistatus = DeviceScannerReadImageBlockMetadata(jsonlookup, out szMetadataFile, out szThumbnailFile);
-                        if (apistatus == TwainLocalScanner.ApiStatus.success)
-                        {
-                            apistatus = DeviceScannerGetSession(out szSession);
-                            blSuccess = ipc.Write
-                             (
-                                 "{" +
-                                 "\"status\":\"" + apistatus + "\"," +
-                                 "\"meta\":\"" + szMetadataFile + "\"," +
-                                 "\"thumbnailFile\":\"" + szThumbnailFile + "\"" +
-                                 (!string.IsNullOrEmpty(szSession) ? "," + szSession : "") +
-                                 "}"
-                             );
-                        }
-                        else
-                        {
-                            blSuccess = ipc.Write
-                            (
-                                "{" +
-                                "\"status\":\"" + apistatus + "\"" +
-                                "}"
-                            );
-                        }
-                        if (!blSuccess)
-                        {
-                            TWAINWorkingGroup.Log.Info("IPC channel disconnected...");
-                            blRunning = false;
-                        }
-                        break;
-
-                    case "releaseImageBlocks":
-                        apistatus = DeviceScannerReleaseImageBlocks(jsonlookup, out szSession);
                         if (apistatus == TwainLocalScanner.ApiStatus.success)
                         {
                             blSuccess = ipc.Write
@@ -1184,219 +1095,6 @@ namespace TwainDirect.OnTwain
 
             // End of the session object...
             a_szSession += "}";
-
-            // All done...
-            return (TwainLocalScanner.ApiStatus.success);
-        }
-
-        /// <summary>
-        /// Return the full path to the requested image block, we also get the
-        /// file to the metadata, but the caller decides if we send this back
-        /// or not based on the value of "withMetadata"...
-        /// </summary>
-        /// <param name="a_jsonlookup">data for the open</param>
-        /// <param name="a_szImageFile">file containing the image data</param>
-        /// <param name="a_szMetadataFile">file containing the metadata</param>
-        /// <returns>status of the call</returns>
-        private TwainLocalScanner.ApiStatus DeviceScannerReadImageBlock
-        (
-            JsonLookup a_jsonlookup,
-            out string a_szImageFile,
-            out string a_szMetadataFile
-        )
-        {
-            // Build the filename...
-            int iImageBlock = int.Parse(a_jsonlookup.Get("imageBlockNum"));
-            a_szImageFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6"));
-            a_szImageFile = a_szImageFile.Replace("\\", "/");
-            if (File.Exists(a_szImageFile + ".pdf"))
-            {
-                a_szImageFile += ".pdf";
-            }
-            else
-            {
-                TWAINWorkingGroup.Log.Error("Image not found: " + a_szImageFile);
-                a_szMetadataFile = "";
-                return (TwainLocalScanner.ApiStatus.invalidImageBlockNumber);
-            }
-
-            // Build the metadata filename, if we don't have one, we have a problem...
-            a_szMetadataFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".meta");
-            a_szMetadataFile = a_szMetadataFile.Replace("\\", "/");
-            if (!File.Exists(a_szMetadataFile))
-            {
-                TWAINWorkingGroup.Log.Error("Image metadata not found: " + a_szMetadataFile);
-                a_szMetadataFile = "";
-                return (TwainLocalScanner.ApiStatus.invalidImageBlockNumber);
-            }
-
-            // All done...
-            return (TwainLocalScanner.ApiStatus.success);
-        }
-
-        /// <summary>
-        /// Return the TWAIN Direct metadata for this image block, note that we
-        /// generate the metadata file last, because it's the trigger that says
-        /// that this image is complete...
-        /// </summary>
-        /// <param name="a_jsonlookup">data for the open</param>
-        /// <param name="a_szMetadataFile">file containing the metadata</param>
-        /// <param name="a_szThumbnailFile">optional file containing the thumbnail</param>
-        /// <returnsstatus of the call</returns>
-        private bool ThumbnailCallback()
-        {
-            return false;
-        }
-        private TwainLocalScanner.ApiStatus DeviceScannerReadImageBlockMetadata
-        (
-            JsonLookup a_jsonlookup,
-            out string a_szMetadataFile,
-            out string a_szThumbnailFile
-        )
-        {
-            int iImageBlock;
-            string szPdf;
-
-            // Get our imageblock number...
-            iImageBlock = int.Parse(a_jsonlookup.Get("imageBlockNum"));
-
-            // Generate a thumbnail...
-            a_szThumbnailFile = "";
-            if (a_jsonlookup.Get("withThumbnail") == "true")
-            {
-                bool blSuccess;
-
-                // The name of our image file...
-                szPdf = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".pdf");
-                szPdf = szPdf.Replace("\\", "/");
-
-                // This is the file we'll use...
-                a_szThumbnailFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + "_thumbnail.pdf");
-                a_szThumbnailFile = a_szThumbnailFile.Replace("\\", "/");
-
-                // Create the thumbnail...
-                blSuccess = PdfRaster.CreatePdfRasterThumbnail(szPdf, a_szThumbnailFile);
-            }
-
-            // Build the metadata filename, if we don't have one, we have a problem...
-            a_szMetadataFile = Path.Combine(m_szImagesFolder, "img" + iImageBlock.ToString("D6") + ".meta");
-            a_szMetadataFile = a_szMetadataFile.Replace("\\", "/");
-            if (!File.Exists(a_szMetadataFile))
-            {
-                TWAINWorkingGroup.Log.Error("Image metadata not found: " + a_szMetadataFile);
-                a_szMetadataFile = "";
-                a_szThumbnailFile = "";
-                return (TwainLocalScanner.ApiStatus.invalidImageBlockNumber);
-            }
-
-            // All done...
-            return (TwainLocalScanner.ApiStatus.success);
-        }
-
-        /// <summary>
-        /// Release image blocks.  Compare what the user asks to release
-        /// to what we really have, or we could be here for a while...
-        /// </summary>
-        /// <param name="a_jsonlookup">data for the command</param>
-        /// <param name="a_szSession">the session data</param>
-        /// <returns>a twain local status</returns>
-        private TwainLocalScanner.ApiStatus DeviceScannerReleaseImageBlocks(JsonLookup a_jsonlookup, out string a_szSession)
-        {
-            int ii;
-            int iImageBlockNum;
-            int iLastImageBlockNum;
-            int iImageBlockNumFile;
-            int iLastImageBlockNumFile;
-            string szFile;
-            string szNumber;
-            string[] aszFiles;
-
-            // Init stuff...
-            a_szSession = "";
-
-            // Get the endpoints (inclusive)...
-            iImageBlockNum = int.Parse(a_jsonlookup.Get("imageBlockNum"));
-            iLastImageBlockNum = int.Parse(a_jsonlookup.Get("lastImageBlockNum"));
-
-            // Get the files...
-            aszFiles = Directory.GetFiles(m_szImagesFolder, "img*.pdf");
-
-            // If we have no files, build the reply and return...
-            if ((aszFiles == null) || (aszFiles.Length == 0))
-            {
-                DeviceScannerGetSession(out a_szSession);
-                return (TwainLocalScanner.ApiStatus.success);
-            }
-
-            // Make sure the list is sorted...
-            Array.Sort(aszFiles);
-
-            // Get the number for the first file we found...
-            szNumber = aszFiles[0].Substring(Path.Combine(m_szImagesFolder, "img").Length, 6);
-            if (!int.TryParse(szNumber, out iImageBlockNumFile))
-            {
-                iImageBlockNumFile = iImageBlockNum;
-            }
-
-            // Get the number for the last file we found...
-            szNumber = aszFiles[aszFiles.Length - 1].Substring(Path.Combine(m_szImagesFolder, "img").Length, 6);
-            if (!int.TryParse(szNumber, out iLastImageBlockNumFile))
-            {
-                iLastImageBlockNumFile = iLastImageBlockNum;
-            }
-
-            // Pin the caller's numbers to what we really have...
-            if (iImageBlockNum < iImageBlockNumFile)
-            {
-                iImageBlockNum = iImageBlockNumFile;
-            }
-            if (iLastImageBlockNum > iLastImageBlockNumFile)
-            {
-                iLastImageBlockNum = iLastImageBlockNumFile;
-            }
-
-            // Loopy...
-            for (ii = iImageBlockNum; ii <= iLastImageBlockNum; ii++)
-            {
-                // Build the filename...
-                szFile = Path.Combine(m_szImagesFolder, "img" + ii.ToString("D6"));
-                if (File.Exists(szFile + ".meta"))
-                {
-                    try
-                    {
-                        File.Delete(szFile + ".meta");
-                    }
-                    catch
-                    {
-                        // We don't care if this fails...
-                    }
-                }
-                if (File.Exists(szFile + ".txt"))
-                {
-                    try
-                    {
-                        File.Delete(szFile + ".txt");
-                    }
-                    catch
-                    {
-                        // We don't care if this fails...
-                    }
-                }
-                if (File.Exists(szFile + ".pdf"))
-                {
-                    try
-                    {
-                        File.Delete(szFile + ".pdf");
-                    }
-                    catch
-                    {
-                        // We don't care if this fails...
-                    }
-                }
-            }
-
-            // Build the reply...
-            DeviceScannerGetSession(out a_szSession);
 
             // All done...
             return (TwainLocalScanner.ApiStatus.success);

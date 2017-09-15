@@ -14,7 +14,7 @@
             <Shortcut Id="ApplicationStartMenuShortcut"
                       Name="$(var.ProductName)"
                       Description="$(var.ProductName)"
-                      Target="[#TwainDirect.Scanner.exe]"
+                      Target="[!TwainDirect.Scanner.exe]"
                       WorkingDirectory="INSTALLFOLDER"
                       Icon ="twain.ico" />
             <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
@@ -32,7 +32,7 @@
 						<RegistryValue Id="TwainDirect.Scanner.Reg.startup" Root="HKLM" Action="write"
 						               Key="Software\Microsoft\Windows\CurrentVersion\Run"
 						               Name="$(var.ProductName)"
-						               Value="[#TwainDirect.Scanner.exe]"
+						               Value="[!TwainDirect.Scanner.exe]"
 						               Type="string" />
           </Component>
           <Component Id="TwainDirect.Scanner.exe.config" Guid="{B0CD6476-8A29-4B01-A611-60F798604876}">

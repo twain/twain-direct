@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TWAIN Direct Certification
-; This runs all of the tests needed to pass certification for TWAIN Direct.
+; TWAIN Local Certification
+; This runs all of the tests needed to pass certification for TWAIN Local.
 ;
 ; Arguments
 ; arg:1 - scanner to test
@@ -16,42 +16,43 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Run all of our tests, start by assuming success...
 ;
-echo 'TWAIN Direct Certification v1.0 15-Sep-2017'
+echo 'TWAIN Local Certification v1.0 15-Sep-2017'
 echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 log info '#TWAIN Direct Certification v1.0 15-Sep-2017'
 log info '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 echo
-set certifyresulttwaindirect pass
-call CERTIFY 'JSON Syntax' '${arg:1}'
-call CERTIFY 'Configure Task Topology' '${arg:1}'
-call CERTIFY 'Exception Handling' '${arg:1}'
-call CERTIFY 'Vendor Handling' '${arg:1}'
-call CERTIFY 'Check Values' '${arg:1}'
+set certifyresulttwainlocal pass
+call CERTIFY 'Discovery' '${arg:1}'
+call CERTIFY 'Critical' '${arg:1}'
+call CERTIFY 'NormalScan' '${arg:1}' '' false false
+call CERTIFY 'DoubleFeed' '${arg:1}'
+call CERTIFY 'PaperJam' '${arg:1}'
+call CERTIFY 'SessionTimedOut' '${arg:1}'
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; How did we do?
 ;
-if '${get:certifyresulttwaindirect}' != 'pass' goto MAIN.FAIL
+if '${get:certifyresulttwainlocal}' != 'pass' goto MAIN.FAIL
 echo
 echo '*********************************************'
-echo 'The scanner passed TWAIN Direct Certification'
+echo 'The scanner passed TWAIN Local Certification'
 echo '*********************************************'
 log info '#'
 log info '#*********************************************'
-log info '#The scanner passed TWAIN Direct Certification'
+log info '#The scanner passed TWAIN Local Certification'
 log info '#*********************************************'
 return 'pass'
 ;
 :MAIN.FAIL
 echo
 echo '***************************************************'
-echo 'The scanner did not pass TWAIN Direct Certification'
+echo 'The scanner did not pass TWAIN Local Certification'
 echo '***************************************************'
 log info '#'
 log info '#***************************************************'
-log info '#The scanner did not pass TWAIN Direct Certification'
+log info '#The scanner did not pass TWAIN Localt Certification'
 log info '#***************************************************'
 return 'fail'
 
@@ -59,16 +60,22 @@ return 'fail'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Function: Certify
-; arg:1 - script to run
+; arg:1 - folder to step into, and script to run
 ; arg:2 - scanner to test
+; arg:3 - additional argument
+; arg:4 - additional argument
+; arg:5 - additional argument
 ; returns: pass or fail
 ;
 :CERTIFY
 ;
-run '${arg:1}' '${arg:2}'
+cd '${arg:1}'
+run '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
 if '${ret:}' != 'pass' goto CERTIFY.FAIL
+cd ..
 return 'pass'
 ;
 :CERTIFY.FAIL
-set certifyresulttwaindirect fail
+set certifyresulttwainlocal fail
+cd ..
 return 'fail'

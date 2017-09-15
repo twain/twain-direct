@@ -13,7 +13,7 @@
             <Shortcut Id="ApplicationStartMenuShortcut"
                       Name="$(var.ProductName)"
                       Description="$(var.ProductName)"
-                      Target="[#TwainDirect.App.exe]"
+                      Target="[!TwainDirect.App.exe]"
                       WorkingDirectory="INSTALLFOLDER"
                       Icon ="twain.ico" />
             <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>

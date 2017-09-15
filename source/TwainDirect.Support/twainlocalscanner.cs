@@ -181,38 +181,6 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Cleanup...
-        /// </summary>
-        public sealed override void Dispose()
-        {
-            // Cleanup the timeout event...
-            if (m_timerEvent != null)
-            {
-                m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
-                m_timerEvent.Dispose();
-                m_timerEvent = null;
-            }
-
-            // Don't timeout the session...
-            if (m_timerSession != null)
-            {
-                m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
-                m_timerSession.Dispose();
-                m_timerSession = null;
-            }
-
-            // Zap our server...
-            if (m_httpserver != null)
-            {
-                m_httpserver.Dispose();
-                m_httpserver = null;
-            }
-
-            // Zap the rest of it...
-            base.Dispose();
-        }
-
-        /// <summary>
         /// Dispatch a command.  Commands sent by applications show up here as
         /// callbacks.  So in theory we're architected to handle multiple commands
         /// arriving at the same time, since each one should be appearing inside
@@ -853,6 +821,10 @@ namespace TwainDirect.Support
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Methods
 
+        /// <summary>
+        /// Remove files from our image folders...
+        /// </summary>
+        /// <returns>true on success</returns>
         private bool CleanImageFolders()
         {
             string[] aszFiles;
@@ -2179,27 +2151,6 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                /*****************************************************************
-                // Pass the data along to our helper...
-                m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
-                (
-                    "{" +
-                    "\"method\":\"readImageBlock\"," +
-                    (blWithMetadata ? "\"withMetadata\":true," : "") +
-                    "\"imageBlockNum\":\"" + a_apicmd.GetJsonReceived("params.imageBlockNum") + "\"" +
-                    "}"
-                );
-
-                // Get the result...
-                JsonLookup jsonlookup = new JsonLookup();
-                szIpc = m_twainlocalsession.GetIpcTwainDirectOnTwain().Read();
-                if (!jsonlookup.Load(szIpc, out lResponseCharacterOffset))
-                {
-                    DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lResponseCharacterOffset);
-                    return (false);
-                }
-                *****************************************************************/
-
                 // The image file, make sure we have forward slashes
                 // before passing it to the JSON parser...
                 szPdf = Path.Combine(m_szTdImagesFolder, "img" + iImageBlock.ToString("D6") + ".pdf").Replace("\\", "/");
@@ -2422,28 +2373,6 @@ namespace TwainDirect.Support
                         DeviceReturnError(szFunction, a_apicmd, "invalidState", null, -1);
                         return (false);
                 }
-
-                /***********************************************************************
-                // Get the current session info...
-                m_twainlocalsession.GetIpcTwainDirectOnTwain().Write
-                (
-                    "{" +
-                    "\"method\":\"releaseImageBlocks\"," +
-                    "\"imageBlockNum\":\"" + a_apicmd.GetJsonReceived("params.imageBlockNum") + "\"," +
-                    "\"lastImageBlockNum\":\"" + a_apicmd.GetJsonReceived("params.lastImageBlockNum") + "\"" +
-                    "}"
-                );
-
-                // Get the result...
-                JsonLookup jsonlookup = new JsonLookup();
-                szIpc = m_twainlocalsession.GetIpcTwainDirectOnTwain().Read();
-                blSuccess = jsonlookup.Load(szIpc, out lResponseCharacterOffset);
-                if (!blSuccess)
-                {
-                    DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lResponseCharacterOffset);
-                    return (false);
-                }
-                **********************************************************************/
 
                 // Get the values...
                 if (!int.TryParse(a_apicmd.GetJsonReceived("params.imageBlockNum"), out iImageBlockNum))
@@ -2695,6 +2624,38 @@ namespace TwainDirect.Support
 
             // All done...
             return (true);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        protected sealed override void Dispose(bool a_blDisposing)
+        {
+            // Cleanup the timeout event...
+            if (m_timerEvent != null)
+            {
+                m_timerEvent.Change(Timeout.Infinite, Timeout.Infinite);
+                m_timerEvent.Dispose();
+                m_timerEvent = null;
+            }
+
+            // Don't timeout the session...
+            if (m_timerSession != null)
+            {
+                m_timerSession.Change(Timeout.Infinite, Timeout.Infinite);
+                m_timerSession.Dispose();
+                m_timerSession = null;
+            }
+
+            // Zap our server...
+            if (m_httpserver != null)
+            {
+                m_httpserver.Dispose();
+                m_httpserver = null;
+            }
+
+            // Zap the rest of it...
+            base.Dispose(a_blDisposing);
         }
 
         /// <summary>
@@ -3576,35 +3537,6 @@ namespace TwainDirect.Support
             // the scanner, and which we need to merge into finished
             // images...
             m_llPendingImageBlocks = new List<long>();
-        }
-
-        /// <summary>
-        /// Cleanup...
-        /// </summary>
-        public sealed override void Dispose()
-        {
-            // Stop waiting for events...
-            if (m_waitforeventsinfo != null)
-            {
-                m_blCancelWaitForEventsProcessing = true;
-                m_autoreseteventWaitForEventsProcessing.Set();
-                if (m_waitforeventsinfo.m_apicmd != null)
-                {
-                    m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
-                }
-                m_waitforeventsinfo.Dispose();
-                m_waitforeventsinfo = null;
-            }
-
-            // No more triggers...
-            if (m_autoreseteventWaitForEventsProcessing != null)
-            {
-                m_autoreseteventWaitForEventsProcessing.Dispose();
-                m_autoreseteventWaitForEventsProcessing = null;
-            }
-
-            // Zap the rest of it...
-            base.Dispose();
         }
 
         /// <summary>
@@ -5058,6 +4990,35 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Cleanup...
+        /// </summary>
+        protected sealed override void Dispose(bool a_blDisposing)
+        {
+            // Stop waiting for events...
+            if (m_waitforeventsinfo != null)
+            {
+                m_blCancelWaitForEventsProcessing = true;
+                m_autoreseteventWaitForEventsProcessing.Set();
+                if (m_waitforeventsinfo.m_apicmd != null)
+                {
+                    m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
+                }
+                m_waitforeventsinfo.Dispose();
+                m_waitforeventsinfo = null;
+            }
+
+            // No more triggers...
+            if (m_autoreseteventWaitForEventsProcessing != null)
+            {
+                m_autoreseteventWaitForEventsProcessing.Dispose();
+                m_autoreseteventWaitForEventsProcessing = null;
+            }
+
+            // Zap the rest of it...
+            base.Dispose(a_blDisposing);
+        }
+
+        /// <summary>
         /// Return the current images folder...
         /// </summary>
         /// <returns>the images folder</returns>
@@ -6272,7 +6233,7 @@ namespace TwainDirect.Support
         /// <summary>
         /// Cleanup...
         /// </summary>
-        public virtual void Dispose()
+        public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
@@ -6545,7 +6506,7 @@ namespace TwainDirect.Support
         /// Cleanup...
         /// </summary>
         /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
-        internal void Dispose(bool a_blDisposing)
+        protected virtual void Dispose(bool a_blDisposing)
         {
             // Free managed resources...
             if (a_blDisposing)
@@ -6790,6 +6751,9 @@ namespace TwainDirect.Support
 
                 // Notification when the session revision changes...
                 m_autoreseteventWaitForSessionUpdate = new AutoResetEvent(false);
+
+                // Our lock object...
+                m_objectLockSession = new object();
             }
 
             /// <summary>
@@ -7330,7 +7294,7 @@ namespace TwainDirect.Support
             /// <param name="a_blSessionStatusSuccess">false if the scanner needs attention</param>
             public void SetSessionStatusSuccess(bool a_blSessionStatusSuccess)
             {
-                lock (m_szSessionStatusDetected)
+                lock (m_objectLockSession)
                 {
                     m_blSessionStatusSuccess = a_blSessionStatusSuccess;
                 }
@@ -7342,7 +7306,7 @@ namespace TwainDirect.Support
             /// <param name="a_szSessionStatusDetected">the reason the scanner needs attention</param>
             public void SetSessionStatusDetected(string a_szSessionStatusDetected)
             {
-                lock (m_szSessionStatusDetected)
+                lock (m_objectLockSession)
                 {
                     m_szSessionStatusDetected = a_szSessionStatusDetected;
                 }
@@ -7477,6 +7441,11 @@ namespace TwainDirect.Support
             // Private Attributes
             ///////////////////////////////////////////////////////////////////////////
             #region Private Attributes
+
+            /// <summary>
+            /// The object we use to lock access to the session object...
+            /// </summary>
+            private object m_objectLockSession;
 
             /// <summary>
             /// JSON IN:  params.sessionId

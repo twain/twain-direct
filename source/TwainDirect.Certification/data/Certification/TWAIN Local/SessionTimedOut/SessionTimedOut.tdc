@@ -13,8 +13,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Display the banner...
 ;
-echo
-echo 'SessionTimedOut v1.0 04-Sep-2017'
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow '********************************************************************************'
+echo.yellow 'SessionTimedOut v1.0 15-Sep-2017'
 set sessiontimedoutgetsessionresult 'pass'
 set sessiontimedoutwaitforeventsresult 'skip'
 
