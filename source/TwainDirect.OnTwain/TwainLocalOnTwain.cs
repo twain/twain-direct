@@ -539,6 +539,7 @@ namespace TwainDirect.OnTwain
                 if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
                 {
                     twextimageinfo.NumInfos = 0;
+                    twinfo.InfoId = (ushort)TWAIN.TWEI.DOCUMENTNUMBER; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                     twinfo.InfoId = (ushort)TWAIN.TWEI.PAGESIDE; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                     sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
                     if (sts != TWAIN.STS.SUCCESS)
@@ -603,7 +604,19 @@ namespace TwainDirect.OnTwain
                         for (uu = 0; uu < twextimageinfo.NumInfos; uu++)
                         {
                             twextimageinfo.Get(uu, ref twinfo);
-                            if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAGESIDE)
+                            if (twinfo.InfoId == (ushort)TWAIN.TWEI.DOCUMENTNUMBER)
+                            {
+                                if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
+                                {
+                                    TWAINWorkingGroup.Log.Info("!!! " + twinfo.Item + " " + m_uintptrDocumentNumber);
+                                    if (twinfo.Item != m_uintptrDocumentNumber)
+                                    {
+                                        m_iSheetNumber += 1;
+                                        m_uintptrDocumentNumber = twinfo.Item;
+                                    }
+                                }
+                            }
+                            else if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAGESIDE)
                             {
                                 if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
                                 {
@@ -681,7 +694,7 @@ namespace TwainDirect.OnTwain
                 szMeta += "\"moreParts\":" + "\"lastPartInFile\",";
 
                 // Sheetcount (counts sheets, including ones lost to blank image dropout)...
-                szMeta += "\"sheetNumber\":" + "1" + ",";
+                szMeta += "\"sheetNumber\":" + m_iSheetNumber + ",";
 
                 // The image came from a flatbed or a feederFront or whatever...
                 szMeta += "\"source\":\"" + szSource + "\",";
@@ -801,6 +814,15 @@ namespace TwainDirect.OnTwain
         /// </summary>
         private void ClearImageBlocksDrained()
         {
+            m_iSheetNumber = 0;
+            if (UIntPtr.Size == 4)
+            {
+                m_uintptrDocumentNumber = new UIntPtr(uint.MaxValue);
+            }
+            else
+            {
+                m_uintptrDocumentNumber = new UIntPtr(ulong.MaxValue);
+            }
             m_blSessionImageBlocksDrained = false;
             string szSessionImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
             if (File.Exists(szSessionImageBlocksDrained))
@@ -1510,6 +1532,12 @@ namespace TwainDirect.OnTwain
         /// first image is always 1...
         /// </summary>
         private int m_iImageCount;
+
+        /// <summary>
+        /// Count the sheets...
+        /// </summary>
+        private UIntPtr m_uintptrDocumentNumber;
+        private int m_iSheetNumber;
 
         /// <summary>
         /// End of job detected...

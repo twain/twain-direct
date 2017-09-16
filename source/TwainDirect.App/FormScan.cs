@@ -1384,6 +1384,33 @@ namespace TwainDirect.App
 
             // Create the setup form...
             m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient);
+
+            // Clear the images folder...
+            bool blWarnOnce = true;
+            string szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+            string[] aszImages = Directory.GetFiles(szImagesFolder, "*.*");
+            foreach (string szFile in aszImages)
+            {
+                try
+                {
+                    File.Delete(szFile);
+                }
+                catch (Exception exception)
+                {
+                    if (blWarnOnce)
+                    {
+                        blWarnOnce = false;
+                        MessageBox.Show
+                        (
+                            "We were unable to delete the following file.  It may be open in another\n" +
+                            "program.  Please close any applications that are using these files, and\n" +
+                            "then close and reopen the session before scanning.\n" +
+                            szFile + "\n" +
+                            exception.Message
+                        );
+                    }
+                }
+            }
         }
 
         #endregion
