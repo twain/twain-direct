@@ -1353,7 +1353,7 @@ namespace TWAINWorkingGroup
             }
             catch (Exception exception)
             {
-                Log.Error("exception - " + exception.Message);
+                Log.Error("CsvToCapability exception - " + exception.Message);
                 a_szValue = "(data error)";
                 return (false);
             }

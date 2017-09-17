@@ -980,7 +980,7 @@ namespace TWAINWorkingGroupToolkit
                 }
                 catch (Exception exception)
                 {
-                    Log.Error("exception - " + exception.Message);
+                    Log.Error("GetCapabilityNumber exception - " + exception.Message);
                     u16Cap = 0;
                 }
             }
@@ -1138,7 +1138,7 @@ namespace TWAINWorkingGroupToolkit
                 }
                 catch (Exception exception)
                 {
-                    Log.Error("exception - " + exception.Message);
+                    Log.Error("SendDatCapability exception - " + exception.Message);
                     a_szStatus = "(error in the capability data)";
                     return (TWAIN.STS.BADVALUE);
                 }
@@ -1162,7 +1162,7 @@ namespace TWAINWorkingGroupToolkit
                 }
                 catch (Exception exception)
                 {
-                    Log.Error("exception - " + exception.Message);
+                    Log.Error("SendDatCapability exception - " + exception.Message);
                     a_szStatus = "(number isn't a valid capability or hexidecimal value)";
                     return (TWAIN.STS.BADVALUE);
                 }
@@ -1189,7 +1189,7 @@ namespace TWAINWorkingGroupToolkit
             }
             catch (Exception exception)
             {
-                Log.Error("exception - " + exception.Message);
+                Log.Error("SendDatCapability exception - " + exception.Message);
                 a_szStatus = "(capability command failed)";
                 sts = TWAIN.STS.BADVALUE;
                 return (sts);
@@ -1709,7 +1709,7 @@ namespace TWAINWorkingGroupToolkit
                     }
                     catch (Exception exception)
                     {
-                        Log.Error("exception - " + exception.Message);
+                        Log.Error("ScanCallback exception - " + exception.Message);
                         m_twsxXferMech = TWAIN.TWSX.NATIVE;
                     }
                 }
@@ -1885,7 +1885,7 @@ namespace TWAINWorkingGroupToolkit
                     }
                     catch (Exception exception)
                     {
-                        Log.Error("exception - " + exception.Message);
+                        Log.Error("ScanCallback exception - " + exception.Message);
                         WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                         m_twain.Rollback(m_stateAfterScan);
                         ReportImage("ScanCallback: 011", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, szFilename, m_twain.ImageinfoToCsv(twimageinfo), null, 0);
@@ -2055,7 +2055,7 @@ namespace TWAINWorkingGroupToolkit
                     }
                     catch (Exception exception)
                     {
-                        Log.Error("exception - " + exception.Message);
+                        Log.Error("ScanCallback exception - " + exception.Message);
                         WriteOutput("Unable to save image to disk <" + szFile + ">" + Environment.NewLine);
                         m_twain.Rollback(m_stateAfterScan);
                         ReportImage("ScanCallback: 018", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2132,7 +2132,7 @@ namespace TWAINWorkingGroupToolkit
                         }
                         catch (Exception exception)
                         {
-                            Log.Error("exception - " + exception.Message);
+                            Log.Error("ScanCallback exception - " + exception.Message);
                             WriteOutput("Unable to save image to disk <" + szFile + ">" + Environment.NewLine);
                             m_twain.Rollback(m_stateAfterScan);
                             ReportImage("ScanCallback: 020", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2161,7 +2161,7 @@ namespace TWAINWorkingGroupToolkit
                             }
                             catch (Exception exception)
                             {
-                                Log.Error("exception - " + exception.Message);
+                                Log.Error("ScanCallback exception - " + exception.Message);
                                 WriteOutput("Failed to delete temporary image file <" + szFile + ">" + Environment.NewLine);
                                 m_twain.Rollback(m_stateAfterScan);
                                 ReportImage("ScanCallback: 022", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2171,7 +2171,7 @@ namespace TWAINWorkingGroupToolkit
                     }
                     catch (Exception exception)
                     {
-                        Log.Error("exception - " + exception.Message);
+                        Log.Error("ScanCallback exception - " + exception.Message);
                         WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                         m_twain.Rollback(m_stateAfterScan);
                         ReportImage("ScanCallback: 023", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2267,7 +2267,7 @@ namespace TWAINWorkingGroupToolkit
                                 }
                                 catch (Exception exception)
                                 {
-                                    Log.Error("exception - " + exception.Message);
+                                    Log.Error("ScanCallback exception - " + exception.Message);
                                     WriteOutput("Unable to save image to disk <" + szFile + ">" + Environment.NewLine);
                                     m_twain.Rollback(m_stateAfterScan);
                                     ReportImage("ScanCallback: 026", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2296,7 +2296,7 @@ namespace TWAINWorkingGroupToolkit
                                     }
                                     catch (Exception exception)
                                     {
-                                        Log.Error("exception - " + exception.Message);
+                                        Log.Error("ScanCallback exception - " + exception.Message);
                                         WriteOutput("Failed to delete temporary image file <" + szFile + ">" + Environment.NewLine);
                                         m_twain.Rollback(m_stateAfterScan);
                                         ReportImage("ScanCallback: 028", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2311,7 +2311,7 @@ namespace TWAINWorkingGroupToolkit
                             }
                             catch (Exception exception)
                             {
-                                Log.Error("exception - " + exception.Message);
+                                Log.Error("ScanCallback exception - " + exception.Message);
                                 WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                                 m_twain.Rollback(m_stateAfterScan);
                                 ReportImage("ScanCallback: 029", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2320,7 +2320,7 @@ namespace TWAINWorkingGroupToolkit
                         }
                         catch (Exception exception)
                         {
-                            Log.Error("exception - " + exception.Message);
+                            Log.Error("ScanCallback exception - " + exception.Message);
                             WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                             m_twain.Rollback(m_stateAfterScan);
                             ReportImage("ScanCallback: 030", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2397,7 +2397,7 @@ namespace TWAINWorkingGroupToolkit
                                 }
                                 catch (Exception exception)
                                 {
-                                    Log.Error("exception - " + exception.Message);
+                                    Log.Error("ScanCallback exception - " + exception.Message);
                                     WriteOutput("Unable to save image to disk <" + szFile + ">" + Environment.NewLine);
                                     m_twain.Rollback(m_stateAfterScan);
                                     ReportImage("ScanCallback: 032", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2426,7 +2426,7 @@ namespace TWAINWorkingGroupToolkit
                                     }
                                     catch (Exception exception)
                                     {
-                                        Log.Error("exception - " + exception.Message);
+                                        Log.Error("ScanCallback exception - " + exception.Message);
                                         WriteOutput("Failed to delete temporary image file <" + szFile + ">" + Environment.NewLine);
                                         m_twain.Rollback(m_stateAfterScan);
                                         ReportImage("ScanCallback: 034", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2441,7 +2441,7 @@ namespace TWAINWorkingGroupToolkit
                             }
                             catch (Exception exception)
                             {
-                                Log.Error("exception - " + exception.Message);
+                                Log.Error("ScanCallback exception - " + exception.Message);
                                 WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                                 m_twain.Rollback(m_stateAfterScan);
                                 ReportImage("ScanCallback: 035", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2450,7 +2450,7 @@ namespace TWAINWorkingGroupToolkit
                         }
                         catch (Exception exception)
                         {
-                            Log.Error("exception - " + exception.Message);
+                            Log.Error("ScanCallback exception - " + exception.Message);
                             WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                             m_twain.Rollback(m_stateAfterScan);
                             ReportImage("ScanCallback: 036", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2527,7 +2527,7 @@ namespace TWAINWorkingGroupToolkit
                                 }
                                 catch (Exception exception)
                                 {
-                                    Log.Error("exception - " + exception.Message);
+                                    Log.Error("ScanCallback exception - " + exception.Message);
                                     WriteOutput("Unable to save image to disk <" + szFile + ">" + Environment.NewLine);
                                     m_twain.Rollback(m_stateAfterScan);
                                     ReportImage("ScanCallback: 038", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2556,7 +2556,7 @@ namespace TWAINWorkingGroupToolkit
                                     }
                                     catch (Exception exception)
                                     {
-                                        Log.Error("exception - " + exception.Message);
+                                        Log.Error("ScanCallback exception - " + exception.Message);
                                         WriteOutput("Failed to delete temporary image file <" + szFile + ">" + Environment.NewLine);
                                         m_twain.Rollback(m_stateAfterScan);
                                         ReportImage("ScanCallback: 040", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), TWAIN.STS.FILEWRITEERROR, null, szFile, null, null, 0);
@@ -2571,7 +2571,7 @@ namespace TWAINWorkingGroupToolkit
                             }
                             catch (Exception exception)
                             {
-                                Log.Error("exception - " + exception.Message);
+                                Log.Error("ScanCallback exception - " + exception.Message);
                                 WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                                 m_twain.Rollback(m_stateAfterScan);
                                 ReportImage("ScanCallback: 041", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2580,7 +2580,7 @@ namespace TWAINWorkingGroupToolkit
                         }
                         catch (Exception exception)
                         {
-                            Log.Error("exception - " + exception.Message);
+                            Log.Error("ScanCallback exception - " + exception.Message);
                             WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                             m_twain.Rollback(m_stateAfterScan);
                             ReportImage("ScanCallback: 042", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);
@@ -2747,7 +2747,7 @@ namespace TWAINWorkingGroupToolkit
                     }
                     catch (Exception exception)
                     {
-                        Log.Error("exception - " + exception.Message);
+                        Log.Error("ScanCallback exception - " + exception.Message);
                         WriteOutput("Scanning error: unable to load image..." + Environment.NewLine);
                         m_twain.Rollback(m_stateAfterScan);
                         ReportImage("ScanCallback: 050", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, null, null, null, null, 0);

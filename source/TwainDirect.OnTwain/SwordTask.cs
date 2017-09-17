@@ -7328,7 +7328,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "on")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,-1"; // TWBP_AUTO
+                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_INT32,-1"; // TWBP_AUTO
                     return (m_swordstatus);
                 }
 
@@ -7336,7 +7336,7 @@ namespace TwainDirect.OnTwain
                 if (m_szTdValue == "off")
                 {
                     m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_UINT16,-2"; // TWBP_DISABLE
+                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_INT32,-2"; // TWBP_DISABLE
                     return (m_swordstatus);
                 }
 

@@ -77,7 +77,7 @@ namespace TwainDirect.App
             }
             catch (Exception exception)
             {
-                Log.Error("exception - " + exception.Message);
+                Log.Error("Main exception - " + exception.Message);
             }
             finally
             {

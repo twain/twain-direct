@@ -540,6 +540,7 @@ namespace TwainDirect.OnTwain
                 {
                     twextimageinfo.NumInfos = 0;
                     twinfo.InfoId = (ushort)TWAIN.TWEI.DOCUMENTNUMBER; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
+                    twinfo.InfoId = (ushort)TWAIN.TWEI.PAGENUMBER; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                     twinfo.InfoId = (ushort)TWAIN.TWEI.PAGESIDE; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                     sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
                     if (sts != TWAIN.STS.SUCCESS)
@@ -601,6 +602,7 @@ namespace TwainDirect.OnTwain
                     // See if we can get the side from the extended image info...
                     if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
                     {
+                        bool blUpdateSheetNumber = true;
                         for (uu = 0; uu < twextimageinfo.NumInfos; uu++)
                         {
                             twextimageinfo.Get(uu, ref twinfo);
@@ -608,11 +610,29 @@ namespace TwainDirect.OnTwain
                             {
                                 if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
                                 {
-                                    TWAINWorkingGroup.Log.Info("!!! " + twinfo.Item + " " + m_uintptrDocumentNumber);
                                     if (twinfo.Item != m_uintptrDocumentNumber)
                                     {
-                                        m_iSheetNumber += 1;
+                                        if (blUpdateSheetNumber)
+                                        {
+                                            m_iSheetNumber += 1;
+                                            blUpdateSheetNumber = false;
+                                        }
                                         m_uintptrDocumentNumber = twinfo.Item;
+                                    }
+                                }
+                            }
+                            else if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAGENUMBER)
+                            {
+                                if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
+                                {
+                                    if (twinfo.Item != m_uintptrPageNumber)
+                                    {
+                                        if (blUpdateSheetNumber)
+                                        {
+                                            m_iSheetNumber += 1;
+                                            blUpdateSheetNumber = false;
+                                        }
+                                        m_uintptrPageNumber = twinfo.Item;
                                     }
                                 }
                             }
@@ -818,10 +838,12 @@ namespace TwainDirect.OnTwain
             if (UIntPtr.Size == 4)
             {
                 m_uintptrDocumentNumber = new UIntPtr(uint.MaxValue);
+                m_uintptrPageNumber = new UIntPtr(uint.MaxValue);
             }
             else
             {
                 m_uintptrDocumentNumber = new UIntPtr(ulong.MaxValue);
+                m_uintptrPageNumber = new UIntPtr(ulong.MaxValue);
             }
             m_blSessionImageBlocksDrained = false;
             string szSessionImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
@@ -1537,6 +1559,7 @@ namespace TwainDirect.OnTwain
         /// Count the sheets...
         /// </summary>
         private UIntPtr m_uintptrDocumentNumber;
+        private UIntPtr m_uintptrPageNumber;
         private int m_iSheetNumber;
 
         /// <summary>
