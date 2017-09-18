@@ -476,7 +476,7 @@ namespace TwainDirect.Certification
 
             // Make the call...
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-            m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(lImageBlock, blGetThumbnail, null, ref apicmd);
+            m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(lImageBlock, blGetThumbnail, ref apicmd);
 
             // Squirrel away the transaction...
             a_functionarguments.transaction = apicmd.GetTransaction();
@@ -1145,10 +1145,9 @@ namespace TwainDirect.Certification
         private bool CmdFinishImage(ref Interpreter.FunctionArguments a_functionarguments)
         {
             int iImageBlock;
-            string szMetadata;
             string szBasename;
-            string szImageBlock;
             string szImagesFolder;
+            string szFinishedImageBasename;
 
             // Validate...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
@@ -1165,27 +1164,12 @@ namespace TwainDirect.Certification
             // The images folder...
             szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
 
-            // Build the imageblock name...
-            szImageBlock = Path.Combine(szImagesFolder, "img" + iImageBlock.ToString("D6"));
-
-            // Read the metadata...
-            try
-            {
-                szMetadata = File.ReadAllText(szImageBlock + ".tdmeta");
-            }
-            catch (Exception exception)
-            {
-                Display("Error reading imageBlock metadata - " + exception.Message, true);
-                return (false);
-            }
-
-            // Figure out the basename of the image/metadata/thumbnail for
-            // the finished product, if one gets stitched together...
-            szBasename = Path.Combine(szImagesFolder, "img" + (m_lImageCount + 1).ToString("D6"));
+            // The basename for this image block...
+            szBasename = Path.Combine(szImagesFolder, "img" + iImageBlock.ToString("D6"));
 
             // This function creates a finished image, metadata, and thumbnail
-            // from the imageBlocks...
-            if (!m_twainlocalscannerclient.ClientFinishImage(szMetadata, szImageBlock + ".tdpdf", szBasename))
+            // from the imageBlocks, and gives us the basename to it...
+            if (!m_twainlocalscannerclient.ClientFinishImage(szBasename, out szFinishedImageBasename))
             {
                 // We don't have a complete image, so scoot...
                 SetReturnValue("skip");
@@ -1194,10 +1178,7 @@ namespace TwainDirect.Certification
 
             // Return the base path to the new image, adding a .meta, a
             // .pdf, or a _thumbnail.pdf will get the various files...
-            SetReturnValue(szBasename);
-
-            // Bump the image count...
-            m_lImageCount += 1;
+            SetReturnValue(szFinishedImageBasename);
 
             // All done...
             return (false);
@@ -4269,11 +4250,6 @@ namespace TwainDirect.Certification
         /// The opening banner (program, version, etc)...
         /// </summary>
         private string m_szBanner;
-
-        /// <summary>
-        /// The image count for the session...
-        /// </summary>
-        private long m_lImageCount;
 
         #endregion
     }

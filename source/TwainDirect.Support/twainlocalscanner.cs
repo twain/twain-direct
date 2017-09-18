@@ -3755,11 +3755,10 @@ namespace TwainDirect.Support
         /// It creates the finished image, and ties the .meta and thumbnails to the
         /// basename.
         /// </summary>
-        /// <param name="a_szMetadata">the metadata for this imageBlock</param>
-        /// <param name="a_szImageBlock">the imageBlock</param>
-        /// <param name="a_szBasename">the basename for any finished content</param>
+        /// <param name="a_szImageBlockBasename">basename using this imageBlock</param>
+        /// <param name="a_szFinishedImageBasename">the finished image basename</param>
         /// <returns></returns>
-        public bool ClientFinishImage(string a_szMetadata, string a_szImageBlock, string a_szBasename)
+        public bool ClientFinishImage(string a_szImageBlockBasename, out string a_szFinishedImageBasename)
         {
             int ii;
             bool blSuccess;
@@ -3767,9 +3766,15 @@ namespace TwainDirect.Support
             long iImageNumber;
             long iImagePart;
             long[] alImageBlocks;
+            string szMetadata = "";
             string szMoreParts;
             string szThumbnail;
+            string szTdMetadataFile = a_szImageBlockBasename + ".tdmeta";
+            string szTdImageBlockFile = a_szImageBlockBasename + ".tdpdf";
             JsonLookup jsonlookup;
+
+            // Init stuff...
+            a_szFinishedImageBasename = "";
 
             // It's possible for this function to be called in response
             // to one or more readImageBlock calls completing.  We don't
@@ -3780,17 +3785,43 @@ namespace TwainDirect.Support
                 // If we were locked out, we may no longer have the imageBlock,
                 // which means somebody else beat us to the punch, and we have
                 // no work to do...
-                if (!File.Exists(a_szImageBlock))
+                if (!File.Exists(szTdImageBlockFile))
+                {
+                    return (false);
+                }
+
+                // We have no metadata...
+                if (!File.Exists(szTdMetadataFile))
+                {
+                    return (false);
+                }
+
+                // Read the metadata, we're doing it this way because the data
+                // could have been collected as a result of a call to readImageBlock
+                // or readImageBlockMetadata.  We don't currently have a data
+                // structure for images.  This kind of thing might push me over the edge...
+                try
+                {
+                    szMetadata = File.ReadAllText(szTdMetadataFile);
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("metadata error <" + szTdMetadataFile + "> - " + exception.Message);
+                    return (false);
+                }
+
+                // Huh...maybe we got here before the file was ready...
+                if (string.IsNullOrEmpty(szMetadata))
                 {
                     return (false);
                 }
 
                 // Load the metadata...
                 jsonlookup = new JsonLookup();
-                blSuccess = jsonlookup.Load(a_szMetadata, out lJsonErrorIndex);
+                blSuccess = jsonlookup.Load(szMetadata, out lJsonErrorIndex);
                 if (!blSuccess)
                 {
-                    Log.Error("metadata error @" + lJsonErrorIndex + " <" + a_szMetadata + ">");
+                    Log.Error("metadata error @" + lJsonErrorIndex + " <" + szMetadata + ">");
                     return (false);
                 }
 
@@ -3800,12 +3831,19 @@ namespace TwainDirect.Support
                     iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
                     iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
                     szMoreParts = jsonlookup.Get("metadata.address.moreParts");
+                    if (iImageNumber > m_iLastImageNumberSinceCurrentStartCapturing)
+                    {
+                        m_iLastImageNumberSinceCurrentStartCapturing = iImageNumber;
+                    }
                 }
                 catch (Exception exception)
                 {
-                    Log.Error("metadata error - " + exception.Message);
+                    Log.Error("metadata error <" + szMetadata + "> - " + exception.Message);
                     return (false);
                 }
+
+                // This is the basename of the finished .meta and .pdf...
+                a_szFinishedImageBasename = Path.Combine(Path.GetDirectoryName(a_szImageBlockBasename), "image" + (m_iLastImageNumberFromPreviousStartCapturing + iImageNumber).ToString("D6"));
 
                 // Get the list of imageBlocks, this should be the contents of the array
                 // from the response to readImageBlock.  Having this allows us to better
@@ -3843,25 +3881,25 @@ namespace TwainDirect.Support
                     // Rename the .tdpdf file...
                     try
                     {
-                        File.Move(a_szImageBlock, a_szBasename + ".pdf");
+                        File.Move(szTdImageBlockFile, a_szFinishedImageBasename + ".pdf");
                     }
                     catch (Exception exception)
                     {
-                        Log.Error("move failed: <" + a_szImageBlock + "> --> <" + a_szBasename + ".pdf" + "> - " + exception.Message);
+                        Log.Error("move failed: <" + szTdImageBlockFile + "> --> <" + a_szFinishedImageBasename + ".pdf" + "> - " + exception.Message);
                         return (false);
                     }
 
                     // If we have a thumbnail, rename it...
-                    szThumbnail = a_szImageBlock.Replace(".tdpdf", "_thumbnail.tdpdf");
+                    szThumbnail = a_szImageBlockBasename + "_thumbnail.tdpdf";
                     if (File.Exists(szThumbnail))
                     {
                         try
                         {
-                            File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
+                            File.Move(szThumbnail, a_szFinishedImageBasename + "_thumbnail.pdf");
                         }
                         catch (Exception exception)
                         {
-                            Log.Error("move failed: <" + szThumbnail + "> --> <" + a_szBasename + "_thumbnail.pdf" + "> - " + exception.Message);
+                            Log.Error("move failed: <" + szThumbnail + "> --> <" + a_szFinishedImageBasename + "_thumbnail.pdf" + "> - " + exception.Message);
                             return (false);
                         }
                     }
@@ -3871,11 +3909,11 @@ namespace TwainDirect.Support
                     // with an image are ready for access...
                     try
                     {
-                        File.Move(a_szImageBlock.Replace(".tdpdf", ".tdmeta"), a_szBasename + ".meta");
+                        File.Move(szTdMetadataFile, a_szFinishedImageBasename + ".meta");
                     }
                     catch (Exception exception)
                     {
-                        Log.Error("move failed: <" + a_szImageBlock.Replace(".tdpdf", ".tdmeta") + "> --> <" + a_szBasename + ".meta" + "> - " + exception.Message);
+                        Log.Error("move failed: <" + szTdMetadataFile + "> --> <" + a_szFinishedImageBasename + ".meta" + "> - " + exception.Message);
                         return (false);
                     }
 
@@ -3898,7 +3936,7 @@ namespace TwainDirect.Support
                 // and with the caller controlling the basename of the finished
                 // files...
                 List<string> lszBasenames = new List<string>();
-                string szDirectoryName = Path.GetDirectoryName(a_szImageBlock);
+                string szDirectoryName = Path.GetDirectoryName(a_szImageBlockBasename);
                 foreach (long lImageBlock in m_llPendingImageBlocks)
                 {
                     // Check for a .tdmeta file, if we don't have
@@ -3943,7 +3981,7 @@ namespace TwainDirect.Support
                 int iRead;
                 byte[] abData = new byte[0x200000];
                 string szLastBasename = lszBasenames[lszBasenames.Count - 1];
-                FileStream filestreamWrite = new FileStream(a_szBasename + ".pdf", FileMode.Create);
+                FileStream filestreamWrite = new FileStream(a_szFinishedImageBasename + ".pdf", FileMode.Create);
                 foreach (string szBasename in lszBasenames)
                 {
                     // Copy the data...
@@ -3977,7 +4015,14 @@ namespace TwainDirect.Support
                 szThumbnail = szLastBasename + "_thumbnail.tdpdf";
                 if (File.Exists(szThumbnail))
                 {
-                    File.Move(szThumbnail, a_szBasename + "_thumbnail.pdf");
+                    try
+                    {
+                        File.Move(szThumbnail, a_szFinishedImageBasename + "_thumbnail.pdf");
+                    }
+                    catch (Exception exception)
+                    {
+                        Log.Error("move failed: " + szThumbnail + " -- > " + a_szFinishedImageBasename + "_thumbnail.pdf - " + exception.Message);
+                    }
                 }
 
                 // Always handle the .tdmeta last, because the creation
@@ -3985,11 +4030,11 @@ namespace TwainDirect.Support
                 // with an image are ready for access...
                 try
                 {
-                    File.Move(szLastBasename + ".tdmeta", a_szBasename + ".meta");
+                    File.Move(szLastBasename + ".tdmeta", a_szFinishedImageBasename + ".meta");
                 }
                 catch (Exception exception)
                 {
-                    Log.Error("move failed: " + szLastBasename + ".tdmeta --> " + a_szBasename + ".meta - " + exception.Message);
+                    Log.Error("move failed: " + szLastBasename + ".tdmeta --> " + a_szFinishedImageBasename + ".meta - " + exception.Message);
                 }
 
                 // All done, we created our finished image...
@@ -4496,7 +4541,7 @@ namespace TwainDirect.Support
                 // If we have a scanner callback, hit it now...
                 if (a_scancallback != null)
                 {
-                    a_scancallback(szMetadata, szImage);
+                    a_scancallback(a_lImageBlockNum);
                 }
             }
 
@@ -4513,7 +4558,7 @@ namespace TwainDirect.Support
         /// <param name="a_scancallback">function to call</param>
         /// <param name="a_apicmd">info about the command</param>
         /// <returns>true on success</returns>
-        public bool ClientScannerReadImageBlockMetadata(long a_lImageBlockNum, bool a_blGetThumbnail, ScanCallback a_scancallback, ref ApiCmd a_apicmd)
+        public bool ClientScannerReadImageBlockMetadata(long a_lImageBlockNum, bool a_blGetThumbnail, ref ApiCmd a_apicmd)
         {
             bool blSuccess;
             string szThumbnail;
@@ -4607,12 +4652,6 @@ namespace TwainDirect.Support
                         m_twainlocalsession.SetMetadata(null);
                         ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " access denied: " + szMetaFile + " (" + exception.Message + ")");
                         return (false);
-                    }
-
-                    // Give it to the callback...
-                    if (a_scancallback != null)
-                    {
-                        a_scancallback(szMetadata, null);
                     }
                 }
             }
@@ -4758,7 +4797,11 @@ namespace TwainDirect.Support
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
-                // Collection session data, if we have any...
+                // Init stuff...
+                m_iLastImageNumberFromPreviousStartCapturing += m_iLastImageNumberSinceCurrentStartCapturing;
+                m_iLastImageNumberSinceCurrentStartCapturing = 0;
+
+                // Collect session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
@@ -6007,6 +6050,17 @@ namespace TwainDirect.Support
         private List<long> m_llPendingImageBlocks;
 
         /// <summary>
+        /// We keep track of the last imageNumber from the current
+        /// scan and from the previous scan, so that we can maintain
+        /// a contiguous and growing set of image numbers for the
+        /// files we output for a complete session.  We do this by
+        /// adding the last image number from the current session
+        /// to the previous session tally...
+        /// </summary>
+        private long m_iLastImageNumberSinceCurrentStartCapturing;
+        private long m_iLastImageNumberFromPreviousStartCapturing;
+
+        /// <summary>
         /// This is where the imageBlocks and metadata are stored.
         /// </summary>
         private string m_szImagesFolder;
@@ -6418,10 +6472,9 @@ namespace TwainDirect.Support
         /// <summary>
         /// Delegate for the scan callback...
         /// </summary>
-        /// <param name="a_szMetadata">metadata for this imageBlock</param>
-        /// <param name="a_szImageBlock">file for this imageBlock</param>
+        /// <param name="a_lImageBlock">the image block we're working on</param>
         /// <returns></returns>
-        public delegate bool ScanCallback(string a_szMetadata, string a_szImageBlock);
+        public delegate bool ScanCallback(long a_lImageBlock);
 
         #endregion
 

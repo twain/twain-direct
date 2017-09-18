@@ -410,7 +410,7 @@ namespace TwainDirect.App
                     // reported, such as the imageNumber, imagePart, and moreParts...
                     if (!a_blGetMetadataWithImage)
                     {
-                        m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ImageBlockMetadataCallback, ref apicmd);
+                        m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ref apicmd);
                         blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref apicmd);
                         if (m_blStopCapturing)
                         {
@@ -769,57 +769,30 @@ namespace TwainDirect.App
         }
 
         /// <summary>
-        /// Our scan callback, used to access the metadata...
-        /// </summary>
-        /// <param name="a_szMetadata">metadata file</param>
-        /// <param name="a_szImageBlock">this is going to be null</param>
-        /// <returns>true on success</returns>
-        public bool ImageBlockMetadataCallback(string a_szMetadata, string a_szImageBlock)
-        {
-            // Squirrel this away...
-            m_szMetadata = a_szMetadata;
-
-            // All done...
-            return (true);
-        }
-
-        /// <summary>
         /// Our scan callback, used to display images...
         /// </summary>
         /// <param name="a_szMetadata">metadata for this imageBlock</param>
         /// <param name="a_szImageBlock">file for this imageBlock</param>
         /// <returns>true on success</returns>
-        public bool ImageBlockCallback(string a_szMetadata, string a_szImageBlock)
+        public bool ImageBlockCallback(long a_lImageBlockNum)
         {
-            string szMetadata;
             string szBasename;
             string szPdf;
             bool blGotImage = false;
+            string szFinishedImageBasename;
             byte[] abImage;
-
-            // Locate our metadata, we either got it from readImageBlockMetadata or
-            // the readImageBlock that triggered this callback...
-            szMetadata = a_szMetadata;
-            if (string.IsNullOrEmpty(a_szMetadata))
-            {
-                szMetadata = m_szMetadata;
-            }
 
             // This function creates a finished image, metadata, and thumbnail
             // from the imageBlocks...
-            szBasename = Path.Combine(m_szWriteFolder, "images");
-            szBasename = Path.Combine(szBasename, "img" + (m_lImageCount + 1).ToString("D6"));
-            if (!m_twainlocalscannerclient.ClientFinishImage(szMetadata, a_szImageBlock, szBasename))
+            szBasename = Path.Combine(Path.Combine(m_szWriteFolder, "images"), "img" + a_lImageBlockNum.ToString("D6"));
+            if (!m_twainlocalscannerclient.ClientFinishImage(szBasename, out szFinishedImageBasename))
             {
                 // We don't have a complete image, so scoot...
                 return (blGotImage);
             }
 
-            // We got an image, so bump our count...
-            m_lImageCount += 1;
-
             // This is our finished PDF file...
-            szPdf = szBasename + ".pdf";
+            szPdf = szFinishedImageBasename + ".pdf";
 
             // We might have an image...
             FileInfo fileinfo = null;
@@ -1496,20 +1469,6 @@ namespace TwainDirect.App
         private Brush m_brushBackground;
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
-
-        /// <summary>
-        /// Metadata for the current imageBlock...
-        /// </summary>
-        private string m_szMetadata;
-
-        /// <summary>
-        /// A count from 1 - n of the finished images
-        /// that we've captured.  Note that this will
-        /// note be the same as the imageBlock number
-        /// if any of the images are split across
-        /// multiple imageBlocks...
-        /// </summary>
-        private long m_lImageCount;
 
         #endregion
     }
