@@ -145,7 +145,7 @@ namespace TwainDirect.App
 
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
-            m_dnssd.MonitorStart(null,IntPtr.Zero);
+            m_dnssd.MonitorStart(null, IntPtr.Zero);
 
             // Get our TWAIN Local interface.
             m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
@@ -294,11 +294,13 @@ namespace TwainDirect.App
         {
             bool blSuccess;
             bool blSuccessClientScan;
+            bool blStopCapturing;
             long[] alImageBlocks;
             ApiCmd apicmd;
 
             // Init stuff...
             alImageBlocks = null;
+            blStopCapturing = true;
 
             // We want to return the first apicmd that has a problem, to do that we
             // need a bait-and-switch scheme that starts with making an object that
@@ -326,7 +328,7 @@ namespace TwainDirect.App
             }
 
             // Last chance to bail before we start capturing...
-            if (m_blStopCapturing)
+            if (m_blStopCapturing || m_blAbortCapturing)
             {
                 return (true);
             }
@@ -351,7 +353,7 @@ namespace TwainDirect.App
             {
                 // Scoot if the scanner says it's done sending images, or if
                 // we've received a failure status...
-                if (m_blStopCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
+                if (m_blAbortCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -365,9 +367,30 @@ namespace TwainDirect.App
                     // returns false, it means that somebody wants us to stop
                     // scanning...
                     blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue);
-                    if (m_blStopCapturing)
+                    if (m_blAbortCapturing)
                     {
                         break;
+                    }
+                    else if (m_blStopCapturing)
+                    {
+                        // Stop capturing...
+                        if (blStopCapturing)
+                        {
+                            // If this doesn't work, then abort...
+                            blStopCapturing = false;
+                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                            if (!blSuccess)
+                            {
+                                m_blAbortCapturing = true;
+                                if (blSuccessClientScan)
+                                {
+                                    a_apicmd = apicmd;
+                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                                }
+                                blSuccessClientScan = false;
+                            }
+                        }
                     }
                     else if (!blSuccess)
                     {
@@ -390,7 +413,7 @@ namespace TwainDirect.App
 
                 // Scoot if the scanner says it's done sending images, or if
                 // we've received a failure status...
-                if (m_blStopCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
+                if (m_blAbortCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
                 {
                     break;
                 }
@@ -412,9 +435,30 @@ namespace TwainDirect.App
                     {
                         m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ref apicmd);
                         blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref apicmd);
-                        if (m_blStopCapturing)
+                        if (m_blAbortCapturing)
                         {
                             break;
+                        }
+                        else if (m_blStopCapturing)
+                        {
+                            // Stop capturing...
+                            if (blStopCapturing)
+                            {
+                                // If this doesn't work, then abort...
+                                blStopCapturing = false;
+                                m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                                blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                                if (!blSuccess)
+                                {
+                                    m_blAbortCapturing = true;
+                                    if (blSuccessClientScan)
+                                    {
+                                        a_apicmd = apicmd;
+                                        apicmd = new ApiCmd(m_dnssddeviceinfo);
+                                    }
+                                    blSuccessClientScan = false;
+                                }
+                            }
                         }
                         else if (!blSuccess)
                         {
@@ -431,9 +475,30 @@ namespace TwainDirect.App
                     // Get the corresponding image block in the array...
                     m_twainlocalscannerclient.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
                     blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
-                    if (m_blStopCapturing)
+                    if (m_blAbortCapturing)
                     {
                         break;
+                    }
+                    else if (m_blStopCapturing)
+                    {
+                        // Stop capturing...
+                        if (blStopCapturing)
+                        {
+                            // If this doesn't work, then abort...
+                            blStopCapturing = false;
+                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                            if (!blSuccess)
+                            {
+                                m_blAbortCapturing = true;
+                                if (blSuccessClientScan)
+                                {
+                                    a_apicmd = apicmd;
+                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                                }
+                                blSuccessClientScan = false;
+                            }
+                        }
                     }
                     else if (!blSuccess)
                     {
@@ -449,9 +514,30 @@ namespace TwainDirect.App
                     // Release the image block...
                     m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
                     blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
-                    if (m_blStopCapturing)
+                    if (m_blAbortCapturing)
                     {
                         break;
+                    }
+                    else if (m_blStopCapturing)
+                    {
+                        // Stop capturing...
+                        if (blStopCapturing)
+                        {
+                            // If this doesn't work, then abort...
+                            blStopCapturing = false;
+                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                            if (!blSuccess)
+                            {
+                                m_blAbortCapturing = true;
+                                if (blSuccessClientScan)
+                                {
+                                    a_apicmd = apicmd;
+                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                                }
+                                blSuccessClientScan = false;
+                            }
+                        }
                     }
                     else if (!blSuccess)
                     {
@@ -474,16 +560,19 @@ namespace TwainDirect.App
             }
 
             // Stop capturing...
-            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
-            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
-            if (!blSuccess)
+            if (blStopCapturing)
             {
-                if (blSuccessClientScan)
+                m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                if (!blSuccess)
                 {
-                    a_apicmd = apicmd;
-                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    if (blSuccessClientScan)
+                    {
+                        a_apicmd = apicmd;
+                        apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    }
+                    blSuccessClientScan = false;
                 }
-                blSuccessClientScan = false;
             }
 
             // As long as we're in the capturing or draining states, we need to
@@ -561,8 +650,13 @@ namespace TwainDirect.App
         {
             SetButtons(EBUTTONSTATE.UNDEFINED);
             m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
-            SetButtons(EBUTTONSTATE.CLOSED);
+            if (m_threadClientScan != null)
+            {
+                m_threadClientScan.Abort();
+                m_threadClientScan = null;
+            }
             MessageBox.Show("Your scanner session has aborted.", "Notification");
+            SetButtons(EBUTTONSTATE.CLOSED);
         }
 
         /// <summary>
@@ -572,8 +666,8 @@ namespace TwainDirect.App
         {
             SetButtons(EBUTTONSTATE.UNDEFINED);
             m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
-            SetButtons(EBUTTONSTATE.CLOSED);
             MessageBox.Show("Your scanner session has timed out.", "Notification");
+            SetButtons(EBUTTONSTATE.CLOSED);
         }
 
         /// <summary>
@@ -762,6 +856,7 @@ namespace TwainDirect.App
 
             // Init stuff...
             m_blStopCapturing = false;
+            m_blAbortCapturing = false;
 
             // Make a new one, and get it going...
             m_threadClientScan = new Thread(ClientScanThread);
@@ -1002,6 +1097,7 @@ namespace TwainDirect.App
 
             // Init stuff...
             m_blStopCapturing = false;
+            m_blAbortCapturing = false;
             m_dnssddeviceinfo = null;
 
             // Buttons off...
@@ -1164,6 +1260,7 @@ namespace TwainDirect.App
                 // If it's still there, annihilate it, the user will
                 // probably have to wait for the session to timeout
                 // before they can use it again...
+                m_blAbortCapturing = true;
                 if (m_threadClientScan != null)
                 {
                     m_threadClientScan.Abort();
@@ -1217,6 +1314,7 @@ namespace TwainDirect.App
 
             // Init stuff...
             m_blStopCapturing = false;
+            m_blAbortCapturing = false;
             m_dnssddeviceinfo = null;
 
             // Buttons off...
@@ -1445,9 +1543,13 @@ namespace TwainDirect.App
         private bool m_blExit;
 
         /// <summary>
-        /// Signal that we want to stop capturing...
+        /// Signal that we want to stop capturing, which will
+        /// try to get all of the pending images, or abort
+        /// capturing, which means we want to leave as quickly
+        /// as possible...
         /// </summary>
         private bool m_blStopCapturing;
+        private bool m_blAbortCapturing;
 
         /// <summary>
         /// Setup information...

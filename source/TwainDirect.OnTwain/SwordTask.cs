@@ -2496,7 +2496,7 @@ namespace TwainDirect.OnTwain
                 // an actual scan to test this.  Instead we're issuing the command, and
                 // expect to get back a TWRC_FAILURE/TWCC_SEQERROR indicating that the
                 // command is supported, but not in state 4...
-                #region We nees MSG_RESET support
+                #region We need MSG_RESET support
 
                 // MSG_RESET...
                 szStatus = "";

@@ -781,6 +781,19 @@ namespace TWAINWorkingGroupToolkit
         }
 
         /// <summary>
+        /// Rollback the TWAIN driver...
+        /// </summary>
+        /// <param name="a_twainstate">target state</param>
+        public TWAIN.STATE Rollback(TWAIN.STATE a_twainstate)
+        {
+            if (m_twain == null)
+            {
+                return (TWAIN.STATE.S1);
+            }
+            return (m_twain.Rollback(a_twainstate));
+        }
+
+        /// <summary>
         /// Save a snapshot of the driver values...
         /// </summary>
         /// <param name="a_szFile">File to receive driver settings</param>
@@ -2620,8 +2633,7 @@ namespace TWAINWorkingGroupToolkit
 
 
             // Memory file transfers combine the best of file transfers and
-            // memory transgers, however at this time it's not clear that any
-            // TWAIN drivers have ever supported it...
+            // memory transfers...
             #region TWAIN.TWSX.MEMFILE
             else if (m_twsxXferMech == TWAIN.TWSX.MEMFILE)
             {

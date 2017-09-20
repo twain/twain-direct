@@ -33,8 +33,7 @@
 
 // Helpers...
 using System;
-using System.Diagnostics;
-using System.IO;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Permissions;
@@ -60,19 +59,29 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_szConnectionData">the data for the connection</param>
         /// <param name="a_blInit">initialize</param>
-        public Ipc(string a_szConnectionData, bool a_blInit)
+        public Ipc
+        (
+            string a_szConnectionData,
+            bool a_blInit,
+            DisconnectCallbackDelegate a_disconnectcallbackdelegate,
+            object a_objectDisconnectCallbackDelegate
+        )
         {
             // Init stuff...
             m_iPid = 0;
-            m_connectiontype = ConnectionType.File;
-            m_filestreamIn = null;
-            m_filestreamOut = null;
-            m_szPath = null;
+            m_connectiontype = ConnectionType.Socket;
             m_socketConnection = null;
             m_socketData = null;
             m_iPort = 0;
             m_szIpAddress = "(no ip)";
             m_iPort = 0;
+            m_lszCommands = new List<string>();
+            m_objectCommands = new object();
+            m_autoresetEventCommands = new AutoResetEvent(false);
+            m_threadCommands = new Thread(CommandsThread);
+            m_blCancelCommands = false;
+            m_disconnectcallbackdelegate = a_disconnectcallbackdelegate;
+            m_objectDisconnectCallbackDelegate = a_objectDisconnectCallbackDelegate;
 
             // Socket connection...
             if (a_szConnectionData.StartsWith("socket|"))
@@ -144,50 +153,12 @@ namespace TwainDirect.Support
                 }
             }
 
-            // File connection...
-            else if (a_szConnectionData.StartsWith("file|"))
-            {
-                m_connectiontype = ConnectionType.File;
-                m_szPath = a_szConnectionData.Split(new char[] { '|' })[1];
-
-                // Initialize...
-                if (a_blInit)
-                {
-                    // Make sure we can get to this folder...
-                    if (!Directory.Exists(m_szPath))
-                    {
-                        try
-                        {
-                            Directory.CreateDirectory(m_szPath);
-                        }
-                        catch
-                        {
-                            Log.Error("Unable to create folder: " + m_szPath);
-                            return;
-                        }
-                    }
-
-                    // Cleanup...
-                    if (File.Exists(Path.Combine(m_szPath, "filein")))
-                    {
-                        File.Delete(Path.Combine(m_szPath, "filein"));
-                    }
-                    if (File.Exists(Path.Combine(m_szPath, "fileout")))
-                    {
-                        File.Delete(Path.Combine(m_szPath, "fileout"));
-                    }
-                }
-            }
-
             // Problem...
             else
             {
                 Log.Error("Unrecognized connection data...");
                 return;
             }
-
-            // Allocate a buffer...
-            m_abData = new byte[0x100000];
         }
 
         /// <summary>
@@ -206,9 +177,6 @@ namespace TwainDirect.Support
         /// <returns></returns>
         public bool Accept()
         {
-            string szFileIn;
-            string szFileOut;
-
             // Socket...
             #region Socket...
 
@@ -225,37 +193,8 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Success...
-                return (true);
-            }
-
-            #endregion
-
-            // File...
-            #region File...
-
-            else if (m_connectiontype == ConnectionType.File)
-            {
-                // Build the filenames...
-                szFileIn = Path.Combine(m_szPath, "fileout");
-                szFileOut = Path.Combine(m_szPath, "filein");
-
-                // Wait for both files to exist...
-                while (!File.Exists(szFileIn) || !File.Exists(szFileOut))
-                {
-                    Thread.Sleep(100);
-                }
-
-                // Open the files...
-                try
-                {
-                    m_filestreamIn = new FileStream(szFileIn, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
-                    m_filestreamOut = new FileStream(szFileOut, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
-                }
-                catch
-                {
-                    return (false);
-                }
+                // Launch our reading thread...
+                m_threadCommands.Start();
 
                 // Success...
                 return (true);
@@ -273,22 +212,7 @@ namespace TwainDirect.Support
         /// </summary>
         public void Close()
         {
-            if (m_filestreamIn != null)
-            {
-                m_filestreamIn.Close();
-            }
-            if (m_filestreamOut != null)
-            {
-                m_filestreamOut.Close();
-            }
-            if (m_socketConnection != null)
-            {
-                m_socketConnection.Close();
-            }
-            if (m_socketData != null)
-            {
-                m_socketData.Close();
-            }
+            Dispose(true);
         }
 
         /// <summary>
@@ -297,9 +221,6 @@ namespace TwainDirect.Support
         /// <returns></returns>
         public bool Connect()
         {
-            string szFileIn;
-            string szFileOut;
-
             // Socket...
             #region Socket...
 
@@ -319,45 +240,8 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Success...
-                return (true);
-            }
-
-            #endregion
-
-            // File...
-            #region File...
-
-            else if (m_connectiontype == ConnectionType.File)
-            {
-                // Make sure we can get to this folder...
-                if (!Directory.Exists(m_szPath))
-                {
-                    try
-                    {
-                        Directory.CreateDirectory(m_szPath);
-                    }
-                    catch
-                    {
-                        Log.Error("Unable to create folder: " + m_szPath);
-                        return (false);
-                    }
-                }
-
-                // Build the filenames...
-                szFileIn = Path.Combine(m_szPath, "filein");
-                szFileOut = Path.Combine(m_szPath, "fileout");
-
-                // Open the files...
-                try
-                {
-                    m_filestreamIn = new FileStream(szFileIn, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
-                    m_filestreamOut = new FileStream(szFileOut, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
-                }
-                catch
-                {
-                    return (false);
-                }
+                // Launch our reading thread...
+                m_threadCommands.Start();
 
                 // Success...
                 return (true);
@@ -382,18 +266,9 @@ namespace TwainDirect.Support
                 return ("socket|" + m_szIpAddress + "|" + m_iPort);
             }
 
-            // File connection...
-            else if (m_connectiontype == ConnectionType.File)
-            {
-                return ("file|" + m_szPath);
-            }
-
             // Problem...
-            else
-            {
-                Log.Error("Unrecognized connection type...");
-                return (null);
-            }
+            Log.Error("Unrecognized connection type...");
+            return (null);
         }
 
         /// <summary>
@@ -414,116 +289,37 @@ namespace TwainDirect.Support
         [EnvironmentPermissionAttribute(SecurityAction.LinkDemand, Unrestricted = true)]
         public string Read()
         {
-            // Socket...
-            #region Socket...
-
-            if (m_connectiontype == ConnectionType.Socket)
+            // If we've been cancelled, don't do any waiting...
+            if (m_blCancelCommands)
             {
-                int iBytesTotal;
+                return (null);
+            }
 
-                // Read...
-                try
+            // Wait for something to do...
+            m_autoresetEventCommands.WaitOne();
+            m_autoresetEventCommands.Reset();
+
+            // Ruh-ruh, we need to scoot...
+            if (m_blCancelCommands)
+            {
+                return (null);
+            }
+
+            // Get the datum...
+            lock (m_objectCommands)
+            {
+                // This shouldn't happen, but paranoia is a good thing...
+                if (m_lszCommands.Count == 0)
                 {
-                    iBytesTotal = m_socketData.Receive(m_abData);
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("ipcread> exception: " + exception.Message);
                     return (null);
                 }
 
-                // Log it...
-                string sz = Encoding.UTF8.GetString(m_abData, 0, iBytesTotal);
-                Log.Info("ipcread> " + sz);
+                // Grab the next item, and pop it off the list...
+                string sz = m_lszCommands[0];
+                m_lszCommands.RemoveAt(0);
 
-                // All done...
+                // Return it...
                 return (sz);
-            }
-
-            #endregion
-
-
-            // File...
-            #region File...
-
-            else if (m_connectiontype == ConnectionType.File)
-            {
-                int iBytesRead;
-                int iBytesTotal;
-
-                // Init stuff...
-                iBytesTotal = 0;
-                m_filestreamOut.Position = 0;
-
-                // Loop until we get all our data...
-                while (true)
-                {
-                    // Read from the file...
-                    try
-                    {
-                        iBytesRead = m_filestreamIn.Read(m_abData, iBytesTotal, m_abData.Length);
-                    }
-                    catch
-                    {
-                        iBytesRead = 0;
-                    }
-
-                    // No data on this read...
-                    if (iBytesRead == 0)
-                    {
-                        // We have data from a previous call, so return with that...
-                        if (iBytesTotal > 0)
-                        {
-                            break;
-                        }
-
-                        // Check to make sure our process is still running...
-                        if (m_iPid != 0)
-                        {
-                            try
-                            {
-                                if (Process.GetProcessById(m_iPid) == null)
-                                {
-                                    Log.Error("Our process has died...");
-                                    return (null);
-                                }
-                            }
-                            catch
-                            {
-                                Log.Error("Our process has died...");
-                                return (null);
-                            }
-                        }
-
-                        // Sleep a bit and loop up to try again...
-                        Thread.Sleep(100);
-                        continue;
-                    }
-
-                    // Record the total bytes read so far...
-                    iBytesTotal += iBytesRead;
-                }
-
-                // Clear the file...
-                m_filestreamIn.SetLength(0);
-                m_filestreamIn.Flush();
-
-                // Log it...
-                string sz = Encoding.UTF8.GetString(m_abData, 0, iBytesTotal);
-                Log.Info("ipcread> " + sz);
-
-                // All done...
-                return (sz);
-            }
-
-            #endregion
-
-
-            // Problem...
-            else
-            {
-                Log.Error("Unrecognized connection type...");
-                return (null);
             }
         }
 
@@ -562,79 +358,24 @@ namespace TwainDirect.Support
             #endregion
 
 
-            // File...
-            #region File...
-            else if (m_connectiontype == ConnectionType.File)
-            {
-                // Log it...
-                Log.Info("ipcwrite> " + a_szData);
-
-                // Convert the data...
-                byte[] abData = Encoding.UTF8.GetBytes(a_szData);
-
-                // Wait for the file to be cleared...
-                while (m_filestreamOut.Length > 0)
-                {
-                    // Check to make sure our process is still running...
-                    if (m_iPid != 0)
-                    {
-                        try
-                        {
-                            if (Process.GetProcessById(m_iPid) == null)
-                            {
-                                Log.Error("Our process has died...");
-                                return (false);
-                            }
-                        }
-                        catch
-                        {
-                            Log.Error("Our process has died...");
-                            return (false);
-                        }
-                    }
-
-                    // Wait a bit and try again...
-                    Thread.Sleep(100);
-                }
-
-                // Write the data...
-                m_filestreamOut.Position = 0;
-                m_filestreamOut.Write(abData, 0, abData.Length);
-                m_filestreamOut.Flush();
-
-                // All done...
-                return (true);
-            }
-
-            #endregion
-
-
             // Problem...
-            else
-            {
-                Log.Error("Unrecognized connection type...");
-                return (false);
-            }
+            Log.Error("Unrecognized connection type...");
+            return (false);
         }
 
         #endregion
 
 
         ///////////////////////////////////////////////////////////////////////////////
-        // Private Definitions...
+        // Public Definitions...
         ///////////////////////////////////////////////////////////////////////////////
-        #region Private Definitions...
+        #region Public Definitions...
 
         /// <summary>
-        /// Ways to chat.  We prefer the socket style.  The file style was created
-        /// first, because it was dirt simple, and I just never bothered to remove
-        /// it, because you never know when you need a backup plan...
+        /// A callback to invoke if we're unexpectedly disconnected...
         /// </summary>
-        private enum ConnectionType
-        {
-            File,
-            Socket
-        }
+        /// <param name="a_objectContext">a context for the callback</param>
+        public delegate void DisconnectCallbackDelegate(object a_objectContext);
 
         #endregion
 
@@ -653,35 +394,154 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Cancel the commands thread...
+        /// </summary>
+        internal void CancelCommandsThread()
+        {
+            m_blCancelCommands = true;
+            m_autoresetEventCommands.Set();
+        }
+
+        /// <summary>
+        /// This is where we read from the socket.  We update an array of commands,
+        /// and this gives us some flexibility to act on some commands quicker than
+        /// others...
+        /// </summary>
+        internal void CommandsThread()
+        {
+            // Allocate a buffer...
+            byte[] abData = new byte[0x80000];
+
+            // Loopy until told to scoot, or until we lose the connection...
+            while (true)
+            {
+                // Socket...
+                #region Socket...
+
+                if (m_connectiontype == ConnectionType.Socket)
+                {
+                    int iBytesTotal;
+
+                    // Scoot...
+                    if (m_blCancelCommands)
+                    {
+                        return;
+                    }
+
+                    // Read...
+                    try
+                    {
+                        iBytesTotal = m_socketData.Receive(abData);
+                    }
+                    catch (Exception exception)
+                    {
+                        Log.Error("ipcread> exception: " + exception.Message);
+                        m_blCancelCommands = true;
+                        lock (m_objectCommands)
+                        {
+                            m_lszCommands.RemoveRange(0, m_lszCommands.Count);
+                        }
+                        m_autoresetEventCommands.Set();
+                        if (m_disconnectcallbackdelegate != null)
+                        {
+                            m_disconnectcallbackdelegate(m_objectDisconnectCallbackDelegate);
+                        }
+                        return;
+                    }
+
+                    // Scoot...
+                    if (m_blCancelCommands)
+                    {
+                        return;
+                    }
+
+                    // Log it...
+                    string sz = Encoding.UTF8.GetString(abData, 0, iBytesTotal);
+                    Log.Info("ipcread> " + sz);
+
+                    // Add this to our list, notify the read command...
+                    lock (m_objectCommands)
+                    {
+                        m_lszCommands.Add(sz);
+                    }
+
+                    // Notify anybody watching that we have data...
+                    m_autoresetEventCommands.Set();
+                }
+
+                #endregion
+
+
+                // Problem...
+                else
+                {
+                    Log.Error("Unrecognized connection type...");
+                    m_blCancelCommands = true;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
         /// Cleanup...
         /// </summary>
         /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
         internal void Dispose(bool a_blDisposing)
         {
-            // Free managed resources...
-            if (a_blDisposing)
+            // Shut the thread down...
+            if (m_threadCommands != null)
             {
-                if (m_filestreamIn != null)
-                {
-                    m_filestreamIn.Dispose();
-                    m_filestreamIn = null;
-                }
-                if (m_filestreamOut != null)
-                {
-                    m_filestreamOut.Dispose();
-                    m_filestreamOut = null;
-                }
-                if (m_socketConnection != null)
-                {
-                    m_socketConnection.Close();
-                    m_socketConnection = null;
-                }
-                if (m_socketData != null)
-                {
-                    m_socketData.Close();
-                    m_socketData = null;
-                }
+                CancelCommandsThread();
+                m_threadCommands = null;
             }
+
+            // No more new connections...
+            if (m_socketConnection != null)
+            {
+                try
+                {
+                    m_socketConnection.Shutdown(SocketShutdown.Both);
+                }
+                catch
+                {
+                    // We just want to catch it, we don't care about what happened...
+                }
+                m_socketConnection.Close();
+                m_socketConnection = null;
+            }
+
+            // No more data...
+            if (m_socketData != null)
+            {
+                try
+                {
+                    m_socketData.Shutdown(SocketShutdown.Both);
+                }
+                catch
+                {
+                    // We just want to catch it, we don't care about what happened...
+                }
+                m_socketData.Close();
+                m_socketData = null;
+            }
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Definitions...
+
+        /// <summary>
+        /// Ways to chat.  We prefer the socket style.  The file style was created
+        /// first, because it was dirt simple, and I just never bothered to remove
+        /// it, because you never know when you need a backup plan...
+        /// </summary>
+        private enum ConnectionType
+        {
+            Socket
         }
 
         #endregion
@@ -697,35 +557,43 @@ namespace TwainDirect.Support
         /// </summary>
         private ConnectionType m_connectiontype;
 
-        // The path to the folder we'll use for file IPC stuff...
-        private string m_szPath;
-
-        // The file providing incoming data for the entity that creates the
-        // IPC.  This is the output for the other side...
-        private FileStream m_filestreamIn;
-
-        // The file providing outgoing data for the entity that creates the
-        // IPC.  This is the input for the other side...
-        private FileStream m_filestreamOut;
-
-        // The socket we use to establish a connection for the data socket...
+        /// <summary>
+        /// The socket we use to establish a connection for the data socket...
+        /// </summary>
         private Socket m_socketConnection;
 
-        // The socket we use for IPC communication...
+        /// <summary>
+        /// The socket we use for IPC communication...
+        /// </summary>
         private Socket m_socketData;
 
-        // The IP address we're using, if a socket...
+        /// <summary>
+        /// The IP address we're using, if a socket...
+        /// </summary>
         private string m_szIpAddress;
 
-        // The port number we're using, if a socket...
+        /// <summary>
+        /// The port number we're using, if a socket...
+        /// </summary>
         private int m_iPort;
 
-        // The process id we need to monitor, so that we'll know if the
-        // entity we're talking to goes ta-ta on us...
+        /// <summary>
+        /// The process id we need to monitor, so that we'll know if the
+        /// entity we're talking to goes ta-ta on us...
+        /// </summary>
         private int m_iPid;
 
-        // Our I/O buffer...
-        private byte[] m_abData;
+        /// <summary>
+        /// The incoming commands, with a lock object, a notification
+        /// event, and a thread...
+        /// </summary>
+        private List<string> m_lszCommands;
+        private object m_objectCommands;
+        private AutoResetEvent m_autoresetEventCommands;
+        private Thread m_threadCommands;
+        private bool m_blCancelCommands;
+        private DisconnectCallbackDelegate m_disconnectcallbackdelegate;
+        private object m_objectDisconnectCallbackDelegate;
 
         #endregion
     }

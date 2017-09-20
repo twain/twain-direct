@@ -110,9 +110,10 @@ namespace TwainDirect.OnTwain
             TWAINWorkingGroup.Log.Info("IPC mode starting...");
 
             // Set up communication with our server process...
-            ipc = new Ipc(m_szIpc, false);
+            ipc = new Ipc(m_szIpc, false, IpcDisconnectLaunchpad, this);
             ipc.MonitorPid(m_iPid);
             ipc.Connect();
+            m_blIpcDisconnectCallbackArmed = true;
 
             // Loopy...
             while (blRunning)
@@ -200,6 +201,7 @@ namespace TwainDirect.OnTwain
                         break;
 
                     case "exit":
+                        m_blIpcDisconnectCallbackArmed = false;
                         blRunning = false;
                         break;
 
@@ -350,7 +352,6 @@ namespace TwainDirect.OnTwain
             if (a_bitmap == null)
             {
                 TWAINWorkingGroup.Log.Info("ReportImage: no more images: " + a_szDg + " " + a_szDat + " " + a_szMsg + " " + a_sts);
-                m_blCancel = false;
                 SetImageBlocksDrained(a_sts);
                 return (TWAINCSToolkit.MSG.RESET);
             }
@@ -365,7 +366,6 @@ namespace TwainDirect.OnTwain
                 catch
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to create the images folder: " + m_szImagesFolder);
-                    m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
                     return (TWAINCSToolkit.MSG.RESET);
                 }
@@ -407,7 +407,6 @@ namespace TwainDirect.OnTwain
                 catch (Exception exception)
                 {
                     TWAINWorkingGroup.Log.Error("unable to delete file: " + szPdfFile + " - " + exception.Message);
-                    m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
                     return (TWAINCSToolkit.MSG.RESET);
                 }
@@ -429,7 +428,6 @@ namespace TwainDirect.OnTwain
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Error("DAT_EXTIMAGEINFO failed: " + sts);
-                        m_blCancel = false;
                         SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
                         return (TWAINCSToolkit.MSG.RESET);
                     }
@@ -443,7 +441,6 @@ namespace TwainDirect.OnTwain
                 catch (Exception exception)
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile + " - " + exception.Message);
-                    m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                     return (TWAINCSToolkit.MSG.RESET);
                 }
@@ -500,7 +497,6 @@ namespace TwainDirect.OnTwain
                             catch
                             {
                                 TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
-                                m_blCancel = false;
                                 SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                                 return (TWAINCSToolkit.MSG.RESET);
                             }
@@ -527,7 +523,6 @@ namespace TwainDirect.OnTwain
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Error("ReportImage: DatImageinfo failed...");
-                        m_blCancel = false;
                         SetImageBlocksDrained(sts);
                         return (TWAINCSToolkit.MSG.RESET);
                     }
@@ -555,7 +550,6 @@ namespace TwainDirect.OnTwain
                 {
                     default:
                         TWAINWorkingGroup.Log.Error("ReportImage: bad pixeltype - " + twimageinfo.PixelType);
-                        m_blCancel = false;
                         SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                         return (TWAINCSToolkit.MSG.RESET);
                     case TWAIN.TWPT.BW:
@@ -575,7 +569,6 @@ namespace TwainDirect.OnTwain
                 {
                     default:
                         TWAINWorkingGroup.Log.Error("ReportImage: bad compression - " + twimageinfo.Compression);
-                        m_blCancel = false;
                         SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                         return (TWAINCSToolkit.MSG.RESET);
                     case TWAIN.TWCP.NONE:
@@ -789,7 +782,6 @@ namespace TwainDirect.OnTwain
                 if (!blSuccess)
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile);
-                    m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                     return (TWAINCSToolkit.MSG.RESET);
                 }
@@ -804,24 +796,23 @@ namespace TwainDirect.OnTwain
                 catch
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
-                    m_blCancel = false;
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                     return (TWAINCSToolkit.MSG.RESET);
                 }
             }
             #endregion
 
-            // We've been asked to cancel, so sneak that in...
-            if (m_blCancel)
+            // We've been asked to stop the feeder, so sneak that in, but only do it once...
+            if (    m_blStopFeeder
+                &&  !m_blStopFeederSent
+                &&  (m_twaincstoolkit.GetState() == 6))
             {
+                m_blStopFeederSent = true;
                 TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
                 sts = twain.DatPendingxfers(TWAIN.DG.CONTROL, TWAIN.MSG.STOPFEEDER, ref twpendingxfers);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: DatPendingxfers failed...");
-                    m_blCancel = false;
-                    SetImageBlocksDrained(sts);
-                    return (TWAINCSToolkit.MSG.STOPFEEDER);
                 }
             }
 
@@ -851,6 +842,36 @@ namespace TwainDirect.OnTwain
             {
                 File.Delete(szSessionImageBlocksDrained);
             }
+        }
+
+        /// <summary>
+        /// Things we'd like to do if we lose the IPC connection...
+        /// </summary>
+        /// <param name="a_objectContext">our object</param>
+        private static void IpcDisconnectLaunchpad(object a_objectContext)
+        {
+            TwainLocalOnTwain twainlocalontwain = (TwainLocalOnTwain)a_objectContext;
+            twainlocalontwain.IpcDisconnect(a_objectContext);
+        }
+        private void IpcDisconnect(object a_objectContext)
+        {
+            // If we've been disarmed, it means that we're shutting down nicely...
+            if (!m_blIpcDisconnectCallbackArmed)
+            {
+                return;
+            }
+
+            // Make a note of it...
+            TWAINWorkingGroup.Log.Error("IpcDisconnect called...");
+
+            // Try to shut us down...
+            if (m_twaincstoolkit != null)
+            {
+                m_twaincstoolkit.Cleanup();
+            }
+
+            // All done...
+            Environment.Exit(0);
         }
 
         /// <summary>
@@ -1290,7 +1311,8 @@ namespace TwainDirect.OnTwain
             TWAIN.STS sts;
 
             // Init stuff...
-            m_blCancel = false;
+            m_blStopFeeder = false;
+            m_blStopFeederSent = false;
             m_iImageCount = 0;
             a_szSession = "";
             ClearImageBlocksDrained();
@@ -1431,9 +1453,6 @@ namespace TwainDirect.OnTwain
         /// <returns>a twain local status</returns>
         private TwainLocalScanner.ApiStatus DeviceScannerStopCapturing(out string a_szSession)
         {
-            string szStatus;
-            string szUserinterface;
-            string szPendingxfers;
             TWAIN.STS sts;
 
             // Init stuff...
@@ -1455,9 +1474,7 @@ namespace TwainDirect.OnTwain
             // stopCapturing comes in before we're processed MSG_XFERREADY...
             else if (m_twaincstoolkit.GetState() == 5)
             {
-                szStatus = "";
-                szUserinterface = "0,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_DISABLEDS", ref szUserinterface, ref szStatus);
+                sts = (m_twaincstoolkit.Rollback(TWAIN.STATE.S4) == TWAIN.STATE.S4) ? TWAIN.STS.SUCCESS : TWAIN.STS.FAILURE;
             }
 
             // We're done scanning, so bail...
@@ -1466,26 +1483,16 @@ namespace TwainDirect.OnTwain
                 sts = TWAIN.STS.SUCCESS;
                 if (m_twaincstoolkit.GetState() == 5)
                 {
-                    szStatus = "";
-                    szUserinterface = "0,0";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_DISABLEDS", ref szUserinterface, ref szStatus);
+                    sts = (m_twaincstoolkit.Rollback(TWAIN.STATE.S4) == TWAIN.STATE.S4) ? TWAIN.STS.SUCCESS : TWAIN.STS.FAILURE;
                 }
             }
 
-            // We're still scanning, try to end gracefully...
+            // We're still scanning, try to end gracefully by telling the
+            // scan loop to stopfeeder...
             else
             {
-                szStatus = "";
-                szPendingxfers = "0,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingxfers, ref szStatus);
-
-                // That didn't go well, then end abruptly...
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    szStatus = "";
-                    szPendingxfers = "0,0";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingxfers, ref szStatus);
-                }
+                sts = TWAIN.STS.SUCCESS;
+                m_blStopFeeder = true;
             }
 
             // Build the reply...
@@ -1498,7 +1505,6 @@ namespace TwainDirect.OnTwain
             }
 
             // Oh well, we'll try to abort...
-            m_blCancel = true;
             return (TwainLocalScanner.ApiStatus.success);
         }
 
@@ -1539,15 +1545,21 @@ namespace TwainDirect.OnTwain
         private string m_szIpc;
 
         /// <summary>
+        /// Control whether or not our disconnect callback is allowed
+        /// to fire...
+        /// </summary>
+        private bool m_blIpcDisconnectCallbackArmed;
+
+        /// <summary>
         /// Process id we're communicating with...
         /// </summary>
         private int m_iPid;
 
         /// <summary>
-        /// A flag to help us abort a scan with MSG_RESET when
-        /// MSG_STOPFEEDER fails to work...
+        /// Send MSG_STOPFEEDER when true, but only send it once...
         /// </summary>
-        private bool m_blCancel;
+        private bool m_blStopFeeder;
+        private bool m_blStopFeederSent;
 
         /// <summary>
         /// Count of images for each TwainStartCapturing call, the

@@ -166,7 +166,6 @@ namespace TwainDirect.Support
             m_objectLockDeviceApi = new object();
             m_objectLockDeviceHttpServerStop = new object();
             m_objectLockOnChangedBridge = new object();
-            m_objectLockOnChangedImageBlocks = new object();
 
             // Init our idle session timeout...
             long lSessionTimeout = 300000; // five minutes
@@ -1130,6 +1129,10 @@ namespace TwainDirect.Support
             // Make sure we don't trigger our exit event handler...
             m_twainlocalsession.GetProcessTwainDirectOnTwain().Exited -= new EventHandler(TwainLocalScanner_Exited);
 
+            // Exit the process, give it a second...
+            m_twainlocalsession.GetIpcTwainDirectOnTwain().Close();
+            Thread.Sleep(1000);
+
             // Shut down the process...
             if (m_twainlocalsession.GetIpcTwainDirectOnTwain() != null)
             {
@@ -1768,7 +1771,7 @@ namespace TwainDirect.Support
                 // Create an IPC...
                 if (m_twainlocalsession.GetIpcTwainDirectOnTwain() == null)
                 {
-                    m_twainlocalsession.SetIpcTwainDirectOnTwain(new Ipc("socket|" + IPAddress.Loopback.ToString() + "|0", true));
+                    m_twainlocalsession.SetIpcTwainDirectOnTwain(new Ipc("socket|" + IPAddress.Loopback.ToString() + "|0", true, null, null));
                 }
 
                 // Arguments to the progream...
@@ -1832,6 +1835,8 @@ namespace TwainDirect.Support
                     m_twainlocalsession.GetProcessTwainDirectOnTwain().Close();
                     m_twainlocalsession.SetProcessTwainDirectOnTwain(null);
                     DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lErrorErrorIndex);
+                    m_twainlocalsession.Dispose();
+                    m_twainlocalsession = null;
                     return (false);
                 }
 
@@ -1849,6 +1854,8 @@ namespace TwainDirect.Support
                     m_twainlocalsession.GetProcessTwainDirectOnTwain().Close();
                     m_twainlocalsession.SetProcessTwainDirectOnTwain(null);
                     DeviceReturnError(szFunction, a_apicmd, jsonlookup.Get("status"), null, -1);
+                    m_twainlocalsession.Dispose();
+                    m_twainlocalsession = null;
                     return (false);
                 }
 
@@ -1864,6 +1871,8 @@ namespace TwainDirect.Support
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
+                    m_twainlocalsession.Dispose();
+                    m_twainlocalsession = null;
                     return (false);
                 }
 
@@ -2676,6 +2685,13 @@ namespace TwainDirect.Support
             string[] aszBase;
             FileSystemWatcherHelper filesystemwatcherhelper = (FileSystemWatcherHelper)source;
 
+            // We shouldn't be here...
+            if (m_twainlocalsession == null)
+            {
+                filesystemwatcherhelper.EnableRaisingEvents = false;
+                return;
+            }
+
             // It's important that we serialize the callbacks...
             lock (m_objectLockOnChangedBridge)
             {
@@ -3045,28 +3061,6 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Handle changes to the imageBlocks folder for transfers to
-        /// the TWAIN Direct application...
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="e"></param>
-        private void OnChangedImageBlocks(object source, FileSystemEventArgs e)
-        {
-            // It's important that we serialize the callbacks...
-            lock (m_objectLockOnChangedImageBlocks)
-            {
-                FileSystemWatcherHelper filesystemwatcherhelper = (FileSystemWatcherHelper)source;
-                ApiCmd apicmdEvent = filesystemwatcherhelper.GetTwainLocalScanner().GetApiCmdEvent();
-                if (apicmdEvent == null)
-                {
-                    Log.Error("The session has been modified, but we have no apicmdEvent, did you forget to run DeviceScannerWaitForEvents?");
-                    return;
-                }
-                filesystemwatcherhelper.GetTwainLocalScanner().DeviceScannerGetSession(ref apicmdEvent, true, true, "imageBlocks");
-            }
-        }
-
-        /// <summary>
         /// Start capturing images...
         /// </summary>
         /// <param name="a_apicmd">the command we're processing</param>
@@ -3161,20 +3155,6 @@ namespace TwainDirect.Support
                 filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedBridge);
                 filesystemwatcherhelper.EnableRaisingEvents = true;
                 m_twainlocalsession.SetFileSystemWatcherHelperBridge(filesystemwatcherhelper);
-
-                // KEYWORD:imageBlock
-                //
-                // Configure the event monitoring for updating the session object, we
-                // do this when we see a *.meta file appear.  Note that any associated
-                // files, such as .pdf MUST be created before the .meta file...
-                //filesystemwatcherhelper = new FileSystemWatcherHelper(this);
-                //filesystemwatcherhelper.Path = m_szTdImagesFolder;
-                //filesystemwatcherhelper.Filter = "*.meta";
-                //filesystemwatcherhelper.IncludeSubdirectories = false;
-                //filesystemwatcherhelper.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
-                //filesystemwatcherhelper.Changed += new FileSystemEventHandler(OnChangedImageBlocks);
-                //filesystemwatcherhelper.EnableRaisingEvents = true;
-                //m_twainlocalsession.SetFileSystemWatcherHelperImageBlocks(filesystemwatcherhelper);
             }
 
             // All done...
@@ -3415,7 +3395,6 @@ namespace TwainDirect.Support
         private object m_objectLockDeviceApi;
         private object m_objectLockDeviceHttpServerStop;
         private object m_objectLockOnChangedBridge;
-        private object m_objectLockOnChangedImageBlocks;
 
         /// <summary>
         /// Idle time before a session times out (in milliseconds)...

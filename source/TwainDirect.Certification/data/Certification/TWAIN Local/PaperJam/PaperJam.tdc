@@ -37,7 +37,7 @@ echo.yellow
 echo.yellow
 echo.yellow
 echo.yellow 'This test monitors for a paper jam.  A paper jam occurs with an automatic'
-echo.yellow 'docment feeder when the paper is unable to move completely through the'
+echo.yellow 'document feeder when the paper is unable to move completely through the'
 echo.yellow 'scanner transport.'
 echo.yellow
 echo.yellow 'The test will be skipped if the Certification Tool cannot confirm that the'

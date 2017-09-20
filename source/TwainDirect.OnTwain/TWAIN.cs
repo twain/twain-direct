@@ -581,7 +581,7 @@ namespace TWAINWorkingGroup
         /// </summary>
         /// <param name="a_stateTarget">The TWAIN state that we want to end up at</param>
         static int s_iCloseDsmDelay = 0;
-        public void Rollback(STATE a_stateTarget)
+        public TWAIN.STATE Rollback(STATE a_stateTarget)
         {
             int iRetry;
             STS sts;
@@ -609,7 +609,7 @@ namespace TWAINWorkingGroup
                     // Clear the command variables...
                     m_twaincommand.Delete(lIndex);
                 }
-                return;
+                return (m_state);
             }
 
             // If we get a sequence error, then we'll repeat the loop from
@@ -699,6 +699,9 @@ namespace TWAINWorkingGroup
                 // All done...
                 break;
             }
+
+            // How did we do?
+            return (m_state);
         }
 
         #endregion
