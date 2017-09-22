@@ -45,6 +45,17 @@
             <File Id="pdfras_writer_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_writer_managed.dll" KeyPath="yes" />
           </Component>
 
+          <?if $(var.Platform) = x64 ?>
+            <Component Id="vcruntime140.dll" Guid="{C1AEA2BD-E303-46EA-AD84-188743206436}">
+              <File Id="vcruntime140.dll.x64" Source="$(var.LibFolder)\Runtime\x64\vcruntime140.dll" KeyPath="yes" />
+            </Component>
+          <?else ?>
+            <Component Id="vcruntime140.dll" Guid="{B6833713-8724-4265-B0CE-070FCA310429}">
+              <File Id="vcruntime140.dll.x86" Source="$(var.LibFolder)\Runtime\x86\vcruntime140.dll" KeyPath="yes" />
+            </Component>
+          <?endif ?>
+
+
         </Directory>
       </Directory>
     </Directory>

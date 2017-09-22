@@ -71,6 +71,13 @@
       <RefTargetDir>INSTALLFOLDER</RefTargetDir>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Localization\" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\en-US.wxl" />
+    <EmbeddedResource Include="Localization\ru-RU.wxl" />
+  </ItemGroup>
   <Import Project="$(WixTargetsPath)" />
   <Import Condition="Exists('$(DigitalSignTargets)')" Project="$(DigitalSignTargets)" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
