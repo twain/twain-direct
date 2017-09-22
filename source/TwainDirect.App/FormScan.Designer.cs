@@ -34,6 +34,9 @@
             this.m_buttonStop = new System.Windows.Forms.Button();
             this.m_listviewCertification = new System.Windows.Forms.ListView();
             this.m_buttonSelect = new System.Windows.Forms.Button();
+            this.m_textbox1 = new System.Windows.Forms.TextBox();
+            this.m_textbox2 = new System.Windows.Forms.TextBox();
+            this.m_textboxSummary = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage2)).BeginInit();
             this.SuspendLayout();
@@ -52,7 +55,7 @@
             // m_buttonScan
             // 
             this.m_buttonScan.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonScan.Location = new System.Drawing.Point(533, 453);
+            this.m_buttonScan.Location = new System.Drawing.Point(533, 507);
             this.m_buttonScan.Name = "m_buttonScan";
             this.m_buttonScan.Size = new System.Drawing.Size(75, 23);
             this.m_buttonScan.TabIndex = 1;
@@ -63,7 +66,7 @@
             // m_buttonSetup
             // 
             this.m_buttonSetup.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonSetup.Location = new System.Drawing.Point(452, 453);
+            this.m_buttonSetup.Location = new System.Drawing.Point(452, 507);
             this.m_buttonSetup.Name = "m_buttonSetup";
             this.m_buttonSetup.Size = new System.Drawing.Size(75, 23);
             this.m_buttonSetup.TabIndex = 3;
@@ -85,7 +88,7 @@
             // m_buttonClose
             // 
             this.m_buttonClose.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.m_buttonClose.Location = new System.Drawing.Point(95, 453);
+            this.m_buttonClose.Location = new System.Drawing.Point(95, 507);
             this.m_buttonClose.Name = "m_buttonClose";
             this.m_buttonClose.Size = new System.Drawing.Size(75, 23);
             this.m_buttonClose.TabIndex = 5;
@@ -96,7 +99,7 @@
             // m_buttonOpen
             // 
             this.m_buttonOpen.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.m_buttonOpen.Location = new System.Drawing.Point(13, 453);
+            this.m_buttonOpen.Location = new System.Drawing.Point(13, 507);
             this.m_buttonOpen.Name = "m_buttonOpen";
             this.m_buttonOpen.Size = new System.Drawing.Size(75, 23);
             this.m_buttonOpen.TabIndex = 6;
@@ -107,7 +110,7 @@
             // m_buttonStop
             // 
             this.m_buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStop.Location = new System.Drawing.Point(614, 453);
+            this.m_buttonStop.Location = new System.Drawing.Point(614, 507);
             this.m_buttonStop.Name = "m_buttonStop";
             this.m_buttonStop.Size = new System.Drawing.Size(75, 23);
             this.m_buttonStop.TabIndex = 7;
@@ -117,8 +120,7 @@
             // 
             // m_listviewCertification
             // 
-            this.m_listviewCertification.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.m_listviewCertification.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.m_listviewCertification.Location = new System.Drawing.Point(13, 13);
             this.m_listviewCertification.Name = "m_listviewCertification";
@@ -129,7 +131,7 @@
             // m_buttonSelect
             // 
             this.m_buttonSelect.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.m_buttonSelect.Location = new System.Drawing.Point(176, 453);
+            this.m_buttonSelect.Location = new System.Drawing.Point(176, 507);
             this.m_buttonSelect.Name = "m_buttonSelect";
             this.m_buttonSelect.Size = new System.Drawing.Size(75, 23);
             this.m_buttonSelect.TabIndex = 9;
@@ -137,11 +139,44 @@
             this.m_buttonSelect.UseVisualStyleBackColor = true;
             this.m_buttonSelect.Click += new System.EventHandler(this.m_buttonSelect_Click);
             // 
+            // m_textbox1
+            // 
+            this.m_textbox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_textbox1.Location = new System.Drawing.Point(13, 444);
+            this.m_textbox1.Name = "m_textbox1";
+            this.m_textbox1.ReadOnly = true;
+            this.m_textbox1.Size = new System.Drawing.Size(335, 20);
+            this.m_textbox1.TabIndex = 13;
+            // 
+            // m_textbox2
+            // 
+            this.m_textbox2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_textbox2.Location = new System.Drawing.Point(354, 444);
+            this.m_textbox2.Name = "m_textbox2";
+            this.m_textbox2.ReadOnly = true;
+            this.m_textbox2.Size = new System.Drawing.Size(335, 20);
+            this.m_textbox2.TabIndex = 14;
+            // 
+            // m_textboxSummary
+            // 
+            this.m_textboxSummary.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_textboxSummary.Location = new System.Drawing.Point(13, 471);
+            this.m_textboxSummary.Name = "m_textboxSummary";
+            this.m_textboxSummary.ReadOnly = true;
+            this.m_textboxSummary.Size = new System.Drawing.Size(676, 20);
+            this.m_textboxSummary.TabIndex = 15;
+            // 
             // FormScan
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(702, 488);
+            this.ClientSize = new System.Drawing.Size(702, 545);
+            this.Controls.Add(this.m_textboxSummary);
+            this.Controls.Add(this.m_textbox2);
+            this.Controls.Add(this.m_textbox1);
             this.Controls.Add(this.m_buttonSelect);
             this.Controls.Add(this.m_buttonStop);
             this.Controls.Add(this.m_buttonOpen);
@@ -156,6 +191,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage2)).EndInit();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -170,5 +206,8 @@
         private System.Windows.Forms.Button m_buttonStop;
         private System.Windows.Forms.ListView m_listviewCertification;
         private System.Windows.Forms.Button m_buttonSelect;
+        private System.Windows.Forms.TextBox m_textbox1;
+        private System.Windows.Forms.TextBox m_textbox2;
+        private System.Windows.Forms.TextBox m_textboxSummary;
     }
 }

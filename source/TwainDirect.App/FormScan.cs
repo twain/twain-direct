@@ -140,8 +140,8 @@ namespace TwainDirect.App
             SetButtons(EBUTTONSTATE.CLOSED);
 
             // Clear the picture boxes...
-            LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null);
-            LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null);
+            LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null, "");
+            LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null, "");
 
             // Create the mdns monitor, and start it...
             m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
@@ -311,8 +311,8 @@ namespace TwainDirect.App
 
             // Clear the picture boxes, make sure we start with the left box...
             m_iUseBitmap = 0;
-            LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null);
-            LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null);
+            LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null, "");
+            LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null, "");
 
             // You won't find FormSetup.SetupMode.capturingOptions being handled
             // here, because its negotiation takes place entirely on the setup
@@ -785,6 +785,13 @@ namespace TwainDirect.App
                 m_dnssd = null;
             }
 
+            // More cleanup...
+            if (m_twainlocalscannerclient != null)
+            {
+                m_twainlocalscannerclient.Dispose();
+                m_twainlocalscannerclient = null;
+            }
+
             // Close the log...
             Log.Info(Path.GetFileNameWithoutExtension(Application.ExecutablePath) + " Log Ended...");
             Log.Close();
@@ -839,6 +846,9 @@ namespace TwainDirect.App
             m_pictureboxImage1.Show();
             m_pictureboxImage2.Show();
             m_listviewCertification.Hide();
+
+            // Update the summary...
+            UpdateSummary();
         }
 
         /// <summary>
@@ -873,6 +883,7 @@ namespace TwainDirect.App
         {
             string szBasename;
             string szPdf;
+            string szImageText;
             bool blGotImage = false;
             string szFinishedImageBasename;
             byte[] abImage;
@@ -918,12 +929,14 @@ namespace TwainDirect.App
                 if (m_iUseBitmap == 0)
                 {
                     m_iUseBitmap = 1;
-                    LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, bitmap);
+                    szImageText = Path.GetFileName(szPdf);
+                    LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, bitmap, szImageText);
                 }
                 else
                 {
                     m_iUseBitmap = 0;
-                    LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, bitmap);
+                    szImageText = Path.GetFileName(szPdf);
+                    LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, bitmap, szImageText);
                 }
             }
 
@@ -938,7 +951,14 @@ namespace TwainDirect.App
         /// <param name="a_graphics"></param>
         /// <param name="a_bitmapGraphic"></param>
         /// <param name="a_bitmap">bitmap to display or null to clear it</param>
-        private void LoadImage(ref PictureBox a_picturebox, ref Graphics a_graphics, ref Bitmap a_bitmapGraphic, Bitmap a_bitmap)
+        private void LoadImage
+        (
+            ref PictureBox a_picturebox,
+            ref Graphics a_graphics,
+            ref Bitmap a_bitmapGraphic,
+            Bitmap a_bitmap,
+            string a_szImageText
+        )
         {
             double fRatioWidth = 0;
             double fRatioHeight = 0;
@@ -956,7 +976,7 @@ namespace TwainDirect.App
                 PictureBox picturebox = a_picturebox;
                 Graphics graphics = a_graphics;
                 Bitmap bitmapGraphic = a_bitmapGraphic;
-                Invoke(new MethodInvoker(delegate() {LoadImage(ref picturebox, ref graphics, ref bitmapGraphic, a_bitmap);}));
+                Invoke(new MethodInvoker(delegate() {LoadImage(ref picturebox, ref graphics, ref bitmapGraphic, a_bitmap, a_szImageText);}));
                 return;
             }
 
@@ -969,6 +989,17 @@ namespace TwainDirect.App
                 iWidth = (int)(a_bitmap.Width * fRatio);
                 iHeight = (int)(a_bitmap.Height * fRatio);
             }
+
+            // Update the text...
+            if (a_picturebox == m_pictureboxImage1)
+            {
+                m_textbox1.Text = a_szImageText;
+            }
+            else
+            {
+                m_textbox2.Text = a_szImageText;
+            }
+            UpdateSummary();
 
             // Display the image...
             a_graphics.FillRectangle(m_brushBackground, m_rectangleBackground);
@@ -1025,6 +1056,9 @@ namespace TwainDirect.App
                 Invoke(new MethodInvoker(delegate() { SetButtons(a_ebuttonstate); }));
                 return;
             }
+
+            // Update the summary...
+            UpdateSummary();
 
             // Fix the buttons...
             switch (a_ebuttonstate)
@@ -1447,9 +1481,6 @@ namespace TwainDirect.App
                 MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
             }
 
-            // New state...
-            SetButtons(EBUTTONSTATE.OPEN);
-
             // Update the title bar...
             Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.GetLinkLocal() + ")";
 
@@ -1481,6 +1512,35 @@ namespace TwainDirect.App
                         );
                     }
                 }
+            }
+
+            // New state...
+            SetButtons(EBUTTONSTATE.OPEN);
+        }
+
+        /// <summary>
+        /// Update the summary text box...
+        /// </summary>
+        void UpdateSummary()
+        {
+            if (m_twainlocalscannerclient != null)
+            {
+                if (m_formsetup != null)
+                {
+                    m_textboxSummary.Text =
+                        "state=" + m_twainlocalscannerclient.GetState() +
+                        "; task='" + m_formsetup.GetTaskName() + "'" +
+                        "; getthumbnails=" + m_formsetup.GetThumbnails().ToString().ToLowerInvariant() +
+                        "; getmetadatawithimage=" + m_formsetup.GetMetadataWithImage().ToString().ToLowerInvariant();
+                }
+                else
+                {
+                    m_textboxSummary.Text = "state=" + m_twainlocalscannerclient.GetState();
+                }
+            }
+            else
+            {
+                m_textboxSummary.Text = "state=noSession";
             }
         }
 

@@ -214,6 +214,15 @@ namespace TwainDirect.App
         }
 
         /// <summary>
+        /// Get the name of the task...
+        /// </summary>
+        /// <returns>name of the task</returns>
+        public string GetTaskName()
+        {
+            return (Path.GetFileNameWithoutExtension(m_textboxUseUiSettings.Text));
+        }
+
+        /// <summary>
         /// We're not actually getting a thumbnail, instead we're asking
         /// if there's a request for thumbnails in the metadata...
         /// </summary>

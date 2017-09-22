@@ -117,7 +117,7 @@ namespace TwainDirect.OnSane
             TwainDirect.Support.Log.Info("IPC mode starting...");
 
             // Set up communication with our server process...
-            ipc = new Ipc(m_szIpc, false);
+            ipc = new Ipc(m_szIpc, false, null, null);
             ipc.MonitorPid(m_iPid);
             ipc.Connect();
 
