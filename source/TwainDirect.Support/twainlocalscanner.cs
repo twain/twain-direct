@@ -4006,17 +4006,25 @@ namespace TwainDirect.Support
                 foreach (string szBasename in lszBasenames)
                 {
                     // Copy the data...
-                    FileStream filestreamRead = new FileStream(szBasename + ".tdpdf", FileMode.Open);
-                    while (true)
+                    try
                     {
-                        iRead = filestreamRead.Read(abData, 0, abData.Length);
-                        if (iRead == 0)
+                        FileStream filestreamRead = new FileStream(szBasename + ".tdpdf", FileMode.Open);
+                        while (true)
                         {
-                            break;
+                            iRead = filestreamRead.Read(abData, 0, abData.Length);
+                            if (iRead == 0)
+                            {
+                                break;
+                            }
+                            filestreamWrite.Write(abData, 0, iRead);
                         }
-                        filestreamWrite.Write(abData, 0, iRead);
+                        filestreamRead.Close();
                     }
-                    filestreamRead.Close();
+                    catch (Exception exception)
+                    {
+                        Log.Error("read or write error - " + exception.Message);
+                        return (false);
+                    }
 
                     // Blow away the .tdpdf file...
                     File.Delete(szBasename + ".tdpdf");

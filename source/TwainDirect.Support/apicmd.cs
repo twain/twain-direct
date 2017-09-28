@@ -1991,6 +1991,14 @@ namespace TwainDirect.Support
                 // lRead is the number of valid bytes in abBuffer.
                 // lOffet is where we are in abBuffer.
 
+                // Bail...
+                if (m_lMultipartXferred > m_lMultipartContentLength)
+                {
+                    Log.Error("httphdr>>> we're being terminated (probably part of stopCapturing)...");
+                    m_httprequestdata.autoreseteventHttpWebRequest.Set();
+                    return;
+                }
+
                 // Read data...
                 try
                 {
@@ -2456,10 +2464,15 @@ namespace TwainDirect.Support
             lCRLF = IndexOf(m_abBufferHttpWebResponse, m_abCRLF, m_lOffset);
             if (lCRLF == -1)
             {
+                // Make sure we don't come back here again...
+                m_lMultipartXferred = m_lMultipartContentLength + 1;
+                Log.Error(m_szReason + ": missing CRLF terminator following block");
                 return;
             }
             if (lCRLF != m_lOffset)
             {
+                // Make sure we don't come back here again...
+                m_lMultipartXferred = m_lMultipartContentLength + 1;
                 Log.Error(m_szReason + ": badly constructed CRLF terminator following block");
                 return;
             }
@@ -2469,6 +2482,8 @@ namespace TwainDirect.Support
             lCRLF = IndexOf(m_abBufferHttpWebResponse, m_abCRLF, m_lOffset);
             if (lCRLF != m_lOffset)
             {
+                // Make sure we don't come back here again...
+                m_lMultipartXferred = m_lMultipartContentLength + 1;
                 Log.Error(m_szReason + ": badly constructed blank CRLF following block");
                 return;
             }
