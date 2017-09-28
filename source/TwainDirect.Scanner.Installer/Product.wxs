@@ -17,8 +17,8 @@
     
     <Property Id="ARPPRODUCTICON" Value="twain.ico" />
     <Property Id="ARPHELPLINK" Value="$(var.SupportUrl)" />
-    
-    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <MajorUpgrade DowngradeErrorMessage="!(loc.Error.DowngradeMessage)" />
 
     <Feature Id="ProductFeature" Title="TwainDirectProxy.Installer" Level="1">
       <ComponentRef Id="applicationShortcut"/>      
@@ -33,6 +33,9 @@
       <ComponentRef Id="pdfras_reader_managed.dll"/>
 
 			<ComponentRef Id="https.certificates"/>
+
+      <ComponentRef Id="vcruntime140.dll"/>
+
     </Feature>
 
     <!-- UI -->
@@ -40,8 +43,12 @@
     <WixVariable Id="WixUIBannerBmp" Value="$(var.ProductBannerBitmap)" />
     <WixVariable Id="WixUIDialogBmp" Value="$(var.ProductDialogBitmap)" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.ProductLicense)" />
-    <UIRef Id="WixUI_InstallDir" />
 
+    <UI>
+      <UIRef Id="WixUI_InstallDir" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="OpenBonjourDownloadPage">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+    </UI>
+    
 	  <util:CloseApplication Id="CloseRunningApp" Target="$(var.TwainDirect.Scanner.TargetFileName)"
 	                         CloseMessage="yes" RebootPrompt="no" Sequence="1" Timeout="10" />
 
@@ -75,6 +82,12 @@
 			<Custom Action="LaunchApp" After="BindHttpsPortQuietExec">(NOT REMOVE) AND (NOT INSTALLASSERVICE)</Custom>
 		</InstallExecuteSequence>
 
-	</Product>
-  
+    <!-- Post-Install Action -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.UI.DownloadBonjour.Text)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.UI.DownloadBonjour.Label)" />
+
+    <Property Id="WixShellExecTarget" Value="https://support.apple.com/kb/dl999" />
+    <CustomAction Id="OpenBonjourDownloadPage" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+
+  </Product>  
 </Wix>

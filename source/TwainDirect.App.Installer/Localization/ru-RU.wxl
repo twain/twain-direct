@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="ru-RU" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="ApplicationName">TWAIN Direct Application</String>
+  <String Id="Manufacturer">TWAIN Working Group</String>
+
+  <String Id="Platform.x64">64 бита</String>
+  <String Id="Platform.x86">32 бита</String>
+
+  <String Id="Error.DowngradeMessage">Более новая версия [ProductName] уже установлена.</String>
+
+  <String Id="UI.DownloadBonjour.Text">TWAIN Direct использует mDNS протокол для обнаружения сетевых сканеров. На платформе Windows, в качестве реализации mDNS протокола, может быть использован Apple Bonjour. Выберете "Скачать Bonjour" для того чтобы скачать Apple Bonjor после завершения установки.</String>
+  <String Id="UI.DownloadBonjour.Label">Скачать Bonjour</String>
+</WixLocalization>

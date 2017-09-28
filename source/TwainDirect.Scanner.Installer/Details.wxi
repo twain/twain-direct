@@ -5,18 +5,18 @@
 
   <!-- Product name as you want it to appear in Add/Remove Programs-->
   <?if $(var.Platform) = x64 ?>
-    <?define ShortProductName = "TWAIN Direct Scanner (64 bit)" ?>
-    <?define ProductName = "TWAIN Direct Scanner (64 bit)" ?>
+    <?define ShortProductName = "!(loc.ApplicationName) (!(loc.Platform.x64))" ?>
+    <?define ProductName = "!(loc.ApplicationName) (!(loc.Platform.x64))" ?>
     <?define Win64 = "yes" ?>
     <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
   <?else ?>
-    <?define ShortProductName = "TWAIN Direct Scanner (32 bit)" ?>
-    <?define ProductName = "TWAIN Direct Scanner (32 bit)" ?>
+    <?define ShortProductName = "!(loc.ApplicationName) (!(loc.Platform.x86s))" ?>
+    <?define ProductName = "!(loc.ApplicationName) (!(loc.Platform.x86))" ?>
     <?define Win64 = "no" ?>
     <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
   <?endif ?>
-  
-  <?define Manufacturer="TWAIN Working Group" ?>
+
+  <?define Manufacturer="!(loc.Manufacturer)" ?>
   <?define SupportUrl="http://www.twain.org" ?>
     
   <!-- 
@@ -41,6 +41,7 @@
   <?endif?>
 
   <!-- Resources -->
+  <?define LibFolder="$(var.ProjectDir)..\..\lib" ?>
   <?define ResourceFolder="$(var.ProjectDir)..\..\common" ?>
   <?define ProductIcon="$(var.ResourceFolder)\twain.ico" ?>
   <?define ProductDialogBitmap="$(var.ResourceFolder)\dialog.bmp" ?>
