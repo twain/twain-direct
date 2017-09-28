@@ -203,9 +203,18 @@ namespace TwainDirect.App
                     // because we don't know what's going on...
                     default:
                     case ApiCmd.ApiErrorFacility.undefined:
-                        Log.Error(aszDescriptions[0]);
-                        m_buttonClose_Click(null, null);
-                        MessageBox.Show(aszDescriptions[0]);
+                        if ((aszDescriptions == null) || (aszDescriptions.Length == 0))
+                        {
+                            Log.Error("unknown error, please check the logs for more information (yeah this is meta, if mean look up from this message)");
+                            m_buttonClose_Click(null, null);
+                            MessageBox.Show("unknown error, please check the logs for more information.");
+                        }
+                        else
+                        {
+                            Log.Error(aszDescriptions[0]);
+                            m_buttonClose_Click(null, null);
+                            MessageBox.Show(aszDescriptions[0]);
+                        }
                         break;
 
                     // All HTTP errors that get to this point end the session...
@@ -580,6 +589,13 @@ namespace TwainDirect.App
             while (   (m_twainlocalscannerclient.ClientGetSessionState() == "capturing")
                    || (m_twainlocalscannerclient.ClientGetSessionState() == "draining"))
             {
+                // If we're drained, we can scoot, this handles stopCapturing,
+                // which isn't going to close the session...
+                if (m_twainlocalscannerclient.ClientGetImageBlocksDrained())
+                {
+                    break;
+                }
+
                 // Do we have anything to release?
                 alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
                 if ((alImageBlocks == null) || (alImageBlocks.Length == 0))

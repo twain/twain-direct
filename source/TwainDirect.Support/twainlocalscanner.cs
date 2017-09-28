@@ -1302,9 +1302,9 @@ namespace TwainDirect.Support
             ////////////////////////////////////////////////////////////////
             // /privet/twaindirect/session command
             #region /privet/twaindirect/session command
-            if ((a_apicmd != null)
-                && (a_apicmd.GetUri() == "/privet/twaindirect/session")
-                && !a_blWaitForEvents)
+            if (    (a_apicmd != null)
+                &&  (a_apicmd.GetUri() == "/privet/twaindirect/session")
+                &&  !a_blWaitForEvents)
             {
                 // Okay, you're going to love this.  So in order to change our revision
                 // number in a meaningful way, we'll generate the string data we want
@@ -1411,6 +1411,48 @@ namespace TwainDirect.Support
                 // Do we have new event data?
                 if (a_apicmdEvent != null)
                 {
+
+                    // If we're out of imageBlocks, and can't get anymore,
+                    // then transition to noSession or ready...
+                    if (string.IsNullOrEmpty(a_apicmdEvent.GetImageBlocks()))
+                    {
+                        // The scanner has no more data for us...
+                        if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
+                        {
+                            m_twainlocalsession.SetSessionDoneCapturing(File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")));
+                        }
+
+                        // If we can't get any more images, then we need to start
+                        // checking if we've drained the pool...
+                        if ((m_twainlocalsession != null) && m_twainlocalsession.GetSessionDoneCapturing())
+                        {
+                            // We've run out of stuff to send...
+                            string[] aszTd = Directory.GetFiles(m_szTdImagesFolder, "*.td*");
+                            if ((aszTd == null) || (aszTd.Length == 0))
+                            {
+                                // Make a note of this...
+                                m_twainlocalsession.SetSessionImageBlocksDrained(true);
+
+                                // Where we go next depends on our current state...
+                                switch (GetState())
+                                {
+                                    default:
+                                        // Ignore it...
+                                        break;
+                                    case "draining":
+                                        SetSessionState(SessionState.ready);
+                                        break;
+                                    case "closed":
+                                        //SetSessionState(SessionState.noSession);
+                                        //EndSession();
+                                        //DeviceShutdownTwainDirectOnTwain(false);
+                                        break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Add it to the list...
                     for (ii = 0; ii < m_twainlocalsession.GetApicmdEvents().Length; ii++)
                     {
                         if (m_twainlocalsession.GetApicmdEvents()[ii] == null)
@@ -5487,7 +5529,7 @@ namespace TwainDirect.Support
                 }
 
                 // Loop for as long as we find data in the list...
-                for (;;)
+               while (m_waitforeventsinfo != null)
                 {
                     ApiCmd apicmd;
 

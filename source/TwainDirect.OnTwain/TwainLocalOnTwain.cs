@@ -1356,12 +1356,18 @@ namespace TwainDirect.OnTwain
 
                     // Ask for extended image info...
                     szStatus = "";
-                    szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
+                    szCapability = "ICAP_EXTIMAGEINFO";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                    if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
                     {
-                        TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
-                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        szStatus = "";
+                        szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
+                            return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        }
                     }
 
                     // Ask for PDF/raster...
@@ -1413,13 +1419,22 @@ namespace TwainDirect.OnTwain
                     }
 
                     // Ask for extended image info...
-                    szStatus = "";
-                    szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
+                    if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
                     {
-                        TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
-                        //return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        szStatus = "";
+                        szCapability = "ICAP_EXTIMAGEINFO";
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                        if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
+                        {
+                            szStatus = "";
+                            szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
+                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                            if (sts != TWAIN.STS.SUCCESS)
+                            {
+                                TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
+                                //return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                            }
+                        }
                     }
                 }
             }
@@ -1453,8 +1468,6 @@ namespace TwainDirect.OnTwain
         /// <returns>a twain local status</returns>
         private TwainLocalScanner.ApiStatus DeviceScannerStopCapturing(out string a_szSession)
         {
-            TWAIN.STS sts;
-
             // Init stuff...
             a_szSession = "";
 
@@ -1464,45 +1477,13 @@ namespace TwainDirect.OnTwain
                 return (TwainLocalScanner.ApiStatus.invalidSessionId);
             }
 
-            // It looks like we're done, so declare success and scoot...
-            if (m_twaincstoolkit.GetState() <= 4)
-            {
-                sts = TWAIN.STS.SUCCESS;
-            }
-
-            // We never got to state 6, this can happen if the request to
-            // stopCapturing comes in before we're processed MSG_XFERREADY...
-            else if (m_twaincstoolkit.GetState() == 5)
-            {
-                sts = (m_twaincstoolkit.Rollback(TWAIN.STATE.S4) == TWAIN.STATE.S4) ? TWAIN.STS.SUCCESS : TWAIN.STS.FAILURE;
-            }
-
-            // We're done scanning, so bail...
-            else if (m_blSessionImageBlocksDrained)
-            {
-                sts = TWAIN.STS.SUCCESS;
-                if (m_twaincstoolkit.GetState() == 5)
-                {
-                    sts = (m_twaincstoolkit.Rollback(TWAIN.STATE.S4) == TWAIN.STATE.S4) ? TWAIN.STS.SUCCESS : TWAIN.STS.FAILURE;
-                }
-            }
-
-            // We're still scanning, try to end gracefully by telling the
-            // scan loop to stopfeeder...
-            else
-            {
-                sts = TWAIN.STS.SUCCESS;
-                m_blStopFeeder = true;
-            }
+            // We can't stop the feeder from here, because it can only be issued
+            // in state 6, and only the scan loop knows what state it's currently
+            // in.  So we set a flag, and let the loop sort out when to send it...
+            m_blStopFeeder = true;
 
             // Build the reply...
             DeviceScannerGetSession(out a_szSession);
-
-            // All done...
-            if (sts == TWAIN.STS.SUCCESS)
-            {
-                return (TwainLocalScanner.ApiStatus.success);
-            }
 
             // Oh well, we'll try to abort...
             return (TwainLocalScanner.ApiStatus.success);

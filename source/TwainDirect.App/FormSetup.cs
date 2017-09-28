@@ -71,7 +71,6 @@ namespace TwainDirect.App
 
             // Find our write folder...
             szWriteFolder = Config.Get("writeFolder", "");
-            var applicationFolder = Config.Get("executablePath", "");
 
             // Handle scaling...
             fScale = (float)Config.Get("scale", 1.0);
@@ -113,7 +112,7 @@ namespace TwainDirect.App
             m_szCurrentTaskFile = Path.Combine(szWriteFolder, "currenttask");
 
             // We're putting the tasks into the write folder...
-            m_szTasksFolder = Path.Combine(Path.GetDirectoryName(applicationFolder), "tasks");
+            m_szTasksFolder = Path.Combine(Path.GetDirectoryName(szWriteFolder), "tasks");
             if (!Directory.Exists(m_szTasksFolder))
             {
                 try
@@ -383,7 +382,7 @@ namespace TwainDirect.App
                 openfiledialog.CheckFileExists = true;
                 openfiledialog.CheckPathExists = true;
                 openfiledialog.Multiselect = false;
-                openfiledialog.Filter = "Tasks|*.txt";
+                openfiledialog.Filter = "Tasks|*.tdt";
                 openfiledialog.FilterIndex = 0;
                 if (!Directory.Exists(openfiledialog.InitialDirectory))
                 {

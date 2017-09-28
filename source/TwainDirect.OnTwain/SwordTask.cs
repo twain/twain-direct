@@ -1522,13 +1522,19 @@ namespace TwainDirect.OnTwain
             if (m_deviceregister.GetTwainInquiryData().GetExtImageInfo())
             {
                 szStatus = "";
-                szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
+                szCapability = "ICAP_EXTIMAGEINFO";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
                 {
-                    TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
-                    a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
-                    return (false);
+                    szStatus = "";
+                    szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
+                        a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                        return (false);
+                    }
                 }
             }
 
@@ -4141,7 +4147,7 @@ namespace TwainDirect.OnTwain
                 CAP_REACQUIREALLOWED,
                 CAP_MAXBATCHBUFFERS,
 
-            CAP_EXTIMAGEINFO,
+            ICAP_EXTIMAGEINFO,
                 ICAP_PATCHCODEDETECTIONENABLED,
                     ICAP_PATCHCODESEARCHMODE,
                     ICAP_PATCHCODEMAXRETRIES,
@@ -5402,6 +5408,8 @@ namespace TwainDirect.OnTwain
             public SwordStatus Process()
             {
                 bool blForceAny = false;
+                string szStatus;
+                string szCapability;
                 SwordStatus swordstatus;
                 SwordPixelFormat swordpixelformat;
 
@@ -5535,6 +5543,28 @@ namespace TwainDirect.OnTwain
                         m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCS_BOTH
                         goto ABORT;
                     }
+                }
+
+                #endregion
+
+
+                // Negotiate the source...
+                #region Negotiate the source...
+
+                // Feeder enabled...
+                if (!string.IsNullOrEmpty(m_szSource) && (m_szSource != "any"))
+                {
+                    szStatus = "";
+                    szCapability = m_szFeederEnabled;
+                    m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                }
+
+                // Duplex enabled...
+                if (!string.IsNullOrEmpty(m_szDuplexEnabled))
+                {
+                    szStatus = "";
+                    szCapability = m_szDuplexEnabled;
+                    m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 }
 
                 #endregion
@@ -6180,7 +6210,7 @@ namespace TwainDirect.OnTwain
                     m_swordattributeFeederenabled.AppendValue(m_szJsonKey, a_szPixelType, a_szSourceException, m_szVendor);
                 }
 
-            #endregion
+                #endregion
 
 
                 // Handle problems...
@@ -7192,18 +7222,24 @@ namespace TwainDirect.OnTwain
 
                 else if (m_szTdValue == "autoVersion1")
 	            {
-		            switch (a_szPixelFormat)
+                    string szTwPixelType = "*";
+                    string[] asz = a_szPixelFormat.Split(','); // ex: ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2
+                    if ((asz != null) || (asz.Length >= 4))
+                    {
+                        szTwPixelType = asz[3];
+                    }
+		            switch (szTwPixelType)
 		            {
 			            default:
-                        case "any":
+                        case "*":
 				            m_swordstatus = SwordStatus.SuccessIgnore;
 				            return (SwordStatus.SuccessIgnore);
-			            case "bw1":
+			            case "0": // TWPT_BW
                             m_aszTwValue = new string[1];
                             m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
                             break;
-			            case "gray8":
-			            case "rgb24":
+			            case "1": // TWPT_GRAY
+                        case "2": // TWPT_RGB
                             m_aszTwValue = new string[1];
                             m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
                             break;

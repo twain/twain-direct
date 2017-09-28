@@ -1650,12 +1650,14 @@ namespace TwainDirect.Support
             }
             catch (WebException webexception)
             {
-                CollectWebException("GetResponse", webexception);
+                CollectWebException("GetResponse", webexception, true);
+                m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
             catch (Exception exception)
             {
-                CollectException("GetResponse", exception);
+                CollectException("GetResponse", exception, true);
+                m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
 
@@ -1829,11 +1831,13 @@ namespace TwainDirect.Support
             catch (WebException webexception)
             {
                 CollectWebException("GetResponse", webexception);
+                m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
             catch (Exception exception)
             {
                 CollectException("GetResponse", exception);
+                m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
         }
@@ -2740,7 +2744,8 @@ namespace TwainDirect.Support
                 }
                 catch
                 {
-                    // Nothing needed here...
+                    Log.Error(a_szReason + " failed...");
+                    return (false);
                 }
 
                 // Handle a timeout...
@@ -3550,11 +3555,15 @@ namespace TwainDirect.Support
         /// <param name="a_szReason">source of the message</param>
         /// <param name="a_exception">the exception we're processing</param>
         /// <returns>true on success</returns>
-        private bool CollectException(string a_szReason, Exception a_exception)
+        private bool CollectException(string a_szReason, Exception a_exception, bool a_blSkipThrow = false)
         {
             // Scoot without any other action...
             if (m_blAbortClientRequest)
             {
+                if (a_blSkipThrow)
+                {
+                    return (false);
+                }
                 throw a_exception;
             }
 
@@ -3584,7 +3593,7 @@ namespace TwainDirect.Support
         /// <param name="a_szReason">source of the message</param>
         /// <param name="a_webexception">the web exception we're processing</param>
         /// <returns>true on success</returns>
-        private bool CollectWebException(string a_szReason, WebException a_webexception)
+        private bool CollectWebException(string a_szReason, WebException a_webexception, bool a_blSkipThrow = false)
         {
             string szStatusData = "";
             string szHttpStatusDescription;
@@ -3593,6 +3602,10 @@ namespace TwainDirect.Support
             // Scoot without any other action...
             if (m_blAbortClientRequest)
             {
+                if (a_blSkipThrow)
+                {
+                    return (false);
+                }
                 throw a_webexception;
             }
 
