@@ -780,7 +780,7 @@ namespace TwainDirect.Support
             int iXfer = 0;
             bool blMultipart = false;
             long lContentLength;
-            long lImageBlockSeperator;
+            long lImageBlockSeparator;
             string szUri;
             string szReply = "";
             string szMultipartBoundary = "";
@@ -980,7 +980,7 @@ namespace TwainDirect.Support
 
             // Dump the status...
             m_httpresponsedata.iResponseHttpStatus = (int)(HttpStatusCode)httpwebresponse.StatusCode;
-            Log.Info("http>>> recvsts " + m_httpresponsedata.iResponseHttpStatus + " (" + httpwebresponse.StatusCode + ")");
+            Log.Info("http>>> recvstatus " + m_httpresponsedata.iResponseHttpStatus + " (" + httpwebresponse.StatusCode + ")");
 
             // Get the response headers, if any...
             m_httpresponsedata.aszResponseHeaders = null;
@@ -1141,7 +1141,7 @@ namespace TwainDirect.Support
 
                     // This is our block separator, it has the dashes and the
                     // terminating CRLF...
-                    byte[] abImageBlockSeperator = Encoding.UTF8.GetBytes(szMultipartBoundary);
+                    byte[] abImageBlockSeparator = Encoding.UTF8.GetBytes(szMultipartBoundary);
 
                     // This is our CRLF/CRLF detector that tells us that we've
                     // captured a complete header block...
@@ -1237,18 +1237,18 @@ namespace TwainDirect.Support
 
                         // The first item in this block must be --boundary\r\n, so the
                         // index we get back better match where we are in the iOffset...
-                        lImageBlockSeperator = IndexOf(abBuffer, abImageBlockSeperator, lOffset);
-                        if (lImageBlockSeperator == -1)
+                        lImageBlockSeparator = IndexOf(abBuffer, abImageBlockSeparator, lOffset);
+                        if (lImageBlockSeparator == -1)
                         {
                             Log.Error(a_szReason + ": missing --boundary in multipart/mixed");
                             return (false);
                         }
-                        if (lImageBlockSeperator != lOffset)
+                        if (lImageBlockSeparator != lOffset)
                         {
                             Log.Error(a_szReason + ": misaligned --boundary in multipart/mixed");
                             return (false);
                         }
-                        lOffset += abImageBlockSeperator.Length;
+                        lOffset += abImageBlockSeparator.Length;
 
                         // Okey-dokey, what we have now are a collection of HTTP headers
                         // separated by CRLF's with a blank line (also a CRLF) that
@@ -1670,7 +1670,7 @@ namespace TwainDirect.Support
 
             // Dump the status...
             m_httpresponsedata.iResponseHttpStatus = (int)(HttpStatusCode)m_httpresponsedata.httpwebresponse.StatusCode;
-            Log.Info("http>>> recvsts " + m_httpresponsedata.iResponseHttpStatus + " (" + m_httpresponsedata.httpwebresponse.StatusCode + ")");
+            Log.Info("http>>> recvstatus " + m_httpresponsedata.iResponseHttpStatus + " (" + m_httpresponsedata.httpwebresponse.StatusCode + ")");
 
             // Get the response headers, if any...
             m_httpresponsedata.aszResponseHeaders = null;
@@ -1715,6 +1715,9 @@ namespace TwainDirect.Support
             // Get the content length...
             m_lContentLength = m_httpresponsedata.httpwebresponse.ContentLength;
 
+            // Start the tally...
+            m_xfertally = new XferTally(m_lContentLength);
+
             // Get the content type...
             ContentType contenttype = new ContentType(m_httpresponsedata.httpwebresponse.ContentType);
 
@@ -1740,9 +1743,6 @@ namespace TwainDirect.Support
                     Log.Error(m_szReason + ": bad multipart/mixed boundary...");
                     return;
                 }
-
-                // This is the form we expect to find in the data stream...
-                m_szMultipartBoundary = "--" + m_szMultipartBoundary + "\r\n";
             }
 
             // Anything else is bad...
@@ -1784,7 +1784,8 @@ namespace TwainDirect.Support
 
                     // This is our block separator, it has the dashes and the
                     // terminating CRLF...
-                    m_abImageBlockSeperator = Encoding.UTF8.GetBytes(m_szMultipartBoundary);
+                    m_abBoundarySeparator = Encoding.UTF8.GetBytes("--" + m_szMultipartBoundary + "\r\n");
+                    m_abBoundaryTerminator = Encoding.UTF8.GetBytes("--" + m_szMultipartBoundary + "--\r\n");
 
                     // This is our CRLF/CRLF detector that tells us that we've
                     // captured a complete header block...
@@ -1866,6 +1867,7 @@ namespace TwainDirect.Support
                 // If we got data, then get more data, we'll keep doing
                 // this callback until we've gotten all of the data...
                 iRead = m_httpresponsedata.streamHttpWebResponse.EndRead(a_iasyncresult);
+                m_xfertally.AddHttpPayloadRead(iRead);
                 m_lMultipartXferred += iRead;
                 m_lResponseBytesXferred += iRead;
                 LogXfer("jsn", iRead);
@@ -1901,6 +1903,9 @@ namespace TwainDirect.Support
                     Buffer.BlockCopy(m_abBufferHttpWebResponse, 0, abReply, 0, (int)m_lResponseBytesXferred);
                     m_httpresponsedata.szResponseData = Encoding.UTF8.GetString(abReply, 0, (int)m_lResponseBytesXferred);
                 }
+
+                // Process update...
+                m_xfertally.AddHttpPayloadProcessed(m_lResponseBytesXferred);
             }
             catch (WebException webexception)
             {
@@ -1939,8 +1944,9 @@ namespace TwainDirect.Support
         private void ReadCallBackMultipartHeader(IAsyncResult a_iasyncresult)
         {
             int iXfer;
+            long lSkip;
             long lCRLF;
-            long lImageBlockSeperator;
+            long lImageBlockSeparator;
             IAsyncResult iasyncresult;
 
             // Get the data coming back...
@@ -1991,25 +1997,18 @@ namespace TwainDirect.Support
                 // lRead is the number of valid bytes in abBuffer.
                 // lOffet is where we are in abBuffer.
 
-                // Bail...
-                if (m_lMultipartXferred > m_lMultipartContentLength)
-                {
-                    Log.Error("httphdr>>> we're being terminated (probably part of stopCapturing)...");
-                    m_httprequestdata.autoreseteventHttpWebRequest.Set();
-                    return;
-                }
-
                 // Read data...
                 try
                 {
                     iXfer = m_httpresponsedata.streamHttpWebResponse.EndRead(a_iasyncresult);
+                    m_xfertally.AddHttpPayloadRead(iXfer);
                     m_lRead += iXfer;
                     m_lResponseBytesXferred += iXfer;
                     LogXfer("hdr", iXfer);
                 }
                 catch (Exception exception)
                 {
-                    Log.Error("httphdr>>> EndRead failed - " + exception.Message);
+                    Log.Error("http>>> EndRead failed - " + exception.Message);
                     m_httprequestdata.autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -2018,7 +2017,26 @@ namespace TwainDirect.Support
                 // we don't have anything cached from a prior read, so we can bail...
                 if (m_lRead == 0)
                 {
-                    Log.Verbose("httphdr>>> done...");
+                    Log.Verbose("http>>> recvdone (read 0)...");
+                    m_httprequestdata.autoreseteventHttpWebRequest.Set();
+                    return;
+                }
+
+                // Check for the terminator, it has to be at the beginning
+                // of the buffer for us to accept it...
+                lImageBlockSeparator = IndexOf(m_abBufferHttpWebResponse, m_abBoundaryTerminator, m_lOffset);
+                if (lImageBlockSeparator == m_lOffset)
+                {
+                    Log.Verbose("http>>> recvdone (terminator seen)...");
+                    m_xfertally.AddHttpPayloadProcessed(m_abBoundaryTerminator.Length);
+                    m_httprequestdata.autoreseteventHttpWebRequest.Set();
+                    return;
+                }
+
+                // Bail...
+                if (m_lMultipartXferred > m_lMultipartContentLength)
+                {
+                    Log.Verbose("http>>> recvdone (data overflow)...");
                     m_httprequestdata.autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -2050,20 +2068,21 @@ namespace TwainDirect.Support
 
                 // The first item in this block must be --boundary\r\n, so the
                 // index we get back better match where we are in the iOffset...
-                lImageBlockSeperator = IndexOf(m_abBufferHttpWebResponse, m_abImageBlockSeperator, m_lOffset);
-                if (lImageBlockSeperator == -1)
+                lImageBlockSeparator = IndexOf(m_abBufferHttpWebResponse, m_abBoundarySeparator, m_lOffset);
+                if (lImageBlockSeparator == -1)
                 {
                     Log.Error("httphdr>>> missing --boundary in multipart/mixed");
                     m_httprequestdata.autoreseteventHttpWebRequest.Set();
                     return;
                 }
-                if (lImageBlockSeperator != m_lOffset)
+                if (lImageBlockSeparator != m_lOffset)
                 {
                     Log.Error("httphdr>>> misaligned --boundary in multipart/mixed");
                     m_httprequestdata.autoreseteventHttpWebRequest.Set();
                     return;
                 }
-                m_lOffset += m_abImageBlockSeperator.Length;
+                m_lOffset += m_abBoundarySeparator.Length;
+                m_xfertally.AddHttpPayloadProcessed(m_abBoundarySeparator.Length);
 
                 // Okey-dokey, what we have now are a collection of HTTP headers
                 // separated by CRLF's with a blank line (also a CRLF) that
@@ -2094,7 +2113,9 @@ namespace TwainDirect.Support
                     // pointing to the first byte of data...
                     if (lCRLF == m_lOffset)
                     {
-                        m_lOffset += (lCRLF - m_lOffset) + m_abCRLF.Length;
+                        lSkip = (lCRLF - m_lOffset) + m_abCRLF.Length;
+                        m_lOffset += lSkip;
+                        m_xfertally.AddHttpPayloadProcessed(lSkip);
                         break;
                     }
 
@@ -2155,7 +2176,9 @@ namespace TwainDirect.Support
                     }
 
                     // We've read the header data, skip over it...
+                    lSkip = (lCRLF - m_lOffset) + m_abCRLF.Length;
                     m_lOffset += (lCRLF - m_lOffset) + m_abCRLF.Length;
+                    m_xfertally.AddHttpPayloadProcessed(lSkip);
                 }
             }
             catch (WebException webexception)
@@ -2168,6 +2191,12 @@ namespace TwainDirect.Support
                 CollectException("GetData", exception);
                 return;
             }
+
+            // Squirrel away the number of bytes in the header...
+            m_lHeaderSize = m_lOffset;
+
+            // Make a new multipart section in the tally...
+            m_xfertally.MultipartCreate(m_lMultipartContentLength);
 
             // Capture JSON data...
             if (m_blMultipartApplicationJson)
@@ -2209,6 +2238,9 @@ namespace TwainDirect.Support
 
                 // This is our new offset...
                 m_lOffset += m_lMultipartContentLength;
+
+                // Process tally for the multipart...
+                m_xfertally.MultipartAddHttpPayloadProcessed(m_lMultipartContentLength);
 
                 // We're assuming that the CRLF/CRLF data is already in this
                 // block.  It seems reasonable, but if you see bad things
@@ -2261,11 +2293,18 @@ namespace TwainDirect.Support
                 if (m_lMultipartContentLength <= (m_lRead - m_lOffset))
                 {
                     // Write out the data segment we have...
-                    m_lMultipartXferred += (m_lRead - m_lOffset);
-                    m_lWritten += (m_lRead - m_lOffset);
-                    LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", m_lOffset, (m_lRead - m_lOffset));
-                    m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, (int)m_lOffset, (int)(m_lRead - m_lOffset));
-                    m_lOffset = 0;
+                    m_lMultipartXferred += m_lMultipartContentLength;
+                    m_lWritten += m_lMultipartXferred;
+                    LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", m_lOffset, m_lMultipartXferred);
+                    m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, (int)m_lOffset, (int)m_lMultipartXferred);
+                    m_lOffset += m_lMultipartXferred;
+
+                    // We've completed the file, so close it...
+                    m_filestreamOutputFile.Close();
+                    m_filestreamOutputFile = null;
+
+                    // Process tally for the multipart...
+                    m_xfertally.MultipartAddHttpPayloadProcessed(m_lMultipartXferred);
 
                     // We're assuming that the CRLF/CRLF data is already in this
                     // block.  It seems reasonable, but if you see bad things
@@ -2290,11 +2329,15 @@ namespace TwainDirect.Support
                 // Write out the data segment we have...
                 if ((m_lRead - m_lOffset) > 0)
                 {
+                    // Write it...
                     m_lMultipartXferred += (m_lRead - m_lOffset);
                     m_lWritten += (m_lRead - m_lOffset);
                     LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", m_lOffset, (m_lRead - m_lOffset));
                     m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, (int)m_lOffset, (int)(m_lRead - m_lOffset));
                     m_lRead = m_lRead - m_lOffset; // we're tracking the content-length
+
+                    // Process tally for the multipart...
+                    m_xfertally.MultipartAddHttpPayloadProcessed(m_lRead);
                 }
 
                 // Start the read for the multipart pdf data...
@@ -2364,6 +2407,7 @@ namespace TwainDirect.Support
 
             // Get the data...
             iXfer = m_httpresponsedata.streamHttpWebResponse.EndRead(a_iasyncresult);
+            m_xfertally.AddHttpPayloadRead(iXfer);
             m_lRead += iXfer;
             m_lMultipartXferred += iXfer;
             m_lResponseBytesXferred += iXfer;
@@ -2381,6 +2425,9 @@ namespace TwainDirect.Support
                     LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", 0, iXfer);
                     m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, 0, iXfer);
                     m_lOffset += iXfer;
+
+                    // Process tally for the multipart...
+                    m_xfertally.MultipartAddHttpPayloadProcessed(iXfer);
 
                     // Read more data...
                     iasyncresult = m_httpresponsedata.streamHttpWebResponse.BeginRead
@@ -2406,9 +2453,13 @@ namespace TwainDirect.Support
             long lRemainder = iXfer - lLastWrite;
             if (lLastWrite > 0)
             {
+                // Write the data...
                 m_lWritten += lLastWrite;
                 LogWrite(m_blMultipartApplicationPdfThumbnail ? "thm" : "pdf", 0, lLastWrite);
                 m_filestreamOutputFile.Write(m_abBufferHttpWebResponse, 0, (int)lLastWrite);
+
+                // Process tally for the multipart...
+                m_xfertally.MultipartAddHttpPayloadProcessed(lLastWrite);
             }
 
             // We've completed the file, so close it...
@@ -2432,11 +2483,15 @@ namespace TwainDirect.Support
             ConsumeEndOfBoundary();
 
             // Start the read for the next multipart header...
+            if (m_lOffset >= m_lRead)
+            {
+                m_lOffset = 0;
+            }
             iasyncresult = m_httpresponsedata.streamHttpWebResponse.BeginRead
             (
                 m_abBufferHttpWebResponse,
-                0,
-                (int)m_abBufferHttpWebResponse.Length,
+                (int)m_lRead, // set by ConsumeEndOfBoundary...
+                (int)(m_abBufferHttpWebResponse.Length - m_lRead),
                 new AsyncCallback(ReadCallBackMultipartHeaderLaunchpad),
                 this
             );
@@ -2476,9 +2531,10 @@ namespace TwainDirect.Support
                 Log.Error(m_szReason + ": badly constructed CRLF terminator following block");
                 return;
             }
+            m_lOffset += 2;
+            m_xfertally.AddHttpPayloadProcessed(m_abCRLF.Length);
 
             // And this CRLF is a blank line...
-            m_lOffset += 2;
             lCRLF = IndexOf(m_abBufferHttpWebResponse, m_abCRLF, m_lOffset);
             if (lCRLF != m_lOffset)
             {
@@ -2488,6 +2544,7 @@ namespace TwainDirect.Support
                 return;
             }
             m_lOffset += 2;
+            m_xfertally.AddHttpPayloadProcessed(m_abCRLF.Length);
 
             // Okay, now we've run out of data, go back up and try to read more...
             if (m_lOffset >= m_lRead)
@@ -2751,6 +2808,16 @@ namespace TwainDirect.Support
                     m_registeredwaithandle.Unregister(m_waithandle);
                 }
 
+                // Final tally...
+                if (m_xfertally != null)
+                {
+                    Log.Verbose("http>>> tally content-length=" + m_xfertally.GetContentLength() + " read=" + m_xfertally.GetHttpPayloadRead() + " processed=" + m_xfertally.GetHttpPayloadProcessed());
+                    for (long lIndex = 0; lIndex < m_xfertally.MultipartGetCount(); lIndex++)
+                    {
+                        Log.Verbose("http>>> tally[" + lIndex + "] content-length=" + m_xfertally.MultipartGetContentLength(lIndex) + " processed=" + m_xfertally.MultipartGetHttpPayloadProcessed(lIndex));
+                    }
+                }
+
                 // Release the HttpWebResponse.  We've already processed any bad things, and we
                 // have all the data, so don't let a throw from this call mess us up...
                 try
@@ -2787,7 +2854,7 @@ namespace TwainDirect.Support
             }
 
             // Log what we got back......
-            Log.Info("http>>> recvdata " + m_httpresponsedata.szResponseData);
+            Log.Info("http>>> recvdata  " + m_httpresponsedata.szResponseData);
 
             // All done, cleanup and final check...
             if (m_httpresponsedata.httpwebresponse != null)
@@ -3014,21 +3081,24 @@ namespace TwainDirect.Support
                 );
             }
 
+            // Don't forget the boundary terminator...
+            byte[] abBoundaryTerminator = Encoding.UTF8.GetBytes("--" + szBoundary + "--\r\n");
+
             // Okay, send what we have so far, start by specifying the length,
             // note the +4 on the image for the terminating CRLF and the
             // final empty-line CRLF...
             long lLength =
-                abBufferJson.Length +
-                ((abBufferThumbnailHeader != null) ? abBufferThumbnailHeader.Length : 0) +
-                ((abBufferThumbnail != null) ? abBufferThumbnail.Length : 0) +
-                ((abBufferImageHeader != null) ? abBufferImageHeader.Length : 0);
+                abBufferJson.Length +                                                           // separator + header + json + CRLFs
+                ((abBufferThumbnailHeader != null) ? abBufferThumbnailHeader.Length : 0) +      // separator + thumbnail header + CRLFs (optional)
+                ((abBufferThumbnail != null) ? abBufferThumbnail.Length : 0) +                  // thumbnail image + CRLFs              (optional)
+                ((abBufferImageHeader != null) ? abBufferImageHeader.Length : 0) +              // separator + image header + CRLFs     (optional)
+                ((filestreamImage != null) ? filestreamImage.Length + 4 : 0) +                  // image + CRLFs                        (optional)
+                abBoundaryTerminator.Length;                                                    // terminator
 
             // We're doing a multipart/mixed reply, so fix the header in our response...
             m_httplistenerdata.httplistenerresponse.Headers.Clear();
             m_httplistenerdata.httplistenerresponse.Headers.Add(HttpResponseHeader.ContentType, "multipart/mixed; boundary=\"" + szBoundary + "\"");
-            m_httplistenerdata.httplistenerresponse.ContentLength64 =
-                lLength +
-                ((filestreamImage != null) ? filestreamImage.Length + 4 : 0);
+            m_httplistenerdata.httplistenerresponse.ContentLength64 = lLength;
 
             // Make things a little easier to read...
             streamResponse = m_httplistenerdata.httplistenerresponse.OutputStream;
@@ -3102,6 +3172,9 @@ namespace TwainDirect.Support
                 filestreamImage.Close();
                 filestreamImage = null;
             }
+
+            // Send the boundary terminator...
+            streamResponse.Write(abBoundaryTerminator, 0, abBoundaryTerminator.Length);
 
             // Close the output stream...
             if (streamResponse != null)
@@ -3719,6 +3792,11 @@ namespace TwainDirect.Support
                 m_filestreamOutputFile.Dispose();
                 m_filestreamOutputFile = null;
             }
+            if (m_xfertally != null)
+            {
+                m_xfertally.Dispose();
+                m_xfertally = null;
+            }
         }
 
         /// <summary>
@@ -3968,13 +4046,15 @@ namespace TwainDirect.Support
         private byte[] m_abBufferHttpWebResponse;
         private long m_lContentLength;
         private string m_szMultipartBoundary;
-        private byte[] m_abImageBlockSeperator;
+        private byte[] m_abBoundarySeparator;
+        private byte[] m_abBoundaryTerminator;
         private byte[] m_abCRLF;
         private byte[] m_abCRLFCRLF;
         private bool m_blApplicationJsonSeen;
         private FileStream m_filestreamOutputFile;
         private long m_lRead;
         private long m_lOffset;
+        private long m_lHeaderSize;
         private bool m_blMultipartApplicationJson;
         private bool m_blMultipartApplicationPdf;
         private bool m_blMultipartApplicationPdfThumbnail;
@@ -3986,6 +4066,7 @@ namespace TwainDirect.Support
         private string[] m_aszHeaders;
         private WaitHandle m_waithandle;
         private RegisteredWaitHandle m_registeredwaithandle;
+        private XferTally m_xfertally;
 
         /// <summary>
         /// Error codes.  We need the array because a task with multiple
@@ -4071,6 +4152,189 @@ namespace TwainDirect.Support
         private string[] m_aszMultipartHeadersJson;
         private string[] m_aszMultipartHeadersPdfThumbnail;
         private string[] m_aszMultipartHeadersPdfImage;
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Classes...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Classes...
+
+        // Keep a record of the transfer...
+        private class XferTally : IDisposable
+        {
+            /// <summary>
+            /// Our constructor...
+            /// </summary>
+            /// <param name="a_lContentLength">the total number of bytes we expect to read (doesn't include the two terminating CRLFs)</param>
+            public XferTally(long a_lContentLength)
+            {
+                m_lContentLength = a_lContentLength;
+                m_lHttpPayloadRead = 0;
+                m_lHttpPayloadProcessed = 0;
+                m_lxfertally = new List<XferTally>();
+            }
+
+            /// <summary>
+            /// Destructor...
+            /// </summary>
+            ~XferTally()
+            {
+                Dispose(false);
+            }
+
+            /// <summary>
+            /// Cleanup...
+            /// </summary>
+            public void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            /// <summary>
+            /// Add to the number of bytes we've read...
+            /// </summary>
+            /// <param name="a_lHttpPayloadRead">number of bytes read</param>
+            public void AddHttpPayloadRead(long a_lHttpPayloadRead)
+            {
+                m_lHttpPayloadRead += a_lHttpPayloadRead;
+            }
+
+            /// <summary>
+            /// Add to the number of bytes we've processed...
+            /// </summary>
+            /// <param name="a_lHttpPayloadProcessed">number of bytes processed</param>
+            public void AddHttpPayloadProcessed(long a_lHttpPayloadProcessed)
+            {
+                m_lHttpPayloadProcessed += a_lHttpPayloadProcessed;
+            }
+
+            /// <summary>
+            /// Get the content length for the whole HTTP payload...
+            /// </summary>
+            /// <returns></returns>
+            public long GetContentLength()
+            {
+                return (m_lContentLength);
+            }
+
+            /// <summary>
+            /// Get the number of bytes read from the HTTP payload...
+            /// </summary>
+            /// <returns></returns>
+            public long GetHttpPayloadRead()
+            {
+                return (m_lHttpPayloadRead);
+            }
+
+            /// <summary>
+            /// Get the number of bytes processed from the HTTP payload...
+            /// </summary>
+            /// <returns></returns>
+            public long GetHttpPayloadProcessed()
+            {
+                return (m_lHttpPayloadProcessed);
+            }
+
+            /// <summary>
+            /// Create a new multipart tally...
+            /// </summary>
+            /// <param name="a_lContentLength">the total number of bytes we expect in this part (doesn't include the two terminating CRLFs)</param>
+            public void MultipartCreate(long a_lContentLength)
+            {
+                XferTally xfertally = new XferTally(a_lContentLength);
+                m_lxfertally.Add(xfertally);
+            }
+
+            /// <summary>
+            /// Added to the number of multipart bytes we've processed, do it
+            /// for this part and for the overall tally...
+            /// </summary>
+            /// <param name="a_lContentLength"></param>
+            public void MultipartAddHttpPayloadProcessed(long a_lHttpPayloadProcessed)
+            {
+                m_lHttpPayloadProcessed += a_lHttpPayloadProcessed;
+                m_lxfertally[m_lxfertally.Count - 1].m_lHttpPayloadProcessed += a_lHttpPayloadProcessed;
+            }
+
+            /// <summary>
+            /// Get the number of multiparts...
+            /// </summary>
+            /// <returns></returns>
+            public long MultipartGetCount()
+            {
+                return (m_lxfertally.Count);
+            }
+
+            /// <summary>
+            /// Get the number of multiparts...
+            /// </summary>
+            /// <returns></returns>
+            public long MultipartGetContentLength(long a_lIndex)
+            {
+                if (a_lIndex >= m_lxfertally.Count)
+                {
+                    return (-1);
+                }
+                return (m_lxfertally[(int)a_lIndex].m_lContentLength);
+            }
+
+            /// <summary>
+            /// Get the number of multiparts...
+            /// </summary>
+            /// <returns></returns>
+            public long MultipartGetHttpPayloadProcessed(long a_lIndex)
+            {
+                if (a_lIndex >= m_lxfertally.Count)
+                {
+                    return (-1);
+                }
+                return (m_lxfertally[(int)a_lIndex].m_lHttpPayloadProcessed);
+            }
+
+            /// <summary>
+            /// Cleanup...
+            /// </summary>
+            /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+            internal void Dispose(bool a_blDisposing)
+            {
+                // Free managed resources...
+                if (m_lxfertally != null)
+                {
+                    m_lxfertally.Clear();
+                    m_lxfertally = null;
+                }
+            }
+
+            /// <summary>
+            /// The length of the entire record.  When referenced as
+            /// a part of m_lxfertally it's the length of a multipart
+            /// section...
+            /// </summary>
+            private long m_lContentLength;
+
+            /// <summary>
+            /// The number of bytes that have been read from the HTTP
+            /// payload. When done this number must be equal to the
+            /// m_lContentLength...
+            /// </summary>
+            private long m_lHttpPayloadRead;
+
+            /// <summary>
+            /// The number of bytes that have been processed, we can
+            /// read more bytes that needed.  Such as getting all of
+            /// the JSON data and some of the image data.  This keeps
+            /// of the bit that's actually been processed...
+            /// </summary>
+            private long m_lHttpPayloadProcessed;
+
+            /// <summary>
+            /// A tally for each of the multipart sections...
+            /// </summary>
+            private List<XferTally> m_lxfertally;
+        }
 
         #endregion
     }

@@ -437,7 +437,7 @@ namespace TwainDirect.Support
                         }
                     }
                 }
-                Log.Info("http>>> recvdata " + a_szJsonCommand);
+                Log.Info("http>>> recvdata  " + a_szJsonCommand);
             }
 
             // Dispatch the command...

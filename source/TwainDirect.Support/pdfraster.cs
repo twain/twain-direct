@@ -286,7 +286,7 @@ namespace TwainDirect.Support
                 }
 
                 // If uncompressed, need to remove BMP EOL conditions, basically we're
-                // packing the data on a byte boundry, instead of the DWORD boundary
+                // packing the data on a byte boundary, instead of the DWORD boundary
                 // that TWAIN requires...
                 else
                 {
