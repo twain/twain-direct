@@ -215,10 +215,10 @@ namespace TwainDirect.Support
                 0x300 /*WS_EX_OVERLAPPEDWINDOW*/,
                 wcex.lpszClassName,
                 wcex.lpszClassName,
-                0,
-                -2147483648, // CW_USEDEFAULT
-                0,
-                -2147483648, // CW_USEDEFAULT
+                -1000,  //0,
+                10,     //-2147483648, // CW_USEDEFAULT
+                -1000,  //0,
+                10,     //-2147483648, // CW_USEDEFAULT
                 0,
                 IntPtr.Zero,
                 IntPtr.Zero,

@@ -1666,6 +1666,7 @@ namespace TWAINWorkingGroupToolkit
             TWAIN.STS sts;
             string szFilename = "";
             MemoryStream memorystream;
+            MSG twainmsg;
             TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
 
             // Validate...
@@ -2298,7 +2299,15 @@ namespace TWAINWorkingGroupToolkit
                                 image = null;
 
                                 // Send the stuff to the application...
-                                ReportImage("ScanCallback: 027", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, szFile, m_twain.ImageinfoToCsv(twimageinfo), abImage, iSpaceForHeader);
+                                twainmsg = ReportImage("ScanCallback: 027", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, szFile, m_twain.ImageinfoToCsv(twimageinfo), abImage, iSpaceForHeader);
+                                if (twainmsg == MSG.STOPFEEDER)
+                                {
+                                    m_twainmsgPendingXfers = MSG.STOPFEEDER;
+                                }
+                                else if (twainmsg == MSG.RESET)
+                                {
+                                    m_twainmsgPendingXfers = MSG.RESET;
+                                }
 
                                 // Delete it if it's temp...
                                 if (blDeleteWhenDone)
@@ -2558,7 +2567,15 @@ namespace TWAINWorkingGroupToolkit
                                 image = null;
 
                                 // Send the stuff to the application...
-                                ReportImage("ScanCallback: 039", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, szFile, m_twain.ImageinfoToCsv(twimageinfo), abImage, iSpaceForHeader);
+                                twainmsg = ReportImage("ScanCallback: 039", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, szFile, m_twain.ImageinfoToCsv(twimageinfo), abImage, iSpaceForHeader);
+                                if (twainmsg == MSG.STOPFEEDER)
+                                {
+                                    m_twainmsgPendingXfers = MSG.STOPFEEDER;
+                                }
+                                else if (twainmsg == MSG.RESET)
+                                {
+                                    m_twainmsgPendingXfers = MSG.RESET;
+                                }
 
                                 // Delete it if it's temp...
                                 if (blDeleteWhenDone)
@@ -2726,7 +2743,7 @@ namespace TWAINWorkingGroupToolkit
                 // Turn the PDF/raster data into a bitmap...
                 if ((abImage != null) && (abImage.Length > 4) && (abImage[0] == '%') && (abImage[1] == 'P') && (abImage[2] == 'D') && (abImage[3] == 'F'))
                 {
-                    msgPendingxfers = ReportImage
+                    twainmsg = ReportImage
                     (
                         "ScanCallback: 049pdf",
                         TWAIN.DG.IMAGE.ToString(),
@@ -2739,6 +2756,14 @@ namespace TWAINWorkingGroupToolkit
                         abImage,
                         0
                     );
+                    if (twainmsg == MSG.STOPFEEDER)
+                    {
+                        m_twainmsgPendingXfers = MSG.STOPFEEDER;
+                    }
+                    else if (twainmsg == MSG.RESET)
+                    {
+                        m_twainmsgPendingXfers = MSG.RESET;
+                    }
                 }
 
                 // Handle anything else here...
@@ -2753,7 +2778,15 @@ namespace TWAINWorkingGroupToolkit
                         bitmap = new Bitmap(image);
                         image.Dispose();
                         image = null;
-                        msgPendingxfers = ReportImage("ScanCallback: 049", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, null, null, null, 0);
+                        twainmsg = ReportImage("ScanCallback: 049", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEMEMFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, null, null, null, 0);
+                        if (twainmsg == MSG.STOPFEEDER)
+                        {
+                            m_twainmsgPendingXfers = MSG.STOPFEEDER;
+                        }
+                        else if (twainmsg == MSG.RESET)
+                        {
+                            m_twainmsgPendingXfers = MSG.RESET;
+                        }
                         bitmap = null;
                         blXferDone = true;
                     }
@@ -2818,7 +2851,7 @@ namespace TWAINWorkingGroupToolkit
 
             // And let's get some more meta data, this time using extended image
             // info, which is a little more complex.  This is just being done to
-            // show how to make the call, as a general rule an applications should
+            // show how to make the call, as a general rule an application should
             // use one or the other, not both...
             if (blXferDone)
             {
@@ -2865,21 +2898,21 @@ namespace TWAINWorkingGroupToolkit
             }
 
             // We've been asked to do extra work...
-            switch (msgPendingxfers)
+            switch (m_twainmsgPendingXfers)
             {
                 // No work needed here...
                 default:
-                case TWAINCSToolkit.MSG.ENDXFER:
+                case MSG.ENDXFER:
                     break;
 
                 // Reset, we're exiting from scanning...
-                case TWAINCSToolkit.MSG.RESET:
+                case MSG.RESET:
                     m_twain.Rollback(m_stateAfterScan);
                     ReportImage("ScanCallback: 054", TWAIN.DG.CONTROL.ToString(), TWAIN.DAT.PENDINGXFERS.ToString(), TWAIN.MSG.RESET.ToString(), sts, null, null, null, null, 0);
                     return (TWAIN.STS.SUCCESS);
 
                 // Stop the feeder...
-                case TWAINCSToolkit.MSG.STOPFEEDER:
+                case MSG.STOPFEEDER:
                     TWAIN.TW_PENDINGXFERS twpendingxfersStopFeeder = default(TWAIN.TW_PENDINGXFERS);
                     sts = m_twain.DatPendingxfers(TWAIN.DG.CONTROL, TWAIN.MSG.STOPFEEDER, ref twpendingxfersStopFeeder);
                     if (sts != TWAIN.STS.SUCCESS)
@@ -3435,6 +3468,11 @@ namespace TWAINWorkingGroupToolkit
         /// the TWAIN Specification...
         /// </summary>
         private bool m_blAutomaticJpegOrTiff;
+
+        /// <summary>
+        /// Flag to stop feeder...
+        /// </summary>
+        private MSG m_twainmsgPendingXfers;
 
         #endregion
     }

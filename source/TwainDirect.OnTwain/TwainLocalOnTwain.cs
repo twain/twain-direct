@@ -584,9 +584,12 @@ namespace TwainDirect.OnTwain
 
                 // Work out the source...
                 string szSource = "";
+                bool blGotSheetNumber = false;
                 if (m_blFlatbed)
                 {
                     szSource = "flatbed";
+                    m_iSheetNumber += 1;
+                    blGotSheetNumber = true;
                 }
 
                 // The image came from a feeder...
@@ -605,6 +608,7 @@ namespace TwainDirect.OnTwain
                                 {
                                     if (twinfo.Item != m_uintptrDocumentNumber)
                                     {
+                                        blGotSheetNumber = true;
                                         if (blUpdateSheetNumber)
                                         {
                                             m_iSheetNumber += 1;
@@ -620,6 +624,7 @@ namespace TwainDirect.OnTwain
                                 {
                                     if (twinfo.Item != m_uintptrPageNumber)
                                     {
+                                        blGotSheetNumber = true;
                                         if (blUpdateSheetNumber)
                                         {
                                             m_iSheetNumber += 1;
@@ -655,6 +660,10 @@ namespace TwainDirect.OnTwain
                         if (!m_blDuplex)
                         {
                             szSource = "feederFront";
+                            if (!blGotSheetNumber)
+                            {
+                                m_iSheetNumber += 1;
+                            }
                         }
 
                         // We're duplex...
@@ -664,6 +673,10 @@ namespace TwainDirect.OnTwain
                             if ((m_iImageCount & 1) == 1)
                             {
                                 szSource = "feederFront";
+                                if (!blGotSheetNumber)
+                                {
+                                    m_iSheetNumber += 1;
+                                }
                             }
                             // Even number images...
                             else
@@ -803,21 +816,26 @@ namespace TwainDirect.OnTwain
             #endregion
 
             // We've been asked to stop the feeder, so sneak that in, but only do it once...
+            TWAINCSToolkit.MSG msg = TWAINCSToolkit.MSG.ENDXFER;
             if (    m_blStopFeeder
                 &&  !m_blStopFeederSent
-                &&  (m_twaincstoolkit.GetState() == 6))
+                &&  ((a_szDat == "IMAGEMEMXFER") || (a_szDat == "IMAGEMEMFILEXFER")))
             {
                 m_blStopFeederSent = true;
-                TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
-                sts = twain.DatPendingxfers(TWAIN.DG.CONTROL, TWAIN.MSG.STOPFEEDER, ref twpendingxfers);
-                if (sts != TWAIN.STS.SUCCESS)
+                if (m_deviceregisterSession.GetTwainInquiryData().GetPendingXfersStopFeeder())
                 {
-                    TWAINWorkingGroup.Log.Error("ReportImage: DatPendingxfers failed...");
+                    msg = TWAINCSToolkit.MSG.STOPFEEDER;
+                    TWAINWorkingGroup.Log.Info("ReportImage: " + a_szTag + " - DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER requested...");
+                }
+                else if (m_deviceregisterSession.GetTwainInquiryData().GetPendingXfersReset())
+                {
+                    msg = TWAINCSToolkit.MSG.RESET;
+                    TWAINWorkingGroup.Log.Info("ReportImage: " + a_szTag + " - DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET requested...");
                 }
             }
 
             // All done...
-            return (TWAINCSToolkit.MSG.ENDXFER);
+            return (msg);
         }
 
         /// <summary>

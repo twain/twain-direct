@@ -3281,14 +3281,13 @@ namespace TwainDirect.Support
             // - if we have imageBlocks, we're not done -or-
             // - if we have intermediate *.tw* files, we're not done -or-
             // - if we don't have imageBlocksDrained.meta, we're not done
-            m_blSessionImageBlocksDrained = true;
             m_sessiondata.blSessionDoneCapturing = File.Exists(Path.Combine(a_szTdImagesFolder, "imageBlocksDrained.meta"));
-            if (    a_blCapturing
-                &&  (!string.IsNullOrEmpty(m_szImageBlocks)
-                ||  ((aszTw != null) && (aszTw.Length > 0))
-                ||  !m_sessiondata.blSessionDoneCapturing))
+            if (    !a_blCapturing
+                ||  (string.IsNullOrEmpty(m_szImageBlocks)
+                &&  ((aszTw == null) || (aszTw.Length == 0))
+                &&  m_sessiondata.blSessionDoneCapturing))
             {
-                m_blSessionImageBlocksDrained = false;
+                m_blSessionImageBlocksDrained = true;
             }
 
             // The task reply...

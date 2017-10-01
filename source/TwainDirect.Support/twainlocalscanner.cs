@@ -766,15 +766,6 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// The pending HTTP command for long poll events...
-        /// </summary>
-        /// <returns>the object</returns>
-        public ApiCmd GetApiCmdEvent()
-        {
-            return (m_apicmdEvent);
-        }
-
-        /// <summary>
         /// Return the note= field...
         /// </summary>
         /// <returns>users friendly name</returns>
@@ -1036,6 +1027,7 @@ namespace TwainDirect.Support
                     m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
                     apicmd.SetEvent(a_szEvent, a_sessionstate.ToString(), m_twainlocalsession.GetSessionRevision());
                     DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, a_sessionstate, m_twainlocalsession.GetSessionRevision(), a_szEvent, a_blAllowEventWithNoSession);
+                    m_apicmdEvent = null;
                 }
             }
         }
@@ -1306,6 +1298,22 @@ namespace TwainDirect.Support
                 &&  (a_apicmd.GetUri() == "/privet/twaindirect/session")
                 &&  !a_blWaitForEvents)
             {
+                // The scanner has no more data for us...
+                if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
+                {
+                    SessionState sessionstate = m_twainlocalsession.GetSessionState();
+                    if (    (sessionstate == SessionState.capturing)
+                        ||  (sessionstate == SessionState.draining)
+                        ||  (sessionstate == SessionState.closed))
+                    {
+                        if (File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta"))
+                            || File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
+                        {
+                            m_twainlocalsession.SetSessionDoneCapturing(true);
+                        }
+                    }
+                }
+
                 // Okay, you're going to love this.  So in order to change our revision
                 // number in a meaningful way, we'll generate the string data we want
                 // to send back and compare it to the previous string we generated, if
@@ -1377,7 +1385,7 @@ namespace TwainDirect.Support
                     "}" + // results
                     "}";  // root
 
-                // Send the response, note that any multipart contruction work
+                // Send the response, note that any multipart construction work
                 // takes place in this function...
                 blSuccess = a_apicmd.HttpRespond("success", szResponse);
                 if (!blSuccess)
@@ -1411,17 +1419,26 @@ namespace TwainDirect.Support
                 // Do we have new event data?
                 if (a_apicmdEvent != null)
                 {
+                    // The scanner has no more data for us...
+                    if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
+                    {
+                        SessionState sessionstate = m_twainlocalsession.GetSessionState();
+                        if (    (sessionstate == SessionState.capturing)
+                            ||  (sessionstate == SessionState.draining)
+                            ||  (sessionstate == SessionState.closed))
+                        {
+                            if (    File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta"))
+                                ||  File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
+                            {
+                                m_twainlocalsession.SetSessionDoneCapturing(true);
+                            }
+                        }
+                    }
 
                     // If we're out of imageBlocks, and can't get anymore,
                     // then transition to noSession or ready...
                     if (string.IsNullOrEmpty(a_apicmdEvent.GetImageBlocks()))
                     {
-                        // The scanner has no more data for us...
-                        if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
-                        {
-                            m_twainlocalsession.SetSessionDoneCapturing(File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")));
-                        }
-
                         // If we can't get any more images, then we need to start
                         // checking if we've drained the pool...
                         if ((m_twainlocalsession != null) && m_twainlocalsession.GetSessionDoneCapturing())
@@ -1877,8 +1894,11 @@ namespace TwainDirect.Support
                     m_twainlocalsession.GetProcessTwainDirectOnTwain().Close();
                     m_twainlocalsession.SetProcessTwainDirectOnTwain(null);
                     DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lErrorErrorIndex);
-                    m_twainlocalsession.Dispose();
-                    m_twainlocalsession = null;
+                    if (m_twainlocalsession != null)
+                    {
+                        m_twainlocalsession.Dispose();
+                        m_twainlocalsession = null;
+                    }
                     return (false);
                 }
 
@@ -1896,8 +1916,11 @@ namespace TwainDirect.Support
                     m_twainlocalsession.GetProcessTwainDirectOnTwain().Close();
                     m_twainlocalsession.SetProcessTwainDirectOnTwain(null);
                     DeviceReturnError(szFunction, a_apicmd, jsonlookup.Get("status"), null, -1);
-                    m_twainlocalsession.Dispose();
-                    m_twainlocalsession = null;
+                    if (m_twainlocalsession != null)
+                    {
+                        m_twainlocalsession.Dispose();
+                        m_twainlocalsession = null;
+                    }
                     return (false);
                 }
 
@@ -1913,8 +1936,11 @@ namespace TwainDirect.Support
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
-                    m_twainlocalsession.Dispose();
-                    m_twainlocalsession = null;
+                    if (m_twainlocalsession != null)
+                    {
+                        m_twainlocalsession.Dispose();
+                        m_twainlocalsession = null;
+                    }
                     return (false);
                 }
 
@@ -2069,7 +2095,7 @@ namespace TwainDirect.Support
                     if (a_blGetSession)
                     {
                         Log.Info("");
-                        Log.Info("http>>> waitForEvents (response)");
+                        Log.Info("http>>> waitForEvents (response) sendevents=" + a_blSendEvents + " getsession=" + a_blGetSession + " eventname=" + a_szEventName);
                     }
 
                     // Create an event...
@@ -2126,6 +2152,7 @@ namespace TwainDirect.Support
                     if (!blSuccess)
                     {
                         DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
+                        a_apicmd = null;
                         return (false);
                     }
                 }
@@ -2522,12 +2549,6 @@ namespace TwainDirect.Support
                 // then transition to noSession or ready...
                 if (string.IsNullOrEmpty(a_apicmd.GetImageBlocks()))
                 {
-                    // The scanner has no more data for us...
-                    if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
-                    {
-                        m_twainlocalsession.SetSessionDoneCapturing(File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta")));
-                    }
-
                     // If we can't get any more images, then we need to start
                     // checking if we've drained the pool...
                     if ((m_twainlocalsession != null) && m_twainlocalsession.GetSessionDoneCapturing())
@@ -2547,6 +2568,7 @@ namespace TwainDirect.Support
                                     break;
                                 case "draining":
                                     SetSessionState(SessionState.ready);
+                                    DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
                                     break;
                                 case "closed":
                                     SetSessionState(SessionState.noSession);
@@ -3098,6 +3120,7 @@ namespace TwainDirect.Support
                 if (blSendImageBlocksEvent && (m_apicmdEvent != null))
                 {
                     DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
+                    m_apicmdEvent = null;
                 }
             }
         }
@@ -3130,7 +3153,10 @@ namespace TwainDirect.Support
 
                 // We start by assuming that any problems with the scanner have
                 // been resoved by the user...
+                CleanImageFolders();
                 m_blReadImageBlocksDrainedMeta = false;
+                m_twainlocalsession.SetSessionDoneCapturing(false);
+                m_twainlocalsession.SetSessionImageBlocksDrained(false);
                 m_twainlocalsession.SetSessionStatusSuccess(true);
                 m_twainlocalsession.SetSessionStatusDetected("nominal");
 
@@ -3337,6 +3363,7 @@ namespace TwainDirect.Support
             if (!blSuccess)
             {
                 DeviceReturnError(szFunction, m_apicmdEvent, "critical", null, -1);
+                m_apicmdEvent = null;
                 return (false);
             }
 
@@ -4310,9 +4337,12 @@ namespace TwainDirect.Support
                     ClientReturnError(a_apicmd, false, "", 0, "");
                     if (blCreatedTwainLocalSession)
                     {
-                        m_twainlocalsession.SetUserShutdown(false);
-                        m_twainlocalsession.Dispose();
-                        m_twainlocalsession = null;
+                        if (m_twainlocalsession != null)
+                        {
+                            m_twainlocalsession.SetUserShutdown(false);
+                            m_twainlocalsession.Dispose();
+                            m_twainlocalsession = null;
+                        }
                     }
                     return (false);
                 }
@@ -4837,6 +4867,8 @@ namespace TwainDirect.Support
                     szSessionId = m_twainlocalsession.GetSessionId();
                     m_twainlocalsession.SetSessionStatusSuccess(true);
                     m_twainlocalsession.SetSessionStatusDetected("nominal");
+                    m_twainlocalsession.SetSessionDoneCapturing(false);
+                    m_twainlocalsession.SetSessionImageBlocksDrained(false);
                 }
 
                 // Send the RESTful API command...
@@ -7361,14 +7393,6 @@ namespace TwainDirect.Support
 
                     // Set it...
                     m_sessionstate = a_sessionstate;
-
-                    // If we just started capturing, then we can't be done
-                    // or drained...
-                    if (m_sessionstate == SessionState.capturing)
-                    {
-                        SetSessionDoneCapturing(false);
-                        SetSessionImageBlocksDrained(false);
-                    }
                 }
             }
 

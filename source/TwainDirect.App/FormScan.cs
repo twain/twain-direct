@@ -364,6 +364,7 @@ namespace TwainDirect.App
                 // we've received a failure status...
                 if (m_blAbortCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
                 {
+                    Log.Info("ClientScan: break on abort, not success, or drained...");
                     break;
                 }
 
@@ -378,6 +379,7 @@ namespace TwainDirect.App
                     blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue);
                     if (m_blAbortCapturing)
                     {
+                        Log.Info("ClientScan: break on abort...");
                         break;
                     }
                     else if (m_blStopCapturing)
@@ -409,6 +411,7 @@ namespace TwainDirect.App
                             apicmd = new ApiCmd(m_dnssddeviceinfo);
                         }
                         blSuccessClientScan = false;
+                        Log.Info("ClientScan: break not success...");
                         break;
                     }
 
@@ -424,6 +427,7 @@ namespace TwainDirect.App
                 // we've received a failure status...
                 if (m_blAbortCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
                 {
+                    Log.Info("ClientScan: break on abort, not success, or drained (2)...");
                     break;
                 }
 

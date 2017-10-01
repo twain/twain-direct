@@ -803,7 +803,7 @@ namespace TwainDirect.Support
             /// <summary>
             /// Do we support sheet count?
             /// </summary>
-            /// <returns>true if sheet countis supported</returns>
+            /// <returns>true if sheet count is supported</returns>
             public bool GetSheetCount()
             {
                 return (m_blSheetCount);

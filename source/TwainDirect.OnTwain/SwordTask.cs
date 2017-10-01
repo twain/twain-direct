@@ -2332,7 +2332,6 @@ namespace TwainDirect.OnTwain
                         {
                             TWAINWorkingGroup.Log.Error(szFunction + "CAP_SUPPORTEDDATS has a badly formed container - " + a_szTwidentity);
                             m_twaininquirydata.SetDatTwainDirect(false);
-                            break;
                         }
                         else
                         {
@@ -2355,7 +2354,6 @@ namespace TwainDirect.OnTwain
                     {
                         TWAINWorkingGroup.Log.Error(szFunction + "CAP_SUPPORTEDDATS is not supported (exception) - " + a_szTwidentity);
                         m_twaininquirydata.SetDatTwainDirect(false);
-                        break;
                     }
                 }
 
@@ -2376,30 +2374,34 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO is false or not supported - " + a_szTwidentity);
                     m_twaininquirydata.SetExtImageInfo(false);
-                    break;
                 }
 
-                // Parse it...
-                aszContainer = CSV.Parse(szCapability);
-
-                // Oh dear...
-                if (aszContainer[1] != "TWON_ONEVALUE")
+                // We got something...
+                else
                 {
-                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
-                    m_twaininquirydata.SetExtImageInfo(false);
-                    break;
-                }
+                    // Parse it...
+                    aszContainer = CSV.Parse(szCapability);
 
-                // If we can't keep the UI off, then we can't use this driver...
-                if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO isn't TRUE - " + a_szTwidentity);
-                    m_twaininquirydata.SetExtImageInfo(false);
-                    break;
-                }
+                    // Oh dear...
+                    if (aszContainer[1] != "TWON_ONEVALUE")
+                    {
+                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
+                        m_twaininquirydata.SetExtImageInfo(false);
+                    }
 
-                // Good news, everybody...
-                m_twaininquirydata.SetExtImageInfo(true);
+                    // If we can't keep the UI off, then we can't use this driver...
+                    else if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+                    {
+                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO isn't TRUE - " + a_szTwidentity);
+                        m_twaininquirydata.SetExtImageInfo(false);
+                    }
+
+                    // Good news, everybody...
+                    else
+                    {
+                        m_twaininquirydata.SetExtImageInfo(true);
+                    }
+                }
 
                 #endregion
 
@@ -2414,41 +2416,41 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO is not supported - " + a_szTwidentity);
                     m_twaininquirydata.SetTweiTwainDirectMetadata(false);
-                    break;
                 }
 
                 // So far so good, now look it up...
-                try
+                else
                 {
-                    string[] asz = CSV.Parse(szStatus);
-                    if (asz.Length < 5)
+                    try
                     {
-                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO has a badly formed container - " + a_szTwidentity);
-                        m_twaininquirydata.SetTweiTwainDirectMetadata(false);
-                        break;
-                    }
-                    else
-                    {
-                        int iNumItems;
-                        if (int.TryParse(asz[3], out iNumItems))
+                        string[] asz = CSV.Parse(szStatus);
+                        if (asz.Length < 5)
                         {
-                            string szMetadata = ((int)TWAIN.TWEI.TWAINDIRECTMETADATA).ToString();
-                            for (int ii = 0; ii < iNumItems; ii++)
+                            TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO has a badly formed container - " + a_szTwidentity);
+                            m_twaininquirydata.SetTweiTwainDirectMetadata(false);
+                        }
+                        else
+                        {
+                            int iNumItems;
+                            if (int.TryParse(asz[3], out iNumItems))
                             {
-                                if (asz[3 + ii] == szMetadata)
+                                string szMetadata = ((int)TWAIN.TWEI.TWAINDIRECTMETADATA).ToString();
+                                for (int ii = 0; ii < iNumItems; ii++)
                                 {
-                                    m_twaininquirydata.SetTweiTwainDirectMetadata(true);
-                                    break;
+                                    if (asz[3 + ii] == szMetadata)
+                                    {
+                                        m_twaininquirydata.SetTweiTwainDirectMetadata(true);
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                catch
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO is not supported (exception) - " + a_szTwidentity);
-                    m_twaininquirydata.SetTweiTwainDirectMetadata(true);
-                    return (m_twaininquirydata);
+                    catch
+                    {
+                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO is not supported (exception) - " + a_szTwidentity);
+                        m_twaininquirydata.SetTweiTwainDirectMetadata(false);
+                    }
                 }
 
                 #endregion
@@ -2466,11 +2468,13 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH does not support TWSX_MEMFILE - " + a_szTwidentity);
                     m_twaininquirydata.SetImageMemFileXfer(false);
-                    break;
                 }
 
                 // We're good...
-                m_twaininquirydata.SetImageMemFileXfer(true);
+                else
+                {
+                    m_twaininquirydata.SetImageMemFileXfer(true);
+                }
 
                 #endregion
 
@@ -2487,11 +2491,13 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT does not support TWFF_PDFRASTER - " + a_szTwidentity);
                     m_twaininquirydata.SetPdfRaster(false);
-                    break;
                 }
 
                 // We're good...
-                m_twaininquirydata.SetPdfRaster(true);
+                else
+                {
+                    m_twaininquirydata.SetPdfRaster(true);
+                }
 
                 #endregion
 
@@ -2512,11 +2518,13 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET not supported - " + a_szTwidentity);
                     m_twaininquirydata.SetPendingXfersReset(false);
-                    break;
                 }
 
                 // We're good...
-                m_twaininquirydata.SetPendingXfersReset(true);
+                else
+                {
+                    m_twaininquirydata.SetPendingXfersReset(true);
+                }
 
                 #endregion
 
@@ -2551,11 +2559,13 @@ namespace TwainDirect.OnTwain
                     {
                         TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER not supported - " + a_szTwidentity);
                         m_twaininquirydata.SetPendingXfersStopFeeder(false);
-                        break;
                     }
 
                     // We're good...
-                    m_twaininquirydata.SetPendingXfersStopFeeder(true);
+                    else
+                    {
+                        m_twaininquirydata.SetPendingXfersStopFeeder(true);
+                    }
 
                     #endregion
 
@@ -2617,7 +2627,17 @@ namespace TwainDirect.OnTwain
 
 
                 // Congratulations, this is enough for Driver support...
-                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Driver);
+                if (   m_twaininquirydata.GetDeviceOnline()
+                    && m_twaininquirydata.GetUiControllable()
+                    && m_twaininquirydata.GetDatTwainDirect()
+                    && m_twaininquirydata.GetExtImageInfo()
+                    && m_twaininquirydata.GetTweiTwainDirectMetadata()
+                    && m_twaininquirydata.GetImageMemFileXfer()
+                    && m_twaininquirydata.GetPdfRaster()
+                    && m_twaininquirydata.GetPendingXfersReset())
+                {
+                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Driver);
+                }
 
 
                 // Break out of the "loop" and move on...
