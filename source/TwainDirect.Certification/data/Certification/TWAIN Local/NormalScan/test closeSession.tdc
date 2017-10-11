@@ -4,7 +4,9 @@
 ; - confirm that closeSession succeeds, and contains all required properties
 ;
 ; Arguments
-; arg:1 - state to check for
+; arg:1 - [OUT] set tag to true, if done
+; arg:2 - state to check for
+; arg:3 - state to check for
 ;
 ; Locals
 ; closesessionresult - result of the test
@@ -26,7 +28,7 @@ set closesessionresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call closeSession, and check the return properties...
 ;
-call CLOSESESSION '${arg:1}'
+call CLOSESESSION '${arg:1}' '${arg:2}'
 
 
 
@@ -40,7 +42,9 @@ return '${get:closesessionresult}'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; CLOSESESSION
-; arg:1 - state to check for
+; arg:1 - [OUT] set tag to true, if done
+; arg:2 - state to check for
+; arg:3 - state to check for
 ; returns pass or fail
 ;
 :CLOSESESSION
@@ -61,13 +65,18 @@ run 'function CheckJsonProperty' 'TL.NSCN.CLOS.007' 'closesessionresult' 'result
 run 'function CheckJsonProperty' 'TL.NSCN.CLOS.008' 'closesessionresult' 'results.session'
 run 'function CheckJsonProperty' 'TL.NSCN.CLOS.009' 'closesessionresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.CLOS.010' 'closesessionresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.CLOS.011' 'closesessionresult' 'results.session.state' == '${arg:1}'
+run 'function CheckJsonProperty' 'TL.NSCN.CLOS.011' 'closesessionresult' 'results.session.state' == '${arg:2}' '${arg:3}'
 if '${get:closesessionresult}' != 'pass' goto CLOSESESSION.FAIL
 ;
 ; We're good...
+set '${arg:1}' true
+if '${rj:results.session.imageBlocksDrained}' == 'true' goto RETURNVALUES.DRAINED
+set '${arg:1}' false
+:RETURNVALUES.DRAINED
 return 'pass'
 ;
 ; No joy...
 :CLOSESESSION.FAIL
+set '${arg:1}' true
 set closesessionresult 'fail'
 return 'fail'

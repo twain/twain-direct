@@ -11,6 +11,7 @@
 ; Locals
 ; getThumbnail - true if we should ask for thumbnails with the metadata
 ; getMetadata - true if we should ask for metadata with the image
+; sendstopcapturing - used to send stopCapturing after the first image
 ;
 ; returns: pass or fail
 ;
@@ -35,8 +36,9 @@ echo.yellow
 echo.yellow
 echo.yellow
 echo.yellow 'This test performs a normal scan.  If using a flatbed place a sheet'
-echo.yellow 'of paper on it.  If using an automatic document feeder, more than one'
-echo.yellow 'sheet may be used.  All of the sheets will be scanned.'
+echo.yellow 'of paper on it.  If using an automatic document feeder, multiple'
+echo.yellow 'sheets must be used.  stopCapturing will be issued after the first'
+echo.yellow 'image is transferred, so not all of the sheets will be scanned.'
 echo.yellow
 echo.yellow 'When ready, type "y" and press the Enter key.'
 echo.yellow
@@ -95,7 +97,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test getSession...
 ;
-run 'test getSession' 'ready'
+run 'test getSession' '' '' 'ready' ''
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 
@@ -119,6 +121,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Scan until the scanner stops giving us images...
 ;
+set sendstopcapturing 'true'
 :MAIN.WAIT
 	echo
 
@@ -127,8 +130,11 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Test getSession...
+	; Note the states, we'll start in capturing, after we send
+	; stopCapturing we'll go to draining or ready.  If we go to
+	; ready we expect outDone to be true...
 	;
-	run 'test getSession' 'capturing' 'outDone' 'outNextimageblock'
+	run 'test getSession' 'outDone' 'outNextimageblock' 'capturing' 'draining' 'ready'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 	if '${get:outDone}' == 'true' goto MAIN.DONE
 	if '${get:outNextimageblock}' != '' goto MAIN.GETIMAGE
@@ -144,23 +150,33 @@ goto MAIN.WAITNEXT
 	; Test readImageBlockMetadata, unless we're told to skip it...
 	;
 	if '${get:getMetadata}' == 'true' goto MAIN.SKIPREADBLOCKMETADATA
-	run 'test readImageBlockMetadata' '${get:outNextimageblock}' '${get:getThumbnail}' 'capturing'
+	run 'test readImageBlockMetadata' '${get:outNextimageblock}' '${get:getThumbnail}' 'capturing' 'draining'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 	:MAIN.SKIPREADBLOCKMETADATA
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Test readImageBlock...
 	;
-	run 'test readImageBlock' '${get:outNextimageblock}' '${get:getMetadata}' 'capturing'
+	run 'test readImageBlock' '${get:outNextimageblock}' '${get:getMetadata}' 'capturing' 'draining'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Test releaseImageBlocks...
 	;
-	run 'test releaseImageBlocks' '${get:outNextimageblock}' '${get:outNextimageblock}' 'outDone' 'outNextimageblock' 'capturing'
+	run 'test releaseImageBlocks' '${get:outNextimageblock}' '${get:outNextimageblock}' 'outDone' 'outNextimageblock' 'capturing' 'draining' 'ready'
 	if '${ret:}' != 'pass' goto MAIN.FAIL
 	if '${get:outDone}' == 'true' goto MAIN.DONE
 	if '${get:outNextimageblock}' == '' goto MAIN.WAIT
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Test stopCapturing (but only once)...
+	;
+	if '${get:sendstopcapturing}' != 'true' goto MAIN.SKIPSTOPCAPTURING
+		set sendstopcapturing 'false'
+		run 'test stopCapturing' 'outDone' 'draining' 'ready'
+		if '${ret:}' != 'pass' goto MAIN.FAIL
+		if '${get:outDone}' == 'true' goto :MAIN.DONE
+	:MAIN.SKIPSTOPCAPTURING
 
 goto MAIN.GETIMAGE
 :MAIN.DONE
@@ -168,17 +184,11 @@ goto MAIN.GETIMAGE
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Test stopCapturing...
-;
-run 'test stopCapturing' 'ready'
-if '${ret:}' != 'pass' goto MAIN.FAIL
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test closeSession...
+; Depending on how fast the scanner is, we may go to a closed state
+; or a noSession state, and that's okay. 
 ;
-run 'test closeSession' 'noSession'
+run 'test closeSession' 'closed' 'noSession'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 

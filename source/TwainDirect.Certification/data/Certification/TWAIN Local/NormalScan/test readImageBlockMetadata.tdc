@@ -7,6 +7,7 @@
 ; arg:1 - image block to read
 ; arg:2 - thumbnail flag (true/false)
 ; arg:3 - expected state
+; arg:4 - expected state
 ;
 ; Locals
 ; readimageblockmetadataresult - result of the test
@@ -28,7 +29,7 @@ set readimageblockmetadataresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call readImageBlockMetadata, and check the return properties...
 ;
-call READIMAGEBLOCKMETADATA '${arg:1}' '${arg:2}' '${arg:3}'
+call READIMAGEBLOCKMETADATA '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
 
 
 
@@ -45,6 +46,7 @@ return '${get:readimageblockmetadataresult}'
 ; arg:1 - image block to read
 ; arg:2 - thumbnail flag (true/false)
 ; arg:3 - expected state
+; arg:4 - expected state
 ; returns pass or fail
 ;
 :READIMAGEBLOCKMETADATA
@@ -64,7 +66,7 @@ run 'function CheckJsonProperty' 'TL.NSCN.RIBM.007' 'readimageblockmetadataresul
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.008' 'readimageblockmetadataresult' 'results.session'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.009' 'readimageblockmetadataresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.010' 'readimageblockmetadataresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RIBM.011' 'readimageblockmetadataresult' 'results.session.state' == '${arg:3}'
+run 'function CheckJsonProperty' 'TL.NSCN.RIBM.011' 'readimageblockmetadataresult' 'results.session.state' == '${arg:3}' '${arg:4}'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.012' 'readimageblockmetadataresult' 'results.metadata'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.013' 'readimageblockmetadataresult' 'results.metadata.status'
 run 'function CheckJsonProperty' 'TL.NSCN.RIBM.014' 'readimageblockmetadataresult' 'results.metadata.status.success' == 'true'

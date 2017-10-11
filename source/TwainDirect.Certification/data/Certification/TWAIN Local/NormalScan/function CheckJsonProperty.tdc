@@ -22,13 +22,13 @@
 ; Make sure the property exists...
 if '${rjx:${arg:3}}' == '(null)' goto CHECK.MISSING
 ;
-; if we have no operator, we're done...
+; If we have no operator, we're done...
 if '${arg:4}' == '' goto CHECK.PASS
 ;
-; Do the if-statement (init at 3, we'll start at 4), we are
+; Do the if-statement (init at 4, we'll start at 5), we are
 ; successful if we find an item, unsuccessful if we exhaust
 ; the list without finding a match...
-set checkproperty.aa 3
+set checkproperty.aa 4
 :CHECK.NEXTIF
 	increment checkproperty.aa ${get:checkproperty.aa} 1
 	if '${get:checkproperty.aa}' > '${arg:#}' goto CHECK.FAILEDIF
@@ -37,7 +37,7 @@ set checkproperty.aa 3
 ;
 ; An if-statement failed...
 :CHECK.FAILEDIF
-echopassfail '${arg:1}: check ${arg:3}' 'fail (if <${rj:${arg:3}}> ${arg:4} <${arg:${get:checkproperty.aa}}>)'
+echopassfail '${arg:1}: check ${arg:3}' 'fail (if <${rj:${arg:3}}> ${arg:4} <${arg:5}> <${arg:6}> <${arg:7}>)'
 set '${arg:2}' 'fail'
 return 'fail'
 ;

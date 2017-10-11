@@ -420,7 +420,7 @@ namespace TwainDirect.Support
 
                 if (m_connectiontype == ConnectionType.Socket)
                 {
-                    int iBytesTotal;
+                    int iBytesTotal = 0;
 
                     // Scoot...
                     if (m_blCancelCommands)
@@ -455,6 +455,15 @@ namespace TwainDirect.Support
                         return;
                     }
 
+                    // We've lost our connection...
+                    if (iBytesTotal <= 0)
+                    {
+                        Log.Info("ipcread> connection lost...");
+                        m_blCancelCommands = true;
+                        m_autoresetEventCommands.Set();
+                        return;
+                    }
+
                     // Log it...
                     string sz = Encoding.UTF8.GetString(abData, 0, iBytesTotal);
                     Log.Info("ipcread> " + sz);
@@ -475,7 +484,7 @@ namespace TwainDirect.Support
                 // Problem...
                 else
                 {
-                    Log.Error("Unrecognized connection type...");
+                    Log.Error("ipcread> unrecognized connection type...");
                     m_blCancelCommands = true;
                     return;
                 }

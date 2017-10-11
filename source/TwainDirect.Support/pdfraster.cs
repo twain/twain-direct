@@ -70,7 +70,7 @@ namespace TwainDirect.Support
             long a_lHeight
         )
         {
-            int iCount = (int) (a_lWidth * a_lHeight);
+            int iCount;
             int iHeader;
             IntPtr intptr;
             TiffBitonalUncompressed tiffbitonaluncompressed;
@@ -102,9 +102,11 @@ namespace TwainDirect.Support
                             Marshal.StructureToPtr(tiffbitonaluncompressed, intptr, true);
                             Marshal.Copy(intptr, a_abImage, 0, iHeader);
                             Marshal.FreeHGlobal(intptr);
+                            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
                             break;
                             
                         case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASEARD_CCITTG4:
+                            iCount = a_abStripData.Length;
                             tiffbitonalg4 = new TiffBitonalG4((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffbitonalg4);
                             a_abImage = new byte[iHeader + iCount];
@@ -112,6 +114,7 @@ namespace TwainDirect.Support
                             Marshal.StructureToPtr(tiffbitonalg4, intptr, true);
                             Marshal.Copy(intptr, a_abImage, 0, iHeader);
                             Marshal.FreeHGlobal(intptr);
+                            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
                             break;
                     }
                     break;
@@ -123,6 +126,7 @@ namespace TwainDirect.Support
                             return (false);
                             
                         case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_UNCOMPRESSED:
+                            iCount = (int)(a_lWidth * a_lHeight);
                             tiffgrayscaleuncompressed = new TiffGrayscaleUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffgrayscaleuncompressed);
                             a_abImage = new byte[iHeader + iCount];
@@ -130,13 +134,14 @@ namespace TwainDirect.Support
                             Marshal.StructureToPtr(tiffgrayscaleuncompressed, intptr, true);
                             Marshal.Copy(intptr, a_abImage, 0, iHeader);
                             Marshal.FreeHGlobal(intptr);
+                            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
                             break;
                             
                         case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_JPEG:
-                            iHeader = 0;
                             iCount = a_abStripData.Length;
+                            iHeader = 0;
                             a_abImage = new byte[iCount];
-                            File.WriteAllBytes("fu-gray.jpg", a_abStripData);
+                            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
                             break;
                     }
                     break;
@@ -148,7 +153,7 @@ namespace TwainDirect.Support
                             return (false);
                             
                         case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_UNCOMPRESSED:
-                            iCount *= 3; // 3 samples per pixel
+                            iCount = (int)((a_lWidth * 3) * a_lHeight * 3);
                             tiffcoloruncompressed = new TiffColorUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffcoloruncompressed);
                             a_abImage = new byte[iHeader + iCount];
@@ -156,20 +161,18 @@ namespace TwainDirect.Support
                             Marshal.StructureToPtr(tiffcoloruncompressed, intptr, true);
                             Marshal.Copy(intptr, a_abImage, 0, iHeader);
                             Marshal.FreeHGlobal(intptr);
+                            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
                             break;
                             
                         case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_JPEG:
-                            iHeader = 0;
                             iCount = a_abStripData.Length;
+                            iHeader = 0;                       
                             a_abImage = new byte[iCount];
-                            File.WriteAllBytes("fu-color.jpg", a_abStripData);
+                            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
                             break;
                     }
                     break;
             }
-            
-            // Copy the image data...
-            Buffer.BlockCopy(a_abStripData, 0, a_abImage, iHeader, iCount);
 
             // All done...
             return (true);

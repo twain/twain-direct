@@ -123,6 +123,8 @@ namespace TwainDirect.OnTwain
                 if (szJson == null)
                 {
                     TWAINWorkingGroup.Log.Info("IPC channel disconnected...");
+                    m_blIpcDisconnectCallbackArmed = false;
+                    blRunning = false;
                     break;
                 }
 
@@ -300,6 +302,14 @@ namespace TwainDirect.OnTwain
                         }
                         break;
                 }
+            }
+
+            // Last chance cleanup...
+            if (m_twaincstoolkit != null)
+            {
+                m_twaincstoolkit.CloseDriver();
+                m_twaincstoolkit.Cleanup();
+                m_twaincstoolkit = null;
             }
 
             // All done...
@@ -829,6 +839,20 @@ namespace TwainDirect.OnTwain
                 }
                 else if (m_deviceregisterSession.GetTwainInquiryData().GetPendingXfersReset())
                 {
+                    m_blResetSent = true;
+                    msg = TWAINCSToolkit.MSG.RESET;
+                    TWAINWorkingGroup.Log.Info("ReportImage: " + a_szTag + " - DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET requested...");
+                }
+            }
+
+            // We've been asked to close the session...
+            if (   m_blReset
+                && !m_blResetSent
+                && ((a_szDat == "IMAGEMEMXFER") || (a_szDat == "IMAGEMEMFILEXFER")))
+            {
+                m_blResetSent = true;
+                if (m_deviceregisterSession.GetTwainInquiryData().GetPendingXfersReset())
+                {
                     msg = TWAINCSToolkit.MSG.RESET;
                     TWAINWorkingGroup.Log.Info("ReportImage: " + a_szTag + " - DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET requested...");
                 }
@@ -949,7 +973,6 @@ namespace TwainDirect.OnTwain
         private TwainLocalScanner.ApiStatus DeviceScannerCloseSession(out string a_szSession)
         {
             string szStatus;
-            string szPendingxfers;
             string szUserinterface;
 
             // Init stuff...
@@ -977,21 +1000,26 @@ namespace TwainDirect.OnTwain
                 return (TwainLocalScanner.ApiStatus.success);
             }
 
+            // Make sure we're going bye-bye...
+            SetImageBlocksDrained(TWAIN.STS.SUCCESS);
+
             // Otherwise, just make sure we've stopped scanning...
             switch (this.m_twaincstoolkit.GetState())
             {
                 // DG_CONTROL / DAT_PENDINGXFERS / MSG_ENDXFER...
                 case 7:
-                    szStatus = "";
-                    szPendingxfers = "0,0";
-                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_ENDXFER", ref szPendingxfers, ref szStatus);
+                    // We can't end the session from here, because it can only be issued
+                    // in state 6, and only the scan loop knows what state it's currently
+                    // in.  So we set a flag, and let the loop sort out when to send it...
+                    m_blReset = true;
                     break;
 
                 // DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET...
                 case 6:
-                    szStatus = "";
-                    szPendingxfers = "0,0";
-                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingxfers, ref szStatus);
+                    // We can't end the session from here, because it can only be issued
+                    // in state 6, and only the scan loop knows what state it's currently
+                    // in.  So we set a flag, and let the loop sort out when to send it...
+                    m_blReset = true;
                     break;
 
                 // DG_CONTROL / DAT_USERINTERFACE / MSG_DISABLEDS, but only if we have no images...
@@ -1331,6 +1359,8 @@ namespace TwainDirect.OnTwain
             // Init stuff...
             m_blStopFeeder = false;
             m_blStopFeederSent = false;
+            m_blReset = false;
+            m_blResetSent = false;
             m_iImageCount = 0;
             a_szSession = "";
             ClearImageBlocksDrained();
@@ -1464,7 +1494,17 @@ namespace TwainDirect.OnTwain
             if (sts != TWAIN.STS.SUCCESS)
             {
                 TWAINWorkingGroup.Log.Info("Action: MSG_ENABLEDS failed");
-                return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                switch (sts)
+                {
+                    default:
+                    case TWAIN.STS.CANCEL:
+                    case TWAIN.STS.NOMEDIA:
+                        SetImageBlocksDrained(TWAIN.STS.NOMEDIA);
+                        return (TwainLocalScanner.ApiStatus.noMedia);
+                    case TWAIN.STS.BUSY:
+                        SetImageBlocksDrained(TWAIN.STS.BUSY);
+                        return (TwainLocalScanner.ApiStatus.busy);
+                }
             }
 
             // Build the reply...
@@ -1559,6 +1599,12 @@ namespace TwainDirect.OnTwain
         /// </summary>
         private bool m_blStopFeeder;
         private bool m_blStopFeederSent;
+
+        /// <summary>
+        /// Send MSG_STOPFEEDER when true, but only send it once...
+        /// </summary>
+        private bool m_blReset;
+        private bool m_blResetSent;
 
         /// <summary>
         /// Count of images for each TwainStartCapturing call, the

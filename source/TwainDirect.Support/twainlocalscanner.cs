@@ -232,9 +232,9 @@ namespace TwainDirect.Support
             // Confirm that this command is coming in on a good URI, if it's not
             // then ignore it...
             szUri = a_httplistenercontext.Request.RawUrl.ToString();
-            if ((szUri != "/privet/info")
-                && (szUri != "/privet/infoex")
-                && (szUri != "/privet/twaindirect/session"))
+            if (    (szUri != "/privet/info")
+                &&  (szUri != "/privet/infoex")
+                &&  (szUri != "/privet/twaindirect/session"))
             {
                 return;
             }
@@ -711,8 +711,11 @@ namespace TwainDirect.Support
             // We only need to do this if we're running a session...
             if ((m_twainlocalsession != null) && (m_twainlocalsession.GetSessionState() != SessionState.noSession))
             {
+                // Change state...
+                SetSessionState(SessionState.noSession, "Session critical...", a_blUserShutdown);
+
                 // Tell the application that we're in trouble...
-                DeviceSendEvent("critical", SessionState.noSession, true);
+                DeviceSendEvent("critical", true);
 
                 // Make a note of what we're doing...
                 Log.Error("DeviceSessionExited: session critical...");
@@ -724,7 +727,6 @@ namespace TwainDirect.Support
                 Thread.Sleep(1000);
 
                 // Scrag the session...
-                SetSessionState(SessionState.noSession, "Session critical...", a_blUserShutdown);
                 EndSession();
             }
         }
@@ -810,6 +812,182 @@ namespace TwainDirect.Support
         // Private Methods
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Methods
+
+        /// <summary>
+        /// One stop shop for handling state transitions.  All functions come here
+        /// to figure this out.  The combination of a function and a status causes
+        /// us to work out a transition, if there is one.
+        /// 
+        /// Some status values can force us to make a transition, regardless of the
+        /// current function.
+        /// 
+        /// Note that this function only determines the state we want to be in, it
+        /// does not set that state.  That's because we have to report the state
+        /// before fully acting on it, like with noSession.
+        /// </summary>
+        /// <param name="a_szFunction"></param>
+        /// <param name="a_szStatus"></param>
+        /// <returns></returns>
+        private SessionState DeviceUpdateSessionState(string a_szFunction, string a_szStatus)
+        {
+            // If we have no session object, then we have no session...
+            if (m_twainlocalsession == null)
+            {
+                return (SessionState.noSession);
+            }
+
+            // A critical status sends us to noSession...
+            if (a_szStatus == "critical")
+            {
+                return (SessionState.noSession);
+            }
+
+            // If the session timed out, we go to noSession...
+            if (a_szStatus == "sessionTimedOut")
+            {
+                return (SessionState.noSession);
+            }
+
+            // Any other non-success status leaves us in the current state...
+            if (a_szStatus != "success")
+            {
+                return (m_twainlocalsession.GetSessionState());
+            }
+
+            // If our state is draining or closed, or if the method calling
+            // us is stopCapturing, closeSession, or releaseImageBlocks then
+            // we need to check our drain status.  We'd like OnChangedBridge
+            // to do this for us, but there's a race condition between the
+            // time the OS hits the callback, and this call, so we need to
+            // be explict about it...
+            if (    (a_szFunction == "stopCapturing")
+                ||  (a_szFunction == "closeSession")
+                ||  (a_szFunction == "releaseImageBlocks")
+                ||  (m_twainlocalsession.GetSessionState() == SessionState.draining)
+                ||  (m_twainlocalsession.GetSessionState() == SessionState.closed))
+            {
+                // Check if we're done capturing, this involves seeing the drained
+                // file in either folder...
+                if (!m_twainlocalsession.GetSessionDoneCapturing())
+                {
+                    if (    File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta"))
+                        ||  File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
+                    {
+                        m_twainlocalsession.SetSessionDoneCapturing(true);
+                    }
+                }
+
+                // Check if we're drained.  We have to be done capturing, and we
+                // can't find any image block files...
+                if (    m_twainlocalsession.GetSessionDoneCapturing()
+                    &&  !m_twainlocalsession.GetSessionImageBlocksDrained())
+                {
+                    string[] aszTd = Directory.GetFiles(m_szTdImagesFolder, "*.*pdf");
+                    string[] aszTw = Directory.GetFiles(m_szTwImagesFolder, "*.tw*");
+                    if (    ((aszTd == null) || (aszTd.Length == 0))
+                        &&  ((aszTw == null) || (aszTw.Length == 0)))
+                    {
+                        m_twainlocalsession.SetSessionImageBlocksDrained(true);
+                    }
+                }
+            }
+
+            // Handle the functions...
+            switch (a_szFunction)
+            {
+                // If we don't recognize the function, leave the state alone...
+                default:
+                    return (m_twainlocalsession.GetSessionState());
+
+                // closeSession
+                // If we have no pending images we go to noSession, otherwise
+                // we go to closed.  It doesn't matter if this is issued in
+                // a capturing or a draining state, the result is the same...
+                case "closeSession":
+                    if (m_twainlocalsession.GetSessionImageBlocksDrained())
+                    {
+                        return (SessionState.noSession);
+                    }
+                    return (SessionState.closed);
+
+                // createSession
+                // On success we always go to ready...
+                case "createSession":
+                    return (SessionState.ready);
+
+                // getSession and waitForEvents
+                // We make our decision based on the current state...
+                case "getSession":
+                case "waitForEvents":
+                case "releaseImageBlocks":
+                    switch (m_twainlocalsession.GetSessionState())
+                    {
+                        // If we don't handle it, just return the current state...
+                        default:
+                            return (m_twainlocalsession.GetSessionState());
+
+                        // If we're capturing, see if we've drained all of the
+                        // images, and if so, go to ready.  Otherwise stay in
+                        // the current capturing state...
+                        case SessionState.capturing:
+                            if (m_twainlocalsession.GetSessionImageBlocksDrained())
+                            {
+                                return (SessionState.ready);
+                            }
+                            return (SessionState.capturing);
+
+                        // If we're draining, see if we've drained all of the
+                        // images, and if so, go to ready.  Otherwise stay in
+                        // the current draining state...
+                        case SessionState.draining:
+                            if (m_twainlocalsession.GetSessionImageBlocksDrained())
+                            {
+                                return (SessionState.ready);
+                            }
+                            return (SessionState.draining);
+
+                        // If we're closed, see if we've drained all of the
+                        // images, and if so, go to noSession.  Otherwise stay in
+                        // the current closed state...
+                        case SessionState.closed:
+                            if (m_twainlocalsession.GetSessionImageBlocksDrained())
+                            {
+                                return (SessionState.noSession);
+                            }
+                            return (SessionState.closed);
+                    }
+
+                // readImageBlockMetadata
+                // We always stay in the current state...
+                case "readImageBlockMetadata":
+                    return (m_twainlocalsession.GetSessionState());
+
+                // readImageBlock
+                // We always stay in the current state...
+                case "readImageBlock":
+                    return (m_twainlocalsession.GetSessionState());
+
+                // sendTask
+                // We always stay in the current state...
+                case "sendTask":
+                    return (m_twainlocalsession.GetSessionState());
+
+                // startCapturing
+                // On success we always go to capturing...
+                case "startCapturing":
+                    return (SessionState.capturing);
+
+                // stopCapturing
+                // If we have no pending images we go to ready, otherwise
+                // we go to draining....
+                case "stopCapturing":
+                    if (m_twainlocalsession.GetSessionImageBlocksDrained())
+                    {
+                        return (SessionState.ready);
+                    }
+                    return (SessionState.draining);
+            }
+        }
 
         /// <summary>
         /// Remove files from our image folders...
@@ -1008,12 +1186,10 @@ namespace TwainDirect.Support
         /// Queue an event for waitForEvents to send...
         /// </summary>
         /// <param name="a_szEvent">the event to send</param>
-        /// <param name="a_sessionstate">the state to send</param>
         /// <param name="a_blAllowEventWithNoSession">needed for sessionTimeout and critical events</param>
         private void DeviceSendEvent
         (
             string a_szEvent,
-            SessionState a_sessionstate,
             bool a_blAllowEventWithNoSession = false
         )
         {
@@ -1025,8 +1201,8 @@ namespace TwainDirect.Support
                 {
                     ApiCmd apicmd = new ApiCmd(null);
                     m_twainlocalsession.SetSessionRevision(m_twainlocalsession.GetSessionRevision() + 1);
-                    apicmd.SetEvent(a_szEvent, a_sessionstate.ToString(), m_twainlocalsession.GetSessionRevision());
-                    DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, a_sessionstate, m_twainlocalsession.GetSessionRevision(), a_szEvent, a_blAllowEventWithNoSession);
+                    apicmd.SetEvent(a_szEvent, m_twainlocalsession.GetSessionState().ToString(), m_twainlocalsession.GetSessionRevision());
+                    DeviceUpdateSession("DeviceSendEvent", m_apicmdEvent, true, apicmd, m_twainlocalsession.GetSessionRevision(), a_szEvent, a_blAllowEventWithNoSession);
                     m_apicmdEvent = null;
                 }
             }
@@ -1056,7 +1232,7 @@ namespace TwainDirect.Support
 
             // Tell the application that this event has timed out, so it
             // needs to set up a new one...
-            twainlocalscannerdevice.DeviceSendEvent("timeout", m_twainlocalsession.GetSessionState(), false);
+            twainlocalscannerdevice.DeviceSendEvent("timeout", false);
         }
 
         /// <summary>
@@ -1068,8 +1244,11 @@ namespace TwainDirect.Support
             // Our scanner object...
             TwainLocalScannerDevice twainlocalscannerdevice = (TwainLocalScannerDevice)a_objectState;
 
+            // Set the state...
+            twainlocalscannerdevice.SetSessionState(SessionState.noSession, "Session timeout...");
+
             // Send an event to let the app know that it's tooooooo late...
-            twainlocalscannerdevice.DeviceSendEvent("sessionTimedOut", SessionState.noSession, true);
+            twainlocalscannerdevice.DeviceSendEvent("sessionTimedOut", true);
 
             // Make a note of what we're doing...
             Log.Error("DeviceSessionTimerCallback: session timeout...");
@@ -1081,7 +1260,6 @@ namespace TwainDirect.Support
             Thread.Sleep(1000);
 
             // Scrag the session...
-            twainlocalscannerdevice.SetSessionState(SessionState.noSession, "Session timeout...");
             EndSession();
         }
 
@@ -1154,7 +1332,6 @@ namespace TwainDirect.Support
         /// <param name="a_szReason">something for logging</param>
         /// <param name="a_apicmd">the command object we're working on</param>
         /// <param name="a_apicmdEvent">the command object with event data</param>
-        /// <param name="a_szSessionState">the state of the Scanner API session</param>
         /// <param name="a_lSessionRevision">the current session revision</param>
         /// <param name="a_szEventName">name of an event (or null)</param>
         /// <param name="a_blAllowEventWithNoSession">pretty much what it says</param>
@@ -1165,7 +1342,6 @@ namespace TwainDirect.Support
             ApiCmd a_apicmd,
             bool a_blWaitForEvents,
             ApiCmd a_apicmdEvent,
-            SessionState a_esessionstate,
             long a_lSessionRevision,
             string a_szEventName,
             bool a_blAllowEventWithNoSession = false
@@ -1177,6 +1353,18 @@ namespace TwainDirect.Support
             string szSessionObjects;
             string szEventsArray = "";
             ApiCmd apicmd;
+            SessionState sessionstate;
+            SessionState sessionstateOnEntry;
+
+            // Get the session state we entered with...
+            if (m_twainlocalsession == null)
+            {
+                sessionstateOnEntry = SessionState.noSession;
+            }
+            else
+            {
+                sessionstateOnEntry = m_twainlocalsession.GetSessionState();
+            }
 
             //////////////////////////////////////////////////
             // We're responding to the /privet/info or the
@@ -1298,20 +1486,36 @@ namespace TwainDirect.Support
                 &&  (a_apicmd.GetUri() == "/privet/twaindirect/session")
                 &&  !a_blWaitForEvents)
             {
-                // The scanner has no more data for us...
-                if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
+                string szMethod = a_apicmd.GetJsonReceived("method");
+
+                // Get our current session state, we expect a_szReason to be
+                // the name of the function.  The status is either succes or
+                // the code given to us by the scanner...
+                if (a_apicmd.GetSessionStatusSuccess())
                 {
-                    SessionState sessionstate = m_twainlocalsession.GetSessionState();
-                    if (    (sessionstate == SessionState.capturing)
-                        ||  (sessionstate == SessionState.draining)
-                        ||  (sessionstate == SessionState.closed))
+                    sessionstate = DeviceUpdateSessionState(szMethod, "success");
+                }
+                else
+                {
+                    sessionstate = DeviceUpdateSessionState(szMethod, a_apicmd.GetSessionStatusDetected());
+                }
+
+                // Show the session state...
+                if (sessionstate != sessionstateOnEntry)
+                {
+                    if ((sessionstateOnEntry == SessionState.noSession) && (sessionstate == SessionState.ready))
                     {
-                        if (File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta"))
-                            || File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
-                        {
-                            m_twainlocalsession.SetSessionDoneCapturing(true);
-                        }
+                        Display("");
+                        Display("Session started by <" + a_apicmd.HttpGetCallersHostName() + ">");
                     }
+                    Display(a_apicmd.HttpGetCallersHostName() + ": " + sessionstateOnEntry + " --> " + sessionstate);
+                }
+
+                // If it's not noSession, apply it immediately.  noSession has to
+                // be delayed to the end of the function...
+                if (sessionstate != SessionState.noSession)
+                {
+                    SetSessionState(sessionstate);
                 }
 
                 // Okay, you're going to love this.  So in order to change our revision
@@ -1338,12 +1542,12 @@ namespace TwainDirect.Support
                     "\"session\":{" +
                     "\"sessionId\":\"" + m_twainlocalsession.GetSessionId() + "\"," +
                     "\"revision\":" + m_twainlocalsession.GetSessionRevision() + "," +
-                    "\"state\":\"" + a_esessionstate.ToString() + "\"," +
+                    "\"state\":\"" + sessionstate.ToString() + "\"," +
                     "\"status\":{" +
                     "\"success\":" + (m_twainlocalsession.GetSessionStatusSuccess() ? "true" : "false") + "," +
                     "\"detected\":\"" + m_twainlocalsession.GetSessionStatusDetected() + "\"" +
                     "}," + // status
-                    a_apicmd.GetImageBlocksJson(a_esessionstate.ToString());
+                    a_apicmd.GetImageBlocksJson(sessionstate.ToString());
 
                 // Add the TWAIN Direct options, if any...
                 string szTaskReply = a_apicmd.GetTaskReply();
@@ -1360,9 +1564,10 @@ namespace TwainDirect.Support
                 szSessionObjects += "}";
 
                 // Check to see if we have to update our revision number...
-                if (string.IsNullOrEmpty(m_twainlocalsession.GetSessionSnapshot())
-                    || (szSessionObjects != m_twainlocalsession.GetSessionSnapshot()))
+                if (    string.IsNullOrEmpty(m_twainlocalsession.GetSessionSnapshot())
+                    ||  (szSessionObjects != m_twainlocalsession.GetSessionSnapshot()))
                 {
+                    // Replace the old revision number with the new one...
                     szSessionObjects = szSessionObjects.Replace
                     (
                         "\"revision\":" + m_twainlocalsession.GetSessionRevision() + ",",
@@ -1396,8 +1601,14 @@ namespace TwainDirect.Support
                     return (true);
                 }
 
-                // Okay, now do the state transition...
-                SetSessionState(a_esessionstate);
+                // If we determined that the session is ended, handle that now...
+                if (sessionstate == SessionState.noSession)
+                {
+                    Log.Info("Session ended...");
+                    SetSessionState(SessionState.noSession, "Session ended");
+                    EndSession();
+                    return (true);
+                }
 
                 // All done...
                 return (true);
@@ -1407,74 +1618,45 @@ namespace TwainDirect.Support
             ////////////////////////////////////////////////////////////////
             // /privet/twaindirect/session event
             #region /privet/twaindirect/session event
-            if (((a_apicmd == null) || (a_apicmd.GetUri() == "/privet/twaindirect/session"))
-                && a_blWaitForEvents)
+            if (    ((a_apicmd == null) || (a_apicmd.GetUri() == "/privet/twaindirect/session"))
+                &&  a_blWaitForEvents)
             {
                 // This should never happen, but let's be sure...
-                if ((a_esessionstate == SessionState.noSession) && !a_blAllowEventWithNoSession)
+                if ((sessionstateOnEntry == SessionState.noSession) && !a_blAllowEventWithNoSession)
                 {
                     return (true);
+                }
+
+                // Get our current session state...
+                sessionstate = DeviceUpdateSessionState("waitForEvents", "success");
+
+                // Show the session state...
+                if (sessionstate != sessionstateOnEntry)
+                {
+                    if ((sessionstateOnEntry == SessionState.noSession) && (sessionstate == SessionState.ready))
+                    {
+                        Display("");
+                        Display("Session started by <" + a_apicmd.HttpGetCallersHostName() + ">");
+                    }
+                    Display(a_apicmd.HttpGetCallersHostName() + ": " + sessionstateOnEntry + " --> " + sessionstate);
+                }
+
+                // If it's not noSession, apply it immediately.  noSession has to
+                // be delayed to the end of the function...
+                if (sessionstate != SessionState.noSession)
+                {
+                    SetSessionState(sessionstate, "changed in waitForEvents");
                 }
 
                 // Do we have new event data?
                 if (a_apicmdEvent != null)
                 {
-                    // The scanner has no more data for us...
-                    if ((m_twainlocalsession != null) && !m_twainlocalsession.GetSessionDoneCapturing())
-                    {
-                        SessionState sessionstate = m_twainlocalsession.GetSessionState();
-                        if (    (sessionstate == SessionState.capturing)
-                            ||  (sessionstate == SessionState.draining)
-                            ||  (sessionstate == SessionState.closed))
-                        {
-                            if (    File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta"))
-                                ||  File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
-                            {
-                                m_twainlocalsession.SetSessionDoneCapturing(true);
-                            }
-                        }
-                    }
-
-                    // If we're out of imageBlocks, and can't get anymore,
-                    // then transition to noSession or ready...
-                    if (string.IsNullOrEmpty(a_apicmdEvent.GetImageBlocks()))
-                    {
-                        // If we can't get any more images, then we need to start
-                        // checking if we've drained the pool...
-                        if ((m_twainlocalsession != null) && m_twainlocalsession.GetSessionDoneCapturing())
-                        {
-                            // We've run out of stuff to send...
-                            string[] aszTd = Directory.GetFiles(m_szTdImagesFolder, "*.td*");
-                            if ((aszTd == null) || (aszTd.Length == 0))
-                            {
-                                // Make a note of this...
-                                m_twainlocalsession.SetSessionImageBlocksDrained(true);
-
-                                // Where we go next depends on our current state...
-                                switch (GetState())
-                                {
-                                    default:
-                                        // Ignore it...
-                                        break;
-                                    case "draining":
-                                        SetSessionState(SessionState.ready);
-                                        break;
-                                    case "closed":
-                                        //SetSessionState(SessionState.noSession);
-                                        //EndSession();
-                                        //DeviceShutdownTwainDirectOnTwain(false);
-                                        break;
-                                }
-                            }
-                        }
-                    }
-
                     // Add it to the list...
                     for (ii = 0; ii < m_twainlocalsession.GetApicmdEvents().Length; ii++)
                     {
                         if (m_twainlocalsession.GetApicmdEvents()[ii] == null)
                         {
-                            a_apicmdEvent.SetEvent(a_szEventName, a_esessionstate.ToString(), a_lSessionRevision);
+                            a_apicmdEvent.SetEvent(a_szEventName, sessionstate.ToString(), a_lSessionRevision);
                             m_twainlocalsession.SetApicmdEvent(ii, a_apicmdEvent);
                             break;
                         }
@@ -1579,7 +1761,7 @@ namespace TwainDirect.Support
                             "\"success\":" + (m_twainlocalsession.GetSessionStatusSuccess() ? "true" : "false") + "," +
                             "\"detected\":\"" + m_twainlocalsession.GetSessionStatusDetected() + "\"" +
                             "}," + // status
-                            apicmd.GetImageBlocksJson(apicmd.GetSessionState());
+                            apicmd.GetImageBlocksJson(sessionstate.ToString());
                         if (szSessionObjects.EndsWith(","))
                         {
                             szSessionObjects = szSessionObjects.Substring(0, szSessionObjects.Length - 1);
@@ -1606,13 +1788,21 @@ namespace TwainDirect.Support
                         "}" + // results
                         "}";  // root
 
-                    // Send the response, note that any multipart contruction work
+                    // Send the response, note that any multipart construction work
                     // takes place in this function...
                     blSuccess = a_apicmd.HttpRespond("success", szResponse);
                     if (!blSuccess)
                     {
                         Log.Error("Lost connection...");
                         SetSessionState(SessionState.noSession, "Lost connection...");
+                        EndSession();
+                    }
+
+                    // If we determined that the session is ended, handle that now...
+                    if (sessionstate == SessionState.noSession)
+                    {
+                        Log.Info("Session ended in waitForEvents...");
+                        SetSessionState(SessionState.noSession, "Session ended in waitForEvents");
                         EndSession();
                     }
 
@@ -1639,7 +1829,7 @@ namespace TwainDirect.Support
             string szFunction = "DeviceInfo";
 
             // Reply to the command with a session object...
-            blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsessionInfo.GetSessionState(), -1, null);
+            blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
             if (!blSuccess)
             {
                 DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -1660,7 +1850,6 @@ namespace TwainDirect.Support
             bool blSuccess;
             long lResponseCharacterOffset;
             string szIpc;
-            SessionState sessionstate;
             string szFunction = "DeviceScannerCloseSession";
 
             // Protect our stuff...
@@ -1742,22 +1931,8 @@ namespace TwainDirect.Support
                     "}"
                 );
 
-                // Figure out the session state we want to transition to.  If
-                // we've lost our session, or we're ready, or we have no more
-                // images to deliver, then transition to noSession...
-                if (    (m_twainlocalsession == null)
-                    ||  (m_twainlocalsession.GetSessionState() == SessionState.ready)
-                    ||  m_twainlocalsession.GetSessionImageBlocksDrained())
-                {
-                    sessionstate = SessionState.noSession;
-                }
-                else
-                {
-                    sessionstate = SessionState.closed;
-                }
-
                 // Reply to the command with a session object...
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, sessionstate, -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -1769,7 +1944,7 @@ namespace TwainDirect.Support
                 DeviceShutdownTwainDirectOnTwain(false);
 
                 // If we're done, cleanup...
-                if (sessionstate == SessionState.noSession)
+                if ((m_twainlocalsession == null) || (m_twainlocalsession.GetSessionState() == SessionState.noSession))
                 {
                     EndSession();
                 }
@@ -1928,11 +2103,12 @@ namespace TwainDirect.Support
                 a_apicmd.UpdateUsingIpcData(jsonlookup, false, m_szTdImagesFolder, m_szTwImagesFolder);
 
                 // Reply to the command with a session object, this is where we create our
-                // session id, public session id and set the revision to 0...
+                // session id, public session id and set the revision to 0 (we increment
+                // before sending, so the first revision is always 1)...
                 m_twainlocalsession.SetCallersHostName(a_apicmd.HttpGetCallersHostName());
                 m_twainlocalsession.SetSessionId(Guid.NewGuid().ToString());
                 m_twainlocalsession.ResetSessionRevision();
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.ready, -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -1946,10 +2122,6 @@ namespace TwainDirect.Support
 
                 // Refresh our timer...
                 DeviceSessionRefreshTimer();
-
-                // Display what happened...
-                Display("");
-                Display("Session started by <" + a_apicmd.HttpGetCallersHostName() + ">");
 
                 // Init stuff...
                 m_lImageBlockNumber = 0;
@@ -2007,6 +2179,13 @@ namespace TwainDirect.Support
             // Protect our stuff...
             lock (m_objectLockDeviceApi)
             {
+                // Sanity check, if we have no session, we shouldn't be here...
+                if (m_twainlocalsession == null)
+                {
+                    DeviceReturnError(szFunction, a_apicmd, "invalidSessionId", null, -1);
+                    return (false);
+                }
+
                 //////////////////////////////////////////////////////////////////////
                 // This path is taken for getSession
                 //////////////////////////////////////////////////////////////////////
@@ -2062,7 +2241,7 @@ namespace TwainDirect.Support
                     }
 
                     // Reply to the command with a session object...
-                    blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsession.GetSessionState(), -1, null);
+                    blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                     if (!blSuccess)
                     {
                         DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -2096,6 +2275,12 @@ namespace TwainDirect.Support
                     {
                         Log.Info("");
                         Log.Info("http>>> waitForEvents (response) sendevents=" + a_blSendEvents + " getsession=" + a_blGetSession + " eventname=" + a_szEventName);
+                    }
+
+                    // We've already been handled...
+                    if (a_apicmd == null)
+                    {
+                        return (true);
                     }
 
                     // Create an event...
@@ -2148,7 +2333,7 @@ namespace TwainDirect.Support
 
                     // Reply to the command, but only if we have
                     // pending data...
-                    blSuccess = DeviceUpdateSession(szFunction, a_apicmd, true, apicmdEvent, m_twainlocalsession.GetSessionState(), m_twainlocalsession.GetSessionRevision(), a_szEventName);
+                    blSuccess = DeviceUpdateSession(szFunction, a_apicmd, true, apicmdEvent, m_twainlocalsession.GetSessionRevision(), a_szEventName);
                     if (!blSuccess)
                     {
                         DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -2263,7 +2448,7 @@ namespace TwainDirect.Support
                 }
 
                 // Reply to the command with a session object...
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsession.GetSessionState(), -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -2389,7 +2574,7 @@ namespace TwainDirect.Support
                 }
 
                 // Reply to the command with a session object...
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsession.GetSessionState(), -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -2501,6 +2686,14 @@ namespace TwainDirect.Support
                             // We don't care if this fails...
                         }
                     }
+
+                    // If we've run out of pdf files, then scoot
+                    // (can't have a meta without a pdf)
+                    string[] aszPdf = Directory.GetFiles(m_szTdImagesFolder, "*.pdf");
+                    if ((aszPdf == null) || (aszPdf.Length == 0))
+                    {
+                        break;
+                    }
                 }
 
                 // Kinda stuck with this notation for now...
@@ -2527,7 +2720,7 @@ namespace TwainDirect.Support
                 // then we need to close down twaindirect on twain...
 
                 // Reply to the command with a session object...
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsession.GetSessionState(), -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -2535,48 +2728,15 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
+                if (    (m_twainlocalsession != null)
+                    &&  (m_twainlocalsession.GetSessionState() != SessionState.noSession)
+                    &&  !string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
                     blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
                     {
                         Log.Error(szFunction + ": error parsing the reply...");
                         return (false);
-                    }
-                }
-
-                // If we're out of imageBlocks, and can't get anymore,
-                // then transition to noSession or ready...
-                if (string.IsNullOrEmpty(a_apicmd.GetImageBlocks()))
-                {
-                    // If we can't get any more images, then we need to start
-                    // checking if we've drained the pool...
-                    if ((m_twainlocalsession != null) && m_twainlocalsession.GetSessionDoneCapturing())
-                    {
-                        // We've run out of stuff to send...
-                        string[] aszTd = Directory.GetFiles(m_szTdImagesFolder, "*.td*");
-                        if ((aszTd == null) || (aszTd.Length == 0))
-                        {
-                            // Make a note of this...
-                            m_twainlocalsession.SetSessionImageBlocksDrained(true);
-
-                            // Where we go next depends on our current state...
-                            switch (GetState())
-                            {
-                                default:
-                                    // Ignore it...
-                                    break;
-                                case "draining":
-                                    SetSessionState(SessionState.ready);
-                                    DeviceScannerGetSession(ref m_apicmdEvent, true, true, "imageBlocks");
-                                    break;
-                                case "closed":
-                                    SetSessionState(SessionState.noSession);
-                                    EndSession();
-                                    DeviceShutdownTwainDirectOnTwain(false);
-                                    break;
-                            }
-                        }
                     }
                 }
             }
@@ -2676,7 +2836,7 @@ namespace TwainDirect.Support
                 }
 
                 // Reply to the command with a session object...
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsession.GetSessionState(), -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "invalidJson", null, lResponseCharacterOffset);
@@ -2747,6 +2907,7 @@ namespace TwainDirect.Support
             string szImageBlockName;
             string[] aszMetatmp;
             string[] aszBase;
+            SessionState sessionstate;
             FileSystemWatcherHelper filesystemwatcherhelper = (FileSystemWatcherHelper)source;
 
             // We shouldn't be here...
@@ -2754,6 +2915,24 @@ namespace TwainDirect.Support
             {
                 filesystemwatcherhelper.EnableRaisingEvents = false;
                 return;
+            }
+
+            // Get the session state...
+            sessionstate = m_twainlocalsession.GetSessionState();
+
+            // The scanner has no more data for us...
+            if (!m_twainlocalsession.GetSessionDoneCapturing())
+            {
+                if (    (sessionstate == SessionState.capturing)
+                    ||  (sessionstate == SessionState.draining)
+                    ||  (sessionstate == SessionState.closed))
+                {
+                    if (    File.Exists(Path.Combine(m_szTdImagesFolder, "imageBlocksDrained.meta"))
+                        ||  File.Exists(Path.Combine(m_szTwImagesFolder, "imageBlocksDrained.meta")))
+                    {
+                        m_twainlocalsession.SetSessionDoneCapturing(true);
+                    }
+                }
             }
 
             // It's important that we serialize the callbacks...
@@ -3185,7 +3364,7 @@ namespace TwainDirect.Support
                 a_apicmd.UpdateUsingIpcData(jsonlookup, true, m_szTdImagesFolder, m_szTwImagesFolder);
 
                 // Reply to the command with a session object...
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, SessionState.capturing, -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -3201,15 +3380,6 @@ namespace TwainDirect.Support
                         Log.Error(szFunction + ": error parsing the reply...");
                         return (false);
                     }
-                }
-
-                // Clean the image folders...
-                blSuccess = CleanImageFolders();
-                if (!blSuccess)
-                {
-                    DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
-                    Log.Error(szFunction + ": CleanImageFolders failed...");
-                    return (false);
                 }
 
                 // KEYWORD:imageBlock
@@ -3294,18 +3464,8 @@ namespace TwainDirect.Support
                         break;
                 }
 
-                // If we're out of images, we can go to a ready state, otherwise go to draining...
-                if (a_apicmd.GetImageBlocksDrained())
-                {
-                    SetSessionState(SessionState.ready);
-                }
-                else
-                {
-                    SetSessionState(SessionState.draining);
-                }
-
                 // Reply to the command with a session object...
-                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, m_twainlocalsession.GetSessionState(), -1, null);
+                blSuccess = DeviceUpdateSession(szFunction, a_apicmd, false, null, -1, null);
                 if (!blSuccess)
                 {
                     DeviceReturnError(szFunction, a_apicmd, "critical", null, -1);
@@ -3313,7 +3473,9 @@ namespace TwainDirect.Support
                 }
 
                 // Parse it...
-                if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
+                if (    (m_twainlocalsession != null)
+                    &&  (m_twainlocalsession.GetSessionState() != SessionState.noSession)
+                    &&  !string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
                 {
                     blSuccess = jsonlookup.Load(a_apicmd.GetHttpResponseData(), out lResponseCharacterOffset);
                     if (!blSuccess)
@@ -4800,7 +4962,7 @@ namespace TwainDirect.Support
                 string szClientCreateCommandId = "";
                 string szSessionId = "";
 
-                // Collection session data, if we have any...
+                // Collect session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
                     szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
@@ -5796,6 +5958,9 @@ namespace TwainDirect.Support
 
                             // Our scanner session went bye-bye on us...
                             case "critical":
+                                // Change state...
+                                SetSessionState(SessionState.noSession);
+
                                 // We'd like the events communication and processing threads
                                 // to exit, however we might be in the processing thread when
                                 // we get this message, so just set the flag...
@@ -5804,6 +5969,8 @@ namespace TwainDirect.Support
 
                                 // Our reply...
                                 Log.Info(szFunction + ": critical event...");
+
+                                // Our callback...
                                 if (m_eventcallback != null)
                                 {
                                     m_eventcallback(m_objectEventCallback, "critical");
@@ -5814,8 +5981,7 @@ namespace TwainDirect.Support
 
                                 // End session.
                                 if (blNoSession)
-                                {
-                                    SetSessionState(SessionState.noSession);
+                                {                                 
                                     EndSession();
                                 }
 
@@ -5864,6 +6030,12 @@ namespace TwainDirect.Support
                                         }
                                     }
 
+                                    // Our callback...
+                                    if (m_eventcallback != null)
+                                    {
+                                        m_eventcallback(m_objectEventCallback, "imageBlocks");
+                                    }
+
                                     // Wakeup anybody watching us...
                                     ClientWaitForSessionUpdateForceSet();
 
@@ -5877,6 +6049,9 @@ namespace TwainDirect.Support
 
                             // Our scanner session went bye-bye on us...
                             case "sessionTimedOut":
+                                // Change state...
+                                SetSessionState(SessionState.noSession);
+
                                 // We'd like the events communication and processing threads
                                 // to exit, however we might be in the processing thread when
                                 // we get this message, so just set the flag...
@@ -5885,6 +6060,8 @@ namespace TwainDirect.Support
 
                                 // Our reply...
                                 Log.Info(szFunction + ": sessionTimedOut event...");
+
+                                // Our callback...
                                 if (m_eventcallback != null)
                                 {
                                     m_eventcallback(m_objectEventCallback, "sessionTimedOut");
@@ -5892,8 +6069,7 @@ namespace TwainDirect.Support
 
                                 // End session.
                                 if (blNoSession)
-                                {
-                                    SetSessionState(SessionState.noSession);
+                                {                                  
                                     EndSession();
                                 }
 
@@ -6511,7 +6687,9 @@ namespace TwainDirect.Support
             notReady = 4,
             notCapturing = 5,
             invalidImageBlockNumber = 6,
-            invalidCapturingOptions = 7
+            invalidCapturingOptions = 7,
+            busy = 8,
+            noMedia = 9
         }
 
         /// <summary>

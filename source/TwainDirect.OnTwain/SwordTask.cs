@@ -5181,7 +5181,6 @@ namespace TwainDirect.OnTwain
                 m_szCameraSide = "";
                 m_szDuplexEnabled = "";
                 m_szFeederEnabled = "";
-                m_szPixelType = "";
 
                 // We're the head of the list...
                 if (a_swordsourceHead == null)
@@ -5640,7 +5639,7 @@ namespace TwainDirect.OnTwain
                      swordpixelformat = swordpixelformat.GetNextPixelFormat())
                 {
                     // Process this pixelformat (and all of its contents)...
-                    swordstatus = swordpixelformat.Process(m_szException, m_szAutomaticSenseMedium, m_szCameraSide, m_szDuplexEnabled, m_szFeederEnabled, m_szPixelType);
+                    swordstatus = swordpixelformat.Process(m_szException, m_szAutomaticSenseMedium, m_szCameraSide, m_szDuplexEnabled, m_szFeederEnabled);
 
                     // Check the result, we only continue on success and successignore,
                     // anything else kicks us out...
@@ -5762,7 +5761,6 @@ namespace TwainDirect.OnTwain
             private string m_szCameraSide;
             private string m_szDuplexEnabled;
             private string m_szFeederEnabled;
-            private string m_szPixelType;
         }
 
         /// <summary>
@@ -6113,8 +6111,7 @@ namespace TwainDirect.OnTwain
                 string a_szAutomaticSenseMedium,
                 string a_szCameraSide,
                 string a_szDuplexEnabled,
-                string a_szFeederEnabled,
-                string a_szPixelType
+                string a_szFeederEnabled
             )
             {
                 SwordStatus swordstatus;
@@ -6170,9 +6167,19 @@ namespace TwainDirect.OnTwain
 
                     // We're good, keep going...
                     case "any":
+                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,*", a_szSourceException, m_szVendor);
+                        break;
+
                     case "bw1":
+                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,0", a_szSourceException, m_szVendor);
+                        break;
+
                     case "gray8":
+                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,1", a_szSourceException, m_szVendor);
+                        break;
+
                     case "rgb24":
+                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2", a_szSourceException, m_szVendor);
                         break;
                 }
 
@@ -6218,16 +6225,6 @@ namespace TwainDirect.OnTwain
                 else
                 {
                     m_swordattributeFeederenabled.AppendValue(m_szJsonKey, a_szFeederEnabled, a_szSourceException, m_szVendor);
-                }
-
-                // CAP_PIXELTYPE...
-                if (string.IsNullOrEmpty(a_szPixelType))
-                {
-                    m_swordattributeFeederenabled.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,*", a_szSourceException, m_szVendor);
-                }
-                else
-                {
-                    m_swordattributeFeederenabled.AppendValue(m_szJsonKey, a_szPixelType, a_szSourceException, m_szVendor);
                 }
 
                 #endregion

@@ -4,9 +4,10 @@
 ; - confirm that getSession succeeds, and contains all required properties
 ;
 ; Arguments
-; arg:1 - state to test for
-; arg:2 - [OUT] set tag to true, if done
-; arg:3 - [OUT] set tag to first imaage block, if we have one
+; arg:1 - [OUT] set tag to true, if done
+; arg:2 - [OUT] set tag to first imaage block, if we have one
+; arg:3 - state to test for
+; arg:4 - state to test for
 ;
 ; Locals
 ; getsessionresult - result of the test
@@ -28,7 +29,7 @@ set getsessionresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call getSession, and check the return properties...
 ;
-call GETSESSION '${arg:1}' '${arg:2}' '${arg:3}'
+call GETSESSION '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
 
 
 
@@ -42,7 +43,10 @@ return '${get:getsessionresult}'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; GETSESSION
-; arg:1 - state to test for
+; arg:1 - [OUT] set tag to true, if done
+; arg:2 - [OUT] set tag to first imaage block, if we have one
+; arg:3 - state to test for
+; arg:4 - state to test for
 ; returns pass or fail
 ;
 :GETSESSION
@@ -63,11 +67,11 @@ run 'function CheckJsonProperty' 'TL.NSCN.GETS.007' 'getsessionresult' 'results.
 run 'function CheckJsonProperty' 'TL.NSCN.GETS.008' 'getsessionresult' 'results.session'
 run 'function CheckJsonProperty' 'TL.NSCN.GETS.009' 'getsessionresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.GETS.010' 'getsessionresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.GETS.011' 'getsessionresult' 'results.session.state' == '${arg:1}'
+run 'function CheckJsonProperty' 'TL.NSCN.GETS.011' 'getsessionresult' 'results.session.state' == '${arg:3}' '${arg:4}'
 if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
 ;
 ; We're good, check if we need to output values...
-call RETURNVALUES '${arg:2}' '${arg:3}'
+call RETURNVALUES '${arg:1}' '${arg:2}'
 return 'pass'
 ;
 ; No joy...
@@ -88,10 +92,14 @@ return 'fail'
 ; If we don't have arg:1, we're done...
 if '${arg:1}' == '' goto RETURNVALUES.DONE
 ;
-; We're done if our state isn't capturing, or if the
-; flag tells us we've drained the scanner...
+; We're done if our state isn't capturing, draining, or closed,
+; or if the flag tells us we've drained the scanner...
 set '${arg:1}' true
-if '${rj:results.session.state}' != 'capturing' goto RETURNVALUES.DONE
+if '${rj:results.session.state}' == 'capturing' goto RETURNVALUES.GOODSTATE
+if '${rj:results.session.state}' == 'draining' goto RETURNVALUES.GOODSTATE
+if '${rj:results.session.state}' == 'closed' goto RETURNVALUES.GOODSTATE
+goto RETURNVALUES.DONE
+:RETURNVALUES.GOODSTATE
 if '${rj:results.session.imageBlocksDrained}' == 'true' goto RETURNVALUES.DONE
 set '${arg:1}' false
 ;

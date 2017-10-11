@@ -4,7 +4,9 @@
 ; - confirm that stopCapturing succeeds, and contains all required properties
 ;
 ; Arguments
-; arg:1 - state to check for
+; arg:1 - [OUT] set tag to true, if done
+; arg:2 - state to check for
+; arg:3 - state to check for
 ;
 ; Locals
 ; stopcapturingresult - result of the test
@@ -26,7 +28,7 @@ set stopcapturingresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call stopCapturing, and check the return properties...
 ;
-call STOPCAPTURING '${arg:1}'
+call STOPCAPTURING '${arg:1}' '${arg:2}' '${arg:3}'
 
 
 
@@ -40,8 +42,9 @@ return '${get:stopcapturingresult}'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; STOPCAPTURING
-; arg:1 - state to check for
-; returns pass or fail
+; arg:1 - [OUT] set tag to true, if done
+; arg:2 - state to check for
+; arg:3 - state to check for
 ;
 :STOPCAPTURING
 ;
@@ -61,5 +64,13 @@ run 'function CheckJsonProperty' 'TL.NSCN.STOP.007' 'stopcapturingresult' 'resul
 run 'function CheckJsonProperty' 'TL.NSCN.STOP.008' 'stopcapturingresult' 'results.session'
 run 'function CheckJsonProperty' 'TL.NSCN.STOP.009' 'stopcapturingresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.STOP.010' 'stopcapturingresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.STOP.011' 'stopcapturingresult' 'results.session.state' == '${arg:1}'
+run 'function CheckJsonProperty' 'TL.NSCN.STOP.011' 'stopcapturingresult' 'results.session.state' == '${arg:2}' '${arg:3}'
+;
+; Are we drained?
+set '${arg:1}' true
+if '${rj:results.session.imageBlocksDrained}' == 'true' goto STOPCAPTURING.DRAINED
+set '${arg:1}' false
+:STOPCAPTURING.DRAINED
+;
+; Return the return...
 return '${get:stopcapturingresult}'

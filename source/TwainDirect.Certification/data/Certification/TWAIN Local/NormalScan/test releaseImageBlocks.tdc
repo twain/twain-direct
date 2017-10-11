@@ -9,6 +9,8 @@
 ; arg:3 - [OUT] set tag to true, if done
 ; arg:4 - [OUT] set tag to first image block, if we have one
 ; arg:5 - expected session state
+; arg:6 - expected session state
+; arg:7 - expected session state
 ;
 ; Locals
 ; releaseimageblocksresult - result of the test
@@ -30,7 +32,7 @@ set releaseimageblocksresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call releaseImageBlocks, and check the return properties...
 ;
-call RELEASEIMAGEBLOCKS '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
+call RELEASEIMAGEBLOCKS '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}' '${arg:6}' '${arg:7}'
 
 
 
@@ -49,6 +51,8 @@ return '${get:releaseimageblocksresult}'
 ; arg:3 - [OUT] set tag to true, if done
 ; arg:4 - [OUT] set tag to first imaage block, if we have one
 ; arg:5 - expected session state
+; arg:6 - expected session state
+; arg:7 - expected session state
 ; returns pass or fail
 ;
 :RELEASEIMAGEBLOCKS
@@ -69,7 +73,7 @@ run 'function CheckJsonProperty' 'TL.NSCN.RLIB.007' 'releaseimageblocksresult' '
 run 'function CheckJsonProperty' 'TL.NSCN.RLIB.008' 'releaseimageblocksresult' 'results.session'
 run 'function CheckJsonProperty' 'TL.NSCN.RLIB.009' 'releaseimageblocksresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.RLIB.010' 'releaseimageblocksresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RLIB.011' 'releaseimageblocksresult' 'results.session.state' == '${arg:5}'
+run 'function CheckJsonProperty' 'TL.NSCN.RLIB.011' 'releaseimageblocksresult' 'results.session.state' == '${arg:5}' '${arg:6}' '${arg:7}'
 if '${get:releaseimageblocksresult}' != 'pass' goto RELEASEIMAGEBLOCKS.FAIL
 ;
 ; We're good, check if we need to output values...
@@ -85,8 +89,8 @@ return 'fail'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; RETURNVALUES
-; arg1 - [OUT] set tag to true, if done
-; arg2 - [OUT] set tag to first imaage block, if we have one
+; arg:1 - [OUT] set tag to true, if done
+; arg:2 - [OUT] set tag to first imaage block, if we have one
 ; return pass
 ;
 :RETURNVALUES
@@ -97,7 +101,10 @@ if '${arg:1}' == '') goto RETURNVALUES.DONE
 ; We're done if our state isn't capturing, or if the
 ; flag tells us we've drained the scanner...
 set '${arg:1}' true
-if '${rj:results.session.state}' != 'capturing' goto RETURNVALUES.DONE
+if '${rj:results.session.state}' == 'capturing' goto RETURNVALUES.GOODSTATE
+if '${rj:results.session.state}' == 'draining' goto RETURNVALUES.GOODSTATE
+if '${rj:results.session.state}' == 'closed' goto RETURNVALUES.GOODSTATE
+:RETURNVALUES.GOODSTATE
 if '${rj:results.session.imageBlocksDrained}' == 'true' goto RETURNVALUES.DONE
 set '${arg:1}' false
 ;

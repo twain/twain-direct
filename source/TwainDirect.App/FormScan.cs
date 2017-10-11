@@ -648,6 +648,12 @@ namespace TwainDirect.App
                 {
                     // Don't recognize it...
                     default:
+                        BeginInvoke(new MethodInvoker(UpdateSummary));
+                        break;
+
+                    // Image blocks have been updated...
+                    case "imageBlocks":
+                        BeginInvoke(new MethodInvoker(UpdateSummary));
                         break;
 
                     // We've lost our session
@@ -1070,6 +1076,8 @@ namespace TwainDirect.App
         /// <param name="a_ebuttonstate"></param>
         private void SetButtons(EBUTTONSTATE a_ebuttonstate)
         {
+            EBUTTONSTATE ebuttonstate;
+
             // Make sure we're running in the proper thread...
             if (this.InvokeRequired)
             {
@@ -1080,8 +1088,15 @@ namespace TwainDirect.App
             // Update the summary...
             UpdateSummary();
 
+            // Override...
+            ebuttonstate = a_ebuttonstate;
+            if ((m_twainlocalscannerclient != null) && (m_twainlocalscannerclient.GetState() == "noSession"))
+            {
+                ebuttonstate = EBUTTONSTATE.CLOSED;
+            }
+
             // Fix the buttons...
-            switch (a_ebuttonstate)
+            switch (ebuttonstate)
             {
                 default:
                 case EBUTTONSTATE.UNDEFINED:
@@ -1114,7 +1129,7 @@ namespace TwainDirect.App
                 case EBUTTONSTATE.SCANNING:
                     m_buttonOpen.Enabled = false;
                     m_buttonSelect.Enabled = false;
-                    m_buttonClose.Enabled = false;
+                    m_buttonClose.Enabled = true;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
                     m_buttonStop.Enabled = true;
@@ -1299,7 +1314,11 @@ namespace TwainDirect.App
             if (m_threadClientScan != null)
             {
                 // Ask it to stop...
-                m_buttonStop_Click(sender, e);
+                m_blAbortCapturing = true;
+                if (m_twainlocalscannerclient != null)
+                {
+                    m_twainlocalscannerclient.ClientWaitForSessionUpdateForceSet();
+                }
 
                 // Give it ten seconds to comply...
                 for (int iRetry = 0; iRetry < 10000; iRetry += 100)
@@ -1547,11 +1566,18 @@ namespace TwainDirect.App
             {
                 if (m_formsetup != null)
                 {
-                    m_textboxSummary.Text =
-                        "state=" + m_twainlocalscannerclient.GetState() +
-                        "; task='" + m_formsetup.GetTaskName() + "'" +
-                        "; getthumbnails=" + m_formsetup.GetThumbnails().ToString().ToLowerInvariant() +
-                        "; getmetadatawithimage=" + m_formsetup.GetMetadataWithImage().ToString().ToLowerInvariant();
+                    if (m_twainlocalscannerclient.GetState() != "noSession")
+                    {
+                        m_textboxSummary.Text =
+                            "state=" + m_twainlocalscannerclient.GetState() +
+                            "; task='" + m_formsetup.GetTaskName() + "'" +
+                            "; getthumbnails=" + m_formsetup.GetThumbnails().ToString().ToLowerInvariant() +
+                            "; getmetadatawithimage=" + m_formsetup.GetMetadataWithImage().ToString().ToLowerInvariant();
+                    }
+                    else
+                    {
+                        m_textboxSummary.Text = "state=" + m_twainlocalscannerclient.GetState();
+                    }
                 }
                 else
                 {

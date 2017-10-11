@@ -93,6 +93,7 @@ namespace TwainDirect.Scanner
             m_notifyicon.ContextMenu.MenuItems.Add(menuitemAbout);
             m_notifyicon.ContextMenu.MenuItems.Add("-");
             m_notifyicon.ContextMenu.MenuItems.Add(menuitemExit);
+            m_notifyicon.DoubleClick += m_notifyicon_DoubleClick;
 
             this.Resize += Form1_Resize;
 
@@ -141,39 +142,6 @@ namespace TwainDirect.Scanner
             }
         }
 
-        private void MenuitemAbout_Click(object sender, EventArgs e)
-        {
-            AboutBox aboutbox = new AboutBox(m_resourcemanager);
-            aboutbox.ShowDialog();
-        }
-
-        private bool m_blAllowFormToClose;
-        private void MenuitemExit_Click(object sender, EventArgs e)
-        {
-            DialogResult dialogresult = MessageBox.Show("Do you want to close TWAIN Direct on TWAIN Bridge?", "TWAIN Direct", MessageBoxButtons.YesNo);
-            if (dialogresult == DialogResult.Yes)
-            {
-                m_blAllowFormToClose = true;
-                Application.Exit();
-            }
-        }
-
-        private void Form1_Resize(object sender, EventArgs e)
-        {
-            if (WindowState == FormWindowState.Minimized)
-            {
-                this.Hide();
-            }
-        }
-
-        private void MenuitemOpen_Click(object sender, EventArgs e)
-        {
-            this.Show();
-            this.WindowState = FormWindowState.Normal;
-            this.Update();
-            this.Show();
-        }
-
         #endregion
 
 
@@ -219,6 +187,67 @@ namespace TwainDirect.Scanner
 
             // Nope...
             return (TwainLocalScanner.ButtonPress.Cancel);
+        }
+
+        /// <summary>
+        /// Hide the task bar icon when we're minimized...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            if (WindowState == FormWindowState.Minimized)
+            {
+                this.Hide();
+            }
+        }
+
+        /// <summary>
+        /// Open the 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_notifyicon_DoubleClick(object sender, EventArgs e)
+        {
+            MenuitemOpen_Click(null, null);
+        }
+
+        /// <summary>
+        /// Tell the user about this program...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MenuitemAbout_Click(object sender, EventArgs e)
+        {
+            AboutBox aboutbox = new AboutBox(m_resourcemanager);
+            aboutbox.ShowDialog();
+        }
+
+        /// <summary>
+        /// Shutdown the TWAIN Direct on TWAIN Bridge...
+        /// </summary>
+        private bool m_blAllowFormToClose;
+        private void MenuitemExit_Click(object sender, EventArgs e)
+        {
+            DialogResult dialogresult = MessageBox.Show("Do you want to close TWAIN Direct on TWAIN Bridge?", "TWAIN Direct", MessageBoxButtons.YesNo);
+            if (dialogresult == DialogResult.Yes)
+            {
+                m_blAllowFormToClose = true;
+                Application.Exit();
+            }
+        }
+
+        /// <summary>
+        /// Display the form on the user's desktop...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MenuitemOpen_Click(object sender, EventArgs e)
+        {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            this.Update();
+            this.Show();
         }
 
         /// <summary>

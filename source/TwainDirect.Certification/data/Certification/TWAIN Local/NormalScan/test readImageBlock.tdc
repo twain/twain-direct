@@ -7,6 +7,7 @@
 ; arg:1 - image block to read
 ; arg:2 - metadata flag (true/false)
 ; arg:3 - expected state
+; arg:4 - expected state
 ;
 ; Locals
 ; readimageblockresult - result of the test
@@ -28,7 +29,7 @@ set readimageblockresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call readImageBlock, and check the return properties...
 ;
-call READIMAGEBLOCK '${arg:1}' '${arg:2}' '${arg:3}'
+call READIMAGEBLOCK '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
 
 
 
@@ -45,6 +46,7 @@ return '${get:readimageblockresult}'
 ; arg:1 - image block to read
 ; arg:2 - metadata flag (true/false)
 ; arg:3 - expected state
+; arg:4 - expected state
 ; returns pass or fail
 ;
 :READIMAGEBLOCK
@@ -71,7 +73,7 @@ run 'function CheckJsonProperty' 'TL.NSCN.RDIB.007' 'readimageblockresult' 'resu
 run 'function CheckJsonProperty' 'TL.NSCN.RDIB.008' 'readimageblockresult' 'results.session'
 run 'function CheckJsonProperty' 'TL.NSCN.RDIB.009' 'readimageblockresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.RDIB.010' 'readimageblockresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.RDIB.011' 'readimageblockresult' 'results.session.state' == '${arg:3}'
+run 'function CheckJsonProperty' 'TL.NSCN.RDIB.011' 'readimageblockresult' 'results.session.state' == '${arg:3}' '${arg:4}'
 ;
 ; If we didn't ask for metadata, there'd better not be any...
 if '${arg:2}' == 'true' goto READIMAGEBLOCK.CHECKMETADATA
