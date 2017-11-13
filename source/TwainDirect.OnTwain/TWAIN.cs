@@ -190,15 +190,92 @@ namespace TWAINWorkingGroup
             // Linux only...
             else if (ms_platform == Platform.LINUX)
             {
-                m_blUseLegacyDSM = false;
+                if (GetMachineWordBitSize() == 32)
+                {
+                    m_blUseLegacyDSM = false;
+                }
+                else
+                {
+                    m_blUseLegacyDSM = a_blUseLegacyDSM;
+                }
                 m_blUseCallbacks = true;
                 m_linuxdsmentrycontrolcallbackdelegate = LinuxDsmEntryCallbackProxy;
+
+                // Check for the old DSM...
+                if (File.Exists("/usr/local/lib/libtwaindsm.so.2.3.2"))
+                {
+                    m_blFoundOldDsm = true;
+                }
+
+                // Check for any newer DSM...
+                if (File.Exists("/usr/local/lib/libtwaindsm.so"))
+                {
+                    bool blCheckForNewDsm = true;
+
+                    // Get the DSMs by their fully decorated names...
+                    string[] aszDsm = Directory.GetFiles("/usr/local/lib", "libtwaindsm.so.*.*.*");
+                    if ((aszDsm != null) && (aszDsm.Length > 0))
+                    {
+                        // Check each name, we only want to launch the process if
+                        // we find an old DSM...
+                        foreach (string szDsm in aszDsm)
+                        {
+                            if (    szDsm.Contains("so.2.0")
+                                ||  szDsm.Contains("so.2.1")
+                                ||  szDsm.Contains("so.2.2")
+                                ||  szDsm.Contains("so.2.3"))
+                            {
+                                // If we get a match, see if the symbolic link is
+                                // pointing to old junk...
+                                Process p = new Process();
+                                p.StartInfo.UseShellExecute = false;
+                                p.StartInfo.RedirectStandardOutput = true;
+                                p.StartInfo.FileName = "readlink";
+                                p.StartInfo.Arguments = "-e /usr/local/lib/libtwaindsm.so";
+                                p.Start();
+                                string szOutput = p.StandardOutput.ReadToEnd();
+                                p.WaitForExit();
+                                p.Dispose();
+                                if ((szOutput != null)
+                                    && (szOutput.Contains(".so.2.0")
+                                    ||  szOutput.Contains(".so.2.1")
+                                    ||  szOutput.Contains(".so.2.2")
+                                    ||  szOutput.Contains(".so.2.3")))
+                                {
+                                    // libtwaindsm.so is pointing to an old DSM...
+                                    blCheckForNewDsm = false;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    // Is the symbolic link pointing to a new DSM?
+                    if (blCheckForNewDsm && (aszDsm != null) && (aszDsm.Length > 0))
+                    {
+                        foreach (string szDsm in aszDsm)
+                        {
+                            if (    szDsm.Contains("so.2.4")
+                                ||  szDsm.Contains("so.2.5")
+                                ||  szDsm.Contains("so.2.6")
+                                ||  szDsm.Contains("so.2.7")
+                                ||  szDsm.Contains("so.2.8")
+                                ||  szDsm.Contains("so.2.9")
+                                ||  szDsm.Contains("so.3"))
+                            {
+                                // libtwaindsm.so is pointing to a new DSM...
+                                m_blFoundNewDsm = true;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
 
             // Mac OS X only...
             else if (ms_platform == Platform.MACOSX)
             {
-                m_blUseLegacyDSM = false;
+                m_blUseLegacyDSM = a_blUseLegacyDSM;
                 m_blUseCallbacks = true;
                 m_macosxdsmentrycontrolcallbackdelegate = MacosxDsmEntryCallbackProxy;
             }
@@ -905,7 +982,7 @@ namespace TWAINWorkingGroup
                             csvEnum.Add(twenumerationmacosx.CurrentIndex.ToString());
                             csvEnum.Add(twenumerationmacosx.DefaultIndex.ToString());
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             // Crack the container...
                             TW_ENUMERATION twenumeration = default(TW_ENUMERATION);
@@ -920,6 +997,22 @@ namespace TWAINWorkingGroup
                             csvEnum.Add(NumItems.ToString());
                             csvEnum.Add(twenumeration.CurrentIndex.ToString());
                             csvEnum.Add(twenumeration.DefaultIndex.ToString());
+                        }
+                        else
+                        {
+                            // Crack the container...
+                            TW_ENUMERATION_LINUX64 twenumerationlinux64 = default(TW_ENUMERATION_LINUX64);
+                            intptrLocked = DsmMemLock(a_twcapability.hContainer);
+                            twenumerationlinux64 = (TW_ENUMERATION_LINUX64)Marshal.PtrToStructure(intptrLocked, typeof(TW_ENUMERATION_LINUX64));
+                            ItemType = twenumerationlinux64.ItemType;
+                            NumItems = (uint)twenumerationlinux64.NumItems;
+                            intptr = (IntPtr)((UInt64)intptrLocked + (UInt64)Marshal.SizeOf(twenumerationlinux64));
+
+                            // Start building the string...
+                            csvEnum = Common(a_twcapability.Cap, a_twcapability.ConType, ItemType);
+                            csvEnum.Add(NumItems.ToString());
+                            csvEnum.Add(twenumerationlinux64.CurrentIndex.ToString());
+                            csvEnum.Add(twenumerationlinux64.DefaultIndex.ToString());
                         }
 
                         // Tack on the stuff from the ItemList...
@@ -972,6 +1065,7 @@ namespace TWAINWorkingGroup
                     {
                         CSV csvRange;
                         TW_RANGE twrange;
+                        TW_RANGE_LINUX64 twrangelinux64;
                         TW_RANGE_MACOSX twrangemacosx;
                         TW_RANGE_FIX32 twrangefix32;
                         TW_RANGE_FIX32_MACOSX twrangefix32macosx;
@@ -996,11 +1090,29 @@ namespace TWAINWorkingGroup
                             twrangefix32.DefaultValue = twrangefix32macosx.DefaultValue;
                             twrangefix32.CurrentValue = twrangefix32macosx.CurrentValue;
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             intptrLocked = DsmMemLock(a_twcapability.hContainer);
                             twrange = (TW_RANGE)Marshal.PtrToStructure(intptrLocked, typeof(TW_RANGE));
                             twrangefix32 = (TW_RANGE_FIX32)Marshal.PtrToStructure(intptrLocked, typeof(TW_RANGE_FIX32));
+                        }
+                        else
+                        {
+                            intptrLocked = DsmMemLock(a_twcapability.hContainer);
+                            twrangelinux64 = (TW_RANGE_LINUX64)Marshal.PtrToStructure(intptrLocked, typeof(TW_RANGE_LINUX64));
+                            twrangefix32macosx = (TW_RANGE_FIX32_MACOSX)Marshal.PtrToStructure(intptrLocked, typeof(TW_RANGE_FIX32_MACOSX));
+                            twrange.ItemType = (TWTY)twrangelinux64.ItemType;
+                            twrange.MinValue = (uint)twrangelinux64.MinValue;
+                            twrange.MaxValue = (uint)twrangelinux64.MaxValue;
+                            twrange.StepSize = (uint)twrangelinux64.StepSize;
+                            twrange.DefaultValue = (uint)twrangelinux64.DefaultValue;
+                            twrange.CurrentValue = (uint)twrangelinux64.CurrentValue;
+                            twrangefix32.ItemType = (TWTY)twrangefix32macosx.ItemType;
+                            twrangefix32.MinValue = twrangefix32macosx.MinValue;
+                            twrangefix32.MaxValue = twrangefix32macosx.MaxValue;
+                            twrangefix32.StepSize = twrangefix32macosx.StepSize;
+                            twrangefix32.DefaultValue = twrangefix32macosx.DefaultValue;
+                            twrangefix32.CurrentValue = twrangefix32macosx.CurrentValue;
                         }
 
                         // Start the string...
@@ -1239,7 +1351,7 @@ namespace TWAINWorkingGroup
                             // Get the pointer to the ItemList...
                             intptr = (IntPtr)((UInt64)intptr + (UInt64)Marshal.SizeOf(twenumerationmacosx));
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             // Allocate...
                             a_twcapability.hContainer = DsmMemAlloc((uint)(Marshal.SizeOf(default(TW_ENUMERATION)) + (((int)u32NumItems + 1) * Marshal.SizeOf(default(TW_STR255)))));
@@ -1255,6 +1367,23 @@ namespace TWAINWorkingGroup
 
                             // Get the pointer to the ItemList...
                             intptr = (IntPtr)((UInt64)intptr + (UInt64)Marshal.SizeOf(twenumeration));
+                        }
+                        else
+                        {
+                            // Allocate...
+                            a_twcapability.hContainer = DsmMemAlloc((uint)(Marshal.SizeOf(default(TW_ENUMERATION_LINUX64)) + (((int)u32NumItems + 1) * Marshal.SizeOf(default(TW_STR255)))));
+                            intptr = DsmMemLock(a_twcapability.hContainer);
+
+                            // Set the meta data...
+                            TW_ENUMERATION_LINUX64 twenumerationlinux64 = default(TW_ENUMERATION_LINUX64);
+                            twenumerationlinux64.ItemType = twty;
+                            twenumerationlinux64.NumItems = u32NumItems;
+                            twenumerationlinux64.CurrentIndex = uint.Parse(asz[4]);
+                            twenumerationlinux64.DefaultIndex = uint.Parse(asz[5]);
+                            Marshal.StructureToPtr(twenumerationlinux64, intptr, true);
+
+                            // Get the pointer to the ItemList...
+                            intptr = (IntPtr)((UInt64)intptr + (UInt64)Marshal.SizeOf(twenumerationlinux64));
                         }
 
                         // Set the ItemList...
@@ -1335,10 +1464,16 @@ namespace TWAINWorkingGroup
                             a_twcapability.hContainer = DsmMemAlloc((uint)(Marshal.SizeOf(default(TW_RANGE_MACOSX))));
                             intptr = DsmMemLock(a_twcapability.hContainer);
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             // Allocate...
                             a_twcapability.hContainer = DsmMemAlloc((uint)(Marshal.SizeOf(default(TW_RANGE))));
+                            intptr = DsmMemLock(a_twcapability.hContainer);
+                        }
+                        else
+                        {
+                            // Allocate...
+                            a_twcapability.hContainer = DsmMemAlloc((uint)(Marshal.SizeOf(default(TW_RANGE_LINUX64))));
                             intptr = DsmMemLock(a_twcapability.hContainer);
                         }
 
@@ -2190,7 +2325,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryNullDest(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, a_dat, a_msg, a_twmemref);
                     }
@@ -2214,7 +2349,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryNullDest(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, a_dat, a_msg, a_twmemref);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryNullDest(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, a_dat, a_msg, a_twmemref);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryNullDest(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, a_dat, a_msg, a_twmemref);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -2320,7 +2462,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntry(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, a_dat, a_msg, a_twmemref);
                     }
@@ -2344,7 +2486,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntry(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.AUDIOINFO, a_msg, a_twmemref);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntry(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.AUDIOINFO, a_msg, a_twmemref);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntry(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.AUDIOINFO, a_msg, a_twmemref);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -2449,7 +2598,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryAudioAudioinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.AUDIOINFO, a_msg, ref a_twaudioinfo);
                     }
@@ -2473,7 +2622,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryAudioAudioinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.AUDIOINFO, a_msg, ref a_twaudioinfo);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryAudioAudioinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.AUDIOINFO, a_msg, ref a_twaudioinfo);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryAudioAudioinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.AUDIOINFO, a_msg, ref a_twaudioinfo);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -2578,7 +2734,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryCallback(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CALLBACK, a_msg, ref a_twcallback);
                     }
@@ -2602,7 +2758,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryCallback(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.CALLBACK, a_msg, ref a_twcallback);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryCallback(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.CALLBACK, a_msg, ref a_twcallback);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryCallback(ref m_twidentitymacosxApp, ref m_twidentityDs, a_dg, DAT.CALLBACK, a_msg, ref a_twcallback);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -2707,7 +2870,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryCallback2(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CALLBACK2, a_msg, ref a_twcallback2);
                     }
@@ -2731,7 +2894,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryCallback2(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.CALLBACK2, a_msg, ref a_twcallback2);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryCallback2(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.CALLBACK2, a_msg, ref a_twcallback2);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryCallback2(ref m_twidentitymacosxApp, ref m_twidentityDs, a_dg, DAT.CALLBACK2, a_msg, ref a_twcallback2);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -2869,7 +3039,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryCapability(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
                     }
@@ -2893,7 +3063,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryCapability(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryCapability(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryCapability(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3005,7 +3182,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryCiecolor(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CIECOLOR, a_msg, ref a_twciecolor);
                     }
@@ -3029,7 +3206,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryCiecolor(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CIECOLOR, a_msg, ref a_twciecolor);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryCiecolor(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CIECOLOR, a_msg, ref a_twciecolor);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryCiecolor(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CIECOLOR, a_msg, ref a_twciecolor);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3134,7 +3318,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryCustomdsdata(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CUSTOMDSDATA, a_msg, ref a_twcustomdsdata);
                     }
@@ -3158,7 +3342,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryCustomdsdata(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CUSTOMDSDATA, a_msg, ref a_twcustomdsdata);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryCustomdsdata(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CUSTOMDSDATA, a_msg, ref a_twcustomdsdata);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryCustomdsdata(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.CUSTOMDSDATA, a_msg, ref a_twcustomdsdata);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3263,7 +3454,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryDeviceevent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.DEVICEEVENT, a_msg, ref a_twdeviceevent);
                     }
@@ -3287,7 +3478,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryDeviceevent(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.DEVICEEVENT, a_msg, ref a_twdeviceevent);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryDeviceevent(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.DEVICEEVENT, a_msg, ref a_twdeviceevent);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryDeviceevent(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.DEVICEEVENT, a_msg, ref a_twdeviceevent);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3398,7 +3596,18 @@ namespace TWAINWorkingGroup
                     }
                     else
                     {
-                        sts = (STS)Linux64DsmEntryEntrypoint(ref m_twidentityApp, ref m_twidentityDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
+                        // We'll spit this out if we have no DSM...
+                        sts = STS.BUMMER;
+                        // Load the new DSM, whatever it is, if we found one...
+                        if (m_blFoundNewDsm)
+                        {
+                            sts = (STS)LinuxDsmEntryEntrypoint(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
+                        }
+                        // Load libtwaindsm.so.2.3.2, if we found it...
+                        if (m_blFoundOldDsm)
+                        {
+                            sts = (STS)LinuxDsmEntryEntrypoint(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -3416,7 +3625,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryEntrypoint(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryEntrypoint(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryEntrypoint(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3518,7 +3734,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryEvent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
                     }
@@ -3542,7 +3758,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryEvent(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryEvent(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryEvent(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3653,7 +3876,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryExtimageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
                     }
@@ -3677,7 +3900,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryExtimageinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryExtimageinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryExtimageinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3782,7 +4012,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryFilesystem(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.FILESYSTEM, a_msg, ref a_twfilesystem);
                     }
@@ -3806,7 +4036,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryFilesystem(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.FILESYSTEM, a_msg, ref a_twfilesystem);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryFilesystem(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.FILESYSTEM, a_msg, ref a_twfilesystem);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryFilesystem(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.FILESYSTEM, a_msg, ref a_twfilesystem);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -3911,7 +4148,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryFilter(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.FILTER, a_msg, ref a_twfilter);
                     }
@@ -3935,7 +4172,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryFilter(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.FILTER, a_msg, ref a_twfilter);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryFilter(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.FILTER, a_msg, ref a_twfilter);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryFilter(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.FILTER, a_msg, ref a_twfilter);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -4040,7 +4284,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryGrayresponse(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.GRAYRESPONSE, a_msg, ref a_twgrayresponse);
                     }
@@ -4064,7 +4308,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryGrayresponse(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.GRAYRESPONSE, a_msg, ref a_twgrayresponse);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryGrayresponse(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.GRAYRESPONSE, a_msg, ref a_twgrayresponse);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryGrayresponse(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.GRAYRESPONSE, a_msg, ref a_twgrayresponse);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -4169,7 +4420,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryIccprofile(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.ICCPROFILE, a_msg, ref a_twmemory);
                     }
@@ -4193,7 +4444,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryIccprofile(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.ICCPROFILE, a_msg, ref a_twmemory);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryIccprofile(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.ICCPROFILE, a_msg, ref a_twmemory);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryIccprofile(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.ICCPROFILE, a_msg, ref a_twmemory);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -4297,18 +4555,200 @@ namespace TWAINWorkingGroup
             // Linux...
             else if (ms_platform == Platform.LINUX)
             {
-                // Issue the command...
+                // Issue the command, we have a serious problem with 64-bit stuff
+                // because TW_INT32 and TW_UINT32 were defined using long, which
+                // made them 64-bit values (not a good idea for 32-bit types).  This
+                // was fixed with TWAIN DSM 2.4, but it leaves us with a bit of a
+                // mess.  So, unlike all of the other calls, we're going to allow
+                // ourselves to access both DSMs from here.  This is only an issue
+                // for 64-bit systems, and we're going to assume that the data source
+                // is 2.4 or later, since that'll be the long term situation.  Note
+                // that we assume the DSMs are protecting us from talking to the
+                // wrong data source...
                 try
                 {
+                    // Since life is complex, start by assuming failure...
+                    sts = STS.FAILURE;
+                    // We never have a problem with 32-bit, so just do it...
                     if (GetMachineWordBitSize() == 32)
                     {
+                        m_linux64bitdsm = Linux64BitDsm.IsLatestDsm; // set it so debugging makes sense
                         TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
                         sts = (STS)LinuxDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
                         a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
                     }
-                    else
+                    // Handle closeds...
+                    else if (a_msg == MSG.CLOSEDS)
                     {
-                        sts = (STS)Linux64DsmEntryIdentity(ref m_twidentityApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref a_twidentity);
+                        // We've opened this source, and we know it's the new style...
+                        if (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm)
+                        {
+                            TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            sts = (STS)LinuxDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
+                        }
+                        // We've opened this source, and we know it's the old style...
+                        else if (m_linux64bitdsm == Linux64BitDsm.IsOldDsm)
+                        {
+                            TW_IDENTITY_LINUX64 twidentitylinux64App = TwidentityToTwidentitylinux64(m_twidentityApp);
+                            TW_IDENTITY_LINUX64 twidentitylinux64 = TwidentityToTwidentitylinux64(a_twidentity);
+                            sts = (STS)Linux64DsmEntryIdentity(ref twidentitylinux64App, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylinux64);
+                            a_twidentity = Twidentitylinux64ToTwidentity(twidentitylinux64);
+                        }
+                        // We can't possibly have opened this source, so this had
+                        // better be a sequence error...
+                        else
+                        {
+                            sts = STS.SEQERROR;
+                        }
+                    }
+                    // Getfirst always starts with the current DSM, if it can't find it,
+                    // or if it reports end of list, then go on to the old DSM, if we
+                    // have one...
+                    else if (a_msg == MSG.GETFIRST)
+                    {
+                        m_linux64bitdsmEnum = Linux64BitDsm.Unknown;
+
+                        // Try with the latest DSM first, hopefully this just works...
+                        sts = STS.FAILURE;
+                        if (File.Exists("/usr/local/lib/libtwaindsm.so"))
+                        {
+                            TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            sts = (STS)LinuxDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
+                        }
+
+                        // We got it...
+                        if (sts == STS.SUCCESS)
+                        {
+                            m_linux64bitdsmEnum = Linux64BitDsm.IsLatestDsm;
+                        }
+
+                        // No joy, so try the other one...
+                        else
+                        {
+                            if (File.Exists("/usr/local/lib/libtwaindsm.so.2.3.2"))
+                            {
+                                TW_IDENTITY_LINUX64 twidentitylinux64App = TwidentityToTwidentitylinux64(m_twidentityApp);
+                                TW_IDENTITY_LINUX64 twidentitylinux64 = TwidentityToTwidentitylinux64(a_twidentity);
+                                sts = (STS)Linux64DsmEntryIdentity(ref twidentitylinux64App, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylinux64);
+                                a_twidentity = Twidentitylinux64ToTwidentity(twidentitylinux64);
+                                if (sts == STS.SUCCESS)
+                                {
+                                    m_linux64bitdsmEnum = Linux64BitDsm.IsOldDsm;
+                                }
+                            }
+                        }
+                    }
+                    // Getnext gets its lead from getfirst, if we have a DSM
+                    // value, we try it out, if we don't have one, we must be
+                    // at the end of list.  We'll do the new DSM and then the
+                    // old DSM (if we have one)...
+                    else if (a_msg == MSG.GETNEXT)
+                    {
+                        bool blChangeToGetFirst = false;
+
+                        // We're done...
+                        if (m_linux64bitdsmEnum == Linux64BitDsm.Unknown)
+                        {
+                            sts = STS.ENDOFLIST;
+                        }
+
+                        // We're working the latest DSM...
+                        if (m_linux64bitdsmEnum == Linux64BitDsm.IsLatestDsm)
+                        {
+                            TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            sts = (STS)LinuxDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
+                            if (sts != STS.SUCCESS)
+                            {
+                                m_linux64bitdsmEnum = Linux64BitDsm.IsOldDsm;
+                                sts = STS.ENDOFLIST;
+                                blChangeToGetFirst = true;
+                            }
+                        }
+
+                        // We're working the old DSM...
+                        if (m_linux64bitdsmEnum == Linux64BitDsm.IsOldDsm)
+                        {
+                            TW_IDENTITY_LINUX64 twidentitylinux64App = TwidentityToTwidentitylinux64(m_twidentityApp);
+                            TW_IDENTITY_LINUX64 twidentitylinux64 = blChangeToGetFirst ? default(TW_IDENTITY_LINUX64) : TwidentityToTwidentitylinux64(a_twidentity);
+                            sts = (STS)Linux64DsmEntryIdentity(ref twidentitylinux64App, IntPtr.Zero, a_dg, DAT.IDENTITY, blChangeToGetFirst ? MSG.GETFIRST : a_msg, ref twidentitylinux64);
+                            a_twidentity = Twidentitylinux64ToTwidentity(twidentitylinux64);
+                            if (sts != STS.SUCCESS)
+                            {
+                                m_linux64bitdsmEnum = Linux64BitDsm.Unknown;
+                                sts = STS.ENDOFLIST;
+                            }
+                        }
+                    }
+                    // Open always tries the current DSM, and then the older one, if needed...
+                    else if (a_msg == MSG.OPENDS)
+                    {
+                        TW_IDENTITY_LEGACY twidentitylegacy = default(TW_IDENTITY_LEGACY);
+
+                        // Prime the pump by assuming we didn't find anything...
+                        sts = STS.NODS;
+
+                        // Try with the latest DSM first, hopefully this just works, if we
+                        // got here as part of getfirst/getnext, use that info.  Or do this
+                        // if we just popped in here...
+                        if (    (m_linux64bitdsmEnum == Linux64BitDsm.Unknown)
+                            ||  (m_linux64bitdsmEnum == Linux64BitDsm.IsLatestDsm))
+                        {
+                            // Result of getfirst/getnext...
+                            if (m_linux64bitdsmEnum == Linux64BitDsm.IsLatestDsm)
+                            {
+                                twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            }
+                            // Hitting us from out of the blue...
+                            else
+                            {
+                                twidentitylegacy.ProductFamily = a_twidentity.ProductFamily;
+                            }
+                            sts = (STS)LinuxDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                        }
+
+                        // We got it...
+                        if (sts == STS.SUCCESS)
+                        {
+                            a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
+                            m_linux64bitdsm = Linux64BitDsm.IsLatestDsm;
+                        }
+
+                        // No joy, so try the other one...
+                        else
+                        {
+                            // If we got here as part of getfirst/getnext, use that info.
+                            // Or do this if we just popped in here...
+                            if (    (m_linux64bitdsmEnum == Linux64BitDsm.Unknown)
+                                ||  (m_linux64bitdsmEnum == Linux64BitDsm.IsOldDsm))
+                            {
+                                TW_IDENTITY_LINUX64 twidentitylinux64App = TwidentityToTwidentitylinux64(m_twidentityApp);
+                                TW_IDENTITY_LINUX64 twidentitylinux64 = default(TW_IDENTITY_LINUX64);
+                                // Result of getfirst/getnext...
+                                if (m_linux64bitdsmEnum == Linux64BitDsm.IsLatestDsm)
+                                {
+                                    twidentitylinux64 = TwidentityToTwidentitylinux64(a_twidentity);
+                                }
+                                // Hitting us from out of the blue...
+                                else
+                                {
+                                    twidentitylinux64.ProductFamily = a_twidentity.ProductFamily;
+                                }
+                                sts = (STS)Linux64DsmEntryIdentity(ref twidentitylinux64App, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylinux64);
+                                if (sts == STS.SUCCESS)
+                                {
+                                    a_twidentity = Twidentitylinux64ToTwidentity(twidentitylinux64);
+                                    m_linux64bitdsm = Linux64BitDsm.IsOldDsm;
+                                }
+                            }
+                        }
+                    }
+                    // TBD: figure out how to safely do a set on Linux...
+                    else if (a_msg == MSG.SET)
+                    {
+                        // Just pretend we did it...
                     }
                 }
                 catch (Exception exception)
@@ -4327,7 +4767,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryIdentity(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitymacosx);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryIdentity(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitymacosx);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryIdentity(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitymacosx);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -4420,7 +4867,7 @@ namespace TWAINWorkingGroup
                         // Issue the command...
                         try
                         {
-                            if (TWAIN.GetMachineWordBitSize() == 32)
+                            if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                             {
                                 sts = (STS)LinuxDsmEntryCallback(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.CALLBACK, MSG.REGISTER_CALLBACK, ref twcallback);
                             }
@@ -4457,7 +4904,14 @@ namespace TWAINWorkingGroup
                         // Issue the command...
                         try
                         {
-                            sts = (STS)MacosxDsmEntryCallback(ref m_twidentitymacosxApp, intptr, DG.CONTROL, DAT.CALLBACK, MSG.REGISTER_CALLBACK, ref twcallback);
+                            if (m_blUseLegacyDSM)
+                            {
+                                sts = (STS)MacosxTwainDsmEntryCallback(ref m_twidentitymacosxApp, intptr, DG.CONTROL, DAT.CALLBACK, MSG.REGISTER_CALLBACK, ref twcallback);
+                            }
+                            else
+                            {
+                                sts = (STS)MacosxTwaindsmDsmEntryCallback(ref m_twidentitymacosxApp, ref m_twidentityDs, DG.CONTROL, DAT.CALLBACK, MSG.REGISTER_CALLBACK, ref twcallback);
+                            }
                         }
                         catch (Exception exception)
                         {
@@ -4562,7 +5016,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryImageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
                     }
@@ -4604,7 +5058,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryImageinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryImageinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryImageinfo(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -4709,7 +5170,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryImagelayout(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
                     }
@@ -4733,7 +5194,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryImagelayout(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryImagelayout(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryImagelayout(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -4910,7 +5378,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryImagefilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEFILEXFER, a_msg, IntPtr.Zero);
                     }
@@ -4934,7 +5402,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryImagefilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEFILEXFER, a_msg, IntPtr.Zero);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryImagefilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEFILEXFER, a_msg, IntPtr.Zero);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryImagefilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEFILEXFER, a_msg, IntPtr.Zero);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -5124,7 +5599,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryImagememfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEMEMFILEXFER, a_msg, ref a_twimagememxfer);
                     }
@@ -5180,7 +5655,14 @@ namespace TWAINWorkingGroup
                     twimagememxfermacosx.Rows = a_twimagememxfer.Rows;
                     twimagememxfermacosx.XOffset = a_twimagememxfer.XOffset;
                     twimagememxfermacosx.YOffset = a_twimagememxfer.YOffset;
-                    sts = (STS)MacosxDsmEntryImagememfilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEMEMFILEXFER, a_msg, ref twimagememxfermacosx);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryImagememfilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEMEMFILEXFER, a_msg, ref twimagememxfermacosx);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryImagememfilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEMEMFILEXFER, a_msg, ref twimagememxfermacosx);
+                    }
                     a_twimagememxfer.BytesPerRow = twimagememxfermacosx.BytesPerRow;
                     a_twimagememxfer.BytesWritten = twimagememxfermacosx.BytesWritten;
                     a_twimagememxfer.Columns = twimagememxfermacosx.Columns;
@@ -5380,7 +5862,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryImagememxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEMEMXFER, a_msg, ref a_twimagememxfer);
                     }
@@ -5436,7 +5918,14 @@ namespace TWAINWorkingGroup
                     twimagememxfermacosx.Rows = a_twimagememxfer.Rows;
                     twimagememxfermacosx.XOffset = a_twimagememxfer.XOffset;
                     twimagememxfermacosx.YOffset = a_twimagememxfer.YOffset;
-                    sts = (STS)MacosxDsmEntryImagememxfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEMEMXFER, a_msg, ref twimagememxfermacosx);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryImagememxfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEMEMXFER, a_msg, ref twimagememxfermacosx);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryImagememxfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGEMEMXFER, a_msg, ref twimagememxfermacosx);
+                    }
                     a_twimagememxfer.BytesPerRow = twimagememxfermacosx.BytesPerRow;
                     a_twimagememxfer.BytesWritten = twimagememxfermacosx.BytesWritten;
                     a_twimagememxfer.Columns = twimagememxfermacosx.Columns;
@@ -5643,7 +6132,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryImagenativexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGENATIVEXFER, a_msg, ref intptrBitmap);
                     }
@@ -5668,7 +6157,14 @@ namespace TWAINWorkingGroup
                 try
                 {
                     intptrBitmap = IntPtr.Zero;
-                    sts = (STS)MacosxDsmEntryImagenativexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGENATIVEXFER, a_msg, ref intptrBitmap);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryImagenativexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGENATIVEXFER, a_msg, ref intptrBitmap);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryImagenativexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.IMAGENATIVEXFER, a_msg, ref intptrBitmap);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -5787,7 +6283,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryJpegcompression(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.JPEGCOMPRESSION, a_msg, ref a_twjpegcompression);
                     }
@@ -5811,7 +6307,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryJpegcompression(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.JPEGCOMPRESSION, a_msg, ref a_twjpegcompression);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryJpegcompression(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.JPEGCOMPRESSION, a_msg, ref a_twjpegcompression);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryJpegcompression(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.JPEGCOMPRESSION, a_msg, ref a_twjpegcompression);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -5916,7 +6419,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (TWAIN.GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryPalette8(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PALETTE8, a_msg, ref a_twpalette8);
                     }
@@ -5940,7 +6443,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryPalette8(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PALETTE8, a_msg, ref a_twpalette8);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryPalette8(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PALETTE8, a_msg, ref a_twpalette8);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryPalette8(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PALETTE8, a_msg, ref a_twpalette8);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6039,7 +6549,7 @@ namespace TWAINWorkingGroup
                 }
             }
 
-           // Linux...
+            // Linux...
             else if (ms_platform == Platform.LINUX)
             {
                 // Issue the command...
@@ -6051,7 +6561,18 @@ namespace TWAINWorkingGroup
                     }
                     else
                     {
-                        sts = (STS)Linux64DsmEntryParent(ref m_twidentityApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        // We'll spit this out if we have no DSM...
+                        sts = STS.BUMMER;
+                        // Load the new DSM, whatever it is, if we found one...
+                        if (m_blFoundNewDsm)
+                        {
+                            sts = (STS)LinuxDsmEntryParent(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        }
+                        // Load libtwaindsm.so.2.3.2, if we found it...
+                        if (m_blFoundOldDsm)
+                        {
+                            sts = (STS)Linux64DsmEntryParent(ref m_twidentityApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -6069,7 +6590,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryParent(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryParent(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryParent(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6196,7 +6724,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryPassthru(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PASSTHRU, a_msg, ref a_twpassthru);
                     }
@@ -6220,7 +6748,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryPassthru(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PASSTHRU, a_msg, ref a_twpassthru);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryPassthru(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PASSTHRU, a_msg, ref a_twpassthru);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryPassthru(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PASSTHRU, a_msg, ref a_twpassthru);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6325,7 +6860,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryPendingxfers(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
                     }
@@ -6349,7 +6884,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryPendingxfers(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryPendingxfers(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryPendingxfers(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6481,7 +7023,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryRgbresponse(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.RGBRESPONSE, a_msg, ref a_twrgbresponse);
                     }
@@ -6505,7 +7047,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryRgbresponse(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.RGBRESPONSE, a_msg, ref a_twrgbresponse);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryRgbresponse(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.RGBRESPONSE, a_msg, ref a_twrgbresponse);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryRgbresponse(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.RGBRESPONSE, a_msg, ref a_twrgbresponse);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6610,7 +7159,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntrySetupfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
                     }
@@ -6634,7 +7183,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntrySetupfilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntrySetupfilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntrySetupfilexfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6739,7 +7295,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntrySetupmemxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
                     }
@@ -6763,7 +7319,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntrySetupmemxfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntrySetupmemxfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntrySetupmemxfer(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6868,7 +7431,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryStatusutf8(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUSUTF8, a_msg, ref a_twstatusutf8);
                     }
@@ -6892,7 +7455,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryStatusutf8(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.STATUSUTF8, a_msg, ref a_twstatusutf8);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryStatusutf8(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.STATUSUTF8, a_msg, ref a_twstatusutf8);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryStatusutf8(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.STATUSUTF8, a_msg, ref a_twstatusutf8);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -6997,7 +7567,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryTwaindirect(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.TWAINDIRECT, a_msg, ref a_twtwaindirect);
                     }
@@ -7021,7 +7591,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryTwaindirect(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.TWAINDIRECT, a_msg, ref a_twtwaindirect);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryTwaindirect(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.TWAINDIRECT, a_msg, ref a_twtwaindirect);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryTwaindirect(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.TWAINDIRECT, a_msg, ref a_twtwaindirect);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -7232,7 +7809,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryUserinterface(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.USERINTERFACE, a_msg, ref twuserinterface);
                     }
@@ -7256,7 +7833,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryUserinterface(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.USERINTERFACE, a_msg, ref twuserinterface);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryUserinterface(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.USERINTERFACE, a_msg, ref twuserinterface);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryUserinterface(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.USERINTERFACE, a_msg, ref twuserinterface);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -7397,7 +7981,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (GetMachineWordBitSize() == 32)
+                    if ((m_linux64bitdsm == Linux64BitDsm.IsLatestDsm) || (GetMachineWordBitSize() == 32))
                     {
                         sts = (STS)LinuxDsmEntryXfergroup(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.XFERGROUP, a_msg, ref a_twuint32);
                     }
@@ -7421,7 +8005,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryXfergroup(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.XFERGROUP, a_msg, ref a_twuint32);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryXfergroup(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.XFERGROUP, a_msg, ref a_twuint32);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryXfergroup(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, a_dg, DAT.XFERGROUP, a_msg, ref a_twuint32);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -7481,6 +8072,17 @@ namespace TWAINWorkingGroup
         /// </summary>
         /// <param name="a_action">code to run</param>
         public delegate void RunInUiThreadDelegate(Action a_action);
+
+        /// <summary>
+        /// We have three possible states when we're running on 64-bit Linux, this
+        /// covers them all...
+        /// </summary>
+        public enum Linux64BitDsm
+        {
+            Unknown,
+            IsLatestDsm,
+            IsOldDsm
+        }
 
         #endregion
 
@@ -8001,7 +8603,14 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)MacosxDsmEntryStatus(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                    if (m_blUseLegacyDSM)
+                    {
+                        sts = (STS)MacosxTwainDsmEntryStatus(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                    }
+                    else
+                    {
+                        sts = (STS)MacosxTwaindsmDsmEntryStatus(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -8376,6 +8985,7 @@ namespace TWAINWorkingGroup
         {
             TW_RANGE twrange = default(TW_RANGE);
             TW_RANGE_MACOSX twrangemacosx = default(TW_RANGE_MACOSX);
+            TW_RANGE_LINUX64 twrangelinux64 = default(TW_RANGE_LINUX64);
             TW_RANGE_FIX32 twrangefix32 = default(TW_RANGE_FIX32);
             TW_RANGE_FIX32_MACOSX twrangefix32macosx = default(TW_RANGE_FIX32_MACOSX);
 
@@ -8397,7 +9007,7 @@ namespace TWAINWorkingGroup
                             twrangemacosx.CurrentValue = (uint)sbyte.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrangemacosx, a_intptr, true);
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             twrange.ItemType = a_twty;
                             twrange.MinValue = (uint)sbyte.Parse(a_asz[3]);
@@ -8406,6 +9016,16 @@ namespace TWAINWorkingGroup
                             twrange.DefaultValue = (uint)sbyte.Parse(a_asz[6]);
                             twrange.CurrentValue = (uint)sbyte.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrange, a_intptr, true);
+                        }
+                        else
+                        {
+                            twrangelinux64.ItemType = a_twty;
+                            twrangelinux64.MinValue = (uint)sbyte.Parse(a_asz[3]);
+                            twrangelinux64.MaxValue = (uint)sbyte.Parse(a_asz[4]);
+                            twrangelinux64.StepSize = (uint)sbyte.Parse(a_asz[5]);
+                            twrangelinux64.DefaultValue = (uint)sbyte.Parse(a_asz[6]);
+                            twrangelinux64.CurrentValue = (uint)sbyte.Parse(a_asz[7]);
+                            Marshal.StructureToPtr(twrangelinux64, a_intptr, true);
                         }
                         return ("");
                     }
@@ -8422,7 +9042,7 @@ namespace TWAINWorkingGroup
                             twrangemacosx.CurrentValue = (uint)short.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrangemacosx, a_intptr, true);
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             twrange.ItemType = a_twty;
                             twrange.MinValue = (uint)short.Parse(a_asz[3]);
@@ -8431,6 +9051,16 @@ namespace TWAINWorkingGroup
                             twrange.DefaultValue = (uint)short.Parse(a_asz[6]);
                             twrange.CurrentValue = (uint)short.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrange, a_intptr, true);
+                        }
+                        else
+                        {
+                            twrangelinux64.ItemType = a_twty;
+                            twrangelinux64.MinValue = (uint)short.Parse(a_asz[3]);
+                            twrangelinux64.MaxValue = (uint)short.Parse(a_asz[4]);
+                            twrangelinux64.StepSize = (uint)short.Parse(a_asz[5]);
+                            twrangelinux64.DefaultValue = (uint)short.Parse(a_asz[6]);
+                            twrangelinux64.CurrentValue = (uint)short.Parse(a_asz[7]);
+                            Marshal.StructureToPtr(twrangelinux64, a_intptr, true);
                         }
                         return ("");
                     }
@@ -8447,7 +9077,7 @@ namespace TWAINWorkingGroup
                             twrangemacosx.CurrentValue = (uint)int.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrangemacosx, a_intptr, true);
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             twrange.ItemType = a_twty;
                             twrange.MinValue = (uint)int.Parse(a_asz[3]);
@@ -8456,6 +9086,16 @@ namespace TWAINWorkingGroup
                             twrange.DefaultValue = (uint)int.Parse(a_asz[6]);
                             twrange.CurrentValue = (uint)int.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrange, a_intptr, true);
+                        }
+                        else
+                        {
+                            twrangelinux64.ItemType = a_twty;
+                            twrangelinux64.MinValue = (uint)int.Parse(a_asz[3]);
+                            twrangelinux64.MaxValue = (uint)int.Parse(a_asz[4]);
+                            twrangelinux64.StepSize = (uint)int.Parse(a_asz[5]);
+                            twrangelinux64.DefaultValue = (uint)int.Parse(a_asz[6]);
+                            twrangelinux64.CurrentValue = (uint)int.Parse(a_asz[7]);
+                            Marshal.StructureToPtr(twrangelinux64, a_intptr, true);
                         }
                         return ("");
                     }
@@ -8472,7 +9112,7 @@ namespace TWAINWorkingGroup
                             twrangemacosx.CurrentValue = (uint)byte.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrangemacosx, a_intptr, true);
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             twrange.ItemType = a_twty;
                             twrange.MinValue = (uint)byte.Parse(a_asz[3]);
@@ -8481,6 +9121,16 @@ namespace TWAINWorkingGroup
                             twrange.DefaultValue = (uint)byte.Parse(a_asz[6]);
                             twrange.CurrentValue = (uint)byte.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrange, a_intptr, true);
+                        }
+                        else
+                        {
+                            twrangelinux64.ItemType = a_twty;
+                            twrangelinux64.MinValue = (uint)byte.Parse(a_asz[3]);
+                            twrangelinux64.MaxValue = (uint)byte.Parse(a_asz[4]);
+                            twrangelinux64.StepSize = (uint)byte.Parse(a_asz[5]);
+                            twrangelinux64.DefaultValue = (uint)byte.Parse(a_asz[6]);
+                            twrangelinux64.CurrentValue = (uint)byte.Parse(a_asz[7]);
+                            Marshal.StructureToPtr(twrangelinux64, a_intptr, true);
                         }
                         return ("");
                     }
@@ -8498,7 +9148,7 @@ namespace TWAINWorkingGroup
                             twrangemacosx.CurrentValue = (uint)ushort.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrangemacosx, a_intptr, true);
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             twrange.ItemType = a_twty;
                             twrange.MinValue = (uint)ushort.Parse(a_asz[3]);
@@ -8507,6 +9157,16 @@ namespace TWAINWorkingGroup
                             twrange.DefaultValue = (uint)ushort.Parse(a_asz[6]);
                             twrange.CurrentValue = (uint)ushort.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrange, a_intptr, true);
+                        }
+                        else
+                        {
+                            twrangelinux64.ItemType = a_twty;
+                            twrangelinux64.MinValue = (uint)ushort.Parse(a_asz[3]);
+                            twrangelinux64.MaxValue = (uint)ushort.Parse(a_asz[4]);
+                            twrangelinux64.StepSize = (uint)ushort.Parse(a_asz[5]);
+                            twrangelinux64.DefaultValue = (uint)ushort.Parse(a_asz[6]);
+                            twrangelinux64.CurrentValue = (uint)ushort.Parse(a_asz[7]);
+                            Marshal.StructureToPtr(twrangelinux64, a_intptr, true);
                         }
                         return ("");
                     }
@@ -8523,7 +9183,7 @@ namespace TWAINWorkingGroup
                             twrangemacosx.CurrentValue = uint.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrangemacosx, a_intptr, true);
                         }
-                        else
+                        else if ((m_linux64bitdsm == Linux64BitDsm.Unknown) || (m_linux64bitdsm == Linux64BitDsm.IsLatestDsm))
                         {
                             twrange.ItemType = a_twty;
                             twrange.MinValue = uint.Parse(a_asz[3]);
@@ -8532,6 +9192,16 @@ namespace TWAINWorkingGroup
                             twrange.DefaultValue = uint.Parse(a_asz[6]);
                             twrange.CurrentValue = uint.Parse(a_asz[7]);
                             Marshal.StructureToPtr(twrange, a_intptr, true);
+                        }
+                        else
+                        {
+                            twrangelinux64.ItemType = a_twty;
+                            twrangelinux64.MinValue = uint.Parse(a_asz[3]);
+                            twrangelinux64.MaxValue = uint.Parse(a_asz[4]);
+                            twrangelinux64.StepSize = uint.Parse(a_asz[5]);
+                            twrangelinux64.DefaultValue = uint.Parse(a_asz[6]);
+                            twrangelinux64.CurrentValue = uint.Parse(a_asz[7]);
+                            Marshal.StructureToPtr(twrangelinux64, a_intptr, true);
                         }
                         return ("");
                     }
@@ -8820,6 +9490,29 @@ namespace TWAINWorkingGroup
         }
 
         /// <summary>
+        /// Convert a public identity to a linux64 identity...
+        /// </summary>
+        /// <param name="a_twidentity">Identity to convert</param>
+        /// <returns>Linux64 form of identity</returns>
+        private TW_IDENTITY_LINUX64 TwidentityToTwidentitylinux64(TW_IDENTITY a_twidentity)
+        {
+            TW_IDENTITY_LINUX64 twidentitylinux64 = new TW_IDENTITY_LINUX64();
+            twidentitylinux64.Id = a_twidentity.Id;
+            twidentitylinux64.Manufacturer = a_twidentity.Manufacturer;
+            twidentitylinux64.ProductFamily = a_twidentity.ProductFamily;
+            twidentitylinux64.ProductName = a_twidentity.ProductName;
+            twidentitylinux64.ProtocolMajor = a_twidentity.ProtocolMajor;
+            twidentitylinux64.ProtocolMinor = a_twidentity.ProtocolMinor;
+            twidentitylinux64.SupportedGroups = a_twidentity.SupportedGroups;
+            twidentitylinux64.Version.Country = a_twidentity.Version.Country;
+            twidentitylinux64.Version.Info = a_twidentity.Version.Info;
+            twidentitylinux64.Version.Language = a_twidentity.Version.Language;
+            twidentitylinux64.Version.MajorNum = a_twidentity.Version.MajorNum;
+            twidentitylinux64.Version.MinorNum = a_twidentity.Version.MinorNum;
+            return (twidentitylinux64);
+        }
+
+        /// <summary>
         /// Convert a public identity to a macosx identity...
         /// </summary>
         /// <param name="a_twidentity">Identity to convert</param>
@@ -8862,6 +9555,29 @@ namespace TWAINWorkingGroup
             twidentity.Version.Language = a_twidentitylegacy.Version.Language;
             twidentity.Version.MajorNum = a_twidentitylegacy.Version.MajorNum;
             twidentity.Version.MinorNum = a_twidentitylegacy.Version.MinorNum;
+            return (twidentity);
+        }
+
+        /// <summary>
+        /// Convert a linux64 identity to a public identity...
+        /// </summary>
+        /// <param name="a_twidentitylegacy">Legacy identity to convert</param>
+        /// <returns>Regular form of identity</returns>
+        private TW_IDENTITY Twidentitylinux64ToTwidentity(TW_IDENTITY_LINUX64 a_twidentitylinux64)
+        {
+            TW_IDENTITY twidentity = new TW_IDENTITY();
+            twidentity.Id = a_twidentitylinux64.Id;
+            twidentity.Manufacturer = a_twidentitylinux64.Manufacturer;
+            twidentity.ProductFamily = a_twidentitylinux64.ProductFamily;
+            twidentity.ProductName = a_twidentitylinux64.ProductName;
+            twidentity.ProtocolMajor = a_twidentitylinux64.ProtocolMajor;
+            twidentity.ProtocolMinor = a_twidentitylinux64.ProtocolMinor;
+            twidentity.SupportedGroups = (uint)a_twidentitylinux64.SupportedGroups;
+            twidentity.Version.Country = a_twidentitylinux64.Version.Country;
+            twidentity.Version.Info = a_twidentitylinux64.Version.Info;
+            twidentity.Version.Language = a_twidentitylinux64.Version.Language;
+            twidentity.Version.MajorNum = a_twidentitylinux64.Version.MajorNum;
+            twidentity.Version.MinorNum = a_twidentitylinux64.Version.MinorNum;
             return (twidentity);
         }
 
@@ -9092,9 +9808,20 @@ namespace TWAINWorkingGroup
         private bool m_blAutoDatStatus;
 
         /// <summary>
-        /// Windows only, pick between TWAIN_32.DLL and TWAINDSM.DLL...
+        /// Windows, pick between TWAIN_32.DLL and TWAINDSM.DLL...
+        /// Mac OS X, pick between /System/Library/Frameworks/TWAIN.framework and /Library/Frameworks/TWAINDSM.framework
         /// </summary>
         private bool m_blUseLegacyDSM;
+
+        /// <summary>
+        /// Help us pick the right DSM for the current data source,
+        /// the first one is for the session, the second one id for
+        /// getfirst/getnext...
+        /// </summary>
+        private Linux64BitDsm m_linux64bitdsm;
+        private Linux64BitDsm m_linux64bitdsmEnum;
+        private bool m_blFoundOldDsm;
+        private bool m_blFoundNewDsm;
 
         /// <summary>
         /// Use the callback system (TWAINDSM.DLL only)...
