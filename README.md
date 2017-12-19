@@ -16,4 +16,9 @@ To build the project, you usually need to perform the following steps:
    git submodule foreach git pull origin master     
    ```   
  - Build PDF Raster solution (/source/pdfraster/pdfraster.sln)
+  
+ - [optional] [Download nuget](https://dist.nuget.org/index.html) (if you don't have it already)
+ - Install [Wix](http://wixtoolset.org/) to add installer project types in Visual Studio
+ - Restore packages by running ```nuget.exe restore TwainDirect.sln```
+ 
  - Build TWAIN Direct solution (/source/TwainDirect.sln)
