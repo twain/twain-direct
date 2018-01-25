@@ -220,6 +220,8 @@ namespace TwainDirect.Support
         /// - color jpeg
         /// </summary>
         /// <param name="a_szPrdFile">file to store the pdf/raster</param>
+        /// <param name="a_szPfxFile">pfx file to sign with</param>
+        /// <param name="a_szPfxPassword">password for the pfx file</param>
         /// <param name="a_szMetadata">metadata in json->xml conversion format</param>
         /// <param name="a_abImage">raw image data to wrap</param>
         /// <param name="a_iImageOffset">byte offset into the image</param>
@@ -232,6 +234,8 @@ namespace TwainDirect.Support
         public static bool CreatePdfRaster
         (
             string a_szPdfRasterFile,
+            string a_szPfxFile,
+            string a_szPfxPassword,
             string a_szMetadataJson,
             byte[] a_abImage,
             int a_iImageOffset,
@@ -271,10 +275,35 @@ namespace TwainDirect.Support
             // Create the file...
             try
             {
+                int enc;
+                bool blDigitallySigned = false;
+
+                // Are we signing?  Note that we allow for an empty password...
+                if (!string.IsNullOrEmpty(a_szPfxFile) && File.Exists(a_szPfxFile) && (a_szPfxPassword != null))
+                {
+                    blDigitallySigned = true;
+                }
+
                 // Construct a raster PDF encoder
                 PdfRasterWriter.Writer pdfRasWr = new PdfRasterWriter.Writer();
-                int enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                if (blDigitallySigned)
+                {
+                    enc = pdfRasWr.encoder_create_digitally_signed(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile, a_szPfxFile, a_szPfxPassword);
+                }
+                else
+                {
+                    enc = pdfRasWr.encoder_create(PdfRasterWriter.Writer.PdfRasterConst.PDFRASWR_API_LEVEL, a_szPdfRasterFile);
+                }
                 pdfRasWr.encoder_set_creator(enc, "TWAIN Direct on TWAIN v1.0");
+
+                // Set info for the digital signature...
+                if (blDigitallySigned)
+                {
+                    pdfRasWr.digital_signature_set_contactinfo(enc, "contact info");
+                    pdfRasWr.digital_signature_set_location(enc, "PC");
+                    pdfRasWr.digital_signature_set_name(enc, "TWAIN-Direct-on-TWAIN");
+                    pdfRasWr.digital_signature_set_reason(enc, "Scanning");
+                }
 
                 // Create the page (we only ever have one)...
                 pdfRasWr.encoder_set_resolution(enc, a_i32Resolution, a_i32Resolution);
@@ -391,11 +420,15 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_szPdf">source</param>
         /// <param name="a_szThumbnailFile">destination</param>
+        /// <param name="a_szPfxFile">pfx file to sign with</param>
+        /// <param name="a_szPfxPassword">password for the pfx file</param>
         /// <returns>true on success</returns>
         public static bool CreatePdfRasterThumbnail
         (
             string a_szPdf,
-            string a_szThumbnailFile
+            string a_szThumbnailFile,
+            string a_szPfxFile,
+            string a_szPfxPassword
         )
         {
             int hh;
@@ -452,7 +485,7 @@ namespace TwainDirect.Support
                 }
 
                 // PDF/raster it...              
-                blSuccess = PdfRaster.CreatePdfRaster(a_szThumbnailFile, "", abImage, 0, "rgb24", "none", (int)bitmap.HorizontalResolution, bitmap.Width, bitmap.Height);
+                blSuccess = PdfRaster.CreatePdfRaster(a_szThumbnailFile, a_szPfxFile, a_szPfxPassword, "", abImage, 0, "rgb24", "none", (int)bitmap.HorizontalResolution, bitmap.Width, bitmap.Height);
             }
 
             // All done...

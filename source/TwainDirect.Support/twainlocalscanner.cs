@@ -2545,7 +2545,13 @@ namespace TwainDirect.Support
                 if (blWithThumbnail)
                 {
                     szThumbnailFile = szPdf.Replace(".pdf", "_thumbnail.pdf");
-                    blSuccess = PdfRaster.CreatePdfRasterThumbnail(szPdf, szThumbnailFile);
+                    blSuccess = PdfRaster.CreatePdfRasterThumbnail
+                    (
+                        szPdf,
+                        szThumbnailFile,
+                        Config.Get("pfxFile", ""),
+                        Config.Get("pfxFilePassword", "")
+                    );
                 }
 
                 // Build the metadata filename, if we don't have one, we have a problem...

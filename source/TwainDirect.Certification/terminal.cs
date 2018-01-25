@@ -1278,6 +1278,7 @@ namespace TwainDirect.Certification
                 Display("help scripting...............................general discussion");
                 Display("call {label}.................................call function");
                 Display("cd [path]....................................shows or sets the current directory");
+                Display("checkpdfraster...............................validate PDF/raster files");
                 Display("clean........................................clean the images folder");
                 Display("dir..........................................lists files and folders in the current directory");
                 Display("echo [text]..................................echo text");
@@ -1638,6 +1639,18 @@ namespace TwainDirect.Certification
             {
                 DisplayRed("CD [PATH]");
                 Display("Show the current directory.  If a path is specified, change to that path.");
+                return (false);
+            }
+
+            // Checkpdfraster...
+            if ((szCommand == "checkpdfraster"))
+            {
+                DisplayRed("CHECKPDFRASTER");
+                Display("Validates that all of the PDF/raster files in the images folder are in");
+                Display("compliance with the specification.  It also requires at least one digital");
+                Display("signature.  All digital signatures are tested for validity.  The XMP data");
+                Display("for the page is extracted, converted from base64, and compared to the");
+                Display("metadata; it must match.  The valueof ${return:} is 'pass' on success.");
                 return (false);
             }
 

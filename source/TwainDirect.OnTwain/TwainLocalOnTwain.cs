@@ -793,6 +793,8 @@ namespace TwainDirect.OnTwain
                 blSuccess = PdfRaster.CreatePdfRaster
                 (
                     szPdfFile,
+                    Config.Get("pfxFile", ""),
+                    Config.Get("pfxFilePassword", ""),
                     szMeta,
                     a_abImage,
                     a_iImageOffset,
