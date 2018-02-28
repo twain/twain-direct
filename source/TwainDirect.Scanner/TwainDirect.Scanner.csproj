@@ -148,12 +148,15 @@
     <Content Include="data\appdata.txt" />
     <None Include="Resources\SystemTray.ico" />
   </ItemGroup>
+  <Import Project="MsBuildAL1073WarningWorkaround.targets" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>echo Post-build actions...
 XCOPY "$(ProjectDir)data" "$(TargetDir)data" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1.dll" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1.dll" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\pdfras_digitalsignature.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\pdfras_encryption.dll" "$(TargetDir)" /i /e /y /q</PostBuildEvent>
   </PropertyGroup>

@@ -39,6 +39,8 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Xml;
+using System.Xml.Schema;
 
 namespace TwainDirect.Support
 {
@@ -554,6 +556,10 @@ namespace TwainDirect.Support
             byte[] abStripData;
             PdfRasterReader.Reader pdfRasRd;
             string szFunction = "";
+            string szXmpdata;
+            string szXmpMetadata;
+            byte[] abXmpMetadata;
+            string szFileMetadata;
 
             // Hope for the best...
             a_szError = "";
@@ -590,6 +596,150 @@ namespace TwainDirect.Support
 
                 szFunction = "pdfRasRd.decoder_read_strips()";
                 abStripData = pdfRasRd.decoder_read_strips(iDecoder);
+
+                // Check Metadata
+                #region Check Metadata
+
+                szFunction = "pdfRasRd.decoder_page_metadata()";
+                szXmpdata = pdfRasRd.decoder_page_metadata(iDecoder, 1);
+
+                // Okay, now let's compare the data we found inside of the
+                // XMP block with our .meta file.
+
+                // TBD: We're doing some very simplistic checks here,
+                // there's got to be a better way...
+                if (!szXmpdata.StartsWith("<?xpacket begin=\"?\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>"))
+                {
+                    a_szError = szFunction + ": failed to find xpacket";
+                    pdfRasRd.decoder_destroy(iDecoder);
+                    return (false);
+                }
+                if (!szXmpdata.Contains("<x:xmpdata xmlns:x=\"adobe:ns:meta/\">"))
+                {
+                    a_szError = szFunction + ": failed to find x:xmpdata";
+                    pdfRasRd.decoder_destroy(iDecoder);
+                    return (false);
+                }
+                if (!szXmpdata.Contains("<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:twaindirect=\"http://www.twaindirect.org/twaindirect\">"))
+                {
+                    a_szError = szFunction + ": failed to find rdf:RDF";
+                    pdfRasRd.decoder_destroy(iDecoder);
+                    return (false);
+                }
+                if (!szXmpdata.Contains("<rdf:Description rdf:about=\"http://www.twaindirect.org/twaindirect#metadata\">"))
+                {
+                    a_szError = szFunction + ": failed to find rdf:Description";
+                    pdfRasRd.decoder_destroy(iDecoder);
+                    return (false);
+                }
+
+                // This next step confirms that we found twaindirect:metadata, and
+                // that all the intervening tags are in the right order...
+                XmlDocument xmldocument = new XmlDocument();
+                xmldocument.LoadXml(szXmpdata);
+                XmlNode xmlnode = xmldocument.SelectSingleNode("//*[name()='x:xmpdata']/*[name() = 'rdf:RDF']/*[name() = 'rdf:Description']//*[name() = 'twaindirect:metadata']");
+                if ((xmlnode == null) || string.IsNullOrEmpty(xmlnode.InnerXml))
+                {
+                    a_szError = szFunction + ": failed to find twaindirect:metadata";
+                    pdfRasRd.decoder_destroy(iDecoder);
+                    return (false);
+                }
+
+                // Convert the data from base64 to UTF8...
+                abXmpMetadata = Convert.FromBase64String(xmlnode.InnerXml);
+                szXmpMetadata = Encoding.UTF8.GetString(abXmpMetadata);
+
+                // Get the data in the file...
+                szFileMetadata = File.ReadAllText(Path.Combine(Path.GetDirectoryName(a_szPdf), Path.GetFileNameWithoutExtension(a_szPdf)) + ".meta");
+
+                // Compare the two.  We're expecting them to be identical, if
+                // this seems unreasonable, we'll have to compare the contents
+                // field by field...
+                if (szXmpMetadata != szFileMetadata)
+                {
+                    a_szError = szFunction + ": XMP metadata doesn't match the contents of the .meta file";
+                    pdfRasRd.decoder_destroy(iDecoder);
+                    return (false);
+                }
+
+                #endregion
+
+                // Check Digital Signature
+                #region Check Digital Signature
+
+                szFunction = "pdfRasRd.decoder_digital_siganture_count()";
+                int iDigitalSignatureCount = pdfRasRd.decoder_digital_siganture_count(iDecoder);
+                if (iDigitalSignatureCount <= 0)
+                {
+                    a_szError = szFunction + ": no digital signatures found";
+                    pdfRasRd.decoder_destroy(iDecoder);
+                    return (false);
+                }
+
+                // Loopy on the signatures...
+                for (int ii = 0; ii < iDigitalSignatureCount; ii++)
+                {
+                    string szValue;
+
+                    szFunction = "pdfRasRd.decoder_digital_signature_contactinfo()";
+                    szValue = pdfRasRd.decoder_digital_signature_contactinfo(iDecoder, ii);
+                    if (string.IsNullOrEmpty(szValue))
+                    {
+                        a_szError = szFunction + ": no contact info";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+
+                    szFunction = "pdfRasRd.decoder_digital_signature_location()";
+                    szValue = pdfRasRd.decoder_digital_signature_location(iDecoder, ii);
+                    if (string.IsNullOrEmpty(szValue))
+                    {
+                        a_szError = szFunction + ": no location";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+
+                    szFunction = "pdfRasRd.decoder_digital_signature_name()";
+                    szValue = pdfRasRd.decoder_digital_signature_name(iDecoder, ii);
+                    if (string.IsNullOrEmpty(szValue))
+                    {
+                        a_szError = szFunction + ": no name";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+
+                    szFunction = "pdfRasRd.decoder_digital_signature_reason()";
+                    szValue = pdfRasRd.decoder_digital_signature_reason(iDecoder, ii);
+                    if (string.IsNullOrEmpty(szValue))
+                    {
+                        a_szError = szFunction + ": no reason";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+
+                    szFunction = "pdfRasRd.decoder_digital_signature_validate()";
+                    int iValidate = pdfRasRd.decoder_digital_signature_validate(iDecoder, ii);
+                    if (iValidate < 0)
+                    {
+                        a_szError = szFunction + ": error validating";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+                    if ((iValidate & 0x1) != 0x1 /*DS_DOC_NOT_CHANGED*/)
+                    {
+                        a_szError = szFunction + ": document has been modified since it was signed";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+                    if ((iValidate & 0x2) != 0x2 /*DS_CERT_VERIFIED*/)
+                    {
+                        a_szError = szFunction + ": we can't validate, is the certificate in the store?";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+                }
+
+                #endregion
 
                 szFunction = "pdfRasRd.decoder_destroy()";
                 pdfRasRd.decoder_destroy(iDecoder);

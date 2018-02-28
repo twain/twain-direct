@@ -685,7 +685,7 @@ namespace TwainDirect.Support
         /// <returns>JSON data</returns>
         public string GetHttpResponseData()
         {
-            if (string.IsNullOrEmpty(m_httpresponsedata.szResponseData))
+            if (string.IsNullOrEmpty(m_httpresponsedata.szResponseData) || (m_httpresponsedata.szResponseData[0] == '\0'))
             {
                 return ("");
             }
@@ -1355,8 +1355,10 @@ namespace TwainDirect.Support
 
             // If the number of bytes we've read so far is less than what
             // the content length says we should have, go get more.  Note
-            // that we want to read the terminating CRLF/CRLF too...
-            if (m_xfermultipartjson.GetBytes() < (m_xfermultipartjson.GetMultipartContentLength() + m_abCRLFCRLF.Length))
+            // that we want to read the terminating CRLF/CRLF and the
+            // boundary terminator too (which is bigger than the boundary
+            // separator)...
+            if (m_xfermultipartjson.GetBytes() < (m_xfermultipartjson.GetMultipartContentLength() + m_abCRLFCRLF.Length + m_abBoundaryTerminator.Length))
             {
                 // If we filled the buffer, we're a sad panda...
                 if (m_xfermultipartjson.GetAvailableBytes() == 0)
@@ -1528,9 +1530,9 @@ namespace TwainDirect.Support
                 }
             }
 
-            // Make sure we get those last four CRLF bytes after we've gotten all
-            // of the PDF data...
-            if (m_xfermultipartpdf.GetBytes() < m_abCRLFCRLF.Length)
+            // Make sure we get those last four CRLF bytes and enough data for the
+            // boundary terminator after we've gotten all of the PDF data...
+            if (m_xfermultipartpdf.GetBytes() < (m_abCRLFCRLF.Length + m_abBoundaryTerminator.Length))
             {
                 // Read more data...
                 iasyncresult = m_httpresponsedata.streamHttpWebResponse.BeginRead
@@ -1805,7 +1807,7 @@ namespace TwainDirect.Support
                 // KEYWORD:RESPONSE
                 // The response came in the allowed time. The work processing will happen in the 
                 // callback function.  The if-statement is the best place to break if all you
-                // want to do it catch the reponse coming back before it's processed...
+                // want to do it catch the response coming back before it's processed...
                 m_httprequestdata.autoreseteventHttpWebRequest.WaitOne();
                 if (m_registeredwaithandle != null)
                 {

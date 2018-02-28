@@ -628,7 +628,7 @@ namespace TwainDirect.Scanner
             if (!blSuccess)
             {
                 Log.Error("MonitorTasksStart failed...");
-                MessageBox.Show("Error", "Failed to start the device, check the logs for more information.");
+                MessageBox.Show("Failed to start the device, check the logs for more information.", "Error");
                 return;
             }
             Display("Ready for use...");

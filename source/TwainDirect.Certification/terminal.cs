@@ -863,10 +863,19 @@ namespace TwainDirect.Certification
         {
             bool blSuccess;
             string szError = "";
+            string szImagesFolder = "";
             CHECKPDFRASTERRESULT checkpdfrasterresult;
 
-            // The images folder...
-            string szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
+            // The default is to use our images folder...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            {
+                szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
+            }
+            // The user can overrride this...
+            else
+            {
+                szImagesFolder = a_functionarguments.aszCmd[1];
+            }
 
             // If we don't have an images folder, then we didn't pass
             // but we also didn't necessarily fail, so mark it as a
@@ -1278,7 +1287,7 @@ namespace TwainDirect.Certification
                 Display("help scripting...............................general discussion");
                 Display("call {label}.................................call function");
                 Display("cd [path]....................................shows or sets the current directory");
-                Display("checkpdfraster...............................validate PDF/raster files");
+                Display("checkpdfraster [path]........................validate PDF/raster files");
                 Display("clean........................................clean the images folder");
                 Display("dir..........................................lists files and folders in the current directory");
                 Display("echo [text]..................................echo text");

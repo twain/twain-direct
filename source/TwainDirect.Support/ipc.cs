@@ -533,6 +533,13 @@ namespace TwainDirect.Support
                 m_socketData.Close();
                 m_socketData = null;
             }
+
+            // No more events...
+            //if (m_autoresetEventCommands != null)
+            //{
+            //    m_autoresetEventCommands.Close();
+            //    m_autoresetEventCommands = null;
+            //}
         }
 
         #endregion

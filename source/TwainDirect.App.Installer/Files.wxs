@@ -44,6 +44,34 @@
           <Component Id="pdfras_writer_managed.dll" Guid="{E328D096-8FD2-4B1E-BDA5-A5887160E6E6}">
             <File Id="pdfras_writer_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_writer_managed.dll" KeyPath="yes" />
           </Component>
+          
+          <Component Id="pdfras_digitalsignature.dll" Guid="{87CE3E81-16E6-4A00-B964-F3541961D2B6}">
+            <File Id="pdfras_digitalsignature.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_digitalsignature.dll" KeyPath="yes" />
+          </Component>
+          
+          <Component Id="pdfras_encryption.dll" Guid="{9704E024-D8E0-4551-9BC9-659A7AA3CCE8}">
+            <File Id="pdfras_encryption.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_encryption.dll" KeyPath="yes" />
+          </Component>
+
+          <?if $(var.Platform) = x64 ?>       
+            <Component Id="libcrypto_1_1.dll" Guid="{E5812602-2F5C-48C4-BEA1-CC06541D0437}">
+              <File Id="libcrypto_1_1_x64.dll" Source="$(var.TwainDirect.App.TargetDir)\libcrypto-1_1-x64.dll" KeyPath="yes" />
+            </Component>  
+          <?else ?>
+            <Component Id="libcrypto_1_1.dll" Guid="{BE163ED9-F2B9-4117-BFEF-B669EEDBBD70}">
+              <File Id="libcrypto_1_1.dll" Source="$(var.TwainDirect.App.TargetDir)\libcrypto-1_1.dll" KeyPath="yes" />
+            </Component>  
+          <?endif ?>
+
+          <?if $(var.Platform) = x64 ?>       
+            <Component Id="libssl_1_1.dll" Guid="{4DBFDEBF-4D17-46A5-B0A4-2C13924F627D}">
+              <File Id="libssl_1_1_x64.dll" Source="$(var.TwainDirect.App.TargetDir)\libssl-1_1-x64.dll" KeyPath="yes" />
+            </Component>
+          <?else ?>
+            <Component Id="libssl_1_1.dll" Guid="{3CDCB530-F71F-4140-BC00-3D1B0A312D63}">
+              <File Id="libssl_1_1.dll" Source="$(var.TwainDirect.App.TargetDir)\libssl-1_1.dll" KeyPath="yes" />
+            </Component>
+          <?endif ?>
 
           <?if $(var.Platform) = x64 ?>
             <Component Id="vcruntime140.dll" Guid="{C1AEA2BD-E303-46EA-AD84-188743206436}">

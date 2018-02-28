@@ -28,6 +28,10 @@
       <ComponentRef Id="TwainDirect.Support.dll"/>
       <ComponentRef Id="pdfras_reader_managed.dll"/>
       <ComponentRef Id="pdfras_writer_managed.dll"/>
+      <ComponentRef Id="pdfras_digitalsignature.dll"/>
+      <ComponentRef Id="pdfras_encryption.dll"/>
+      <ComponentRef Id="libcrypto_1_1.dll"/>
+      <ComponentRef Id="libssl_1_1.dll"/>
 
       <ComponentRef Id="vcruntime140.dll"/>
 

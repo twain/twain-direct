@@ -53,34 +53,66 @@
           <Component Id="pdfras_reader_managed.dll" Guid="{3B28FAE7-BC20-4F8C-8D83-238AA67FF6B5}">
             <File Id="pdfras_reader_managed.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\pdfras_reader_managed.dll" KeyPath="yes" />
           </Component>
+          
+          <Component Id="pdfras_writer_managed.dll" Guid="{3ED5AF4B-5D86-44F2-B823-D5D0DB11B0D8}">
+            <File Id="pdfras_writer_managed.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\pdfras_writer_managed.dll" KeyPath="yes" />
+          </Component>
+          
+          <Component Id="pdfras_digitalsignature.dll" Guid="{CA1B1C4F-0BA2-4414-A058-2AC92B11906D}">
+            <File Id="pdfras_digitalsignature.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\pdfras_digitalsignature.dll" KeyPath="yes" />
+          </Component>
+          
+          <Component Id="pdfras_encryption.dll" Guid="{BFDAC475-C9D9-4C6A-8DC9-5B64CB35B169}">
+            <File Id="pdfras_encryption.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\pdfras_encryption.dll" KeyPath="yes" />
+          </Component>
 
-					<Component Id="https.certificates" Guid="{42D7EB8F-4BAB-4996-A1EE-EA6B8A86741F}">
-						<RegistryValue Root="HKLM" Key="Software\[Manufacturer]\[ProductName]" Type="string" Value="" KeyPath="yes" />
+          <?if $(var.Platform) = x64 ?>       
+            <Component Id="libcrypto_1_1.dll" Guid="{37CA5D6A-C73B-4AE5-8C2A-DB4C2CA23368}">
+              <File Id="libcrypto_1_1.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\libcrypto-1_1-x64.dll" KeyPath="yes" />
+            </Component>  
+          <?else ?>
+            <Component Id="libcrypto_1_1.dll" Guid="{BE163ED9-F2B9-4117-BFEF-B669EEDBBD70}">
+              <File Id="libcrypto_1_1.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\libcrypto-1_1.dll" KeyPath="yes" />
+            </Component>  
+          <?endif ?>
 
-						<!--certificates not support keypath itself so couldn't extract them in separate component for now-->
-						<iis:Certificate Id="ca.cert"
-						                 Name="Kofax.WebCapture.CA"
-						                 BinaryKey="ca.cert.bin"
-						                 Overwrite="yes"
-						                 StoreLocation="localMachine"
-						                 StoreName="root"/>
+          <?if $(var.Platform) = x64 ?>       
+            <Component Id="libssl_1_1.dll" Guid="{8447EDA2-31C6-412E-B5B6-4E2DA6D08BC9}">
+              <File Id="libssl_1_1_x64.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\libssl-1_1-x64.dll" KeyPath="yes" />
+            </Component>
+          <?else ?>
+            <Component Id="libssl_1_1.dll" Guid="{3CDCB530-F71F-4140-BC00-3D1B0A312D63}">
+              <File Id="libssl_1_1_x64.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\libssl-1_1.dll" KeyPath="yes" />
+            </Component>
+          <?endif ?>
 
-						<iis:Certificate Id="server.cert"
-						                 Name="Kofax.WebCapture.Server"
-						                 BinaryKey="server.cert.bin"
-						                 Overwrite="yes"
-						                 StoreLocation="localMachine"
-						                 StoreName="personal"/>
-					</Component>
+          <Component Id="https.certificates" Guid="{42D7EB8F-4BAB-4996-A1EE-EA6B8A86741F}">
+            <RegistryValue Root="HKLM" Key="Software\[Manufacturer]\[ProductName]" Type="string" Value="" KeyPath="yes" />
+
+            <!--certificates not support keypath itself so couldn't extract them in separate component for now-->
+              <iis:Certificate Id="ca.cert"
+                               Name="Kofax.WebCapture.CA"
+                               BinaryKey="ca.cert.bin"
+                               Overwrite="yes"
+                               StoreLocation="localMachine"
+                               StoreName="root"/>
+
+              <iis:Certificate Id="server.cert"
+                               Name="Kofax.WebCapture.Server"
+                               BinaryKey="server.cert.bin"
+                               Overwrite="yes"
+                               StoreLocation="localMachine"
+                               StoreName="personal"/>
+          </Component>
 
           <?if $(var.Platform) = x64 ?>
             <Component Id="vcruntime140.dll" Guid="{C1AEA2BD-E303-46EA-AD84-188743206436}">
               <File Id="vcruntime140.dll.x64" Source="$(var.LibFolder)\Runtime\x64\vcruntime140.dll" KeyPath="yes" />
             </Component>
           <?else ?>
-          <Component Id="vcruntime140.dll" Guid="{B6833713-8724-4265-B0CE-070FCA310429}">
-            <File Id="vcruntime140.dll.x86" Source="$(var.LibFolder)\Runtime\x86\vcruntime140.dll" KeyPath="yes" />
-          </Component>          
+            <Component Id="vcruntime140.dll" Guid="{B6833713-8724-4265-B0CE-070FCA310429}">
+              <File Id="vcruntime140.dll.x86" Source="$(var.LibFolder)\Runtime\x86\vcruntime140.dll" KeyPath="yes" />
+            </Component>          
           <?endif ?>
           
         </Directory>
