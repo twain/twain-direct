@@ -722,12 +722,15 @@ namespace TwainDirect.OnTwain
         /// behaved drivers.  However, this is a problem for TWAIN CS to solve, not for
         /// TWAIN Direct on TWAIN, so focus any efforts there instead of here.
         /// </summary>
-        /// <returns>The list of drivers</returns>
-        public static string TwainListDrivers()
+        /// <param name="a_szTwainListAction">getproductnames, getinquiry</param>
+        /// <param name="a_szTwainListData">data for the action, like a scanner name for inquiry</param>
+        /// <returns>the list of drivers</returns>
+        public static string TwainListDrivers(string a_szTwainListAction, string a_szTwainListData)
         {
             string szStatus;
             string szTwainDriverIdentity;
             string szList = "";
+            string szTwainListProductName = "";
             IntPtr intptrHwnd;
             TWAINCSToolkit twaincstoolkit;
             TWAIN.STS sts;
@@ -767,6 +770,12 @@ namespace TwainDirect.OnTwain
                 return (null);
             }
 
+            // If the action is "namesonly" then package up what we have...
+            if (!string.IsNullOrEmpty(a_szTwainListAction) && (a_szTwainListAction == "getinquiry"))
+            {
+                szTwainListProductName = a_szTwainListData;
+            }
+
             // Cycle through the drivers and build up a list of identities...
             int iIndex = -1;
             string[] aszTwidentity = new string[256];
@@ -776,6 +785,16 @@ namespace TwainDirect.OnTwain
                  sts == TWAIN.STS.SUCCESS;
                  sts = twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_GETNEXT", ref szTwainDriverIdentity, ref szStatus))
             {
+                // If we're doing an inquiry, only pass on the requested item...
+                if (!string.IsNullOrEmpty(szTwainListProductName))
+                {
+                    string[] szTwidentityBits = CSV.Parse(szTwainDriverIdentity);
+                    if (szTwainListProductName != szTwidentityBits[11]) // TW_IDENTITY.ProductName
+                    {
+                        continue;
+                    }
+                }
+
                 // Save this identity...
                 iIndex += 1;
                 aszTwidentity[iIndex] = szTwainDriverIdentity;
@@ -783,6 +802,44 @@ namespace TwainDirect.OnTwain
                 // Prep for the next entry...
                 szStatus = "";
                 szTwainDriverIdentity = "";
+
+                // In inquiry mode, we can scoot if we get this far...
+                if (!string.IsNullOrEmpty(szTwainListProductName))
+                {
+                    break;
+                }
+            }
+
+            // If the action is "getproductnames" then package up what we have...
+            if (!string.IsNullOrEmpty(a_szTwainListAction) && (a_szTwainListAction == "getproductnames"))
+            {
+                // If we have nothing, return an empty string...
+                if (aszTwidentity.Length == 0)
+                {
+                    return ("");
+                }
+
+                // Otherwise, build a list of scanner names...
+                szList = "{\"scanners\":[";
+                for (int ii = 0; (ii < aszTwidentity.Length) && !string.IsNullOrEmpty(aszTwidentity[ii]); ii++)
+                {
+                    string[] aszTwidentityBits = CSV.Parse(aszTwidentity[ii]);
+                    if (ii > 0)
+                    {
+                        szList += ",";
+                    }
+                    szList += "{";
+                    szList += "\"twidentityProductName\":\"" + aszTwidentityBits[11] + "\""; // TW_IDENTITY.ProductName
+                    szList += "}";
+                }
+                szList += "]}";
+
+                // Destroy the toolkit...
+                twaincstoolkit.Cleanup();
+                twaincstoolkit = null;
+
+                // Return the list...
+                return (szList);
             }
 
             // Okay, we have a list of identities, so now let's try to open each one of

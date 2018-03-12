@@ -126,13 +126,13 @@ namespace TwainDirect.Scanner
 
             // Turn the buttons off...
             Display(Environment.NewLine);
-            Display("Looking for Scanners (please wait, this can take a while)...");
+            Display("Looking for Scanners...");
 
             // Get the list of scanners...
-            szScanners = m_scanner.GetAvailableScanners();
+            szScanners = m_scanner.GetAvailableScanners("getproductnames", "");
             if (string.IsNullOrEmpty(szScanners))
             {
-                Display("No devices found...");
+                Display("No scanners found...");
                 return;
             }
             try
@@ -142,7 +142,7 @@ namespace TwainDirect.Scanner
             }
             catch
             {
-                Display("No devices found...");
+                Display("No scanners found...");
                 return;
             }
 
@@ -238,6 +238,24 @@ namespace TwainDirect.Scanner
                 break;
             }
 
+            // Do a deep inquiry on the selected scanner...
+            szScanners = m_scanner.GetAvailableScanners("getinquiry", jsonlookup.Get("scanners[" + (iScanner - 1) + "].twidentityProductName"));
+            if (szScanners == null)
+            {
+                Display("We are unable to use the selected scanner...");
+                return;
+            }
+            try
+            {
+                jsonlookup = new JsonLookup();
+                jsonlookup.Load(szScanners, out lResponseCharacterOffset);
+            }
+            catch
+            {
+                Display("We are unable to use the selected scanner...");
+                return;
+            }
+
             // See if the user wants to update their note...
             string szNote = m_scanner.GetTwainLocalNote();
             if ((iNumber >= 1) && (iNumber <= iScanner))
@@ -259,7 +277,7 @@ namespace TwainDirect.Scanner
             // Register it, make a note if it works by clearing the
             // no devices flag...
             apicmd = new ApiCmd();
-            if (m_scanner.RegisterScanner(jsonlookup, iNumber - 1, szNote, ref apicmd))
+            if (m_scanner.RegisterScanner(jsonlookup, 0, szNote, ref apicmd))
             {
                 m_blNoDevices = false;
                 Display("Done...");

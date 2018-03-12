@@ -127,14 +127,33 @@ namespace TwainDirect.Scanner
         /// <summary>
         /// Return an array of available scanners...
         /// </summary>
+        /// <param name="a_szAction">getproductname, getinquiry</param>
+        /// <param name="a_szData">product name for getinquiry</param>
         /// <returns>an array of strings or null</returns>
-        public string GetAvailableScanners()
+        public string GetAvailableScanners(string a_szAction, string a_szData)
         {
+            string szArguments;
             string szList;
             string szListFile = m_twainlocalscannerdevice.GetPath("twainlist.txt");
 
+            // Get the list of TWAIN identity productnames...
+            if (!string.IsNullOrEmpty(a_szAction) && (a_szAction == "getproductnames"))
+            {
+                szArguments = "\"twainlist=" + szListFile + "\" \"twainlistaction=getproductnames\"";
+            }
+            // Perform a deep inquiry on the selected productname...
+            else if (!string.IsNullOrEmpty(a_szAction) && !string.IsNullOrEmpty(a_szData) && (a_szAction == "getinquiry"))
+            {
+                szArguments = "\"twainlist=" + szListFile + "\" \"twainlistaction=getinquiry\" \"twainlistdata=" + a_szData + "\"";
+            }
+            // Old behavior, do inquiry on all drivers...
+            else
+            {
+                szArguments = "\"twainlist=" + szListFile + "\"";
+            }
+
             // Get the list of available drivers...
-            string aszDrivers = Run(m_szTwainDirectOn, "\"twainlist=" + szListFile + "\"");
+            string aszDrivers = Run(m_szTwainDirectOn, szArguments);
             if (aszDrivers == null)
             {
                 Log.Error("Unable to get drivers...");

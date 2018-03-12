@@ -204,11 +204,13 @@ namespace TwainDirect.OnTwain
             string szTwainList = Config.Get("twainlist", null);
             if (szTwainList != null)
             {
+                string szTwainListAction = Config.Get("twainlistaction", null);
+                string szTwainListData = Config.Get("twainlistdata", null);
                 if (szTwainList == "")
                 {
                     szTwainList = Path.Combine(Config.Get("writeFolder", ""), "twainlist.txt");
                 }
-                System.IO.File.WriteAllText(szTwainList, ProcessSwordTask.TwainListDrivers());
+                System.IO.File.WriteAllText(szTwainList, ProcessSwordTask.TwainListDrivers(szTwainListAction, szTwainListData));
                 return (true);
             }
 

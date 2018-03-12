@@ -453,7 +453,7 @@ namespace TwainDirect.Scanner
             DialogResult dialogresult;
 
             // Are you sure?
-            dialogresult = MessageBox.Show("Do you want to register a TWAIN driver?  Please note that depending on how many drivers are installed, this may take a while.", "Register", MessageBoxButtons.YesNo);
+            dialogresult = MessageBox.Show("Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.", "Register", MessageBoxButtons.YesNo);
             if (dialogresult == DialogResult.No)
             {
                 return;
@@ -462,13 +462,13 @@ namespace TwainDirect.Scanner
             // Turn the buttons off...
             SetButtons(ButtonState.Undefined);
             Display("");
-            Display("Looking for Scanners (please wait, this can take a while)...");
+            Display("Looking for scanners...");
 
             // Get the list of scanners...
-            szScanners = m_scanner.GetAvailableScanners();
+            szScanners = m_scanner.GetAvailableScanners("getproductnames", "");
             if (szScanners == null)
             {
-                Display("No devices found...");
+                Display("No scanners found...");
                 return;
             }
             try
@@ -478,7 +478,7 @@ namespace TwainDirect.Scanner
             }
             catch
             {
-                Display("No devices found...");
+                Display("No scanners found...");
                 return;
             }
 
@@ -565,6 +565,24 @@ namespace TwainDirect.Scanner
                 break;
             }
 
+            // Do a deep inquiry on the selected scanner...
+            szScanners = m_scanner.GetAvailableScanners("getinquiry", jsonlookup.Get("scanners[" + (iNumber - 1) + "].twidentityProductName"));
+            if (szScanners == null)
+            {
+                Display("We are unable to use the selected scanner...");
+                return;
+            }
+            try
+            {
+                jsonlookup = new JsonLookup();
+                jsonlookup.Load(szScanners, out lResponseCharacterOffset);
+            }
+            catch
+            {
+                Display("We are unable to use the selected scanner...");
+                return;
+            }
+
             // See if the user wants to update their note...
             string szNote = m_scanner.GetTwainLocalNote();
             if ((iNumber >= 1) && (iNumber <= iScanner))
@@ -585,9 +603,10 @@ namespace TwainDirect.Scanner
             }
 
             // Register it, make a note if it works by clearing the
-            // no devices flag...
+            // no devices flag.  Note that the way things work now
+            // there is only ever one scanner in the list...
             apicmd = new ApiCmd();
-            if (m_scanner.RegisterScanner(jsonlookup, iNumber - 1, szNote, ref apicmd))
+            if (m_scanner.RegisterScanner(jsonlookup, 0, szNote, ref apicmd))
             {
                 m_blNoDevices = false;
                 Display("Done...");
