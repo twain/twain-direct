@@ -86,6 +86,13 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\WiX.3.10.3\build\wix.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\WiX.3.10.3\build\wix.props'))" />
   </Target>
+  <PropertyGroup>
+    <PreBuildEvent>echo.
+echo =============================================================================================
+echo Merge modules generate warnings (like string overflow), these are known about, ignore them... 
+echo =============================================================================================
+echo.</PreBuildEvent>
+  </PropertyGroup>
   <!--
 	To modify your build process, add your task inside one of the targets below and uncomment it.
 	Other similar extension points exist, see Wix.targets.

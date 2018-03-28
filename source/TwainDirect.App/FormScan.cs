@@ -10,7 +10,7 @@
 //  Author          Date            Version     Comment
 //  M.McLaughlin    31-Oct-2014     0.0.0.1     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2017 Kodak Alaris Inc.
+//  Copyright (C) 2014-2018 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -149,6 +149,45 @@ namespace TwainDirect.App
 
             // Get our TWAIN Local interface.
             m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
+
+            // If we don't have any tasks in the user's folder, bring
+            // over the ones that we installed with the binary...
+            string szTasksSrc = Path.Combine(Config.Get("readFolder", ""), "tasks");
+            if (!Directory.Exists(szTasksSrc))
+            {
+                szTasksSrc = Path.Combine(Config.Get("readFolder", ""), "data", "tasks");
+            }
+            string szTasksDst = Path.Combine(Config.Get("writeFolder", ""), "tasks");
+            if (!Directory.Exists(szTasksDst))
+            {
+                try
+                {
+                    Directory.CreateDirectory(szTasksDst);
+                }
+                catch
+                {
+                    // Oh well...
+                }
+            }
+            if (Directory.Exists(szTasksSrc) && Directory.Exists(szTasksDst))
+            {
+                string[] aszFiles = Directory.GetFiles(szTasksDst);
+                if ((aszFiles == null) || (aszFiles.Length == 0))
+                {
+                    aszFiles = Directory.GetFiles(szTasksSrc);
+                    foreach (string szFile in aszFiles)
+                    {
+                        try
+                        {
+                            File.Copy(szFile, Path.Combine(szTasksDst, Path.GetFileName(szFile)), true);
+                        }
+                        catch
+                        {
+                            // Just keep going...
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -1524,7 +1563,7 @@ namespace TwainDirect.App
             Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.GetLinkLocal() + ")";
 
             // Create the setup form...
-            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient);
+            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient, m_szWriteFolder);
 
             // Clear the images folder...
             bool blWarnOnce = true;

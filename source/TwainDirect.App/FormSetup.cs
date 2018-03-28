@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    21-Oct-2013     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2013-2017 Kodak Alaris Inc.
+//  Copyright (C) 2013-2018 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -59,18 +59,15 @@ namespace TwainDirect.App
         /// </summary>
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
         /// <param name="a_twainlocalscannerclient">our interface to the scanner</param>
-        public FormSetup(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, TwainLocalScannerClient a_twainlocalscannerclient)
+        /// <param name="a_szWriteFolder">where we get/put stuff</param>
+        public FormSetup(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, TwainLocalScannerClient a_twainlocalscannerclient, string a_szWriteFolder)
         {
             float fScale;
-            string szWriteFolder;
             ResourceManager resourcemanager;
 
             // Init stuff...
             InitializeComponent();
             m_dnssddeviceinfo = a_dnssddeviceinfo;
-
-            // Find our write folder...
-            szWriteFolder = Config.Get("writeFolder", "");
 
             // Handle scaling...
             fScale = (float)Config.Get("scale", 1.0);
@@ -109,10 +106,10 @@ namespace TwainDirect.App
             this.FormClosing += new FormClosingEventHandler(FormSetup_FormClosing);
 
             // Location of current task...
-            m_szCurrentTaskFile = Path.Combine(szWriteFolder, "currenttask");
+            m_szCurrentTaskFile = Path.Combine(a_szWriteFolder, "currenttask");
 
             // We're putting the tasks into the write folder...
-            m_szTasksFolder = Path.Combine(Path.GetDirectoryName(szWriteFolder), "tasks");
+            m_szTasksFolder = Path.Combine(a_szWriteFolder, "tasks");
             if (!Directory.Exists(m_szTasksFolder))
             {
                 try

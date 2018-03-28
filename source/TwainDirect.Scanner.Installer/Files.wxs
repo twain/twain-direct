@@ -6,8 +6,8 @@
   
   <Fragment>
 
-    <Directory Id="TARGETDIR" Name="SourceDir">
-
+    <Directory Id="TARGETDIR" Name="SourceDir"> 
+      
       <Directory Id="ProgramMenuFolder">
         <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)">
           <Component Id="applicationShortcut" Guid="{129B0AA5-4C9B-49DD-AA17-F05ECA8ED0A8}">
@@ -86,6 +86,11 @@
             </Component>
           <?endif ?>
 
+          <!--used for digital signing of the PDF/raster-->
+          <Component Id="certificate.p12" Guid="{CCF21F84-2D9A-49E0-9150-B6CE97580E8D}">
+              <File Id="certificate.p12" Source="$(var.TwainDirect.Scanner.TargetDir)\certificate.p12" KeyPath="yes" />
+          </Component>
+
           <Component Id="https.certificates" Guid="{42D7EB8F-4BAB-4996-A1EE-EA6B8A86741F}">
             <RegistryValue Root="HKLM" Key="Software\[Manufacturer]\[ProductName]" Type="string" Value="" KeyPath="yes" />
 
@@ -118,6 +123,6 @@
         </Directory>
       </Directory>
     </Directory>
-    
-	</Fragment>
+
+  </Fragment>
 </Wix>

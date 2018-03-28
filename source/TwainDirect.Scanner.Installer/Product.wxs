@@ -11,7 +11,7 @@
            Manufacturer="$(var.Manufacturer)"
            UpgradeCode="$(var.UpgradeCode)">
 
-    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+    <Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine" />
     <Media Id="1" Cabinet="twaindirect.app.cab" EmbedCab="yes" />
     <Icon Id="twain.ico" SourceFile="$(var.ProductIcon)" />
     
@@ -21,6 +21,7 @@
     <MajorUpgrade DowngradeErrorMessage="!(loc.Error.DowngradeMessage)" />
 
     <Feature Id="ProductFeature" Title="TwainDirectProxy.Installer" Level="1">
+      
       <ComponentRef Id="applicationShortcut"/>      
       
       <ComponentRef Id="TwainDirect.Scanner.exe"/>
@@ -37,6 +38,7 @@
       <ComponentRef Id="libcrypto_1_1.dll"/>
       <ComponentRef Id="libssl_1_1.dll"/>
 
+      <ComponentRef Id="certificate.p12"/>
       <ComponentRef Id="https.certificates"/>
 
       <ComponentRef Id="vcruntime140.dll"/>

@@ -75,7 +75,12 @@
     <Error Condition="!Exists('..\packages\WiX.3.10.3\build\wix.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\WiX.3.10.3\build\wix.props'))" />
   </Target>
   <PropertyGroup>
-    <PreBuildEvent>$(WixInstallPath)\heat.exe dir $(ProjectDir)..\TwainDirect.App\data\tasks -g1 -gg -cg TwainDirect.Tasks -dr INSTALLFOLDER -var var.TwainDirect.Tasks -indent 2 -t $(ProjectDir)Tasks.Transform.xslt -out TwainDirect.Tasks.wxs</PreBuildEvent>
+    <PreBuildEvent>echo.
+echo =============================================================================================
+echo Merge modules generate warnings (like string overflow), these are known about, ignore them... 
+echo =============================================================================================
+echo.
+$(WixInstallPath)\heat.exe dir $(ProjectDir)..\TwainDirect.App\data\tasks -g1 -gg -cg TwainDirect.Tasks -dr INSTALLFOLDER -var var.TwainDirect.Tasks -indent 2 -t $(ProjectDir)Tasks.Transform.xslt -out TwainDirect.Tasks.wxs</PreBuildEvent>
   </PropertyGroup>
   <!--
 	To modify your build process, add your task inside one of the targets below and uncomment it.

@@ -71,7 +71,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    15-Oct-2016     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2016-2017 Kodak Alaris Inc.
+//  Copyright (C) 2016-2018 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -4745,7 +4745,11 @@ namespace TwainDirect.Support
                     if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
                     {
                         m_twainlocalsession.SetMetadata(null);
-                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": 'results.metadata' missing");
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + ": 'results.metadata' missing for imageBlock=" + a_lImageBlockNum);
+                        if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
+                        {
+                            Log.Error(a_apicmd.GetHttpResponseData());
+                        }
                         return (false);
                     }
 
@@ -4863,7 +4867,11 @@ namespace TwainDirect.Support
                     if (string.IsNullOrEmpty(m_twainlocalsession.GetMetadata()))
                     {
                         m_twainlocalsession.SetMetadata(null);
-                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " 'results.metadata' missing");
+                        ClientReturnError(a_apicmd, false, "critical", -1, szFunction + " 'results.metadata' missing for imageBlock=" + a_lImageBlockNum);
+                        if (!string.IsNullOrEmpty(a_apicmd.GetHttpResponseData()))
+                        {
+                            Log.Error(a_apicmd.GetHttpResponseData());
+                        }
                         return (false);
                     }
 

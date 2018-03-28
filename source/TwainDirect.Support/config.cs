@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    11-Sep-2015     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2015-2017 Kodak Alaris Inc.
+//  Copyright (C) 2015-2018 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -103,6 +103,14 @@ namespace TwainDirect.Support
             if (a_szKey == "writeFolder")
             {
                 return (ms_szWriteFolder);
+            }
+
+            // This is our default for the pfxFile, but only
+            // if the user didn't override it with their own
+            // default...
+            if ((a_szKey == "pfxFile") && string.IsNullOrEmpty(a_szDefault))
+            {
+                return (Path.Combine(ms_szReadFolder, "certificate.p12"));
             }
 
             // All done...

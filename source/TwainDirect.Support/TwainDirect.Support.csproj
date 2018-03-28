@@ -101,7 +101,8 @@ XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libcry
 XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\pdfras_digitalsignature.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\pdfras_encryption.dll" "$(TargetDir)" /i /e /y /q</PostBuildEvent>
+XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\pdfras_encryption.dll" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\certificate.p12" "$(TargetDir)" /i /e /y /q</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

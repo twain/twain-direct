@@ -39,7 +39,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Kodak Alaris Inc.")]
 [assembly: AssemblyProduct("TwainDirect.OnSane")]
-[assembly: AssemblyCopyright("Copyright © 2015-2017, Kodak Alaris Inc.")]
+[assembly: AssemblyCopyright("Copyright © 2015-2018, Kodak Alaris Inc.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

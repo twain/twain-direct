@@ -6,7 +6,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    23-Jan-2017     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2017-2017 Kodak Alaris Inc.
+//  Copyright (C) 2017-2018 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -39,7 +39,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Kodak Alaris Inc.")]
 [assembly: AssemblyProduct("TwainDirect.Certification")]
-[assembly: AssemblyCopyright("Copyright © 2017-2017, Kodak Alaris Inc.")]
+[assembly: AssemblyCopyright("Copyright © 2017-2018, Kodak Alaris Inc.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
