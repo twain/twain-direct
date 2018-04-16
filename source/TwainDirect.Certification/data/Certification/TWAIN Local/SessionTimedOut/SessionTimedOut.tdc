@@ -24,6 +24,22 @@ set sessiontimedoutwaitforeventsresult 'skip'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Instructions to the user...
+;
+echo.yellow
+echo.yellow
+echo.yellow
+echo.yellow 'This test confirms that the scanner times a session out if it's idle'
+echo.yellow 'for some period of time.  A reasonable timeout period is 5 minutes.'
+echo.yellow
+echo.yellow 'While this test runs, the script shows the event timeouts that occur'
+echo.yellow 'to give some feedback.  These normally occur in 30-second intervals,'
+echo.yellow 'so there will be about 10 of them for a 5 minute timeout.'
+echo.yellow
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Pick a scanner...
 ;
 select '${arg:1}'

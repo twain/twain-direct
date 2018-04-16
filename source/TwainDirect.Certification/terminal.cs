@@ -1347,7 +1347,7 @@ namespace TwainDirect.Certification
             // Select...
             if ((szCommand == "select"))
             {
-                DisplayRed("SELECT {PATTERN}");
+                DisplayRed("SELECT [local:]{PATTERN}");
                 Display("Selects one of the scanners shown in the list command, which is");
                 Display("the scanner that will be accessed by the API commands.  The pattern");
                 Display("must match some or all of the name, the IP address, or the note.");
@@ -1356,6 +1356,9 @@ namespace TwainDirect.Certification
                 Display("means that you can't select which network interface is going to");
                 Display("be used to talk to the scanner.  Put another way, we can't use the");
                 Display("raw IP address.");
+                Display("");
+                Display("Prefix the pattern with 'local:' if you have to use 127.0.0.1 due");
+                Display("to HTTPS certificate restrictions.");
                 return (false);
             }
 
@@ -2636,6 +2639,8 @@ namespace TwainDirect.Certification
         private bool CmdSelect(ref Interpreter.FunctionArguments a_functionarguments)
         {
             bool blSilent;
+            bool blLocal;
+            string szName;
 
             // Clear the last selected scanner...
             m_dnssddeviceinfoSelected = null;
@@ -2671,25 +2676,34 @@ namespace TwainDirect.Certification
                 return (false);
             }
 
+            // Handle the local flag...
+            blLocal = false;
+            szName = a_functionarguments.aszCmd[1];
+            if (szName.ToLower().StartsWith("local:"))
+            {
+                blLocal = true;
+                szName = szName.Replace("local:", "");
+            }
+
             // Look for a match...
             foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
             {
                 // Check the name...
-                if (!string.IsNullOrEmpty(dnssddeviceinfo.GetLinkLocal()) && dnssddeviceinfo.GetLinkLocal().Contains(a_functionarguments.aszCmd[1]))
+                if (!string.IsNullOrEmpty(dnssddeviceinfo.GetLinkLocal()) && dnssddeviceinfo.GetLinkLocal().Contains(szName))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
                 }
 
                 // Check the IPv4...
-                else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()) && dnssddeviceinfo.GetIpv4().Contains(a_functionarguments.aszCmd[1]))
+                else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()) && dnssddeviceinfo.GetIpv4().Contains(szName))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
                 }
 
                 // Check the note...
-                else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetTxtNote()) && dnssddeviceinfo.GetTxtNote().Contains(a_functionarguments.aszCmd[1]))
+                else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetTxtNote()) && dnssddeviceinfo.GetTxtNote().Contains(szName))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
@@ -2699,6 +2713,14 @@ namespace TwainDirect.Certification
             // Report the result...
             if (m_dnssddeviceinfoSelected != null)
             {
+                // We need a special case to handle the 127.0.0.1 problem, so
+                // override the IPv4, but keep everything else...
+                if (blLocal)
+                {
+                    m_dnssddeviceinfoSelected.SetIpv4("127.0.0.1");
+                }
+
+                // Spit out the result...
                 if (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv4()))
                 {
                     Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv4() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
@@ -2707,6 +2729,8 @@ namespace TwainDirect.Certification
                 {
                     Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv6() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
                 }
+
+                // Create our client...
                 m_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
                 SetReturnValue("true");
             }

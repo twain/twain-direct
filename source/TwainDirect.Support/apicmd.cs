@@ -1656,8 +1656,17 @@ namespace TwainDirect.Support
             // name of the device...
             if (m_blUseHttps)
             {
-                string szLinkLocal = m_dnssddeviceinfo.GetLinkLocal().Replace(".local.", ".local");
-                szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
+                // Local override...
+                if (m_dnssddeviceinfo.GetIpv4() == "127.0.0.1")
+                {
+                    szUri = "https://" + m_dnssddeviceinfo.GetIpv4() + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
+                }
+                // Where we normally want to be...
+                else
+                {
+                    string szLinkLocal = m_dnssddeviceinfo.GetLinkLocal().Replace(".local.", ".local");
+                    szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
+                }
             }
 
             // Build the URI, for HTTP we can use the IP address to get to our device...
@@ -2282,20 +2291,6 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // End of job...
-            // - we must be capturing -and-
-            // - if we have imageBlocks, we're not done -or-
-            // - if we have intermediate *.tw* files, we're not done -or-
-            // - if we don't have imageBlocksDrained.meta, we're not done
-            m_sessiondata.blSessionDoneCapturing = File.Exists(Path.Combine(a_szTdImagesFolder, "imageBlocksDrained.meta"));
-            if (    !a_blCapturing
-                ||  (string.IsNullOrEmpty(m_szImageBlocks)
-                &&  ((aszTw == null) || (aszTw.Length == 0))
-                &&  m_sessiondata.blSessionDoneCapturing))
-            {
-                m_blSessionImageBlocksDrained = true;
-            }
-
             // The task reply...
             m_szTaskReply = a_jsonlookup.Get("taskReply", false);
 
@@ -2312,6 +2307,20 @@ namespace TwainDirect.Support
                 {
                     Log.Error("UpdateUsingIpcData: File.ReadAllText failed...<" + szMeta + ">, " + exception.Message);
                 }
+            }
+
+            // End of job...
+            // - we must be capturing -and-
+            // - if we have imageBlocks, we're not done -or-
+            // - if we have intermediate *.tw* files, we're not done -or-
+            // - if we don't have imageBlocksDrained.meta, we're not done
+            m_sessiondata.blSessionDoneCapturing = File.Exists(Path.Combine(a_szTdImagesFolder, "imageBlocksDrained.meta"));
+            if (!a_blCapturing
+                || (string.IsNullOrEmpty(m_szImageBlocks)
+                && ((aszTw == null) || (aszTw.Length == 0))
+                && m_sessiondata.blSessionDoneCapturing))
+            {
+                m_blSessionImageBlocksDrained = true;
             }
         }
 

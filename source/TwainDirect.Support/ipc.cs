@@ -441,7 +441,10 @@ namespace TwainDirect.Support
                         {
                             m_lszCommands.RemoveRange(0, m_lszCommands.Count);
                         }
-                        m_autoresetEventCommands.Set();
+                        if (m_autoresetEventCommands != null)
+                        {
+                            m_autoresetEventCommands.Set();
+                        }
                         if (m_disconnectcallbackdelegate != null)
                         {
                             m_disconnectcallbackdelegate(m_objectDisconnectCallbackDelegate);
@@ -497,49 +500,52 @@ namespace TwainDirect.Support
         /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
         internal void Dispose(bool a_blDisposing)
         {
-            // Shut the thread down...
-            if (m_threadCommands != null)
+            if (a_blDisposing)
             {
-                CancelCommandsThread();
-                m_threadCommands = null;
-            }
+                // Shut the thread down...
+                if (m_threadCommands != null)
+                {
+                    CancelCommandsThread();
+                    m_threadCommands = null;
+                }
 
-            // No more new connections...
-            if (m_socketConnection != null)
-            {
-                try
+                // No more new connections...
+                if (m_socketConnection != null)
                 {
-                    m_socketConnection.Shutdown(SocketShutdown.Both);
+                    try
+                    {
+                        m_socketConnection.Shutdown(SocketShutdown.Both);
+                    }
+                    catch
+                    {
+                        // We just want to catch it, we don't care about what happened...
+                    }
+                    m_socketConnection.Close();
+                    m_socketConnection = null;
                 }
-                catch
-                {
-                    // We just want to catch it, we don't care about what happened...
-                }
-                m_socketConnection.Close();
-                m_socketConnection = null;
-            }
 
-            // No more data...
-            if (m_socketData != null)
-            {
-                try
+                // No more data...
+                if (m_socketData != null)
                 {
-                    m_socketData.Shutdown(SocketShutdown.Both);
+                    try
+                    {
+                        m_socketData.Shutdown(SocketShutdown.Both);
+                    }
+                    catch
+                    {
+                        // We just want to catch it, we don't care about what happened...
+                    }
+                    m_socketData.Close();
+                    m_socketData = null;
                 }
-                catch
-                {
-                    // We just want to catch it, we don't care about what happened...
-                }
-                m_socketData.Close();
-                m_socketData = null;
-            }
 
-            // No more events...
-            //if (m_autoresetEventCommands != null)
-            //{
-            //    m_autoresetEventCommands.Close();
-            //    m_autoresetEventCommands = null;
-            //}
+                // No more events...
+                if (m_autoresetEventCommands != null)
+                {
+                    m_autoresetEventCommands.Close();
+                    m_autoresetEventCommands = null;
+                }
+            }
         }
 
         #endregion

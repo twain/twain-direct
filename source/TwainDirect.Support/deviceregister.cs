@@ -191,8 +191,20 @@ namespace TwainDirect.Support
                 m_device = default(Device);
             }
 
-            // All done...
-            return (true);
+            // Validate the data...
+            switch (GetTwainInquiryData().GetTwainDirectSupport())
+            {
+                // This isn't good...
+                default:
+                    Log.Error("DeviceRegister.Load: we don't appear to have a valid registration...");
+                    return (false);
+                
+                // We could validate more, but if we have this much, we're probably okay...
+                case TwainDirectSupport.Basic:
+                case TwainDirectSupport.Driver:
+                case TwainDirectSupport.Extended:
+                    return (true);
+            }
         }
 
         /// <summary>
@@ -426,6 +438,16 @@ namespace TwainDirect.Support
                     case "true": twaininquirydata.m_blAutomaticSenseMedium = true; break;
                 }
 
+                // DAT_CAPABILITY/MSG_RESETALL?
+                szValue = jsonlookup.Get("isCapabilityResetallSupported", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blCapabilityResetall = false; break;
+                    case "false": twaininquirydata.m_blCapabilityResetall = false; break;
+                    case "true": twaininquirydata.m_blCapabilityResetall = true; break;
+                }
+
                 // DAT_TWAINDIRECT?
                 szValue = jsonlookup.Get("isDatTwainDirectSupported", false);
                 if (szValue == null) szValue = "";
@@ -564,6 +586,7 @@ namespace TwainDirect.Support
 
                 // Serial number...
                 szValue = jsonlookup.Get("numberOfSheets", false);
+                if (szValue == null) szValue = "";
                 switch (szValue.ToLowerInvariant())
                 {
                     default: twaininquirydata.m_blSheetCount = false; break;
@@ -618,6 +641,15 @@ namespace TwainDirect.Support
             public string GetCameraSides()
             {
                 return (m_szCameraSides);
+            }
+
+            /// <summary>
+            /// Get DAT_CAPABILITY/MSG_RESETALL...
+            /// </summary>
+            /// <returns>true if supported</returns>
+            public bool GetCapabilityResetall()
+            {
+                return (m_blCapabilityResetall);
             }
 
             /// <summary>
@@ -882,6 +914,7 @@ namespace TwainDirect.Support
                 szJson += "\"twidentityVersion\":\"" + m_szTwidentityVersion + "\",";
                 szJson += "\"twainDirectSupport\":\"" + m_twaindirectsupport + "\",";
                 szJson += "\"isAutomaticSenseMedium\":" + m_blAutomaticSenseMedium.ToString().ToLowerInvariant() + ",";
+                szJson += "\"isCapabilityResetallSupported\":" + m_blCapabilityResetall.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isDatTwainDirectSupported\":" + m_blDatTwainDirect.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isDeviceOnline\":" + m_blDeviceOnline.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isExtImageInfoSupported\":" + m_blExtImageInfo.ToString().ToLowerInvariant() + ",";
@@ -927,6 +960,14 @@ namespace TwainDirect.Support
             public void SetCameraSides(string a_szCameraSides)
             {
                 m_szCameraSides = a_szCameraSides;
+            }
+
+            /// <summary>
+            /// Set DAT_CAPABILITY/MSG_RESETALL...
+            /// </summary>
+            public void SetCapabilityResetall(bool a_blCapabilityResetall)
+            {
+                m_blCapabilityResetall = a_blCapabilityResetall;
             }
 
             /// <summary>
@@ -1123,6 +1164,11 @@ namespace TwainDirect.Support
             /// JSON array of camerasides, or an empty string...
             /// </summary>
             private string m_szCameraSides;
+
+            /// <summary>
+            /// Do we support reset all?
+            /// </summary>
+            private bool m_blCapabilityResetall;
 
             /// <summary>
             /// JSON array of compressions...

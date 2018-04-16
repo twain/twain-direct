@@ -932,7 +932,7 @@ namespace TwainDirect.Support
                         case SessionState.capturing:
                             if (m_twainlocalsession.GetSessionImageBlocksDrained())
                             {
-                                return (SessionState.ready);
+                                //return (SessionState.ready);
                             }
                             return (SessionState.capturing);
 
@@ -3716,7 +3716,7 @@ namespace TwainDirect.Support
             m_objectEventCallback = a_objectEventCallback;
 
             // Init our command timeout for HTTPS communication...
-            iDefault = 15000; // 15 seconds
+            iDefault = 30000; // 15 seconds
             m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
             if (m_iHttpTimeoutCommand < 5000)
             {
@@ -7685,11 +7685,6 @@ namespace TwainDirect.Support
                         m_filesystemwatcherhelperImageBlocks.Dispose();
                         m_filesystemwatcherhelperImageBlocks = null;
                     }
-                    if (m_ipcTwainDirectOnTwain != null)
-                    {
-                        m_ipcTwainDirectOnTwain.Dispose();
-                        m_ipcTwainDirectOnTwain = null;
-                    }
                     if (m_processTwainDirectOnTwain != null)
                     {
                         try
@@ -7726,6 +7721,11 @@ namespace TwainDirect.Support
                             // who gets to kill TwainDirect.OnTwain first...
                         }
                         m_processTwainDirectOnTwain = null;
+                    }
+                    if (m_ipcTwainDirectOnTwain != null)
+                    {
+                        m_ipcTwainDirectOnTwain.Dispose();
+                        m_ipcTwainDirectOnTwain = null;
                     }
                     if (m_aapicmdEvents != null)
                     {

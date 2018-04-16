@@ -171,7 +171,8 @@ namespace TwainDirect.App
             }
             if (Directory.Exists(szTasksSrc) && Directory.Exists(szTasksDst))
             {
-                string[] aszFiles = Directory.GetFiles(szTasksDst);
+                // .tdt is TWAIN Direct Task...
+                string[] aszFiles = Directory.GetFiles(szTasksDst, "*.tdt");
                 if ((aszFiles == null) || (aszFiles.Length == 0))
                 {
                     aszFiles = Directory.GetFiles(szTasksSrc);

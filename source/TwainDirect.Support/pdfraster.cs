@@ -155,7 +155,7 @@ namespace TwainDirect.Support
                             return (false);
                             
                         case PdfRasterReader.Reader.PdfRasterReaderCompression.PDFRASREAD_UNCOMPRESSED:
-                            iCount = (int)((a_lWidth * 3) * a_lHeight * 3);
+                            iCount = (int)((a_lWidth * 3) * a_lHeight);
                             tiffcoloruncompressed = new TiffColorUncompressed((uint)a_lWidth, (uint)a_lHeight, (uint)a_lResolution, (uint)iCount);
                             iHeader = Marshal.SizeOf(tiffcoloruncompressed);
                             a_abImage = new byte[iHeader + iCount];
@@ -470,7 +470,7 @@ namespace TwainDirect.Support
                 // it would be nice to keep an alpha channel, but so it goes...
                 bitmapdata = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
                 byte[] abImageBgr = new byte[bitmapdata.Stride * bitmap.Height];
-                System.Runtime.InteropServices.Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
+                Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
                 int iNewStride = (bitmapdata.Stride - (bitmapdata.Stride / 4)); // lose the A from BGRA
                 iNewStride = (iNewStride + 3) & ~3; // align the new stride on a 4-byte boundary
                 abImage = new byte[iNewStride * bitmapdata.Height];

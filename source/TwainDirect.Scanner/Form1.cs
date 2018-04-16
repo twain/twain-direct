@@ -469,6 +469,7 @@ namespace TwainDirect.Scanner
             if (szScanners == null)
             {
                 Display("No scanners found...");
+                SetButtons(ButtonState.NoDevices);
                 return;
             }
             try
@@ -479,6 +480,7 @@ namespace TwainDirect.Scanner
             catch
             {
                 Display("No scanners found...");
+                SetButtons(ButtonState.NoDevices);
                 return;
             }
 
@@ -544,6 +546,7 @@ namespace TwainDirect.Scanner
                 if (dialogresult != DialogResult.OK)
                 {
                     Display("Canceled...");
+                    SetButtons(ButtonState.NoDevices);
                     break;
                 }
 
@@ -565,11 +568,20 @@ namespace TwainDirect.Scanner
                 break;
             }
 
+            // Tell the user what we're up to...
+            Display("");
+            Display("We're going to ask the scanner some questions.");
+            Display("This may take a minute...");
+
             // Do a deep inquiry on the selected scanner...
             szScanners = m_scanner.GetAvailableScanners("getinquiry", jsonlookup.Get("scanners[" + (iNumber - 1) + "].twidentityProductName"));
-            if (szScanners == null)
+            if (string.IsNullOrEmpty(szScanners))
             {
-                Display("We are unable to use the selected scanner...");
+                Display("");
+                Display("We are unable to use the selected scanner.");
+                Display("Please make sure your scanner is turned on and connected before trying again.");
+                MessageBox.Show("We are unable to use the selected scanner.\nPlease make sure your scanner is turned on and connected before trying again.", "Error");
+                SetButtons(ButtonState.NoDevices);
                 return;
             }
             try
@@ -579,7 +591,11 @@ namespace TwainDirect.Scanner
             }
             catch
             {
-                Display("We are unable to use the selected scanner...");
+                Display("");
+                Display("We are unable to use the selected scanner.");
+                Display("Please make sure your scanner is turned on and connected before trying again.");
+                MessageBox.Show("We are unable to use the selected scanner.\nPlease make sure your scanner is turned on and connected before trying again.", "Error");
+                SetButtons(ButtonState.NoDevices);
                 return;
             }
 
@@ -587,6 +603,12 @@ namespace TwainDirect.Scanner
             string szNote = m_scanner.GetTwainLocalNote();
             if ((iNumber >= 1) && (iNumber <= iScanner))
             {
+                // Tell the user what we're up to...
+                Display("");
+                Display("We're asking what you'd like to call your scanner.");
+                Display("Please look for a dialog box...");
+
+                // Prompt the user...
                 dialogresult = InputBox
                 (
                     "Enter Note",
@@ -614,6 +636,7 @@ namespace TwainDirect.Scanner
             else
             {
                 Display("Registration failed for: " + iNumber);
+                MessageBox.Show("Registration failed for: " + iNumber, "Error");
             }
 
             // Fix the buttons...
@@ -648,6 +671,7 @@ namespace TwainDirect.Scanner
             {
                 Log.Error("MonitorTasksStart failed...");
                 MessageBox.Show("Failed to start the device, check the logs for more information.", "Error");
+                SetButtons(ButtonState.WaitingForStart);
                 return;
             }
             Display("Ready for use...");

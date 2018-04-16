@@ -59,7 +59,7 @@ namespace TwainDirect.OnTwain
     /// <summary>
     /// This SWORD object wraps all of the JSON content...
     /// </summary>
-    internal sealed class ProcessSwordTask
+    internal sealed class ProcessSwordTask : IDisposable
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...
@@ -92,25 +92,19 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        /// <summary>
         /// Close sword, free all resources...
         /// </summary>
         public void Close()
         {
-            // We have a toolkit...
-            if (m_twaincstoolkit != null)
-            {
-                // Only call if it doesn't belong to our caller...
-                if (m_twaincstoolkitCaller == null)
-                {
-                    m_twaincstoolkit.Cleanup();
-                }
-
-                // Make sure our reference counts drop...
-                m_twaincstoolkit = null;
-            }
-
-            // Null this out too...
-            m_twaincstoolkitCaller = null;
+            Dispose(true);
         }
 
         /// <summary>
@@ -1203,6 +1197,32 @@ namespace TwainDirect.OnTwain
         #region Private Methods...
 
         /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        internal void Dispose(bool a_blDisposing)
+        {
+            if (a_blDisposing)
+            {
+                // We have a toolkit...
+                if (m_twaincstoolkit != null)
+                {
+                    // Only call if it doesn't belong to our caller...
+                    if (m_twaincstoolkitCaller == null)
+                    {
+                        m_twaincstoolkit.Dispose();
+                    }
+
+                    // Make sure our reference counts drop...
+                    m_twaincstoolkit = null;
+                }
+
+                // Null this out too...
+                m_twaincstoolkitCaller = null;
+            }
+        }
+
+        /// <summary>
         /// We want to make sure that tasks follow a strict topology order, this
         /// means that terms in that topology cannot appear out of sequence...
         /// </summary>
@@ -1543,28 +1563,50 @@ namespace TwainDirect.OnTwain
             string szCapability;
             TWAIN.STS sts;
 
-            // Reset everything...
-            szStatus = "";
-            szCapability = ""; // don't need valid data for this call...
-            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
-            if (sts != TWAIN.STS.SUCCESS)
+            // Reset everything, if it's supported...
+            if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetCapabilityResetall())
             {
-                TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
-                // keep going...
+                szStatus = "";
+                szCapability = ""; // don't need valid data for this call...
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
+                    // well, that stinks...keep going...
+                }
             }
 
-            // Memory transfer...
-            szStatus = "";
-            szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
-            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-            if (sts != TWAIN.STS.SUCCESS)
+            // Memory transfers give us more lattitude to support things
+            // like compression.  But we only use it for drivers that
+            // are tagged with extended support...
+            if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
             {
-                TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
-                a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
-                return (false);
+                szStatus = "";
+                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                    a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                    return (false);
+                }
+            }
+            // Otherwise, use native transfers, which are safer with the
+            // basic drivers...
+            else
+            {
+                szStatus = "";
+                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,0";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                    a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                    return (false);
+                }
             }
 
-            // No UI...
+            // No UI, all drivers must support this...
             szStatus = "";
             szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
             sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
@@ -1575,8 +1617,8 @@ namespace TwainDirect.OnTwain
                 return (false);
             }
 
-            // Ask for extended image info...
-            if (m_deviceregister.GetTwainInquiryData().GetExtImageInfo())
+            // Ask for extended image info, if we can get it...
+            if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetExtImageInfo())
             {
                 szStatus = "";
                 szCapability = "ICAP_EXTIMAGEINFO";
@@ -1593,6 +1635,15 @@ namespace TwainDirect.OnTwain
                         return (false);
                     }
                 }
+            }
+
+            // If we're a basic scanner, try to turn off compression, we don't
+            // care about the result, so don't bother to check...
+            if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Basic)
+            {
+                szStatus = "";
+                szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
             }
 
             // Life is good...
@@ -2565,7 +2616,7 @@ namespace TwainDirect.OnTwain
                 // an actual scan to test this.  Instead we're issuing the command, and
                 // expect to get back a TWRC_FAILURE/TWCC_SEQERROR indicating that the
                 // command is supported, but not in state 4...
-                #region We need MSG_RESET support
+                #region We need DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET support
 
                 // MSG_RESET...
                 szStatus = "";
@@ -3368,10 +3419,15 @@ namespace TwainDirect.OnTwain
                 szStatus = "";
                 szCapability = ""; // don't need valid data for this call...
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
+                if (sts == TWAIN.STS.SUCCESS)
+                {
+                    m_twaininquirydata.SetCapabilityResetall(true);
+                }
+                else
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "MSG_RESETALL is not supported - " + a_szTwidentity);
                     m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Basic);
+                    m_twaininquirydata.SetCapabilityResetall(false);
                 }
 
                 // Do we have a vendor ID?
@@ -4636,6 +4692,16 @@ namespace TwainDirect.OnTwain
             public SwordAction GetNextAction()
             {
                 return (m_swordactionNext);
+            }
+
+            /// <summary>
+            /// Get the process sword task object that's at
+            /// the root of all this fun...
+            /// </summary>
+            /// <returns>the object which has yummy data in it</returns>
+            public ProcessSwordTask GetProcessSwordTask()
+            {
+                return (m_processswordtask);
             }
 
             /// <summary>
@@ -7275,8 +7341,17 @@ namespace TwainDirect.OnTwain
             ////////////////////////////////////////////////////////////////////////////////
             public SwordStatus ProcessCompression(string a_szPixelFormat)
             {
-	            // TWAIN Direct from this point down...
-	            if (m_szTdValue == "none")
+                // Basic scanners are only allowed uncompressed images, because
+                // we're going to use native transfer, which is more likely to
+                // result in a successful scan...
+                if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Basic)
+                {
+                    m_aszTwValue = new string[1];
+                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                }
+
+                // TWAIN Direct from this point down...
+                else if (m_szTdValue == "none")
 	            {
                     m_aszTwValue = new string[1];
                     m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE

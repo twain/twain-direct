@@ -32,6 +32,7 @@
 // Helpers...
 using System;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -47,7 +48,7 @@ namespace TwainDirect.OnTwain
     /// that we have knowledge of our caller at this level, so there will be
     /// some replication if we add support for another communication manager...
     /// </summary>
-    internal sealed class TwainLocalOnTwain
+    internal sealed class TwainLocalOnTwain : IDisposable
     {
         // Public Methods: Run
         #region Public Methods: Run
@@ -88,6 +89,14 @@ namespace TwainDirect.OnTwain
 
             // Log stuff...
             TWAINWorkingGroup.Log.Info("TWAIN images folder: " + m_szImagesFolder);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
         }
 
         /// <summary>
@@ -322,6 +331,22 @@ namespace TwainDirect.OnTwain
 
         // Private Methods: ReportImage
         #region Private Methods: ReportImage
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        internal void Dispose(bool a_blDisposing)
+        {
+            if (a_blDisposing)
+            {
+                if (m_twaincstoolkit != null)
+                {
+                    m_twaincstoolkit.Dispose();
+                    m_twaincstoolkit = null;
+                }
+            }
+        }
 
         /// <summary>
         /// Handle an image...
@@ -789,6 +814,47 @@ namespace TwainDirect.OnTwain
                 // Root ends...
                 szMeta += "}";
 
+                // We won't get an image if the transfer is native,
+                // so we need to get the bit ourselves...
+                byte[] abImage = a_abImage;
+                BitmapData bitmapdata = null;
+                if (abImage == null)
+                {
+                    int hh;
+                    int ww;
+                    bitmapdata = a_bitmap.LockBits(new Rectangle(0, 0, a_bitmap.Width, a_bitmap.Height), ImageLockMode.ReadOnly, a_bitmap.PixelFormat);
+                    byte[] abImageBgr = new byte[bitmapdata.Stride * a_bitmap.Height];
+                    if (a_bitmap.PixelFormat == PixelFormat.Format24bppRgb)
+                    {
+                        // Get the source...
+                        Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
+                        // Allocate the destination...
+                        abImage = new byte[bitmapdata.Stride * bitmapdata.Height];
+                        long lRow = 0;
+                        long lStride = (bitmapdata.Stride / 3) * 3; // don't go into any padding
+                        for (hh = 0; hh < bitmapdata.Height; hh++)
+                        {
+                            // Flip this row...
+                            for (ww = 0; ww < lStride; ww += 3)
+                            {
+                                abImage[lRow + ww + 0] = (byte)abImageBgr[lRow + ww + 2]; // R
+                                abImage[lRow + ww + 1] = (byte)abImageBgr[lRow + ww + 1]; // G
+                                abImage[lRow + ww + 2] = (byte)abImageBgr[lRow + ww + 0]; // B
+                            }
+
+                            // Next row...
+                            lRow += bitmapdata.Stride;
+                        }
+                    }
+                    else
+                    {
+                        Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
+                        abImage = new byte[bitmapdata.Stride * bitmapdata.Height];
+                        Buffer.BlockCopy(abImageBgr, 0, abImage, 0, abImageBgr.Length);
+                    }
+                    a_bitmap.UnlockBits(bitmapdata);
+                }
+
                 // We have to do this ourselves, save as PDF/Raster...
                 blSuccess = PdfRaster.CreatePdfRaster
                 (
@@ -796,7 +862,7 @@ namespace TwainDirect.OnTwain
                     Config.Get("pfxFile", ""),
                     Config.Get("pfxFilePassword", ""),
                     szMeta,
-                    a_abImage,
+                    abImage,
                     a_iImageOffset,
                     szPixelFormat,
                     szCompression,
@@ -1448,14 +1514,29 @@ namespace TwainDirect.OnTwain
                 // Otherwise we're going to do most of the work ourselves...
                 else
                 {
-                    // Memory transfer...
-                    szStatus = "";
-                    szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
+                    // Memory transfer (extended only)...
+                    if (m_deviceregisterSession.GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
                     {
-                        TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
-                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        szStatus = "";
+                        szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                            return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        }
+                    }
+                    // Native transfer (basic)...
+                    else
+                    {
+                        szStatus = "";
+                        szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,0";
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                            return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        }
                     }
 
                     // No UI...
