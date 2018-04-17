@@ -216,8 +216,14 @@ namespace TwainDirect.Support
                 // Store the command line...
                 ms_aszCommandLine = a_aszCommandLine;
 
-                // Load the config...
-                string szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
+                // Load the config, we'll first look for a name decorated version
+                // of the file (ex: TwainDirect.Scanner.appdata.txt), and if that
+                // fails, then we'll try appdata.txt...
+                string szConfigFile = Path.Combine(ms_szReadFolder, ms_szExecutableName + "." + a_szConfigFile);
+                if (!File.Exists(szConfigFile))
+                {
+                    szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
+                }
                 if (File.Exists(szConfigFile))
                 {
                     long a_lJsonErrorindex;

@@ -229,7 +229,13 @@ namespace TwainDirect.Scanner
         private bool m_blAllowFormToClose;
         private void MenuitemExit_Click(object sender, EventArgs e)
         {
-            DialogResult dialogresult = MessageBox.Show("Do you want to close TWAIN Direct on TWAIN Bridge?", "TWAIN Direct", MessageBoxButtons.YesNo);
+            // Do you want to close the 'TWAIN Direct on TWAIN Bridge' program?
+            DialogResult dialogresult = MessageBox.Show
+            (
+                m_resourcemanager.GetString("errCloseTwainBridge"),
+                m_resourcemanager.GetString("strFormMainTitle"),
+                MessageBoxButtons.YesNo
+            );
             if (dialogresult == DialogResult.Yes)
             {
                 m_blAllowFormToClose = true;
@@ -453,7 +459,13 @@ namespace TwainDirect.Scanner
             DialogResult dialogresult;
 
             // Are you sure?
-            dialogresult = MessageBox.Show("Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.", "Register", MessageBoxButtons.YesNo);
+            // Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.
+            dialogresult = MessageBox.Show
+            (
+                m_resourcemanager.GetString("errRegisterTwainDriver"),
+                m_resourcemanager.GetString("strFormMainTitle"),
+                MessageBoxButtons.YesNo
+            );
             if (dialogresult == DialogResult.No)
             {
                 return;
@@ -462,13 +474,13 @@ namespace TwainDirect.Scanner
             // Turn the buttons off...
             SetButtons(ButtonState.Undefined);
             Display("");
-            Display("Looking for scanners...");
+            Display(m_resourcemanager.GetString("errLookingForScanners"));
 
             // Get the list of scanners...
             szScanners = m_scanner.GetAvailableScanners("getproductnames", "");
             if (szScanners == null)
             {
-                Display("No scanners found...");
+                Display(m_resourcemanager.GetString("errNoScannersFound"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
@@ -479,7 +491,7 @@ namespace TwainDirect.Scanner
             }
             catch
             {
-                Display("No scanners found...");
+                Display(m_resourcemanager.GetString("errNoScannersFound"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
@@ -577,10 +589,10 @@ namespace TwainDirect.Scanner
             szScanners = m_scanner.GetAvailableScanners("getinquiry", jsonlookup.Get("scanners[" + (iNumber - 1) + "].twidentityProductName"));
             if (string.IsNullOrEmpty(szScanners))
             {
+                // We are unable to use the selected scanner.  Please make sure your scanner is turned on and connected before trying again.
                 Display("");
-                Display("We are unable to use the selected scanner.");
-                Display("Please make sure your scanner is turned on and connected before trying again.");
-                MessageBox.Show("We are unable to use the selected scanner.\nPlease make sure your scanner is turned on and connected before trying again.", "Error");
+                Display(m_resourcemanager.GetString("errUnableToUseScanner"));
+                MessageBox.Show(m_resourcemanager.GetString("errUnableToUseScanner"), m_resourcemanager.GetString("strFormMainTitle"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
@@ -592,9 +604,8 @@ namespace TwainDirect.Scanner
             catch
             {
                 Display("");
-                Display("We are unable to use the selected scanner.");
-                Display("Please make sure your scanner is turned on and connected before trying again.");
-                MessageBox.Show("We are unable to use the selected scanner.\nPlease make sure your scanner is turned on and connected before trying again.", "Error");
+                Display(m_resourcemanager.GetString("errUnableToUseScanner"));
+                MessageBox.Show(m_resourcemanager.GetString("errUnableToUseScanner"), m_resourcemanager.GetString("strFormMainTitle"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
@@ -666,6 +677,15 @@ namespace TwainDirect.Scanner
             // Start polling...
             Display("");
             Display("Starting, please wait...");
+            string szNote = m_scanner.GetTwainLocalNote();
+            if (!string.IsNullOrEmpty(szNote))
+            {
+                Display(m_scanner.GetTwainLocalTy() + " (" + szNote + ")");
+            }
+            else
+            {
+                Display(m_scanner.GetTwainLocalTy());
+            }
             blSuccess = m_scanner.MonitorTasksStart();
             if (!blSuccess)
             {

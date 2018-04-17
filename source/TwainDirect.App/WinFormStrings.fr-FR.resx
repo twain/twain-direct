@@ -117,6 +117,33 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="errCantCreateSettingsFolder" xml:space="preserve">
+    <value>Unable to create settings folder.</value>
+  </data>
+  <data name="errCantDeleteFile" xml:space="preserve">
+    <value>We were unable to delete the following file.  It may be open in another program.  Please close any applications that are using these files, and then close and reopen the session before scanning.</value>
+  </data>
+  <data name="errErrorStarting" xml:space="preserve">
+    <value>Error starting.  Try uninstalling and reinstalling this software.</value>
+  </data>
+  <data name="errNoDeviceSelected" xml:space="preserve">
+    <value>No device selected.</value>
+  </data>
+  <data name="errNoTwainDriversInstalled" xml:space="preserve">
+    <value>There are no TWAIN drivers installed on this system.</value>
+  </data>
+  <data name="errNoTwainScanners" xml:space="preserve">
+    <value>There are no TWAIN Direct scanners available at this time.</value>
+  </data>
+  <data name="errSessionAborted" xml:space="preserve">
+    <value>Your scanner session has aborted.  Check your scanner to make sure it's on and connected to the network.</value>
+  </data>
+  <data name="errSessionTimeout" xml:space="preserve">
+    <value>Your scanner session has timed out due to lack of activity.</value>
+  </data>
+  <data name="errUnknownCheckLogs" xml:space="preserve">
+    <value>Unknown error, please checks the logs for more information.</value>
+  </data>
   <data name="strButtonClose" xml:space="preserve">
     <value>Terminer</value>
     <comment>Close a scanner session...</comment>
@@ -172,5 +199,11 @@
   <data name="strLabelSelectScanner" xml:space="preserve">
     <value>Sélectionner un scanner:</value>
     <comment>Label for select scanner listbox...</comment>
+  </data>
+  <data name="titleError" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="titleNotification" xml:space="preserve">
+    <value>Notification</value>
   </data>
 </root>

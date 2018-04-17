@@ -26,9 +26,11 @@
       
       <ComponentRef Id="TwainDirect.Scanner.exe"/>
       <ComponentRef Id="TwainDirect.Scanner.exe.config"/>
+      <ComponentRef Id="TwainDirect.Scanner.appdata.installed.txt"/>
 
       <ComponentRef Id="TwainDirect.OnTwain.exe"/>
       <ComponentRef Id="TwainDirect.OnTwain.exe.config"/>
+      <ComponentRef Id="TwainDirect.OnTwain.appdata.installed.txt"/>
       
       <ComponentRef Id="TwainDirect.Support.dll"/>
       <ComponentRef Id="pdfras_reader_managed.dll"/>

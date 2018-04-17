@@ -60,14 +60,21 @@ namespace TwainDirect.App
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
         /// <param name="a_twainlocalscannerclient">our interface to the scanner</param>
         /// <param name="a_szWriteFolder">where we get/put stuff</param>
-        public FormSetup(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, TwainLocalScannerClient a_twainlocalscannerclient, string a_szWriteFolder)
+        /// <param name="a_resourcemanager">for localization</param>
+        public FormSetup
+        (
+            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
+            TwainLocalScannerClient a_twainlocalscannerclient,
+            string a_szWriteFolder,
+            ResourceManager a_resourcemanager
+        )
         {
             float fScale;
-            ResourceManager resourcemanager;
 
             // Init stuff...
             InitializeComponent();
             m_dnssddeviceinfo = a_dnssddeviceinfo;
+            m_resourcemanager = a_resourcemanager;
 
             // Handle scaling...
             fScale = (float)Config.Get("scale", 1.0);
@@ -90,16 +97,8 @@ namespace TwainDirect.App
             {
                 szCurrentUiCulture = "";
             }
-            try
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
-            }
-            catch
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
-            }
-            m_labelSelectDestinationFolder.Text = resourcemanager.GetString("strLabelSelectImageDestination");
-            this.Text = resourcemanager.GetString("strFormSetupTitle");
+            m_labelSelectDestinationFolder.Text = m_resourcemanager.GetString("strLabelSelectImageDestination");
+            this.Text = m_resourcemanager.GetString("strFormSetupTitle");
 
             // More init stuff...
             m_twainlocalscannerclient = a_twainlocalscannerclient;
@@ -389,7 +388,14 @@ namespace TwainDirect.App
                     }
                     catch (Exception exception)
                     {
-                        MessageBox.Show("Unable to create settings folder...'" + m_szTasksFolder + "' - " + exception.Message);
+                        // Unable to create settings folder.
+                        MessageBox.Show
+                        (
+                            m_resourcemanager.GetString("errCantCreateSettingsFolder") + "\n" +
+                            "\n" +
+                            m_szTasksFolder + "\n" +
+                            "\n" +
+                            exception.Message);
                         return;
                     }
                 }
@@ -444,6 +450,11 @@ namespace TwainDirect.App
         /// The device we're talking to...
         /// </summary>
         private Dnssd.DnssdDeviceInfo m_dnssddeviceinfo;
+
+        /// <summary>
+        /// For localization...
+        /// </summary>
+        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// The settings folder...

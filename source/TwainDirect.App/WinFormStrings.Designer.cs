@@ -8,8 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace TwainDirect.App
-{
+namespace TwainDirect.App {
     using System;
     
     
@@ -58,6 +57,87 @@ namespace TwainDirect.App
             }
             set {
                 resourceCulture = value;
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unable to create settings folder..
+        /// </summary>
+        internal static string errCantCreateSettingsFolder {
+            get {
+                return ResourceManager.GetString("errCantCreateSettingsFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to We were unable to delete the following file.  It may be open in another program.  Please close any applications that are using these files, and then close and reopen the session before scanning..
+        /// </summary>
+        internal static string errCantDeleteFile {
+            get {
+                return ResourceManager.GetString("errCantDeleteFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error starting.  Try uninstalling and reinstalling this software..
+        /// </summary>
+        internal static string errErrorStarting {
+            get {
+                return ResourceManager.GetString("errErrorStarting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No device selected..
+        /// </summary>
+        internal static string errNoDeviceSelected {
+            get {
+                return ResourceManager.GetString("errNoDeviceSelected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to There are no TWAIN drivers installed on this system..
+        /// </summary>
+        internal static string errNoTwainDriversInstalled {
+            get {
+                return ResourceManager.GetString("errNoTwainDriversInstalled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to There are no TWAIN Direct scanners available at this time..
+        /// </summary>
+        internal static string errNoTwainScanners {
+            get {
+                return ResourceManager.GetString("errNoTwainScanners", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Your scanner session has aborted.  Check your scanner to make sure it&apos;s on and connected to the network..
+        /// </summary>
+        internal static string errSessionAborted {
+            get {
+                return ResourceManager.GetString("errSessionAborted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Your scanner session has timed out due to lack of activity..
+        /// </summary>
+        internal static string errSessionTimeout {
+            get {
+                return ResourceManager.GetString("errSessionTimeout", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unknown error, please check the logs for more information..
+        /// </summary>
+        internal static string errUnknownCheckLogs {
+            get {
+                return ResourceManager.GetString("errUnknownCheckLogs", resourceCulture);
             }
         }
         
@@ -184,6 +264,24 @@ namespace TwainDirect.App
         internal static string strLabelSelectScanner {
             get {
                 return ResourceManager.GetString("strLabelSelectScanner", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error.
+        /// </summary>
+        internal static string titleError {
+            get {
+                return ResourceManager.GetString("titleError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Notification.
+        /// </summary>
+        internal static string titleNotification {
+            get {
+                return ResourceManager.GetString("titleNotification", resourceCulture);
             }
         }
     }

@@ -28,9 +28,11 @@
   <!--
   Versioning. These have to be changed for upgrades.
   It's not enough to just include newer files.
+  [assembly: AssemblyVersion( (this is just here to help find
+  this version info when doing version updates)
   -->
   <?define MajorVersion="1" ?>
-  <?define MinorVersion="0" ?>
+  <?define MinorVersion="2" ?>
   <?define BuildVersion="0" ?>
   <?define Revision="0" ?>
 

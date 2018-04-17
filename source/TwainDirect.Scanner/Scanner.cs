@@ -353,7 +353,15 @@ namespace TwainDirect.Scanner
             if (m_displaycallback != null)
             {
                 m_displaycallback(m_resourcemanager.GetString("strTextListingScannersBegin")); // "Listing registered scanners...(please wait for the list)"
-                m_displaycallback(m_twainlocalscannerdevice.GetTwainLocalTy());
+                string szNote = m_twainlocalscannerdevice.GetTwainLocalNote();
+                if (!string.IsNullOrEmpty(szNote))
+                {
+                    m_displaycallback(m_twainlocalscannerdevice.GetTwainLocalTy() + " (" + szNote + ")");
+                }
+                else
+                {
+                    m_displaycallback(m_twainlocalscannerdevice.GetTwainLocalTy());
+                }
                 m_displaycallback(m_resourcemanager.GetString("strTextListingScannersEnd")); // "Listing complete..."
             }
 

@@ -26,7 +26,7 @@
       <Directory Id="$(var.PlatformProgramFilesFolder)">
         <Directory Id="INSTALLFOLDER" Name="TWAIN Direct Scanner">
 
-					<Component Id="TwainDirect.Scanner.exe" Guid="{8BA908AD-DFB4-4BC6-9132-5028E90CC6D5}">
+	  <Component Id="TwainDirect.Scanner.exe" Guid="{8BA908AD-DFB4-4BC6-9132-5028E90CC6D5}">
             <File Id="TwainDirect.Scanner.exe" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.exe" KeyPath="yes" />
 						<!-- Register for autorun -->
 						<RegistryValue Id="TwainDirect.Scanner.Reg.startup" Root="HKLM" Action="write"
@@ -35,15 +35,25 @@
 						               Value="[!TwainDirect.Scanner.exe]"
 						               Type="string" />
           </Component>
+
           <Component Id="TwainDirect.Scanner.exe.config" Guid="{B0CD6476-8A29-4B01-A611-60F798604876}">
             <File Id="TwainDirect.Scanner.exe.config" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.exe.config" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Scanner.appdata.installed.txt" Guid="{58FA87A5-92BD-49E4-B52A-E7EFEDA632E4}">
+            <File Id="TwainDirect.Scanner.appdata.installed.txt" Source="$(var.TwainDirect.Scanner.TargetDir)\data\TwainDirect.Scanner.appdata.installed.txt" KeyPath="yes" />
           </Component>
 
           <Component Id="TwainDirect.OnTwain.exe" Guid="{7263CF35-D722-4B29-90F4-1D7A9ED3BEA3}">
             <File Id="TwainDirect.OnTwain.exe" Source="$(var.TwainDirect.OnTwain.TargetDir)\TwainDirect.OnTwain.exe" KeyPath="yes" />
           </Component>
+
           <Component Id="TwainDirect.OnTwain.exe.config" Guid="{C26B2610-C50D-4018-8469-EC9BEE70BE98}">
             <File Id="TwainDirect.OnTwain.exe.config" Source="$(var.TwainDirect.OnTwain.TargetDir)\TwainDirect.OnTwain.exe.config" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.OnTwain.appdata.installed.txt" Guid="{E821B84C-3537-4D3B-B2EE-324F6AD27BB0}">
+            <File Id="TwainDirect.OnTwain.appdata.installed.txt" Source="$(var.TwainDirect.OnTwain.TargetDir)\data\TwainDirect.OnTwain.appdata.installed.txt" KeyPath="yes" />
           </Component>
 
           <Component Id="TwainDirect.Support.dll" Guid="{00E26F5A-F175-45AD-8C81-AAE5F82A6972}">

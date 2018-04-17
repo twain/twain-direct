@@ -3716,7 +3716,7 @@ namespace TwainDirect.Support
             m_objectEventCallback = a_objectEventCallback;
 
             // Init our command timeout for HTTPS communication...
-            iDefault = 30000; // 15 seconds
+            iDefault = 30000; // 30 seconds
             m_iHttpTimeoutCommand = (int)Config.Get("httpTimeoutCommand", iDefault);
             if (m_iHttpTimeoutCommand < 5000)
             {

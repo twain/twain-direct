@@ -60,8 +60,6 @@ namespace TwainDirect.App
         /// <param name="a_fScale">scale factor for our form</param>
         public FormScan()
         {
-            ResourceManager resourcemanager;
-
             // Build our form...
             InitializeComponent();
 
@@ -91,19 +89,19 @@ namespace TwainDirect.App
             }
             try
             {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
             }
             catch
             {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
+                m_resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
             }
-            m_buttonClose.Text = resourcemanager.GetString("strButtonClose");
-            m_buttonOpen.Text = resourcemanager.GetString("strButtonOpen");
-            m_buttonSelect.Text = resourcemanager.GetString("strButtonSelectEllipsis");
-            m_buttonScan.Text = resourcemanager.GetString("strButtonScan");
-            m_buttonSetup.Text = resourcemanager.GetString("strButtonSetupEllipsis");
-            m_buttonStop.Text = resourcemanager.GetString("strButtonStop");
-            this.Text = resourcemanager.GetString("strFormScanTitle");
+            m_buttonClose.Text = m_resourcemanager.GetString("strButtonClose");
+            m_buttonOpen.Text = m_resourcemanager.GetString("strButtonOpen");
+            m_buttonSelect.Text = m_resourcemanager.GetString("strButtonSelectEllipsis");
+            m_buttonScan.Text = m_resourcemanager.GetString("strButtonScan");
+            m_buttonSetup.Text = m_resourcemanager.GetString("strButtonSetupEllipsis");
+            m_buttonStop.Text = m_resourcemanager.GetString("strButtonStop");
+            this.Text = m_resourcemanager.GetString("strFormScanTitle");
 
             // Help with scaling...
             this.Resize += new EventHandler(FormScan_Resize);
@@ -245,9 +243,10 @@ namespace TwainDirect.App
                     case ApiCmd.ApiErrorFacility.undefined:
                         if ((aszDescriptions == null) || (aszDescriptions.Length == 0))
                         {
-                            Log.Error("unknown error, please check the logs for more information (yeah this is meta, if mean look up from this message)");
+                            Log.Error("unknown error, please check the logs for more information (yeah this is meta, it means look up from this message)");
                             m_buttonClose_Click(null, null);
-                            MessageBox.Show("unknown error, please check the logs for more information.");
+                            // Unknown error, please checks the logs for more information.
+                            MessageBox.Show(m_resourcemanager.GetString("errUnknownCheckLogs"));
                         }
                         else
                         {
@@ -285,7 +284,19 @@ namespace TwainDirect.App
                         foreach (string sz in aszDescriptions)
                         {
                             Log.Error(sz);
-                            MessageBox.Show(sz);
+                            MessageBox.Show
+                            (
+                                sz + "\n" +
+                                "\n" +
+                                "This error is the result of the task specifying an exception of 'fail' " +
+                                "somewhere within it.  The scanner triggered this when it was unable to " +
+                                "set a required value.  There are two possible solutions: find a scanner " +
+                                "that supports the feature required by the task, or use a different " +
+                                "task.\n" +
+                                "\n" +
+                                "The dotted notation, indicated above, points to the value that triggered " +
+                                "the failure condition."
+                            );
                         }
                         break;
                 }
@@ -297,7 +308,15 @@ namespace TwainDirect.App
             string szDetected;
             if (!m_twainlocalscannerclient.ClientGetSessionStatusSuccess(out szDetected))
             {
-                MessageBox.Show(szDetected);
+                long lJsonErrorIndex;
+                JsonLookup jsonlookup = new JsonLookup();
+                jsonlookup.Load(apicmd.GetSendCommand(), out lJsonErrorIndex);
+                string szCommand = jsonlookup.Get("method");
+                if (string.IsNullOrEmpty(szCommand))
+                {
+                    szCommand = "scanning";
+                }
+                MessageBox.Show(ReportError(szCommand, apicmd.GetHttpResponseData()));
             }
 
             // We're in good shape, set the buttons to allow more scanning...
@@ -721,7 +740,8 @@ namespace TwainDirect.App
                 m_threadClientScan.Abort();
                 m_threadClientScan = null;
             }
-            MessageBox.Show("Your scanner session has aborted.", "Notification");
+            // Your scanner session has aborted.  Check your scanner to make sure it's on and connected to the network.
+            MessageBox.Show(m_resourcemanager.GetString("errSessionAborted"), m_resourcemanager.GetString("titleNotification"));
             SetButtons(EBUTTONSTATE.CLOSED);
         }
 
@@ -732,7 +752,7 @@ namespace TwainDirect.App
         {
             SetButtons(EBUTTONSTATE.UNDEFINED);
             m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
-            MessageBox.Show("Your scanner session has timed out.", "Notification");
+            MessageBox.Show(m_resourcemanager.GetString("errSessionTimeout"), m_resourcemanager.GetString("titleNotification"));
             SetButtons(EBUTTONSTATE.CLOSED);
         }
 
@@ -1261,7 +1281,7 @@ namespace TwainDirect.App
             adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated);
             if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
             {
-                MessageBox.Show("There are no TWAIN Direct scanners available at this time.");
+                MessageBox.Show(m_resourcemanager.GetString("errNoTwainScanners"), m_resourcemanager.GetString("titleNotification"));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1475,7 +1495,7 @@ namespace TwainDirect.App
             // Validate...
             if (m_dnssddeviceinfo == null)
             {
-                MessageBox.Show("No device selected...");
+                MessageBox.Show(m_resourcemanager.GetString("errNoDeviceSelected"), m_resourcemanager.GetString("titleError"));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 formselect = null;
                 return;
@@ -1500,6 +1520,239 @@ namespace TwainDirect.App
         }
 
         /// <summary>
+        /// Parse the response data, and try to provide a useful message
+        /// to the user...
+        /// </summary>
+        /// <param name="a_szCommand">command that was issued</param>
+        /// <param name="a_szHttpResponseData">response received</param>
+        /// <returns>the message to display</returns>
+        private string ReportError(string a_szCommand, string a_szHttpResponseData)
+        {
+            long lJsonErrorIndex;
+            JsonLookup jsonlookup;
+
+            // If we have no data we've probably timed out on the connection,
+            // that can happen for a number of reasons.  We'll try to offer
+            // the best explanation, based on the command...
+            if (string.IsNullOrEmpty(a_szHttpResponseData))
+            {
+                switch (a_szCommand)
+                {
+                    default:
+                        return
+                        (
+                            a_szCommand + ": timeout.\n" +
+                            "\n" +
+                            "The scanner did not respond in a timely fashion. " +
+                            "Check that the scanner is still on, and that there is a good " +
+                            "connection to the network."
+                        );
+                    case "CreateSession":
+                        return
+                        (
+                            a_szCommand + ": timeout.\n" +
+                            "\n" +
+                            "The scanner did not respond in a timely fashion. " +
+                            "Check that the scanner is still on, and that there is a good " +
+                            "connection to the network.  Since this happened for 'createSession' " +
+                            "it's possible the scanner was in a sleep state, and took too long " +
+                            "to wake up.  Trying a second time may be successful."
+                        );
+                }
+            }
+
+            // Load the JSON, if that blows up in our face, then give the user the raw data...
+            jsonlookup = new JsonLookup();
+            if (!jsonlookup.Load(a_szHttpResponseData, out lJsonErrorIndex))
+            {
+                return
+                (
+                    a_szCommand + ": json error, index=" + lJsonErrorIndex + ".\n" +
+                    "\n" +
+                    "We have a response from the scanner, but it can't be parsed due " +
+                    "to an error in its construction.  The index shows where we ran " +
+                    "into trouble.  What follows is the raw data we received." +
+                    "\n" +
+                    a_szHttpResponseData
+                );
+            }
+
+            // We have two codes to check, there's the protocol and
+            // the session.  Check if the protocol reports success,
+            // if so, get the session data...
+            string szCode;
+            if (jsonlookup.Get("results.success") == "true")
+            {
+                szCode = jsonlookup.Get("results.session.status.detected");
+            }
+            // We seem to have a protocol problem, so sort that out...
+            else
+            {
+                szCode = jsonlookup.Get("results.code");
+            }
+
+            // If we don't have an error code, tell them about it...
+            if (string.IsNullOrEmpty(szCode))
+            {
+                return
+                (
+                    a_szCommand + ": missing error code.\n" +
+                    "\n" +
+                    "When an error occurs we expect to receive a code.  The response " +
+                    "does not have this code, so we can't tell what error happened " +
+                    "What follows is the raw data we received." +
+                    "\n" +
+                    a_szHttpResponseData
+                );
+            }
+
+            // Handle the errors...
+            switch (szCode)
+            {
+                default:
+                    return
+                    (
+                        a_szCommand + ": unrecognized error code - " + szCode + ".\n" +
+                        "\n" +
+                        "We don't have any advice to offer for this error, it may be " +
+                        "custom to the scanner, or this application may not be recent " +
+                        "enough to know about it.  What follows is the raw data we received." +
+                        "\n" +
+                        a_szHttpResponseData
+                    );
+
+                case "newSessionNotAllowed":
+                    return
+                    (
+                        a_szCommand + ": new session not allowed.\n" +
+                        "\n" +
+                        "The scanner may be in use by another user.  Or it may be turned off or disconnected.  " +
+                        "Check to to see which it is, and then retry.  If the problem persists, try turning " +
+                        "the scanner off, wait a bit, and turn it back on. If you're using the TWAIN Bridge " +
+                        "try exiting from it and restarting it."
+                    );
+
+                case "invalidSessionId":
+                    return
+                    (
+                        a_szCommand + ": invalid session ID.\n" +
+                        "\n" +
+                        "Communication was lost or compromised.  Make sure this session is closed, and try " +
+                        "to create a new session."
+                    );
+
+                case "closedSession":
+                    return
+                    (
+                        a_szCommand + ": closed session.\n" +
+                        "\n" +
+                        "This session has been closed, and will not accept attempts to scan.  Close this " +
+                        "session and start a new one, if you want to continue."
+                    );
+
+                case "notReady":
+                    return
+                    (
+                        a_szCommand + ": not ready.\n" +
+                        "\n" +
+                        "This session is not ready, and will not accept attempts to negotiate tasks.  " +
+                        "Close this session and start a new one, if you want to continue."
+                    );
+
+                case "notCapturing":
+                    return
+                    (
+                        a_szCommand + ": not capturing.\n" +
+                        "\n" +
+                        "This session is not capturing, and will not accept attempts to transfer images.  " +
+                        "Close this session and start a new one, if you want to continue."
+                    );
+
+                case "invalidImageBlockNumber":
+                    return
+                    (
+                        a_szCommand + ": invalid block number.\n" +
+                        "\n" +
+                        "The scanner was asked for image data that it can't provide.  " +
+                        "Close this session and start a new one, if you want to continue."
+                    );
+
+                case "invalidCapturingOptions":
+                    return
+                    (
+                        a_szCommand + ": invalid capturing options.\n" +
+                        "\n" +
+                        "The scanner has rejected this task.  This only happens when the task " +
+                        "requires specific capabilities from the scanner.  Either select a task " +
+                        "that this scanner will accept, or change to a scanner that supports the " +
+                        "features required by the current task."
+                    );
+
+                case "busy":
+                    return
+                    (
+                        a_szCommand + ": busy.\n" +
+                        "\n" +
+                        "The scanner is busy working on another command.  Try again in a little bit."
+                    );
+
+                case "noMedia":
+                    return
+                    (
+                        a_szCommand + ": no media.\n" +
+                        "\n" +
+                        "There was no paper for the scanner to capture.  Please check that the paper " +
+                        " is properly loaded, and try again."
+                    );
+
+                case "foldedCorner":
+                    return
+                    (
+                        a_szCommand + ": folded corner.\n" +
+                        "\n" +
+                        "The scanner was asked to detect problems with the paper being scanner. " +
+                        "Please check the paper, and try again."
+                    );
+
+                case "coverOpen":
+                    return
+                    (
+                        a_szCommand + ": cover open.\n" +
+                        "\n" +
+                        "A cover or an interlock on the scanner is not properly secured.  Please " +
+                        "check the scanner, and when done, try again."
+                    );
+
+                case "doubleFeed":
+                    return
+                    (
+                        a_szCommand + ": double feed.\n" +
+                        "\n" +
+                        "The scanner was requested or defaulted to check for instances where " +
+                        "two or more sheets pass through the automatic document feeder.  Check the " +
+                        "paper to see if any are stuck together, and try again."
+                    );
+
+                case "paperJam":
+                    return
+                    (
+                        a_szCommand + ": paper jam.\n" +
+                        "\n" +
+                        "A paper jam has been reported.  Please clear the jam and try again."
+                    );
+
+                case "misfeed":
+                    return
+                    (
+                        a_szCommand + ": misfeed.\n" +
+                        "\n" +
+                        "A misfeed has occurred with the scanner.  This is a somewhat generic error, " +
+                        "and could include communication errors.  Please resolve the problem, and try again."
+                    );
+            }
+        }
+
+        /// <summary>
         /// Open a scanner with the last selected DnssdDeviceInfo...
         /// </summary>
         private void OpenScanner()
@@ -1515,7 +1768,7 @@ namespace TwainDirect.App
             if (!blSuccess)
             {
                 Log.Error("ClientInfo failed: " + apicmd.GetHttpResponseData());
-                MessageBox.Show("ClientInfo failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
+                MessageBox.Show(ReportError("infoex", apicmd.GetHttpResponseData()));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1525,7 +1778,7 @@ namespace TwainDirect.App
             if (!blSuccess)
             {
                 Log.Error("ClientScannerCreateSession failed: " + apicmd.GetHttpResponseData());
-                MessageBox.Show("ClientScannerCreateSession failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
+                MessageBox.Show(ReportError("createSession", apicmd.GetHttpResponseData()));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1557,14 +1810,14 @@ namespace TwainDirect.App
             {
                 // Log it, but stay open...
                 Log.Error("ClientScannerWaitForEvents failed: " + apicmd.GetHttpResponseData());
-                MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
+                MessageBox.Show(ReportError("waitForEvents", apicmd.GetHttpResponseData()));
             }
 
             // Update the title bar...
             Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.GetLinkLocal() + ")";
 
             // Create the setup form...
-            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient, m_szWriteFolder);
+            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient, m_szWriteFolder, m_resourcemanager);
 
             // Clear the images folder...
             bool blWarnOnce = true;
@@ -1581,13 +1834,15 @@ namespace TwainDirect.App
                     if (blWarnOnce)
                     {
                         blWarnOnce = false;
+                        // We were unable to delete the following file.  It may be open in another program.  Please close any applications that are using these files, and then close and reopen the session before scanning.
                         MessageBox.Show
                         (
-                            "We were unable to delete the following file.  It may be open in another\n" +
-                            "program.  Please close any applications that are using these files, and\n" +
-                            "then close and reopen the session before scanning.\n" +
+                            m_resourcemanager.GetString("errCantDeleteFile") +
+                            "\n" +
                             szFile + "\n" +
-                            exception.Message
+                            "\n" +
+                            exception.Message,
+                            m_resourcemanager.GetString("titleError")
                         );
                     }
                 }
@@ -1717,6 +1972,9 @@ namespace TwainDirect.App
         private Brush m_brushBackground;
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
+
+        // Where we get our localized strings...
+        ResourceManager m_resourcemanager;
 
         #endregion
     }

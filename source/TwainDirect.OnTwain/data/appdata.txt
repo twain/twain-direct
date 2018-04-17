@@ -1,5 +1,0 @@
-{
-    "logLevel": 3,
-    "delayTwainDirectOnTwain": 0,
-    "useDatTwaindirect": "yes"
-}

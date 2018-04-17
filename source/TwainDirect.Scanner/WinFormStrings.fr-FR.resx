@@ -117,6 +117,21 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="errCloseTwainBridge" xml:space="preserve">
+    <value>Do you want to close the 'TWAIN Direct on TWAIN Bridge' program?</value>
+  </data>
+  <data name="errLookingForScanners" xml:space="preserve">
+    <value>Looking for scanners...</value>
+  </data>
+  <data name="errNoScannersFound" xml:space="preserve">
+    <value>No scanners found.</value>
+  </data>
+  <data name="errRegisterTwainDriver" xml:space="preserve">
+    <value>Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.</value>
+  </data>
+  <data name="errUnableToUseScanner" xml:space="preserve">
+    <value>We are unable to use the selected scanner.  Please make sure your scanner is turned on and connected before trying again.</value>
+  </data>
   <data name="strButtonRegisterEllipsis" xml:space="preserve">
     <value>Enregister...</value>
     <comment>Pick a new TWAIN Driver...</comment>

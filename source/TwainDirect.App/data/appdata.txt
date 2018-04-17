@@ -1,8 +1,0 @@
-{
-    "logLevel": 3,
-    "httpTimeoutCommand": 15000,
-    "httpTimeoutData": 30000,
-    "httpTimeoutEvent": 60000,
-    "useHttps": "auto",
-    "useInfoex": "yes"
-}
