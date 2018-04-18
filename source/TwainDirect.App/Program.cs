@@ -62,7 +62,7 @@ namespace TwainDirect.App
             // so that we can access them from anywhere in the code...
             if (!Config.Load(Application.ExecutablePath, a_aszArgs, "appdata.txt"))
             {
-                MessageBox.Show("Error starting.  Try uninstalling and reinstalling this software.", "Error");
+                MessageBox.Show("Error starting.  Try uninstalling and reinstalling this software.", "TWAIN Direct: Application");
                 Application.Exit();
             }
 

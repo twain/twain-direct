@@ -1,8 +1,11 @@
 {
     "comment": "copy this file to TwainDirect.App.appdata.txt, and remove the X from any lines you'd like to use",
 
-    "comment": "0-off, +1-on, +2-verbose, +4-flush",
-    "XlogLevel": 3,
+    "comment": "0-off, +1-on, +2-verbose, +4-flush (so 3 for on and verbose)",
+    "XlogLevel": 0,
+
+    "comment": "en-US, fr-FR",
+    "Xlanguage": "en-US",
 
     "comment": "milliseconds that scanner has to respond to a command",
     "XhttpTimeoutCommand": 30000,

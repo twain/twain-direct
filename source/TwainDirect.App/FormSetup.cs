@@ -92,13 +92,8 @@ namespace TwainDirect.App
             }
 
             // Localize...
-            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
-            if (szCurrentUiCulture == ".en-US")
-            {
-                szCurrentUiCulture = "";
-            }
-            m_labelSelectDestinationFolder.Text = m_resourcemanager.GetString("strLabelSelectImageDestination");
-            this.Text = m_resourcemanager.GetString("strFormSetupTitle");
+            m_labelSelectDestinationFolder.Text = Config.GetResource(m_resourcemanager, "strLabelSelectImageDestination");
+            this.Text = Config.GetResource(m_resourcemanager, "strFormSetupTitle");
 
             // More init stuff...
             m_twainlocalscannerclient = a_twainlocalscannerclient;
@@ -391,11 +386,13 @@ namespace TwainDirect.App
                         // Unable to create settings folder.
                         MessageBox.Show
                         (
-                            m_resourcemanager.GetString("errCantCreateSettingsFolder") + "\n" +
+                            Config.GetResource(m_resourcemanager, "errCantCreateSettingsFolder") + "\n" +
                             "\n" +
                             m_szTasksFolder + "\n" +
                             "\n" +
-                            exception.Message);
+                            exception.Message,
+                            Config.GetResource(m_resourcemanager, "strFormScanTitle")
+                        );
                         return;
                     }
                 }

@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="errCloseTwainBridge" xml:space="preserve">
-    <value>Do you want to close the 'TWAIN Direct on TWAIN Bridge' program?</value>
+    <value>Do you want to close the 'TWAIN Direct: TWAIN Bridge' program?</value>
   </data>
   <data name="errLookingForScanners" xml:space="preserve">
     <value>Looking for scanners...</value>
@@ -145,7 +145,7 @@
     <comment>Stop server...</comment>
   </data>
   <data name="strFormMainTitle" xml:space="preserve">
-    <value>TWAIN Direct on TWAIN Bridge</value>
+    <value>TWAIN Direct: TWAIN Bridge</value>
     <comment>Main Form title...</comment>
   </data>
   <data name="strMenuAbout" xml:space="preserve">

@@ -31,6 +31,7 @@
 
 // Helpers...
 using System;
+using System.Globalization;
 using System.Resources;
 using System.Threading;
 using TwainDirect.Support;
@@ -49,23 +50,34 @@ namespace TwainDirect.Scanner
         /// </summary>
         public Terminal()
         {
+            // Localize, the user can override the system default...
+            string szCurrentUiCulture = Config.Get("language", "");
+            if (string.IsNullOrEmpty(szCurrentUiCulture))
+            {
+                szCurrentUiCulture = Thread.CurrentThread.CurrentUICulture.ToString();
+            }
+            switch (szCurrentUiCulture.ToLower())
+            {
+                default:
+                    Log.Info("UiCulture: " + szCurrentUiCulture + " (not supported, so using en-US)");
+                    m_resourcemanager = lang_en_US.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+                    break;
+                case "en-us":
+                    Log.Info("UiCulture: " + szCurrentUiCulture);
+                    m_resourcemanager = lang_en_US.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+                    break;
+                case "fr-fr":
+                    Log.Info("UiCulture: " + szCurrentUiCulture);
+                    m_resourcemanager = lang_fr_FR.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("fr-FR");
+                    break;
+            }
+
             // Confirm scan...
             bool blConfirmScan = (Config.Get("confirmscan", null) != null);
-
-            // Localize...
-            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
-            if (szCurrentUiCulture == ".en-US")
-            {
-                szCurrentUiCulture = "";
-            }
-            try
-            {
-                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings" + szCurrentUiCulture, typeof(Form1).Assembly);
-            }
-            catch
-            {
-                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings", typeof(Form1).Assembly);
-            }
+            Log.Info("ConfirmScan: " + blConfirmScan);
 
             // Instantiate our scanner object...
             m_scanner = new Scanner

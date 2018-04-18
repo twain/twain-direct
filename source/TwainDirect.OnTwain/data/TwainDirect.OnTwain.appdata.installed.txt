@@ -1,7 +1,7 @@
 {
     "comment": "copy this file to TwainDirect.OnTwain.appdata.txt, and remove the X from any lines you'd like to use",
 
-    "comment": "0:off, +1:on, +2:verbose, +4:flush",
+    "comment": "0:off, +1:on, +2:verbose, +4:flush (so 3 for on and verbose)",
     "XlogLevel": 3,
 
     "comment": "for developers, pauses TwainDirect.OnTwain.exe for # milliseconds",

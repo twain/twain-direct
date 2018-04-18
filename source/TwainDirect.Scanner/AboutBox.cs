@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Resources;
 using System.Windows.Forms;
+using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
 {
@@ -11,10 +12,10 @@ namespace TwainDirect.Scanner
         public AboutBox(ResourceManager a_resourcemanager)
         {
             InitializeComponent();
-            this.Text = a_resourcemanager.GetString("strMenuAbout").Replace("&", "");
+            this.Text = Config.GetResource(a_resourcemanager, "strMenuAbout").Replace("&", "");
             this.labelProductName.Text = AssemblyProduct + " " + AssemblyVersion;
             this.labelCopyright.Text = AssemblyCopyright;
-            this.textBoxDescription.Text = a_resourcemanager.GetString("strTextAbout");
+            this.textBoxDescription.Text = Config.GetResource(a_resourcemanager, "strTextAbout");
         }
 
         #region Assembly Attribute Accessors

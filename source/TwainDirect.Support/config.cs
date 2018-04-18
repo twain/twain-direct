@@ -32,6 +32,7 @@
 // Helpers...
 using System;
 using System.Reflection;
+using System.Resources;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
@@ -180,6 +181,41 @@ namespace TwainDirect.Support
         public static string[] GetCommandLine()
         {
             return (ms_aszCommandLine);
+        }
+
+        /// <summary>
+        /// Get a string from the supplied resource, return the key if we can't
+        /// find the resource...
+        /// </summary>
+        /// <param name="a_resourcemanager">resource to use</param>
+        /// <param name="a_szKey">key to lookup</param>
+        /// <returns>string we found, or the keyname</returns>
+        public static string GetResource(ResourceManager a_resourcemanager, string a_szKey)
+        {
+            string szResult = "";
+
+            // Ruh-roh...
+            if (a_resourcemanager == null)
+            {
+                return (a_szKey);
+            }
+
+            // Also, ruh-roh...
+            try
+            {
+                szResult = a_resourcemanager.GetString(a_szKey);
+            }
+            catch
+            {
+                return (a_szKey);
+            }
+            if (string.IsNullOrEmpty(szResult))
+            {
+                return (a_szKey);
+            }
+
+            // Got it...
+            return (szResult);
         }
 
         /// <summary>

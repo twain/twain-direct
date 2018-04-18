@@ -34,6 +34,7 @@
 // Helpers...
 using System;
 using System.Drawing;
+using System.Globalization;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
@@ -53,37 +54,50 @@ namespace TwainDirect.Scanner
         /// </summary>
         public Form1()
         {
+            // Localize, the user can override the system default...
+            string szCurrentUiCulture = Config.Get("language", "");
+            if (string.IsNullOrEmpty(szCurrentUiCulture))
+            {
+                szCurrentUiCulture = Thread.CurrentThread.CurrentUICulture.ToString();
+            }
+            switch (szCurrentUiCulture.ToLower())
+            {
+                default:
+                    Log.Info("UiCulture: " + szCurrentUiCulture + " (not supported, so using en-US)");
+                    m_resourcemanager = lang_en_US.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+                    break;
+                case "en-us":
+                    Log.Info("UiCulture: " + szCurrentUiCulture);
+                    m_resourcemanager = lang_en_US.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+                    break;
+                case "fr-fr":
+                    Log.Info("UiCulture: " + szCurrentUiCulture);
+                    m_resourcemanager = lang_fr_FR.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("fr-FR");
+                    break;
+            }
+
             // Confirm scan, we check for the command line (confirmscan)
             // and for the appdata.txt file (useConfirmScan).  The default
             // is for it to be off...
             bool blConfirmScan = (Config.Get("confirmscan", null) != null) || (Config.Get("useConfirmScan", "no") == "yes");
+            Log.Info("ConfirmScan: " + blConfirmScan);
 
             // Init our form...
             InitializeComponent();
 
             // Localize...
-            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
-            if (szCurrentUiCulture == ".en-US")
-            {
-                szCurrentUiCulture = "";
-            }
-            try
-            {
-                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings" + szCurrentUiCulture, typeof(Form1).Assembly);
-            }
-            catch
-            {
-                m_resourcemanager = new ResourceManager("TwainDirect.Scanner.WinFormStrings", typeof(Form1).Assembly);
-            }
-            m_buttonRegister.Text = m_resourcemanager.GetString("strButtonRegisterEllipsis"); // Register...
-            m_buttonStart.Text = m_resourcemanager.GetString("strButtonStart"); // Start
-            m_buttonStop.Text = m_resourcemanager.GetString("strButtonStop"); // Stop
-            this.Text = m_resourcemanager.GetString("strFormMainTitle"); // TWAIN Direct on TWAIN Bridge
+            this.Text = Config.GetResource(m_resourcemanager, "strFormMainTitle"); // TWAIN Direct: TWAIN Bridge
+            m_buttonRegister.Text = Config.GetResource(m_resourcemanager, "strButtonRegisterEllipsis"); // Register...
+            m_buttonStart.Text = Config.GetResource(m_resourcemanager, "strButtonStart"); // Start
+            m_buttonStop.Text = Config.GetResource(m_resourcemanager, "strButtonStop"); // Stop
 
             // Context memory for the system tray...
-            MenuItem menuitemOpen = new MenuItem(m_resourcemanager.GetString("strMenuShowConsole")); // Open...
-            MenuItem menuitemAbout = new MenuItem(m_resourcemanager.GetString("strMenuAbout")); // About...
-            MenuItem menuitemExit = new MenuItem(m_resourcemanager.GetString("strMenuExit")); // Exit...
+            MenuItem menuitemOpen = new MenuItem(Config.GetResource(m_resourcemanager, "strMenuShowConsole")); // Open...
+            MenuItem menuitemAbout = new MenuItem(Config.GetResource(m_resourcemanager, "strMenuAbout")); // About...
+            MenuItem menuitemExit = new MenuItem(Config.GetResource(m_resourcemanager, "strMenuExit")); // Exit...
             menuitemOpen.Click += MenuitemOpen_Click;
             menuitemAbout.Click += MenuitemAbout_Click;
             menuitemExit.Click += MenuitemExit_Click; ;
@@ -111,6 +125,7 @@ namespace TwainDirect.Scanner
             {
                 this.Font = new Font(this.Font.FontFamily, this.Font.Size * fScale, this.Font.Style);
             }
+            Log.Info("Scale: " + fScale);
 
             // Events...
             this.FormClosing += new FormClosingEventHandler(Form1_FormClosing);
@@ -232,8 +247,8 @@ namespace TwainDirect.Scanner
             // Do you want to close the 'TWAIN Direct on TWAIN Bridge' program?
             DialogResult dialogresult = MessageBox.Show
             (
-                m_resourcemanager.GetString("errCloseTwainBridge"),
-                m_resourcemanager.GetString("strFormMainTitle"),
+                Config.GetResource(m_resourcemanager, "errCloseTwainBridge"),
+                Config.GetResource(m_resourcemanager, "strFormMainTitle"),
                 MessageBoxButtons.YesNo
             );
             if (dialogresult == DialogResult.Yes)
@@ -462,8 +477,8 @@ namespace TwainDirect.Scanner
             // Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.
             dialogresult = MessageBox.Show
             (
-                m_resourcemanager.GetString("errRegisterTwainDriver"),
-                m_resourcemanager.GetString("strFormMainTitle"),
+                Config.GetResource(m_resourcemanager, "errRegisterTwainDriver"),
+                Config.GetResource(m_resourcemanager, "strFormMainTitle"),
                 MessageBoxButtons.YesNo
             );
             if (dialogresult == DialogResult.No)
@@ -474,13 +489,13 @@ namespace TwainDirect.Scanner
             // Turn the buttons off...
             SetButtons(ButtonState.Undefined);
             Display("");
-            Display(m_resourcemanager.GetString("errLookingForScanners"));
+            Display(Config.GetResource(m_resourcemanager, "errLookingForScanners"));
 
             // Get the list of scanners...
             szScanners = m_scanner.GetAvailableScanners("getproductnames", "");
             if (szScanners == null)
             {
-                Display(m_resourcemanager.GetString("errNoScannersFound"));
+                Display(Config.GetResource(m_resourcemanager, "errNoScannersFound"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
@@ -491,7 +506,7 @@ namespace TwainDirect.Scanner
             }
             catch
             {
-                Display(m_resourcemanager.GetString("errNoScannersFound"));
+                Display(Config.GetResource(m_resourcemanager, "errNoScannersFound"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
@@ -591,8 +606,8 @@ namespace TwainDirect.Scanner
             {
                 // We are unable to use the selected scanner.  Please make sure your scanner is turned on and connected before trying again.
                 Display("");
-                Display(m_resourcemanager.GetString("errUnableToUseScanner"));
-                MessageBox.Show(m_resourcemanager.GetString("errUnableToUseScanner"), m_resourcemanager.GetString("strFormMainTitle"));
+                Display(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"));
+                MessageBox.Show(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"), Config.GetResource(m_resourcemanager, "strFormMainTitle"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
@@ -604,8 +619,8 @@ namespace TwainDirect.Scanner
             catch
             {
                 Display("");
-                Display(m_resourcemanager.GetString("errUnableToUseScanner"));
-                MessageBox.Show(m_resourcemanager.GetString("errUnableToUseScanner"), m_resourcemanager.GetString("strFormMainTitle"));
+                Display(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"));
+                MessageBox.Show(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"), Config.GetResource(m_resourcemanager, "strFormMainTitle"));
                 SetButtons(ButtonState.NoDevices);
                 return;
             }
