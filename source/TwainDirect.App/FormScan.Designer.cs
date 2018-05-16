@@ -37,6 +37,7 @@
             this.m_textbox1 = new System.Windows.Forms.TextBox();
             this.m_textbox2 = new System.Windows.Forms.TextBox();
             this.m_textboxSummary = new System.Windows.Forms.TextBox();
+            this.cloudButton = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage2)).BeginInit();
             this.SuspendLayout();
@@ -169,11 +170,23 @@
             this.m_textboxSummary.Size = new System.Drawing.Size(676, 20);
             this.m_textboxSummary.TabIndex = 15;
             // 
+            // cloudButton
+            // 
+            this.cloudButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.cloudButton.Location = new System.Drawing.Point(314, 507);
+            this.cloudButton.Name = "cloudButton";
+            this.cloudButton.Size = new System.Drawing.Size(75, 23);
+            this.cloudButton.TabIndex = 16;
+            this.cloudButton.Text = "cloud...";
+            this.cloudButton.UseVisualStyleBackColor = true;
+            this.cloudButton.Click += new System.EventHandler(this.cloudButton_Click);
+            // 
             // FormScan
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(702, 545);
+            this.Controls.Add(this.cloudButton);
             this.Controls.Add(this.m_textboxSummary);
             this.Controls.Add(this.m_textbox2);
             this.Controls.Add(this.m_textbox1);
@@ -209,5 +222,6 @@
         private System.Windows.Forms.TextBox m_textbox1;
         private System.Windows.Forms.TextBox m_textbox2;
         private System.Windows.Forms.TextBox m_textboxSummary;
+        private System.Windows.Forms.Button cloudButton;
     }
 }

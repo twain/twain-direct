@@ -34,14 +34,22 @@
 
 // Helpers...
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Cache;
+using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
+using HazyBits.Twain.Cloud.Application;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace TwainDirect.Support
 {
@@ -62,8 +70,7 @@ namespace TwainDirect.Support
         /// </summary>
         public ApiCmd()
         {
-            HttpListenerContext httplistenercontext = null;
-            ApiCmdHelper(null, null, ref httplistenercontext, null, null);
+            ApiCmdHelper(null, null, null, null, null);
         }
 
         /// <summary>
@@ -74,8 +81,7 @@ namespace TwainDirect.Support
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
         public ApiCmd(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo)
         {
-            HttpListenerContext httplistenercontext = null;
-            ApiCmdHelper(a_dnssddeviceinfo, null, ref httplistenercontext, null, null);
+            ApiCmdHelper(a_dnssddeviceinfo, null, null, null, null);
         }
 
         /// <summary>
@@ -93,8 +99,7 @@ namespace TwainDirect.Support
             object a_objectWaitforeventprocessingcallback
         )
         {
-            HttpListenerContext httplistenercontext = null;
-            ApiCmdHelper(a_dnssddeviceinfo, null, ref httplistenercontext, a_waitforeventprocessingcallback, a_objectWaitforeventprocessingcallback);
+            ApiCmdHelper(a_dnssddeviceinfo, null, null, a_waitforeventprocessingcallback, a_objectWaitforeventprocessingcallback);
         }
 
         /// <summary>
@@ -111,8 +116,7 @@ namespace TwainDirect.Support
             JsonLookup jsonlookup = new JsonLookup();
 
             // Create our object...
-            HttpListenerContext httplistenercontext = null;
-            ApiCmdHelper(a_apicmd.m_dnssddeviceinfo, null, ref httplistenercontext, a_apicmd.m_waitforeventprocessingcallback, a_apicmd.m_objectWaitforeventprocessingcallback);
+            ApiCmdHelper(a_apicmd.m_dnssddeviceinfo, null, null, a_apicmd.m_waitforeventprocessingcallback, a_apicmd.m_objectWaitforeventprocessingcallback);
 
             // If we have JSON in the response, and it has session
             // data, then we need to collect the session revision
@@ -166,10 +170,10 @@ namespace TwainDirect.Support
         (
             Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
             JsonLookup a_jsonlookup,
-            ref HttpListenerContext a_httplistenercontext
+            ref HttpListenerContextBase a_httplistenercontext
         )
         {
-            ApiCmdHelper(a_dnssddeviceinfo, a_jsonlookup, ref a_httplistenercontext, null, null);
+            ApiCmdHelper(a_dnssddeviceinfo, a_jsonlookup, a_httplistenercontext, null, null);
         }
 
         /// <summary>
@@ -786,21 +790,77 @@ namespace TwainDirect.Support
         private static void ResponseCallBackLaunchpad(IAsyncResult a_iasyncresult)
         {
             ApiCmd apicmd = (ApiCmd)a_iasyncresult.AsyncState;
-            apicmd.ResponseCallBack(a_iasyncresult);
+
+            var task = Task.Run(async () => { await apicmd.ResponseCallBack(a_iasyncresult); });
+            task.Wait();
+        }
+
+        private static readonly ConcurrentDictionary<string, TaskCompletionSource<CloudDeviceResponse>> OutstandingCloudRequests = 
+            new ConcurrentDictionary<string, TaskCompletionSource<CloudDeviceResponse>>();
+
+        public static void StartCloudRequest(string requestId)
+        {
+            OutstandingCloudRequests.TryAdd(requestId, new TaskCompletionSource<CloudDeviceResponse>());
+        }
+
+        public static void CompleteCloudResponse(string body)
+        {
+            var cloudMessage = JsonConvert.DeserializeObject<CloudDeviceResponse>(body, CloudManager.SerializationSettings);
+            var requestId = cloudMessage.RequestId;
+
+            if (OutstandingCloudRequests.TryGetValue(requestId, out var completionSource))
+            {
+                Debug.WriteLine($"Completing cloud request: {requestId}");
+                completionSource.SetResult(cloudMessage);
+            }
+        }
+
+        public async Task<CloudDeviceResponse> WaitCloudResponse()
+        {
+            if (OutstandingCloudRequests.TryGetValue(m_CloudRequestId, out var completionSource))
+            {
+                Debug.WriteLine($"Waiting for cloud response: {m_CloudRequestId}");
+                var response = await completionSource.Task;
+                return response;
+            }
+
+            return null;
         }
 
         /// <summary>
         /// Handle the response to our request...
         /// </summary>
         /// <param name="asyncResult"></param>
-        private void ResponseCallBack(IAsyncResult a_iasyncresult)
+        private async Task ResponseCallBack(IAsyncResult a_iasyncresult)
         {
             bool blMultipart = false;
 
             // Get the response, deal with communication problems...
             try
             {
-                m_httpresponsedata.httpwebresponse = (HttpWebResponse)m_httprequestdata.httpwebrequest.EndGetResponse(a_iasyncresult);
+                if (IsCloud())
+                {
+                    var cloudResponse = await WaitCloudResponse();
+
+                    Debug.WriteLine($"Wait completed, starting processing");
+                    var headers = new NameValueCollection();
+                    foreach(var pair in cloudResponse.Headers)
+                        headers.Add(pair.Key, pair.Value);
+
+                    // TODO: what the hell with capital letter here?
+                    cloudResponse.Headers.TryGetValue("content-Type", out var contentType);
+
+                    m_httpresponsedata.httpwebresponse = new HttpWebResponseBase(cloudResponse.Body)
+                    {
+                        StatusCode = (HttpStatusCode)cloudResponse.StatusCode,
+                        Headers = headers,
+                        ContentType = contentType ?? "application/json"
+                    };
+                }
+                else
+                {
+                    m_httpresponsedata.httpwebresponse = new HttpWebResponseBase((HttpWebResponse)m_httprequestdata.httpwebrequest.EndGetResponse(a_iasyncresult));
+                }
             }
             catch (WebException webexception)
             {
@@ -878,6 +938,7 @@ namespace TwainDirect.Support
             // application/json with UTF-8 is okay...
             if (contenttype.MediaType.ToLowerInvariant() == "application/json")
             {
+                // TODO: make this configurable?
                 if (contenttype.CharSet.ToLowerInvariant() != "utf-8")
                 {
                     Log.Error(m_szReason + ": application/json charset is not utf-8..." + contenttype.CharSet);
@@ -1003,6 +1064,7 @@ namespace TwainDirect.Support
         /// <param name="a_iasyncresult"></param>
         private void ReadCallBackJsonLaunchpad(IAsyncResult a_iasyncresult)
         {
+            Debug.WriteLine("Processing JSON data...");
             ApiCmd apicmd = (ApiCmd)a_iasyncresult.AsyncState;
             apicmd.ReadCallBackJson(a_iasyncresult);
         }
@@ -1048,6 +1110,7 @@ namespace TwainDirect.Support
                     return;
                 }
 
+                Debug.WriteLine("Looks like we retrieved all response data");
                 // If we got this far, then we've collected all of our data...
                 m_httpresponsedata.szResponseData = "";
                 if (m_lResponseBytesXferred > 0)
@@ -1055,6 +1118,36 @@ namespace TwainDirect.Support
                     byte[] abReply = new byte[m_lResponseBytesXferred];
                     Buffer.BlockCopy(m_abBufferHttpWebResponse, 0, abReply, 0, (int)m_lResponseBytesXferred);
                     m_httpresponsedata.szResponseData = Encoding.UTF8.GetString(abReply, 0, (int)m_lResponseBytesXferred);
+                }
+
+                var response = JObject.Parse(m_httpresponsedata.szResponseData);
+                if (response.TryGetValue("results", out var results))
+                {
+                    if (results.HasValues)
+                    {
+                        var imageBlockIdToken = results["imageBlockId"];
+                        if (imageBlockIdToken != null)
+                        {
+                            var blockId = imageBlockIdToken.Value<string>();
+
+                            if (_appManager != null)
+                            {
+                                var scannerId = GetScannerIdFromRequest(m_httprequestdata.httpwebrequest.RequestUri.AbsolutePath);
+                                var downloadTask = Task.Run(async () => await _appManager.DownloadBlock(scannerId, blockId));
+                                downloadTask.Wait();
+                                var bytes = downloadTask.Result;
+
+                                if (m_filestreamOutputFile != null)
+                                {
+                                    m_filestreamOutputFile.Write(bytes, 0, bytes.Length);
+                                    m_filestreamOutputFile.Close();
+                                } else if (m_szOutputFile != null)
+                                {
+                                    File.WriteAllBytes(m_szOutputFile, bytes);
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Process update...
@@ -1073,10 +1166,19 @@ namespace TwainDirect.Support
                 return;
             }
 
+            Debug.WriteLine("Final success - set completion event");
             // Success, we set the web request here, because we've
             // transferred all of the data...
             m_httprequestdata.autoreseteventHttpWebRequest.Set();
             return;
+        }
+
+        private string GetScannerIdFromRequest(string requestUriAbsolutePath)
+        {
+            var regex = new Regex("/dev/scanners/(?<scannerId>[0-9a-zA-Z-]*)");
+            var match = regex.Match(requestUriAbsolutePath);
+
+            return match.Groups["scannerId"].Value;
         }
 
         /// <summary>
@@ -1665,7 +1767,11 @@ namespace TwainDirect.Support
                 else
                 {
                     string szLinkLocal = m_dnssddeviceinfo.GetLinkLocal().Replace(".local.", ".local");
-                    szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
+                    if (szLinkLocal.StartsWith("https"))
+                        szUri = szLinkLocal + a_szUri;
+                    else
+                        szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
+
                 }
             }
 
@@ -1719,6 +1825,11 @@ namespace TwainDirect.Support
                     }
                 }
             }
+
+            // Generate unique request ID to match with async response
+            m_CloudRequestId = Guid.NewGuid().ToString();
+            m_httprequestdata.httpwebrequest.Headers.Add("X-TWAIN-Cloud-Request-Id", m_CloudRequestId);
+
             m_httprequestdata.aszRequestHeaders = null;
             if (m_httprequestdata.httpwebrequest.Headers != null)
             {
@@ -1806,6 +1917,7 @@ namespace TwainDirect.Support
             try
             {
                 // Start the asynchronous request.
+                StartCloudRequest(m_CloudRequestId);
                 m_httprequestdata.autoreseteventHttpWebRequest = new AutoResetEvent(false);
                 IAsyncResult iasyncresult = (IAsyncResult)m_httprequestdata.httpwebrequest.BeginGetResponse(new AsyncCallback(ResponseCallBackLaunchpad), this);
 
@@ -1962,246 +2074,7 @@ namespace TwainDirect.Support
                 return (true);
             }
 
-            // Open our thumbnail file, if we have one...
-            if (!string.IsNullOrEmpty(m_szThumbnailFile) && File.Exists(m_szThumbnailFile))
-            {
-                try
-                {
-                    filestreamThumbnail = new FileStream(m_szThumbnailFile, FileMode.Open);
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("HttpRespond: failed to open..." + exception.Message);
-                }
-            }
-
-            // Open our image file, if we have one...
-            if (!string.IsNullOrEmpty(m_szImageFile) && File.Exists(m_szImageFile))
-            {
-                try
-                {
-                    filestreamImage = new FileStream(m_szImageFile, FileMode.Open);
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("HttpRespond: failed to open..." + exception.Message);
-                }
-            }
-
-            // We don't have any files, so just send the JSON data...
-            if (    (filestreamThumbnail == null)
-                &&  (filestreamImage == null))
-            {
-                // Convert the JSON to UTF8...
-                abBufferJson = Encoding.UTF8.GetBytes(a_szResponse);
-
-                // Fix the header in our response...
-                m_httplistenerdata.httplistenerresponse.Headers.Clear();
-                m_httplistenerdata.httplistenerresponse.Headers.Add(HttpResponseHeader.ContentType, "application/json; charset=UTF-8");
-                m_httplistenerdata.httplistenerresponse.ContentLength64 = abBufferJson.Length;
-
-                // We need some protection...
-                try
-                {
-                    // Get a response stream and write the response to it...
-                    streamResponse = m_httplistenerdata.httplistenerresponse.OutputStream;
-                    streamResponse.Write(abBufferJson, 0, abBufferJson.Length);
-
-                    // Close the output stream...
-                    if (streamResponse != null)
-                    {
-                        streamResponse.Close();
-                    }
-                }
-                catch (Exception exception)
-                {
-                    // This is most likely to happen if we lose communication,
-                    // or if the application poos itself at an inopportune
-                    // moment...
-                    Log.Error("response failed - " + exception.Message);
-                    m_httplistenerdata.httplistenerresponse = null;
-                    return (false);
-                }
-
-                // We can't use this anymore, so blow it away...
-                m_httplistenerdata.httplistenerresponse = null;
-
-                // All done...
-                return (true);
-            }
-
-            // Build the JSON portion, don't send anything yet, note the use
-            // of newlines, which are essential to parsing multipart content...
-            abBufferJson = Encoding.UTF8.GetBytes
-            (
-                "--" + szBoundary + "\r\n" +
-                "Content-Type: application/json; charset=UTF-8\r\n" +
-                "Content-Length: " + a_szResponse.Length + "\r\n" +
-                "\r\n" +
-                a_szResponse + "\r\n" +
-                "\r\n"
-            );
-
-            // Build the thumbnail portion, if we have one, don't send
-            // anything yet...
-            if (filestreamThumbnail != null)
-            {
-                // Build the thumbnail header portion, don't send anything yet...
-                abBufferThumbnailHeader = Encoding.UTF8.GetBytes
-                (
-                    "--" + szBoundary + "\r\n" +
-                    "Content-Type: application/pdf\r\n" +
-                    "Content-Length: " + filestreamThumbnail.Length + "\r\n" +
-                    "Content-Transfer-Encoding: binary\r\n" +
-                    "Content-Disposition: inline; filename=\"thumbnail.pdf\"\r\n" +
-                    "\r\n"
-                );
-
-                // Read the thumbnail data, be sure to add an extra two bytes for
-                // the terminating newline and the empty-line newline...
-                try
-                {
-                    abBufferThumbnail = new byte[filestreamThumbnail.Length + 4];
-                    filestreamThumbnail.Read(abBufferThumbnail, 0, abBufferThumbnail.Length);
-                    abBufferThumbnail[filestreamThumbnail.Length]     = 13; // '\r'
-                    abBufferThumbnail[filestreamThumbnail.Length + 1] = 10; // '\n'
-                    abBufferThumbnail[filestreamThumbnail.Length + 2] = 13; // '\r'
-                    abBufferThumbnail[filestreamThumbnail.Length + 3] = 10; // '\n'
-                }
-                // Drat...
-                catch (Exception exception)
-                {
-                    Log.Error("HttpRespond: exception..." + exception.Message);
-                    abBufferThumbnailHeader = null;
-                    abBufferThumbnail = null;
-                }
-
-                // Cleanup...
-                filestreamThumbnail.Close();
-                filestreamThumbnail = null;
-            }
-
-            // Build the image header, if we have one...
-            if (filestreamImage != null)
-            {
-                // Build the image header portion, don't send anything yet...
-                abBufferImageHeader = Encoding.UTF8.GetBytes
-                (
-                    "--" + szBoundary + "\r\n" +
-                    "Content-Type: application/pdf\r\n" +
-                    "Content-Length: " + filestreamImage.Length + "\r\n" +
-                    "Content-Transfer-Encoding: binary\r\n" +
-                    "Content-Disposition: inline; filename=\"image.pdf\"\r\n" +
-                    "\r\n"
-                );
-            }
-
-            // Don't forget the boundary terminator...
-            byte[] abBoundaryTerminator = Encoding.UTF8.GetBytes("--" + szBoundary + "--\r\n");
-
-            // Okay, send what we have so far, start by specifying the length,
-            // note the +4 on the image for the terminating CRLF and the
-            // final empty-line CRLF...
-            long lLength =
-                abBufferJson.Length +                                                           // separator + header + json + CRLFs
-                ((abBufferThumbnailHeader != null) ? abBufferThumbnailHeader.Length : 0) +      // separator + thumbnail header + CRLFs (optional)
-                ((abBufferThumbnail != null) ? abBufferThumbnail.Length : 0) +                  // thumbnail image + CRLFs              (optional)
-                ((abBufferImageHeader != null) ? abBufferImageHeader.Length : 0) +              // separator + image header + CRLFs     (optional)
-                ((filestreamImage != null) ? filestreamImage.Length + 4 : 0) +                  // image + CRLFs                        (optional)
-                abBoundaryTerminator.Length;                                                    // terminator
-
-            // We're doing a multipart/mixed reply, so fix the header in our response...
-            m_httplistenerdata.httplistenerresponse.Headers.Clear();
-            m_httplistenerdata.httplistenerresponse.Headers.Add(HttpResponseHeader.ContentType, "multipart/mixed; boundary=\"" + szBoundary + "\"");
-            m_httplistenerdata.httplistenerresponse.ContentLength64 = lLength;
-
-            // Make things a little easier to read...
-            streamResponse = m_httplistenerdata.httplistenerresponse.OutputStream;
-
-            // Write the JSON data to the stream, this includes its header...
-            streamResponse.Write(abBufferJson, 0, (int)abBufferJson.Length);
-            abBufferJson = null;
-
-            // Write the thumbnail header, if we have one...
-            if (abBufferThumbnailHeader != null)
-            {
-                streamResponse.Write(abBufferThumbnailHeader, 0, (int)abBufferThumbnailHeader.Length);
-                abBufferThumbnailHeader = null;
-            }
-
-            // Write the thumbnail, if we have one...
-            if (abBufferThumbnail != null)
-            {
-                streamResponse.Write(abBufferThumbnail, 0, (int)abBufferThumbnail.Length);
-                abBufferThumbnail = null;
-            }
-
-            // Write the image header, if we have one...
-            if (abBufferImageHeader != null)
-            {
-                streamResponse.Write(abBufferImageHeader, 0, (int)abBufferImageHeader.Length);
-                abBufferImageHeader = null;
-            }
-
-            // Now let's send the image portion (if we have one), this could be
-            // big, so we'll do it in chunks...
-            if (filestreamImage != null)
-            {
-                try
-                {
-                    // Loopy on the image...
-                    int iReadLength;
-                    bool blCrlfsSent = false;
-                    byte[] abData = new byte[0x200000];
-                    while ((iReadLength = filestreamImage.Read(abData, 0, abData.Length)) > 0)
-                    {
-                        if ((iReadLength + 4) < abData.Length)
-                        {
-                            blCrlfsSent = true;
-                            abData[iReadLength]     = 13; // '\r'
-                            abData[iReadLength + 1] = 10; // '\n'
-                            abData[iReadLength + 2] = 13; // '\r'
-                            abData[iReadLength + 3] = 10; // '\n'
-                            iReadLength += 4;
-                        }
-                        streamResponse.Write(abData, 0, iReadLength);
-                    }
-
-                    // Send the closing newlines, if we could snooker them into
-                    // the stream up above...
-                    if (!blCrlfsSent)
-                    {
-                        abData[0] = 13; // '\r'
-                        abData[1] = 10; // '\n'
-                        abData[2] = 13; // '\r'
-                        abData[3] = 10; // '\n'
-                        streamResponse.Write(abData, 0, 4);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("HttpRespond: exception..." + exception.Message);
-                }
-
-                // Cleanup...
-                filestreamImage.Close();
-                filestreamImage = null;
-            }
-
-            // Send the boundary terminator...
-            streamResponse.Write(abBoundaryTerminator, 0, abBoundaryTerminator.Length);
-
-            // Close the output stream...
-            if (streamResponse != null)
-            {
-                streamResponse.Close();
-            }
-
-            // We can't use this anymore, so blow it away...
-            m_httplistenerdata.httplistenerresponse = null;
-
-            // All done...
-            return (true);
+            return m_httplistenerdata.httplistenerresponse.WriteImageBlockResponse(a_szResponse, m_szThumbnailFile, m_szImageFile);
         }
 
         /// <summary>
@@ -2211,6 +2084,16 @@ namespace TwainDirect.Support
         public bool IsLocal()
         {
             return (m_httplistenerdata.httplistenerresponse != null);
+        }
+
+        /// <summary>
+        /// Are we working with TWAIN Cloud?
+        /// </summary>
+        /// <returns>return true if we are</returns>
+        public bool IsCloud()
+        {
+            // TODO: find the way to detect this
+            return true;
         }
 
         /// <summary>
@@ -2671,7 +2554,7 @@ namespace TwainDirect.Support
         (
             Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
             JsonLookup a_jsonlookup,
-            ref HttpListenerContext a_httplistenercontext,
+            HttpListenerContextBase a_httplistenercontext,
             TwainLocalScanner.WaitForEventsProcessingCallback a_waitforeventprocessingcallback,
             object a_objectWaitforeventprocessingcallback
         )
@@ -3010,13 +2893,13 @@ namespace TwainDirect.Support
             /// <summary>
             /// The HTTP listener context of the command we received...
             /// </summary>
-            public HttpListenerContext httplistenercontext;
+            public HttpListenerContextBase httplistenercontext;
 
             /// <summary>
             /// The HTTP response object we use to reply to local area
             /// network commands, this is obtained from m_httplistenerdata.httplistenercontext... 
             /// </summary>
-            public HttpListenerResponse httplistenerresponse;
+            public HttpListenerResponseBase httplistenerresponse;
 
             /// <summary>
             /// The URI used to call us, the method, the base URI, and the full URI with
@@ -3059,7 +2942,7 @@ namespace TwainDirect.Support
             /// <summary>
             /// The web response to HttpRequestData.httpwebrequest
             /// </summary>
-            public HttpWebResponse httpwebresponse;
+            public HttpWebResponseBase httpwebresponse;
 
             /// <summary>
             /// The payload that goes with this response...
@@ -3236,6 +3119,8 @@ namespace TwainDirect.Support
         /// </summary>
         private bool m_blAbortClientRequest;
         private bool m_blTimeout;
+
+        private string m_CloudRequestId;
 
         #endregion
 
@@ -4244,5 +4129,12 @@ namespace TwainDirect.Support
         }
 
         #endregion
+
+        private ApplicationManager _appManager;
+
+        public void SetCloudManager(ApplicationManager appManager)
+        {
+            _appManager = appManager;
+        }
     }
 }

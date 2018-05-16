@@ -35,6 +35,9 @@ using System.Drawing;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
+using HazyBits.Twain.Cloud.Application;
+using HazyBits.Twain.Cloud.Client;
+using HazyBits.Twain.Cloud.Registration;
 using TwainDirect.Support;
 
 namespace TwainDirect.App
@@ -47,7 +50,7 @@ namespace TwainDirect.App
         #region Public Methods...
 
         // Our constructor...
-        public FormSelect(Dnssd a_dnssd, float a_fScale, out bool a_blResult)
+        public FormSelect(Dnssd a_dnssd, float a_fScale, TwainCloudTokens cloudTokens, out bool a_blResult)
         {
             ResourceManager resourcemanager;
 
@@ -102,7 +105,55 @@ namespace TwainDirect.App
             m_timerLoadScannerNames.Interval = 15000;
             m_timerLoadScannerNames.Tag = this;
             m_timerLoadScannerNames.Start();
+
+            LoadCloudScanners(cloudTokens);
         }
+
+        private void LoadCloudScanners(TwainCloudTokens cloudTokens)
+        {
+            var apiRoot = CloudManager.GetCloudApiRoot();
+            var client = new TwainCloudClient(apiRoot, cloudTokens);
+            var applicationManager = new ApplicationManager(client);
+
+            applicationManager.GetScanners().ContinueWith(task =>
+            {
+                var scanners = task.Result;
+                foreach (var s in scanners)
+                {
+                    ListViewItem listviewitem = new ListViewItem
+                    (
+                        new[] {
+                            s.Name,
+                            s.Description,
+                            s.Manufacturer,
+                            CloudManager.GetScannerCloudUrl(s),
+                            "(no ip)"
+                        }
+                    );
+
+                    listviewitem.Tag = s;
+                    AddCloudScanner(listviewitem);
+
+                    // Fix our buttons...
+                    SetButtons(ButtonState.Devices);
+                }
+            });
+        }
+
+        private void AddCloudScanner(ListViewItem item)
+        {
+            if (InvokeRequired)
+            {
+                Action<ListViewItem> action = AddCloudScanner;
+                Invoke(action, item);
+            }
+            else
+            {
+                item.Group = m_listviewSelect.Groups["cloudScannersGroup"];
+                m_listviewSelect.Items.Add(item);
+            }
+        }
+
 
         /// <summary>
         /// Cleanup stuff...
@@ -141,7 +192,7 @@ namespace TwainDirect.App
                 {
                     for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
                     {
-                        if (m_listviewSelect.Items[ii].Selected)
+                        if (m_listviewSelect.Items[ii].Selected && m_listviewSelect.Items[ii].Group == m_listviewSelect.Groups["localScannersGroup"])
                         {
                             m_dnssddeviceinfoSelected = m_adnssddeviceinfoCompare[ii];
                             break;
@@ -168,7 +219,9 @@ namespace TwainDirect.App
                 // We've no data...
                 if (adnssddeviceinfo == null)
                 {
-                    m_listviewSelect.Items.Add("*none*");
+                    var item = new ListViewItem("*none*");
+                    item.Group = m_listviewSelect.Groups["localScannersGroup"];
+                    m_listviewSelect.Items.Add(item);
                     SetButtons(ButtonState.Nodevices);
                 }
                 else
@@ -186,6 +239,7 @@ namespace TwainDirect.App
                                 (dnssddeviceinfo.GetIpv4() != null) ? dnssddeviceinfo.GetIpv4() : (dnssddeviceinfo.GetIpv6() != null) ? dnssddeviceinfo.GetIpv6() : "(no ip)"
                             }
                         );
+                        listviewitem.Group = m_listviewSelect.Groups["localScannersGroup"];
                         m_listviewSelect.Items.Add(listviewitem);
                     }
 
@@ -293,6 +347,18 @@ namespace TwainDirect.App
                 m_dnssddeviceinfoSelected = null;
                 if (m_adnssddeviceinfoCompare != null)
                 {
+                    if (m_listviewSelect.SelectedIndices.Count > 0)
+                    {
+                        var item = m_listviewSelect.SelectedItems[0];
+                        var scanner = (ScannerInformation)item.Tag;
+                        var url = CloudManager.GetScannerCloudUrl(scanner);
+
+                        var dnsInfo = new Dnssd.DnssdDeviceInfo();
+                        dnsInfo.SetTxtHttps(true);
+                        dnsInfo.SetLinkLocal(url);
+                        return dnsInfo;
+                    }
+
                     for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
                     {
                         if (m_listviewSelect.Items[ii].Selected)
@@ -307,7 +373,7 @@ namespace TwainDirect.App
                 return (m_dnssddeviceinfoSelected);
             }
 
-            /// <summary>
+        /// <summary>
             /// Select and accept...
             /// </summary>
             /// <param name="sender"></param>
@@ -324,22 +390,31 @@ namespace TwainDirect.App
             /// <param name="a_ebuttonstate"></param>
             private void SetButtons(ButtonState a_buttonstate)
             {
-                // Fix the buttons...
-                switch (a_buttonstate)
+                if (InvokeRequired)
                 {
-                    default:
-                    case ButtonState.Undefined:
-                        m_buttonOpen.Enabled = false;
-                        break;
-
-                    case ButtonState.Nodevices:
-                        m_buttonOpen.Enabled = false;
-                        break;
-
-                    case ButtonState.Devices:
-                        m_buttonOpen.Enabled = true;
-                        break;
+                    Action<ButtonState> action = SetButtons;
+                    Invoke(action, a_buttonstate);
                 }
+                else
+                {
+                    // Fix the buttons...
+                    switch (a_buttonstate)
+                    {
+                        default:
+                        case ButtonState.Undefined:
+                            m_buttonOpen.Enabled = false;
+                            break;
+
+                        case ButtonState.Nodevices:
+                            m_buttonOpen.Enabled = false;
+                            break;
+
+                        case ButtonState.Devices:
+                            m_buttonOpen.Enabled = true;
+                            break;
+                    }
+                }
+
             }
 
             #endregion

@@ -33,6 +33,7 @@
 using System;
 using System.Resources;
 using System.Threading;
+using System.Threading.Tasks;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -296,7 +297,7 @@ namespace TwainDirect.Scanner
         /// <summary>
         /// Start polling for work...
         /// </summary>
-        public void Start()
+        public async Task Start()
         {
             int iChar;
             bool blSuccess;
@@ -304,7 +305,7 @@ namespace TwainDirect.Scanner
             // Start polling...
             Display("");
             Display("Starting, please wait...");
-            blSuccess = m_scanner.MonitorTasksStart();
+            blSuccess = await m_scanner.MonitorTasksStart();
             if (!blSuccess)
             {
                 Log.Error("MonitorTasksStart failed...");

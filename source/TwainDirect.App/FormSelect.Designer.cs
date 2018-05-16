@@ -10,6 +10,8 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Local Scanners", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("Cloud Scanners", System.Windows.Forms.HorizontalAlignment.Left);
             this.m_buttonOpen = new System.Windows.Forms.Button();
             this.m_labelSelect = new System.Windows.Forms.Label();
             this.m_listviewSelect = new System.Windows.Forms.ListView();
@@ -17,8 +19,9 @@
             // 
             // m_buttonOpen
             // 
+            this.m_buttonOpen.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.m_buttonOpen.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.m_buttonOpen.Location = new System.Drawing.Point(552, 227);
+            this.m_buttonOpen.Location = new System.Drawing.Point(552, 363);
             this.m_buttonOpen.Name = "m_buttonOpen";
             this.m_buttonOpen.Size = new System.Drawing.Size(75, 23);
             this.m_buttonOpen.TabIndex = 1;
@@ -37,14 +40,24 @@
             // 
             // m_listviewSelect
             // 
+            this.m_listviewSelect.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.m_listviewSelect.FullRowSelect = true;
             this.m_listviewSelect.GridLines = true;
+            listViewGroup1.Header = "Local Scanners";
+            listViewGroup1.Name = "localScannersGroup";
+            listViewGroup2.Header = "Cloud Scanners";
+            listViewGroup2.Name = "cloudScannersGroup";
+            this.m_listviewSelect.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
+            listViewGroup1,
+            listViewGroup2});
             this.m_listviewSelect.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.m_listviewSelect.HideSelection = false;
             this.m_listviewSelect.Location = new System.Drawing.Point(15, 39);
             this.m_listviewSelect.MultiSelect = false;
             this.m_listviewSelect.Name = "m_listviewSelect";
-            this.m_listviewSelect.Size = new System.Drawing.Size(612, 182);
+            this.m_listviewSelect.Size = new System.Drawing.Size(612, 318);
             this.m_listviewSelect.TabIndex = 4;
             this.m_listviewSelect.UseCompatibleStateImageBehavior = false;
             this.m_listviewSelect.View = System.Windows.Forms.View.Details;
@@ -54,11 +67,10 @@
             this.AcceptButton = this.m_buttonOpen;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(639, 255);
+            this.ClientSize = new System.Drawing.Size(639, 394);
             this.Controls.Add(this.m_listviewSelect);
             this.Controls.Add(this.m_labelSelect);
             this.Controls.Add(this.m_buttonOpen);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "FormSelect";

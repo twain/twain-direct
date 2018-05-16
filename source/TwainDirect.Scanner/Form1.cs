@@ -33,10 +33,15 @@
 
 // Helpers...
 using System;
+using System.Data.Entity.Migrations;
 using System.Drawing;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
+using HazyBits.Twain.Cloud.Client;
+using HazyBits.Twain.Cloud.Forms;
+using HazyBits.Twain.Cloud.Registration;
+using TwainDirect.Scanner.Storage;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -652,11 +657,21 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
+        /// Register a device with cloud infrastructure.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        private async void m_CloudRegisterButton_Click(object sender, EventArgs e)
+        {
+            await m_scanner.RegisterCloudScanner();
+        }
+
+        /// <summary>
         /// Start polling for work...
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void m_buttonStart_Click(object sender, EventArgs e)
+        private async void m_buttonStart_Click(object sender, EventArgs e)
         {
             bool blSuccess;
 
@@ -666,7 +681,7 @@ namespace TwainDirect.Scanner
             // Start polling...
             Display("");
             Display("Starting, please wait...");
-            blSuccess = m_scanner.MonitorTasksStart();
+            blSuccess = await m_scanner.MonitorTasksStart();
             if (!blSuccess)
             {
                 Log.Error("MonitorTasksStart failed...");

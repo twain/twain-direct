@@ -33,9 +33,17 @@
 
 // Helpers...
 using System;
+using System.Data.Entity.Migrations;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Resources;
+using System.Threading.Tasks;
+using HazyBits.Twain.Cloud.Client;
+using HazyBits.Twain.Cloud.Device;
+using HazyBits.Twain.Cloud.Forms;
+using HazyBits.Twain.Cloud.Registration;
+using TwainDirect.Scanner.Storage;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -206,12 +214,26 @@ namespace TwainDirect.Scanner
         /// Start polling for tasks...
         /// </summary>
         /// <returns>true on success</returns>
-        public bool MonitorTasksStart()
+        public async Task<bool> MonitorTasksStart()
         {
             bool blSuccess;
 
+            CloudScanner cloudScanner = null;
+            using (var context = new CloudContext())
+            {
+                cloudScanner = context.Scanners.First();
+            }
+
+            var cloudClient = new TwainCloudClient(CloudManager.GetCloudApiRoot(), new TwainCloudTokens(cloudScanner.AuthorizationToken, cloudScanner.RefreshToken));
+            cloudClient.TokensRefreshed += (sender, args) =>
+            {
+                cloudScanner.AuthorizationToken = args.Tokens.AuthorizationToken;
+                cloudScanner.RefreshToken = args.Tokens.RefreshToken;
+                SaveScannerRegistration(cloudScanner);
+            };
+
             // Start monitoring for commands...
-            blSuccess = m_twainlocalscannerdevice.DeviceHttpServerStart();
+            blSuccess = await m_twainlocalscannerdevice.DeviceHttpServerStart(new DeviceSession(cloudClient, cloudScanner.Id));
             if (!blSuccess)
             {
                 Log.Error("DeviceHttpServerStart failed...");
@@ -220,6 +242,15 @@ namespace TwainDirect.Scanner
 
             // All done...
             return (true);
+        }
+
+        private static void SaveScannerRegistration(CloudScanner scanner)
+        {
+            using (var context = new CloudContext())
+            {
+                context.Scanners.AddOrUpdate(scanner);
+                context.SaveChanges();
+            }
         }
 
         /// <summary>
@@ -275,6 +306,37 @@ namespace TwainDirect.Scanner
 
             // All done...
             return (true);
+        }
+
+        /// <summary>
+        /// Register a device with cloud infrastructure.
+        /// </summary>
+        public async Task RegisterCloudScanner()
+        {
+            var client = new TwainCloudClient(CloudManager.GetCloudApiRoot());
+            var registrationManager = new RegistrationManager(client);
+
+            var scannerInfo = new ScannerInformation
+            {
+                Name = GetTwainLocalTy(),
+                Description = GetTwainLocalNote()
+            };
+
+            var result = await registrationManager.Register(scannerInfo);
+            var registrationDialog = new RegistrationForm(registrationManager, result);
+            registrationDialog.ShowDialog();
+
+            var pollResult = registrationDialog.PollResponse;
+            if (pollResult != null)
+            {
+                SaveScannerRegistration(new CloudScanner
+                {
+                    Id = result.ScannerId,
+                    Name = scannerInfo.Name,
+                    AuthorizationToken = pollResult.AuthorizationToken,
+                    RefreshToken = pollResult.RefreshToken
+                });
+            }
         }
 
         #endregion
