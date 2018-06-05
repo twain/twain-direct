@@ -1961,6 +1961,35 @@ namespace TwainDirect.App
             }
         }
 
+        /// <summary>
+        /// Bring up the folder containing the images...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_pictureboxImage_DoubleClick(object sender, EventArgs e)
+        {
+            string szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+            if (Directory.Exists(szImagesFolder))
+            {
+                System.Diagnostics.Process.Start(szImagesFolder);
+            }
+        }
+
+        /// <summary>
+        /// Open the PDF file, if we have one...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_textbox_DoubleClick(object sender, EventArgs e)
+        {
+            TextBox textbox = (TextBox)sender;
+            string szPdfFile = Path.Combine(m_szWriteFolder, Path.Combine("images", textbox.Text));
+            if (File.Exists(szPdfFile))
+            {
+                System.Diagnostics.Process.Start(szPdfFile);
+            }
+        }
+
         #endregion
 
 
