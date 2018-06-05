@@ -859,6 +859,7 @@ namespace TwainDirect.OnTwain
                 blSuccess = PdfRaster.CreatePdfRaster
                 (
                     szPdfFile,
+                    m_szEncryptionProfileName,
                     Config.Get("pfxFile", ""),
                     Config.Get("pfxFilePassword", ""),
                     szMeta,
@@ -1400,7 +1401,7 @@ namespace TwainDirect.OnTwain
             }
 
             // Process our task...
-            blSuccess = a_processswordtask.ProcessAndRun(out m_configurenamelookup);
+            blSuccess = a_processswordtask.ProcessAndRun(out m_configurenamelookup, out m_szEncryptionProfileName);
             if (!blSuccess)
             {
                 return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
@@ -1730,7 +1731,12 @@ namespace TwainDirect.OnTwain
         /// We'll use this to get the stream, source, and pixelFormat names for the
         /// metadata...
         /// </summary>
-        ProcessSwordTask.ConfigureNameLookup m_configurenamelookup;
+        private ProcessSwordTask.ConfigureNameLookup m_configurenamelookup;
+
+        /// <summary>
+        /// The name of an encryptionProfile or null...
+        /// </summary>
+        private string m_szEncryptionProfileName;
 
         #endregion
     }

@@ -758,6 +758,44 @@ namespace TwainDirect.App
         }
 
         /// <summary>
+        /// Write some text to an image so we can display it...
+        /// </summary>
+        /// <param name="a_szText"></param>
+        /// <returns>the image to display</returns>
+        private Image DrawText(String a_szText)
+        {
+            Font fontText = new Font(FontFamily.GenericSansSerif, 20.0F, FontStyle.Bold);
+
+            // first, create a dummy bitmap just to get a graphics object
+            Image image = new Bitmap(1, 1);
+            Graphics graphics = Graphics.FromImage(image);
+
+            // measure the string to see how big the image needs to be
+            SizeF textSize = graphics.MeasureString(a_szText, fontText);
+
+            // free up the dummy image and old graphics object
+            image.Dispose();
+            graphics.Dispose();
+
+            // create a new image of the right size
+            image = new Bitmap((int)textSize.Width, (int)textSize.Height);
+            graphics = Graphics.FromImage(image);
+
+            // paint the background
+            graphics.Clear(Color.Black);
+
+            // create a brush for the text
+            Brush textBrush = new SolidBrush(Color.White);
+            graphics.DrawString(a_szText, fontText, textBrush, 0, 0);
+            graphics.Save();
+
+            // Cleanup and done...
+            textBrush.Dispose();
+            graphics.Dispose();
+            return (image);
+
+        }
+        /// <summary>
         /// Handle sessionTimedOut errors...
         /// </summary>
         private void SessionTimedOut()
@@ -1017,6 +1055,23 @@ namespace TwainDirect.App
             if (abImage == null)
             {
                 Log.Error("failed to convert the image...");
+                // Get the image data...
+                using (var bitmap = new Bitmap(DrawText("...DISPLAY ERROR...")))
+                {
+                    // Display the image...
+                    if (m_iUseBitmap == 0)
+                    {
+                        m_iUseBitmap = 1;
+                        szImageText = Path.GetFileName(szPdf);
+                        LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, bitmap, szImageText);
+                    }
+                    else
+                    {
+                        m_iUseBitmap = 0;
+                        szImageText = Path.GetFileName(szPdf);
+                        LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, bitmap, szImageText);
+                    }
+                }
                 return (blGotImage);
             }
 

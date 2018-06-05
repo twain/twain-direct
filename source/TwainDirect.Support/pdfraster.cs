@@ -188,25 +188,40 @@ namespace TwainDirect.Support
         /// <returns>a byte array we can turn into a bitmap</returns>
         public static byte[] ConvertPdfToTiffOrJpeg(string a_szImage)
         {
+            int decoder = -1;
             long lWidth;
             long lHeight;
             long lResolution;
             byte[] abStripData;
             byte[] abImage = null;
-
-            // Do the conversion...
             PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
             PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
-            PdfRasterReader.Reader pdfRasRd = new PdfRasterReader.Reader();
-            int decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
-            lWidth = pdfRasRd.decoder_get_width(decoder);
-            lHeight = pdfRasRd.decoder_get_height(decoder);
-            lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
-            rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
-            rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
-            abStripData = pdfRasRd.decoder_read_strips(decoder);
-            pdfRasRd.decoder_destroy(decoder);
-            AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
+            PdfRasterReader.Reader pdfRasRd = null;
+
+            // Do the conversion...
+            try
+            {
+                pdfRasRd = new PdfRasterReader.Reader();
+                decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
+                lWidth = pdfRasRd.decoder_get_width(decoder);
+                lHeight = pdfRasRd.decoder_get_height(decoder);
+                lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
+                rasterreaderpixelformat = pdfRasRd.decoder_get_pixelformat(decoder);
+                rasterreadercompression = pdfRasRd.decoder_get_compression(decoder);
+                abStripData = pdfRasRd.decoder_read_strips(decoder);
+                pdfRasRd.decoder_destroy(decoder);
+                decoder = -1;
+                AddImageHeader(out abImage, abStripData, rasterreaderpixelformat, rasterreadercompression, lResolution, lWidth, lHeight);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("ConvertPdfToTiffOrJpeg failed: " + exception.Message);
+                if ((pdfRasRd != null) && (decoder != -1))
+                {
+                    pdfRasRd.decoder_destroy(decoder);
+                }
+                return (null);
+            }
 
             // Spit back the result...
             return (abImage);
@@ -222,6 +237,7 @@ namespace TwainDirect.Support
         /// - color jpeg
         /// </summary>
         /// <param name="a_szPrdFile">file to store the pdf/raster</param>
+        /// <param name="a_szEncryptionProfileName">name of a profile or null</param>
         /// <param name="a_szPfxFile">pfx file to sign with</param>
         /// <param name="a_szPfxPassword">password for the pfx file</param>
         /// <param name="a_szMetadata">metadata in json->xml conversion format</param>
@@ -236,6 +252,7 @@ namespace TwainDirect.Support
         public static bool CreatePdfRaster
         (
             string a_szPdfRasterFile,
+            string a_szEncryptionProfileName,
             string a_szPfxFile,
             string a_szPfxPassword,
             string a_szMetadataJson,
@@ -305,6 +322,13 @@ namespace TwainDirect.Support
                     pdfRasWr.digital_signature_set_location(enc, "PC");
                     pdfRasWr.digital_signature_set_name(enc, "TWAIN-Direct-on-TWAIN");
                     pdfRasWr.digital_signature_set_reason(enc, "Scanning");
+                }
+
+                // Request encryption...
+                if (    !string.IsNullOrEmpty(a_szEncryptionProfileName)
+                    &&  (a_szEncryptionProfileName == "password"))
+                {
+                    pdfRasWr.encoder_set_AES256_encrypter(enc, "open", "master", PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_COPY_FROM_DOCUMENT, 0);
                 }
 
                 // Create the page (we only ever have one)...
@@ -487,7 +511,7 @@ namespace TwainDirect.Support
                 }
 
                 // PDF/raster it...              
-                blSuccess = PdfRaster.CreatePdfRaster(a_szThumbnailFile, a_szPfxFile, a_szPfxPassword, "", abImage, 0, "rgb24", "none", (int)bitmap.HorizontalResolution, bitmap.Width, bitmap.Height);
+                blSuccess = PdfRaster.CreatePdfRaster(a_szThumbnailFile, null, a_szPfxFile, a_szPfxPassword, "", abImage, 0, "rgb24", "none", (int)bitmap.HorizontalResolution, bitmap.Width, bitmap.Height);
             }
 
             // All done...
@@ -667,8 +691,8 @@ namespace TwainDirect.Support
                 // Check Digital Signature
                 #region Check Digital Signature
 
-                szFunction = "pdfRasRd.decoder_digital_siganture_count()";
-                int iDigitalSignatureCount = pdfRasRd.decoder_digital_siganture_count(iDecoder);
+                szFunction = "pdfRasRd.decoder_digital_signature_count()";
+                int iDigitalSignatureCount = pdfRasRd.decoder_digital_signature_count(iDecoder);
                 if (iDigitalSignatureCount <= 0)
                 {
                     a_szError = szFunction + ": no digital signatures found";

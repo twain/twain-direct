@@ -42,9 +42,12 @@
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using TwainDirect.Support;
 using TWAINWorkingGroup;
 using TWAINWorkingGroupToolkit;
@@ -137,6 +140,7 @@ namespace TwainDirect.OnTwain
             int iPixelFormat;
             int iAttribute;
             int iValue;
+            int iEncryptionProfile;
             bool blSuccess;
             string szSwordAction;
             string szSwordStream;
@@ -144,6 +148,8 @@ namespace TwainDirect.OnTwain
             string szSwordPixelformat;
             string szSwordAttribute;
             string szSwordValue;
+            string szRequestedAction;
+            string szSwordEncryptionProfile;
             long lResponseCharacterOffset;
             JsonLookup.EPROPERTYTYPE epropertytype;
             SwordAction swordaction;
@@ -152,6 +158,7 @@ namespace TwainDirect.OnTwain
             SwordPixelFormat swordpixelformat;
             SwordAttribute swordattribute;
             SwordValue swordvalue;
+            SwordEncryptionProfile swordencryptionprofile;
             string szFunction = "Deserialize";
 
             // Parse the JSON that we get back...
@@ -167,6 +174,9 @@ namespace TwainDirect.OnTwain
             // Instantiate the sword object...
             m_szVendor = a_szVendor;
             m_swordtask = new SwordTask(this);
+
+            // Grab the locale, if we have one...
+            m_swordtask.SetLocale(m_jsonlookupTask.Get("locale", false));
 
             // Check the type of actions (make sure we find actions), if this
             // fails we need to make a temporary action to carry the error...
@@ -222,225 +232,298 @@ namespace TwainDirect.OnTwain
                 // Set the status...
                 swordaction.SetSwordStatus(SwordStatus.Ready);
 
-                // Check the type of streams (make sure we find streams)...
-                epropertytype = m_jsonlookupTask.GetType(szSwordAction + ".streams");
-                if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
+                // Which action are we deserializing?
+                szRequestedAction = m_jsonlookupTask.Get(szSwordAction + ".action", false);
+
+                // Handle the encryptionProfiles action...
+                #region Handle the encryptionProfiles action...
+                if (szRequestedAction == "encryptionProfiles")
                 {
-                    TWAINWorkingGroup.Log.Error("topology violation: streams isn't an array");
-                    swordaction.SetError("fail", szSwordAction + ".streams", "invalidTask", -1);
-                    m_swordtask.BuildTaskReply();
-                    return (false);
-                }
-
-                ////////////////////////////////////////////////////////////////////////
-                // Work on streams...
-                for (iStream = 0; true; iStream++)
-                {
-                    // Break when we run out of streams...
-                    szSwordStream = szSwordAction + ".streams[" + iStream + "]";
-                    if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordStream,false)))
-                    {
-                        break;
-                    }
-
-                    // Add to the stream array, skip vendor stuff we don't recognize...
-                    string szStreamException = m_jsonlookupTask.Get(szSwordStream + ".exception",false);
-                    string szStreamVendor = m_jsonlookupTask.Get(szSwordStream + ".vendor",false);
-                    if (string.IsNullOrEmpty(szStreamException)) szStreamException = swordaction.GetException();
-                    if (string.IsNullOrEmpty(szStreamVendor)) szStreamVendor = swordaction.GetVendor();
-                    swordstream = swordaction.AppendStream(szSwordStream, m_jsonlookupTask.Get(szSwordStream + ".name",false), szStreamException, szStreamVendor);
-                    if (swordstream == null)
-                    {
-                        continue;
-                    }
-
-                    // Check the topology...
-                    if (    !CheckTopology(swordaction, "streams", szSwordAction)
-                        ||  !CheckTopology(swordaction, "stream", szSwordStream))
-                    {
-                        m_swordtask.BuildTaskReply();
-                        return (false);
-                    }
-
-                    // Set the status...
-                    swordstream.SetSwordStatus(SwordStatus.Ready);
-
-                    // Check the type of sources (make sure we find sources)...
-                    epropertytype = m_jsonlookupTask.GetType(szSwordStream + ".sources");
+                    // Check the type of encryptionProfiles (make sure we find encryptionProfiles)...
+                    epropertytype = m_jsonlookupTask.GetType(szSwordAction + ".encryptionProfiles");
                     if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                     {
-                        TWAINWorkingGroup.Log.Error("topology violation: sources isn't an array");
-                        swordstream.SetError("fail", szSwordStream + ".sources", "invalidTask", -1);
+                        TWAINWorkingGroup.Log.Error("topology violation: encryptionProfiles isn't an array");
+                        swordaction.SetError("fail", szSwordAction + ".encryptionProfiles", "invalidTask", -1);
                         m_swordtask.BuildTaskReply();
                         return (false);
                     }
 
-                    ////////////////////////////////////////////////////////////////////
-                    // Work on sources...
-                    for (iSource = 0; true; iSource++)
+                    ////////////////////////////////////////////////////////////////////////
+                    // Work on encryption profiles...
+                    for (iEncryptionProfile = 0; true; iEncryptionProfile++)
                     {
-                        // Break when we run out of sources...
-                        szSwordSource = szSwordStream + ".sources[" + iSource + "]";
-                        if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordSource,false)))
+                        // Break when we run out of encryptionProfiles...
+                        szSwordEncryptionProfile = szSwordAction + ".encryptionProfiles[" + iEncryptionProfile + "]";
+                        if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordEncryptionProfile, false)))
                         {
                             break;
                         }
 
-                        // Add to the source array, skip vendor stuff we don't recognize...
-                        string szSourceException = m_jsonlookupTask.Get(szSwordSource + ".exception",false);
-                        string szSourceVendor = m_jsonlookupTask.Get(szSwordSource + ".vendor",false);
-                        if (string.IsNullOrEmpty(szSourceException)) szSourceException = swordstream.GetException();
-                        if (string.IsNullOrEmpty(szSourceVendor)) szSourceVendor = swordstream.GetVendor();
-                        swordsource = swordstream.AppendSource(szSwordSource, m_jsonlookupTask.Get(szSwordSource + ".name",false), m_jsonlookupTask.Get(szSwordSource + ".source",false), szSourceException, szSourceVendor);
-                        if (swordsource == null)
+                        // Add to the encryption profile array, skip vendor stuff we don't recognize...
+                        string szEncryptionProfileException = m_jsonlookupTask.Get(szSwordEncryptionProfile + ".exception", false);
+                        string szEncryptionProfileVendor = m_jsonlookupTask.Get(szSwordEncryptionProfile + ".vendor", false);
+                        if (string.IsNullOrEmpty(szEncryptionProfileException)) szEncryptionProfileException = swordaction.GetException();
+                        if (string.IsNullOrEmpty(szEncryptionProfileVendor)) szEncryptionProfileVendor = swordaction.GetVendor();
+                        swordencryptionprofile = swordaction.AppendEncryptionProfile
+                        (
+                            szSwordEncryptionProfile,
+                            m_jsonlookupTask.Get(szSwordEncryptionProfile + ".name", false),
+                            szEncryptionProfileException,
+                            szEncryptionProfileVendor,
+                            m_jsonlookupTask.Get(szSwordEncryptionProfile + ".profile", false)
+                        );
+                        if (swordencryptionprofile == null)
                         {
                             continue;
                         }
 
                         // Check the topology...
-                        if (    !CheckTopology(swordaction, "sources", szSwordStream)
-                            ||  !CheckTopology(swordaction, "source", szSwordSource))
+                        if (!CheckTopology(swordaction, "encryptionProfiles", szSwordAction))
                         {
                             m_swordtask.BuildTaskReply();
                             return (false);
                         }
 
                         // Set the status...
-                        swordsource.SetSwordStatus(SwordStatus.Ready);
+                        swordencryptionprofile.SetSwordStatus(SwordStatus.Ready);
+                    }
+                }
+                #endregion
 
-                        // Check the type of pixelFormats (make sure we find pixelFormats)...
-                        epropertytype = m_jsonlookupTask.GetType(szSwordSource + ".pixelFormats");
-                        if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
+                // Handle the encryptionReport action...
+                #region Handle the encryptionReport action...
+                else if (szRequestedAction == "encryptionReport")
+                {
+                    // There's no data in this command, so we're done...
+                }
+                #endregion
+
+                // Handle the configure action (this is the default if we have no action)...
+                #region Handle the configure action (this is the default if we have no action)...
+                else
+                {
+                    // Check the type of streams (make sure we find streams)...
+                    epropertytype = m_jsonlookupTask.GetType(szSwordAction + ".streams");
+                    if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
+                    {
+                        TWAINWorkingGroup.Log.Error("topology violation: streams isn't an array");
+                        swordaction.SetError("fail", szSwordAction + ".streams", "invalidTask", -1);
+                        m_swordtask.BuildTaskReply();
+                        return (false);
+                    }
+
+                    ////////////////////////////////////////////////////////////////////////
+                    // Work on streams...
+                    for (iStream = 0; true; iStream++)
+                    {
+                        // Break when we run out of streams...
+                        szSwordStream = szSwordAction + ".streams[" + iStream + "]";
+                        if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordStream, false)))
                         {
-                            TWAINWorkingGroup.Log.Error("topology violation: pixelFormats isn't an array");
-                            swordsource.SetError("fail", szSwordSource + ".pixelFormats", "invalidTask", -1);
+                            break;
+                        }
+
+                        // Add to the stream array, skip vendor stuff we don't recognize...
+                        string szStreamException = m_jsonlookupTask.Get(szSwordStream + ".exception", false);
+                        string szStreamVendor = m_jsonlookupTask.Get(szSwordStream + ".vendor", false);
+                        if (string.IsNullOrEmpty(szStreamException)) szStreamException = swordaction.GetException();
+                        if (string.IsNullOrEmpty(szStreamVendor)) szStreamVendor = swordaction.GetVendor();
+                        swordstream = swordaction.AppendStream(szSwordStream, m_jsonlookupTask.Get(szSwordStream + ".name", false), szStreamException, szStreamVendor);
+                        if (swordstream == null)
+                        {
+                            continue;
+                        }
+
+                        // Check the topology...
+                        if (!CheckTopology(swordaction, "streams", szSwordAction)
+                            || !CheckTopology(swordaction, "stream", szSwordStream))
+                        {
                             m_swordtask.BuildTaskReply();
                             return (false);
                         }
 
-                        ////////////////////////////////////////////////////////////////
-                        // Work on pixel formats...
-                        for (iPixelFormat = 0; true; iPixelFormat++)
+                        // Set the status...
+                        swordstream.SetSwordStatus(SwordStatus.Ready);
+
+                        // Check the type of sources (make sure we find sources)...
+                        epropertytype = m_jsonlookupTask.GetType(szSwordStream + ".sources");
+                        if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                         {
-                            // Break when we run out of pixelformats...
-                            szSwordPixelformat = szSwordSource + ".pixelFormats[" + iPixelFormat + "]";
-                            if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordPixelformat,false)))
+                            TWAINWorkingGroup.Log.Error("topology violation: sources isn't an array");
+                            swordstream.SetError("fail", szSwordStream + ".sources", "invalidTask", -1);
+                            m_swordtask.BuildTaskReply();
+                            return (false);
+                        }
+
+                        ////////////////////////////////////////////////////////////////////
+                        // Work on sources...
+                        for (iSource = 0; true; iSource++)
+                        {
+                            // Break when we run out of sources...
+                            szSwordSource = szSwordStream + ".sources[" + iSource + "]";
+                            if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordSource, false)))
                             {
                                 break;
                             }
 
-                            // Add to the pixelformat array, skip vendor stuff we don't recognize...
-                            string szPixelformatException = m_jsonlookupTask.Get(szSwordPixelformat + ".exception",false);
-                            string szPixelformatVendor = m_jsonlookupTask.Get(szSwordPixelformat + ".vendor",false);
-                            if (string.IsNullOrEmpty(szPixelformatException)) szPixelformatException = swordsource.GetException();
-                            if (string.IsNullOrEmpty(szPixelformatVendor)) szPixelformatVendor = swordsource.GetVendor();
-                            swordpixelformat = swordsource.AppendPixelFormat(szSwordPixelformat, m_jsonlookupTask.Get(szSwordPixelformat + ".name",false), m_jsonlookupTask.Get(szSwordPixelformat + ".pixelFormat",false), szPixelformatException, szPixelformatVendor);
-                            if (swordpixelformat == null)
+                            // Add to the source array, skip vendor stuff we don't recognize...
+                            string szSourceException = m_jsonlookupTask.Get(szSwordSource + ".exception", false);
+                            string szSourceVendor = m_jsonlookupTask.Get(szSwordSource + ".vendor", false);
+                            if (string.IsNullOrEmpty(szSourceException)) szSourceException = swordstream.GetException();
+                            if (string.IsNullOrEmpty(szSourceVendor)) szSourceVendor = swordstream.GetVendor();
+                            swordsource = swordstream.AppendSource(szSwordSource, m_jsonlookupTask.Get(szSwordSource + ".name", false), m_jsonlookupTask.Get(szSwordSource + ".source", false), szSourceException, szSourceVendor);
+                            if (swordsource == null)
                             {
                                 continue;
                             }
 
                             // Check the topology...
-                            if (    !CheckTopology(swordaction, "pixelFormats", szSwordSource)
-                                ||  !CheckTopology(swordaction, "pixelFormat", szSwordPixelformat))
+                            if (!CheckTopology(swordaction, "sources", szSwordStream)
+                                || !CheckTopology(swordaction, "source", szSwordSource))
                             {
                                 m_swordtask.BuildTaskReply();
                                 return (false);
                             }
 
                             // Set the status...
-                            swordpixelformat.SetSwordStatus(SwordStatus.Ready);
+                            swordsource.SetSwordStatus(SwordStatus.Ready);
 
-                            // Check the type of attributes (make sure we find attributes)...
-                            epropertytype = m_jsonlookupTask.GetType(szSwordPixelformat + ".attributes");
+                            // Check the type of pixelFormats (make sure we find pixelFormats)...
+                            epropertytype = m_jsonlookupTask.GetType(szSwordSource + ".pixelFormats");
                             if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                             {
-                                TWAINWorkingGroup.Log.Error("topology violation: attributes isn't an array");
-                                swordpixelformat.SetError("fail", szSwordPixelformat + ".attributes", "invalidTask", -1);
+                                TWAINWorkingGroup.Log.Error("topology violation: pixelFormats isn't an array");
+                                swordsource.SetError("fail", szSwordSource + ".pixelFormats", "invalidTask", -1);
                                 m_swordtask.BuildTaskReply();
                                 return (false);
                             }
 
-                            ////////////////////////////////////////////////////////////
-                            // Work on attributes...
-                            for (iAttribute = 0; true; iAttribute++)
+                            ////////////////////////////////////////////////////////////////
+                            // Work on pixel formats...
+                            for (iPixelFormat = 0; true; iPixelFormat++)
                             {
-                                // Break when we run out of attributes...
-                                szSwordAttribute = szSwordPixelformat + ".attributes[" + iAttribute + "]";
-                                if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordAttribute,false)))
+                                // Break when we run out of pixelformats...
+                                szSwordPixelformat = szSwordSource + ".pixelFormats[" + iPixelFormat + "]";
+                                if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordPixelformat, false)))
                                 {
                                     break;
                                 }
 
-                                // Add to the attribute array, skip vendor stuff we don't recognize...
-                                string szAttributeException = m_jsonlookupTask.Get(szSwordAttribute + ".exception",false);
-                                string szAttributeVendor = m_jsonlookupTask.Get(szSwordAttribute + ".vendor",false);
-                                if (string.IsNullOrEmpty(szAttributeException)) szAttributeException = swordpixelformat.GetException();
-                                if (string.IsNullOrEmpty(szAttributeVendor)) szAttributeVendor = swordpixelformat.GetVendor();
-                                swordattribute = swordpixelformat.AddAttribute(szSwordAttribute, m_jsonlookupTask.Get(szSwordAttribute + ".attribute", false), szAttributeException, szAttributeVendor);
-                                if (swordattribute == null)
+                                // Add to the pixelformat array, skip vendor stuff we don't recognize...
+                                string szPixelformatException = m_jsonlookupTask.Get(szSwordPixelformat + ".exception", false);
+                                string szPixelformatVendor = m_jsonlookupTask.Get(szSwordPixelformat + ".vendor", false);
+                                if (string.IsNullOrEmpty(szPixelformatException)) szPixelformatException = swordsource.GetException();
+                                if (string.IsNullOrEmpty(szPixelformatVendor)) szPixelformatVendor = swordsource.GetVendor();
+                                swordpixelformat = swordsource.AppendPixelFormat(szSwordPixelformat, m_jsonlookupTask.Get(szSwordPixelformat + ".name", false), m_jsonlookupTask.Get(szSwordPixelformat + ".pixelFormat", false), szPixelformatException, szPixelformatVendor);
+                                if (swordpixelformat == null)
                                 {
                                     continue;
                                 }
 
                                 // Check the topology...
-                                if (    !CheckTopology(swordaction, "attributes", szSwordPixelformat)
-                                    ||  !CheckTopology(swordaction, "attribute", szSwordAttribute))
+                                if (!CheckTopology(swordaction, "pixelFormats", szSwordSource)
+                                    || !CheckTopology(swordaction, "pixelFormat", szSwordPixelformat))
                                 {
                                     m_swordtask.BuildTaskReply();
                                     return (false);
                                 }
 
                                 // Set the status...
-                                swordattribute.SetSwordStatus(SwordStatus.Ready);
+                                swordpixelformat.SetSwordStatus(SwordStatus.Ready);
 
-                                // Check the type of values (make sure we find values)...
-                                epropertytype = m_jsonlookupTask.GetType(szSwordAttribute + ".values");
+                                // Check the type of attributes (make sure we find attributes)...
+                                epropertytype = m_jsonlookupTask.GetType(szSwordPixelformat + ".attributes");
                                 if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
                                 {
-                                    TWAINWorkingGroup.Log.Error("topology violation: values isn't an array");
-                                    swordattribute.SetError("fail", szSwordAttribute + ".values", "invalidTask", -1);
+                                    TWAINWorkingGroup.Log.Error("topology violation: attributes isn't an array");
+                                    swordpixelformat.SetError("fail", szSwordPixelformat + ".attributes", "invalidTask", -1);
                                     m_swordtask.BuildTaskReply();
                                     return (false);
                                 }
 
-                                ////////////////////////////////////////////////////////
-                                // Work on values...
-                                for (iValue = 0; true; iValue++)
+                                ////////////////////////////////////////////////////////////
+                                // Work on attributes...
+                                for (iAttribute = 0; true; iAttribute++)
                                 {
-                                    // Break when we run out of values...
-                                    szSwordValue = szSwordAttribute + ".values[" + iValue + "]";
-                                    if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordValue,false)))
+                                    // Break when we run out of attributes...
+                                    szSwordAttribute = szSwordPixelformat + ".attributes[" + iAttribute + "]";
+                                    if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordAttribute, false)))
                                     {
                                         break;
                                     }
 
-                                    // Add to the value array, skip vendor stuff we don't recognize...
-                                    string szValueException = m_jsonlookupTask.Get(szSwordValue + ".exception",false);
-                                    string szValueVendor = m_jsonlookupTask.Get(szSwordValue + ".vendor",false);
-                                    if (string.IsNullOrEmpty(szValueException)) szValueException = swordattribute.GetException();
-                                    if (string.IsNullOrEmpty(szValueVendor)) szValueVendor = swordattribute.GetVendor();
-                                    swordvalue = swordattribute.AppendValue(szSwordValue, m_jsonlookupTask.Get(szSwordValue + ".value"), szValueException, szValueVendor);
-                                    if (swordvalue == null)
+                                    // Add to the attribute array, skip vendor stuff we don't recognize...
+                                    string szAttributeException = m_jsonlookupTask.Get(szSwordAttribute + ".exception", false);
+                                    string szAttributeVendor = m_jsonlookupTask.Get(szSwordAttribute + ".vendor", false);
+                                    if (string.IsNullOrEmpty(szAttributeException)) szAttributeException = swordpixelformat.GetException();
+                                    if (string.IsNullOrEmpty(szAttributeVendor)) szAttributeVendor = swordpixelformat.GetVendor();
+                                    swordattribute = swordpixelformat.AddAttribute(szSwordAttribute, m_jsonlookupTask.Get(szSwordAttribute + ".attribute", false), szAttributeException, szAttributeVendor);
+                                    if (swordattribute == null)
                                     {
                                         continue;
                                     }
 
                                     // Check the topology...
-                                    if (    !CheckTopology(swordaction, "values", szSwordAttribute)
-                                        ||  !CheckTopology(swordaction, "value", szSwordValue))
+                                    if (!CheckTopology(swordaction, "attributes", szSwordPixelformat)
+                                        || !CheckTopology(swordaction, "attribute", szSwordAttribute))
                                     {
                                         m_swordtask.BuildTaskReply();
                                         return (false);
                                     }
 
                                     // Set the status...
-                                    swordvalue.SetSwordStatus(SwordStatus.Ready);
+                                    swordattribute.SetSwordStatus(SwordStatus.Ready);
+
+                                    // Check the type of values (make sure we find values)...
+                                    epropertytype = m_jsonlookupTask.GetType(szSwordAttribute + ".values");
+                                    if ((epropertytype != JsonLookup.EPROPERTYTYPE.ARRAY) && (epropertytype != JsonLookup.EPROPERTYTYPE.UNDEFINED))
+                                    {
+                                        TWAINWorkingGroup.Log.Error("topology violation: values isn't an array");
+                                        swordattribute.SetError("fail", szSwordAttribute + ".values", "invalidTask", -1);
+                                        m_swordtask.BuildTaskReply();
+                                        return (false);
+                                    }
+
+                                    ////////////////////////////////////////////////////////
+                                    // Work on values...
+                                    for (iValue = 0; true; iValue++)
+                                    {
+                                        // Break when we run out of values...
+                                        szSwordValue = szSwordAttribute + ".values[" + iValue + "]";
+                                        if (string.IsNullOrEmpty(m_jsonlookupTask.Get(szSwordValue, false)))
+                                        {
+                                            break;
+                                        }
+
+                                        // Add to the value array, skip vendor stuff we don't recognize...
+                                        string szValueException = m_jsonlookupTask.Get(szSwordValue + ".exception", false);
+                                        string szValueVendor = m_jsonlookupTask.Get(szSwordValue + ".vendor", false);
+                                        if (string.IsNullOrEmpty(szValueException)) szValueException = swordattribute.GetException();
+                                        if (string.IsNullOrEmpty(szValueVendor)) szValueVendor = swordattribute.GetVendor();
+                                        swordvalue = swordattribute.AppendValue(szSwordValue, m_jsonlookupTask.Get(szSwordValue + ".value"), szValueException, szValueVendor);
+                                        if (swordvalue == null)
+                                        {
+                                            continue;
+                                        }
+
+                                        // Check the topology...
+                                        if (!CheckTopology(swordaction, "values", szSwordAttribute)
+                                            || !CheckTopology(swordaction, "value", szSwordValue))
+                                        {
+                                            m_swordtask.BuildTaskReply();
+                                            return (false);
+                                        }
+
+                                        // Set the status...
+                                        swordvalue.SetSwordStatus(SwordStatus.Ready);
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                #endregion
             }
 
             // Fix the exceptions.  This just makes the code easier to handle downstream, since
@@ -460,62 +543,91 @@ namespace TwainDirect.OnTwain
                         swordaction.SetException((swordaction.GetNextAction() != null) ? "nextAction" : "ignore");
                     }
 
-                    // Check the streams...
-                    for (swordstream = swordaction.GetFirstStream();
-                         swordstream != null;
-                         swordstream = swordstream.GetNextStream())
+                    // Check encryptionProfiles...
+                    if (swordaction.GetAction() == "encryptionProfiles")
                     {
-                        // If we're not the last action, set nextStream, else set ignore...
-                        string szException = (swordstream.GetNextStream() != null) ? "nextStream" : "ignore";
-
-                        // Fix the exception...
-                        if (swordstream.GetException() == "@nextStreamOrIgnore")
+                        // Check the encryptionProfiles...
+                        for (swordencryptionprofile = swordaction.GetFirstEncryptionProfile();
+                             swordencryptionprofile != null;
+                             swordencryptionprofile = swordencryptionprofile.GetNextEncryptionProfile())
                         {
-                            swordstream.SetException(szException);
-                        }
+                            // If we're not the last action, set nextStream, else set ignore...
+                            string szException = (swordencryptionprofile.GetNextEncryptionProfile() != null) ? "nextEncryptionProfile" : "ignore";
 
-                        // Check the sources...
-                        for (swordsource = swordstream.GetFirstSource();
-                             swordsource != null;
-                             swordsource = swordsource.GetNextSource())
-                        {
                             // Fix the exception...
-                            if (swordsource.GetException() == "@nextStreamOrIgnore")
+                            if (swordencryptionprofile.GetException() == "@nextEncryptionProfileOrIgnore")
                             {
-                                swordsource.SetException(szException);
+                                swordencryptionprofile.SetException(szException);
+                            }
+                        }
+                    }
+
+                    // Check encryptionReport...
+                    else if (swordaction.GetAction() == "encryptionReport")
+                    {
+                        // There's nothing deeper at this time...
+                    }
+
+                    // Everything else comes here, including configure...
+                    else
+                    {
+                        // Check the streams...
+                        for (swordstream = swordaction.GetFirstStream();
+                             swordstream != null;
+                             swordstream = swordstream.GetNextStream())
+                        {
+                            // If we're not the last action, set nextStream, else set ignore...
+                            string szException = (swordstream.GetNextStream() != null) ? "nextStream" : "ignore";
+
+                            // Fix the exception...
+                            if (swordstream.GetException() == "@nextStreamOrIgnore")
+                            {
+                                swordstream.SetException(szException);
                             }
 
-                            // Check the pixel formats...
-                            for (swordpixelformat = swordsource.GetFirstPixelFormat();
-                                 swordpixelformat != null;
-                                 swordpixelformat = swordpixelformat.GetNextPixelFormat())
+                            // Check the sources...
+                            for (swordsource = swordstream.GetFirstSource();
+                                 swordsource != null;
+                                 swordsource = swordsource.GetNextSource())
                             {
                                 // Fix the exception...
-                                if (swordpixelformat.GetException() == "@nextStreamOrIgnore")
+                                if (swordsource.GetException() == "@nextStreamOrIgnore")
                                 {
-                                    swordpixelformat.SetException(szException);
+                                    swordsource.SetException(szException);
                                 }
 
-                                // Check the attributes...
-                                for (swordattribute = swordpixelformat.GetFirstAttribute();
-                                     swordattribute != null;
-                                     swordattribute = swordattribute.GetNextAttribute())
+                                // Check the pixel formats...
+                                for (swordpixelformat = swordsource.GetFirstPixelFormat();
+                                     swordpixelformat != null;
+                                     swordpixelformat = swordpixelformat.GetNextPixelFormat())
                                 {
                                     // Fix the exception...
-                                    if (swordattribute.GetException() == "@nextStreamOrIgnore")
+                                    if (swordpixelformat.GetException() == "@nextStreamOrIgnore")
                                     {
-                                        swordattribute.SetException(szException);
+                                        swordpixelformat.SetException(szException);
                                     }
 
-                                    // Check the values...
-                                    for (swordvalue = swordattribute.GetFirstValue();
-                                         swordvalue != null;
-                                         swordvalue = swordvalue.GetNextValue())
+                                    // Check the attributes...
+                                    for (swordattribute = swordpixelformat.GetFirstAttribute();
+                                         swordattribute != null;
+                                         swordattribute = swordattribute.GetNextAttribute())
                                     {
                                         // Fix the exception...
-                                        if (swordvalue.GetException() == "@nextStreamOrIgnore")
+                                        if (swordattribute.GetException() == "@nextStreamOrIgnore")
                                         {
-                                            swordvalue.SetException(szException);
+                                            swordattribute.SetException(szException);
+                                        }
+
+                                        // Check the values...
+                                        for (swordvalue = swordattribute.GetFirstValue();
+                                             swordvalue != null;
+                                             swordvalue = swordvalue.GetNextValue())
+                                        {
+                                            // Fix the exception...
+                                            if (swordvalue.GetException() == "@nextStreamOrIgnore")
+                                            {
+                                                swordvalue.SetException(szException);
+                                            }
                                         }
                                     }
                                 }
@@ -530,12 +642,47 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// Get the driver that we'll be using (this also allows us to
+        /// check that we have a driver that we can use).
+        /// </summary>
+        /// <returns>The currently selected driver or null, if there are no drivers</returns>
+        public static string GetCurrentDriver(string a_szWriteFolder, string a_szScanner)
+        {
+            string szTwainDefaultDriver;
+            ProcessSwordTask processswordtask;
+
+            // Create the SWORD manager...
+            processswordtask = new ProcessSwordTask("", null, null);
+
+            // Check for a TWAIN driver...
+            szTwainDefaultDriver = processswordtask.TwainGetDefaultDriver(a_szScanner);
+
+            // Cleanup...
+            processswordtask.Close();
+            processswordtask = null;
+            return (szTwainDefaultDriver);
+        }
+
+        /// <summary>
         /// Get information about the TWAIN driver...
         /// </summary>
         /// <returns></returns>
         public DeviceRegister GetDeviceRegister()
         {
             return (m_deviceregister);
+        }
+
+        /// <summary>
+        /// Return the selected encryption profile name or null...
+        /// </summary>
+        /// <returns>encryption profile or null</returns>
+        public string GetEncryptionProfileName()
+        {
+            if (string.IsNullOrEmpty(m_szEncryptionProfileName))
+            {
+                return (null);
+            }
+            return (m_szEncryptionProfileName);
         }
 
         /// <summary>
@@ -578,15 +725,22 @@ namespace TwainDirect.OnTwain
         /// Process, run and return the result from this task...
         /// </summary>
         /// <param name="m_configurenamelookup">info for stream, source, and pixelFormat names</param>
+        /// <param name="a_szEncryptionProfileName">name of a profile or null</param>
         /// <returns>true on success</returns>
-        public bool ProcessAndRun(out ConfigureNameLookup a_configurenamelookup)
+        public bool ProcessAndRun
+        (
+            out ConfigureNameLookup a_configurenamelookup,
+            out string a_szEncryptionProfileName
+        )
         {
             bool blSuccess;
             SwordStatus swordstatus;
             SwordAction swordaction;
 
-            // Init stuff...
+            // Init stuff, don't remember any prior encryption profile...
             a_configurenamelookup = null;
+            a_szEncryptionProfileName = null;
+            SetEncryptionProfileName(null);
 
             // If we don't have a task or an action, we're done, we return true
             // because this is a null task...
@@ -657,6 +811,9 @@ namespace TwainDirect.OnTwain
             // Build the TWAIN Direct reply...
             blSuccess = m_swordtask.BuildTaskReply();
 
+            // Squirrel away the encryptionProfile, if we got one...
+            a_szEncryptionProfileName = GetEncryptionProfileName();
+
             // All done...
             return (blSuccess);
         }
@@ -674,31 +831,9 @@ namespace TwainDirect.OnTwain
         /// There's probably a better way of doing this...
         /// </summary>
         /// <returns></returns>
-        int[] Resolution()
+        public int[] Resolution()
         {
             return (m_aiResolution);
-        }
-
-        /// <summary>
-        /// Get the driver that we'll be using (this also allows us to
-        /// check that we have a driver that we can use).
-        /// </summary>
-        /// <returns>The currently selected driver or null, if there are no drivers</returns>
-        public static string GetCurrentDriver(string a_szWriteFolder, string a_szScanner)
-        {
-            string szTwainDefaultDriver;
-            ProcessSwordTask processswordtask;
-
-            // Create the SWORD manager...
-            processswordtask = new ProcessSwordTask("", null, null);
-
-            // Check for a TWAIN driver...
-            szTwainDefaultDriver = processswordtask.TwainGetDefaultDriver(a_szScanner);
-
-            // Cleanup...
-            processswordtask.Close();
-            processswordtask = null;
-            return (szTwainDefaultDriver);
         }
 
         /// <summary>
@@ -997,6 +1132,15 @@ namespace TwainDirect.OnTwain
             return (szTwainDriverIdentity);
         }
 
+        /// <summary>
+        /// Squirrel away the name of the encryption profile...
+        /// </summary>
+        /// <param name="a_szEncryptionProfileName">the name of the profile</param>
+        public void SetEncryptionProfileName(string a_szEncryptionProfileName)
+        {
+            m_szEncryptionProfileName = a_szEncryptionProfileName;
+        }
+
         #endregion
 
 
@@ -1019,6 +1163,7 @@ namespace TwainDirect.OnTwain
             Fail,
             BadValue,
             NextAction,
+            NextEncryptionProfile,
             NextStream,
             Ready,
             Run,
@@ -1257,7 +1402,7 @@ namespace TwainDirect.OnTwain
             }
 
             // If we find action, but it's not an action key or a streams array, we have a problem...
-            if ((a_szKey != "action") && (a_szKey != "streams"))
+            if ((a_szKey != "action") && (a_szKey != "streams") && (a_szKey != "encryptionProfiles"))
             {
                 szFullKey = a_szPath + ((a_szPath != "") ? ".action" : "action");
                 if (!string.IsNullOrEmpty(m_jsonlookupTask.Get(szFullKey,false)))
@@ -1689,6 +1834,8 @@ namespace TwainDirect.OnTwain
                         case "nextAction":
                             a_swordaction.SetError("nextAction", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
                             return (SwordStatus.NextAction);
+                        case "nextEncryptionProfile":
+                            return (SwordStatus.NextEncryptionProfile);
                         case "nextStream":
                             return (SwordStatus.NextStream);
                         case "fail":
@@ -1699,6 +1846,16 @@ namespace TwainDirect.OnTwain
                 // Configure...
                 case "configure":
                     swordstatus = RunConfigure(a_swordaction);
+                    return (swordstatus);
+
+                // Encryption profiles...
+                case "encryptionProfiles":
+                    swordstatus = RunEncryptionProfiles(a_swordaction);
+                    return (swordstatus);
+
+                // Encryption report...
+                case "encryptionReport":
+                    swordstatus = RunEncryptionReport(a_swordaction);
                     return (swordstatus);
             }
         }
@@ -2274,6 +2431,104 @@ namespace TwainDirect.OnTwain
 
             // All done...
             return (swordstatus);
+        }
+
+        /// <summary>
+        ///	Run the encryption profiles action with whatever data we collected...
+        /// </summary>
+        /// <param name="a_swordaction"></param>
+        /// <returns></returns>
+        SwordStatus RunEncryptionProfiles
+        (
+            SwordAction a_swordaction
+        )
+        {
+            SwordStatus swordstatus;
+            SwordEncryptionProfile swordencryptionprofile;
+
+            ////////////////////////////////////////////////////////////////////
+            // Walk the encryptionProfiles...
+            #region Walk the encryptionProfiles
+
+            // Find the first encryptionProfile we can try to use...
+            swordstatus = SwordStatus.Success;
+            for (swordencryptionprofile = a_swordaction.GetFirstEncryptionProfile();
+                 swordencryptionprofile != null;
+                 swordencryptionprofile = swordencryptionprofile.GetNextEncryptionProfile())
+            {
+                // Skip this encryptionProfile...
+                if (swordencryptionprofile.GetSwordStatus() != SwordStatus.Run)
+                {
+                    continue;
+                }
+
+                // If we recognize the profile, then use it...
+                if (swordencryptionprofile.GetName() == "password")
+                {
+                    swordstatus = SwordStatus.Success;
+                }
+                else if (swordencryptionprofile.GetException() == "fail")
+                {
+                    swordstatus = SwordStatus.Fail;
+                }
+                else if (swordencryptionprofile.GetException() == "nextEncryptionProfile")
+                {
+                    swordstatus = SwordStatus.NextEncryptionProfile;
+                }
+                else if (swordencryptionprofile.GetException() == "nextAction")
+                {
+                    swordstatus = SwordStatus.NextAction;
+                }
+                else
+                {
+                    continue;
+                }
+
+                // If the stream is successful, then we're done...
+                if (swordstatus == SwordStatus.Success)
+                {
+                    swordencryptionprofile.SetSwordStatus(swordstatus);
+                    a_swordaction.GetProcessSwordTask().SetEncryptionProfileName(swordencryptionprofile.GetName());
+                    break;
+                }
+
+                // If we're not nextencryptionprofile, then we're done...
+                if (swordstatus != SwordStatus.NextEncryptionProfile)
+                {
+                    swordencryptionprofile.SetSwordStatus(swordstatus);
+                    a_swordaction.SetSwordStatus(swordstatus);
+                    return (swordstatus);
+                }
+            }
+
+            // We're good...
+            a_swordaction.SetSwordStatus(swordstatus);
+
+            #endregion
+
+            // Return our status...
+            return (SwordStatus.Success);
+        }
+
+        /// <summary>
+        ///	Run the encryption report action...
+        /// </summary>
+        /// <param name="a_swordaction"></param>
+        /// <returns></returns>
+        SwordStatus RunEncryptionReport
+        (
+            SwordAction a_swordaction
+        )
+        {
+            // No additional work needed at this time...
+            if (CreateEncryptionReport(a_swordaction.GetProcessSwordTask(), a_swordaction) != "success")
+            {
+                TWAINWorkingGroup.Log.Error("Action: CreateEncryptionReport failed");
+                return (SwordStatus.Fail);
+            }
+
+            // Return our status...
+            return (SwordStatus.Success);
         }
 
         #endregion
@@ -3512,6 +3767,7 @@ namespace TwainDirect.OnTwain
         /// configurations and more than one way of identifying them.
         /// </summary>
         /// <param name="a_processswordtask">main object</param>
+        /// <param name="a_swordaction">the action we're checking</param>
         /// <returns></returns>
         private string TwainSelectStream
         (
@@ -3772,7 +4028,7 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
-        /// Initiate an action...
+        /// Initiate an action, this is part of running an action...
         /// </summary>
         /// <param name="a_blError">error flag</param>
         /// <param name="a_swordtask">result of the command</param>
@@ -3785,7 +4041,7 @@ namespace TwainDirect.OnTwain
         )
         {
             TWAINWorkingGroup.Log.Info("");
-            TWAINWorkingGroup.Log.Info("Action...");
+            TWAINWorkingGroup.Log.Info("Action: " + a_swordaction.GetAction());
 
             // Init stuff (just to be sure)...
             m_blProcessing = false;
@@ -3820,7 +4076,35 @@ namespace TwainDirect.OnTwain
                     }
 
                     // We're all done with this command...
-                    TWAINWorkingGroup.Log.Info("Action complete...");
+                    TWAINWorkingGroup.Log.Info("Action complete: configure");
+                    return (true);
+
+                // Encryption profiles...
+                case "encryptionProfiles":
+
+                    // Pick an encryptionProfile...
+                    if (SelectEncryptionProfile(a_processswordtask, a_swordaction) != "success")
+                    {
+                        TWAINWorkingGroup.Log.Error("Action: SelectEncryptionProfile failed");
+                        return (false);
+                    }
+
+                    // We're all done with this command...
+                    TWAINWorkingGroup.Log.Info("Action complete: encryptionProfiles");
+                    return (true);
+
+                // Encryption report...
+                case "encryptionReport":
+
+                    // No additional work needed at this time...
+                    if (CreateEncryptionReport(a_processswordtask, a_swordaction) != "success")
+                    {
+                        TWAINWorkingGroup.Log.Error("Action: CreateEncryptionReport failed");
+                        return (false);
+                    }
+
+                    // We're all done with this command...
+                    TWAINWorkingGroup.Log.Info("Action complete: encryptionReport");
                     return (true);
             }
         }
@@ -4308,6 +4592,94 @@ namespace TwainDirect.OnTwain
 
 
         ///////////////////////////////////////////////////////////////////////////////
+        // encryptionProfiles Private methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region encryptionProfiles Private methods...
+
+        /// <summary>
+        /// Based on the data sent to us, pick an encryptionProfile...
+        /// </summary>
+        /// <param name="a_processswordtask">main object</param>
+        /// <param name="a_swordaction">the action we're checking</param>
+        /// <returns></returns>
+        private string SelectEncryptionProfile(ProcessSwordTask a_processswordtask, SwordAction a_swordaction)
+        {
+            // All done...
+            return ("fail");
+        }
+
+        /// <summary>
+        /// Create an encryptionReport...
+        /// </summary>
+        /// <param name="a_processswordtask">main object</param>
+        /// <param name="a_swordaction">the action we're checking</param>
+        /// <returns></returns>
+        private string CreateEncryptionReport(ProcessSwordTask a_processswordtask, SwordAction a_swordaction)
+        {
+            string szPfxfile;
+
+            // Give a clue where we are...
+            TWAINWorkingGroup.Log.Info(" ");
+            TWAINWorkingGroup.Log.Info("CreateEncryptionReport: begin...");
+
+            // Do we have a digital signature file?
+            szPfxfile = Config.Get("pfxFile", "");
+
+            // Start the encryption report...
+            TWAINWorkingGroup.Log.Info("CreateEncryptionReport: begin...");
+            a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(2, "");                                         //  {
+            a_processswordtask.m_swordtaskresponse.JSON_STR_SET(3, "action", ",", "encryptionReport");          //      "action":"encryptionReport",
+            a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(4, "encryptionReport");                         //      "encryptionReport":{
+
+            // We have a digital signature...
+            if (!string.IsNullOrEmpty(szPfxfile))
+            {
+                try
+                {
+                    X509Certificate2 x509certificate2 = new X509Certificate2(szPfxfile);
+                    a_processswordtask.m_swordtaskresponse.JSON_ARR_BGN(5, "digitalSignatures");                //          "digitalSignatures":[
+                    a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(6, "");                                 //              {
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "format", ",", x509certificate2.GetFormat());                                    // "format":"XYZ"
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "issuer", ",", x509certificate2.Issuer);                                         // "issuer":"XYZ",
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "keyAlgorithm", ",", x509certificate2.GetKeyAlgorithm());                        // "keyAlgorithm":"XYZ"
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "notAfter", ",", x509certificate2.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"));     // "notAfter":"XYZ",
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "notBefore", ",", x509certificate2.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"));   // "notBefore":"XYZ",
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "serialNumber", ",", x509certificate2.GetSerialNumberString());                  // "serialNumber":"XYZ"
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "subject", ",", x509certificate2.Subject);                                       // "subject":"XYZ",
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "version", "", x509certificate2.Version.ToString());                             // "version":"XYZ"
+                    a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(6, "");                                 //              }
+                    a_processswordtask.m_swordtaskresponse.JSON_ARR_END(5, ",");                                //          ]
+                }
+                catch
+                {
+                    // Just keep going...
+                }
+            }
+
+            // List our encryption profiles...
+            a_processswordtask.m_swordtaskresponse.JSON_ARR_BGN(5, "encryptionProfiles");                       //          "encryptionProfiles":[
+            a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(6, "");                                         //              {
+            a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "name", ",", "password");                    //                  "name":"XYZ",
+            a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "profile", "", "Password");                  //                  "profile":"XYZ"
+            a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(6, "");                                         //              }
+            a_processswordtask.m_swordtaskresponse.JSON_ARR_END(5, ",");                                        //          ],
+
+            // Provide an empty list to indicate that we support public keys...
+            a_processswordtask.m_swordtaskresponse.JSON_ARR_BGN(5, "encryptionPublicKeys");                     //          "encryptionPublicKeys":[
+            a_processswordtask.m_swordtaskresponse.JSON_ARR_END(5, "");                                         //          ]
+
+
+            // End the encryption report...
+            a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(4, "");                                         //      }
+            a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(2, "");                                         //  }
+            return ("success");
+        }
+
+
+    #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
         // Private Classes...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Classes...
@@ -4316,2836 +4688,1426 @@ namespace TwainDirect.OnTwain
         /// A TWAIN Direct task...
         /// </summary>
         sealed class SwordTask
-        {
-            /// <summary>
-            /// Our constructor...
-            /// </summary>
-            /// <param name="a_swordtaskresponse">The object to use for responses</param>
-            public SwordTask
-            (
-                ProcessSwordTask a_processswordtask
-            )
             {
-                // Init stuff...
-                m_processswordtask = a_processswordtask;
-                m_swordaction = null;
-            }
-
-            /// <summary>
-            /// Add an action to the task...
-            /// </summary>
-            /// <param name="a_szJsonKey">the actions[] path</param>
-            /// <param name="a_szAction">the action value</param>
-            /// <param name="a_szException">the exception for this action</param>
-            /// <param name="a_szVendor">the vendor id (if any) for this action</param>
-            /// <returns>the new action object or null</returns>
-            public SwordAction AppendAction
-            (
-	            string a_szJsonKey,
-                string a_szAction,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-                SwordAction swordaction = null;
-
-                // Allocate us and init with the info we have...
-                swordaction = new SwordAction(m_processswordtask, m_swordaction, a_szJsonKey, a_szAction, a_szException, a_szVendor);
-
-                // We're not supported by this scanner, so discard us...
-                if (swordaction.GetSwordStatus() == SwordStatus.VendorMismatch)
+                /// <summary>
+                /// Our constructor...
+                /// </summary>
+                /// <param name="a_swordtaskresponse">The object to use for responses</param>
+                public SwordTask
+                (
+                    ProcessSwordTask a_processswordtask
+                )
                 {
-                    return (null);
+                    // Init stuff...
+                    m_processswordtask = a_processswordtask;
+                    m_swordaction = null;
                 }
 
-                // Make the first action the head of the list...
-                if (m_swordaction == null)
+                /// <summary>
+                /// Add an action to the task...
+                /// </summary>
+                /// <param name="a_szJsonKey">the actions[] path</param>
+                /// <param name="a_szAction">the action value</param>
+                /// <param name="a_szException">the exception for this action</param>
+                /// <param name="a_szVendor">the vendor id (if any) for this action</param>
+                /// <returns>the new action object or null</returns>
+                public SwordAction AppendAction
+                (
+	                string a_szJsonKey,
+                    string a_szAction,
+                    string a_szException,
+                    string a_szVendor
+                )
                 {
-                    m_swordaction = swordaction;
-                }
+                    SwordAction swordaction = null;
 
-                // All done...
-                return (swordaction);
-            }
+                    // Allocate us and init with the info we have...
+                    swordaction = new SwordAction(m_processswordtask, m_swordaction, a_szJsonKey, a_szAction, a_szException, a_szVendor);
 
-            ///////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Get the task reply...
-            ///////////////////////////////////////////////////////////////////////////
-            public bool BuildTaskReply()
-            {
-                bool blSuccess;
-                SwordAction swordaction;
-                SwordTaskResponse swordtaskresponse = m_processswordtask.GetSwordTaskResponse();
-
-                // Bail if we already have data, this should be error
-                // data, since this is the only function that should
-                // be constructing the response on success...
-                if (!string.IsNullOrEmpty(swordtaskresponse.GetTaskResponse()))
-                {
-                    return (true);
-                }
-
-                // If we don't have any actions, then return an empty action
-                // array with success...
-                if (GetFirstAction() == null)
-                {
-                    swordtaskresponse.JSON_OBJ_BGN(0, "");
-                    swordtaskresponse.JSON_ARR_BGN(1, "actions");
-                    swordtaskresponse.JSON_OBJ_BGN(2, "");
-                    swordtaskresponse.JSON_STR_SET(3, "action", ",", "");
-                    swordtaskresponse.JSON_OBJ_BGN(3, "results");
-                    swordtaskresponse.JSON_TOK_SET(4, "success", "", "true");
-                    swordtaskresponse.JSON_OBJ_END(3, ""); // results
-                    swordtaskresponse.JSON_OBJ_END(2, ""); // action
-                    swordtaskresponse.JSON_ARR_END(1, ""); // actions
-                    swordtaskresponse.JSON_OBJ_END(0, ""); // root
-                    return (true);
-                }
-
-                // Start of the root...
-                swordtaskresponse.JSON_OBJ_BGN(0, "");
-
-                // Start of the actions array...
-                swordtaskresponse.JSON_ARR_BGN(1, "actions");
-
-                // List our actions...
-                for (swordaction = GetFirstAction();
-                     swordaction != null;
-                     swordaction = swordaction.GetNextAction())
-                {
-                    // List an action...
-                    blSuccess = swordaction.BuildTaskReply(swordaction == GetFirstAction());
-                    if (!blSuccess)
+                    // We're not supported by this scanner, so discard us...
+                    if (swordaction.GetSwordStatus() == SwordStatus.VendorMismatch)
                     {
-                        break;
+                        return (null);
                     }
-                }
 
-                // End of the actions array...
-                swordtaskresponse.JSON_ARR_END(1, "");
-
-                // End of the root...
-                swordtaskresponse.JSON_OBJ_END(0, "");
-
-                // All done...
-                return (true);
-            }
-
-            /// <summary>
-            /// The head of the actions list...
-            /// </summary>
-            /// <returns>the first action or null</returns>
-            public SwordAction GetFirstAction()
-            {
-                return (m_swordaction);
-            }
-
-            /// <summary>
-            /// The object given to us...
-            /// </summary>
-            private ProcessSwordTask m_processswordtask;
-
-            /// <summary>
-            /// The head of the actions list...
-            /// </summary>
-            private SwordAction m_swordaction;
-        }
-
-        /// <summary>
-        /// A list of zero or more actions for a task...
-        /// </summary>
-        sealed class SwordAction
-        {
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Constructor...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordAction
-            (
-                ProcessSwordTask a_processswordtask,
-                SwordAction a_swordactionHead,
-	            string a_szJsonKey,
-                string a_szAction,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-                // If the vendor isn't us, then skip it, this isn't subject to exceptions,
-                // so we return right away...
-                m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
-	            if (m_vendorowner == VendorOwner.Unknown)
-	            {
-		            m_swordstatus = SwordStatus.VendorMismatch;
-		            return;
-	            }
-
-                // There are two categories of task responses in the system.  There's one
-                // for the entire task that reports problems detected with the TWAIN Direct
-                // language.  Then there are task responses at the level of each of the
-                // actions.  These will be reported back in the task reply.
-                m_swordtaskresponse = new SwordTaskResponse(a_processswordtask);
-
-                // Init stuff...
-                m_processswordtask = a_processswordtask;
-	            m_swordstatus = SwordStatus.Success;
-                m_szJsonKey = a_szJsonKey;
-                m_szException = a_szException;
-                m_szVendor = a_szVendor;
-                m_szAction = a_szAction;
-
-                // If we didn't get an exception, then assign the nextaction placeholder...
-                if (string.IsNullOrEmpty(m_szException))
-                {
-                    m_szException = "@nextActionOrIgnore";
-                }
-
-                // We're the head of the list...
-                if (a_swordactionHead == null)
-	            {
-		            // nothing needed...
-	            }
-
-	            // We're being appended to the list...
-	            else
-	            {
-		            SwordAction swordactionParent;
-		            for (swordactionParent = a_swordactionHead; swordactionParent.m_swordactionNext != null; swordactionParent = swordactionParent.m_swordactionNext) ;
-		            swordactionParent.m_swordactionNext = this;
-
-                }
-            }
-
-            /// <summary>
-            /// Add a stream to an action...
-            /// </summary>
-            /// <param name="a_szJsonKey">actions[].streams[] key</param>
-            /// <param name="a_szStreamName">name of the stream</param>
-            /// <param name="a_szException">exception for this stream</param>
-            /// <param name="a_szVendor">vendor id, if any</param>
-            /// <returns></returns>
-            public SwordStream AppendStream
-            (
-	            string a_szJsonKey,
-                string a_szStreamName,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-                SwordStream swordstream;
-
-                // Allocate a new stream and initialize it...
-                swordstream = new SwordStream(m_processswordtask, m_swordtaskresponse, m_swordstream, a_szJsonKey, a_szStreamName, a_szException, a_szVendor);
-                if (swordstream == null)
-                {
-                    return (null);
-                }
-
-                // We're not supported...
-                if (swordstream.GetSwordStatus() == SwordStatus.VendorMismatch)
-                {
-                    swordstream = null;
-                    return (null);
-                }
-
-                // Make us the head of the list...
-                if (m_swordstream == null)
-                {
-                    m_swordstream = swordstream;
-                }
-
-                // All done...
-                return (swordstream);
-            }
-
-            /// <summary>
-            /// Build the task reply...
-            /// </summary>
-            /// <param name="a_blFirstAction">true for the first action</param>
-            /// <returns>true on success</returns>
-            public bool BuildTaskReply(bool a_blFirstAction)
-            {
-                bool blSuccess;
-                SwordStream swordstream;
-                SwordTaskResponse swordtaskresponse = m_processswordtask.GetSwordTaskResponse();
-
-                // Only report on success or successignore...
-                if (   (m_swordstatus != SwordStatus.Success)
-                    && (m_swordstatus != SwordStatus.SuccessIgnore)
-                    && (m_swordstatus != SwordStatus.NextAction))
-                {
-                    swordtaskresponse.AppendTaskResponse
-                    (
-                        (a_blFirstAction ? "" : ",") +
-                        m_swordtaskresponse.GetTaskResponse()
-                    );
-                    return (true);
-                }
-
-                // Handle successignore and nextaction...
-                if (    (m_swordstatus == SwordStatus.SuccessIgnore)
-                    ||  (m_swordstatus == SwordStatus.NextAction))
-                {
-                    // Add this action's response to the one for the task...
-                    swordtaskresponse.AppendTaskResponse
-                    (
-                        (a_blFirstAction ? "" : ",") +
-                        m_swordtaskresponse.GetTaskResponse()
-                    );
-                    return (true);
-                }
-
-                // Start of the action...
-                m_swordtaskresponse.JSON_OBJ_BGN(2, "");
-
-                // The vendor (if any) and the action...
-                if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(3, "vendor", ",", m_szVendor);
-                m_swordtaskresponse.JSON_STR_SET(3, "action", ",", m_szAction);
-
-                // The response...
-                m_swordtaskresponse.JSON_OBJ_BGN(3, "results");
-                m_swordtaskresponse.JSON_TOK_SET(4, "success", "", "true");
-                m_swordtaskresponse.JSON_OBJ_END(3, ",");
-
-                // Only do this bit for the configure action...
-                if (m_szAction == "configure")
-                {
-                    // Start of the streams array...
-                    m_swordtaskresponse.JSON_ARR_BGN(3, "streams");
-
-                    // List our streams...
-                    for (swordstream = GetFirstStream();
-                         swordstream != null;
-                         swordstream = swordstream.GetNextStream())
+                    // Make the first action the head of the list...
+                    if (m_swordaction == null)
                     {
-                        // List a stream...
-                        blSuccess = swordstream.BuildTaskReply();
+                        m_swordaction = swordaction;
+                    }
+
+                    // All done...
+                    return (swordaction);
+                }
+
+                ///////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Get the task reply...
+                ///////////////////////////////////////////////////////////////////////////
+                public bool BuildTaskReply()
+                {
+                    bool blSuccess;
+                    SwordAction swordaction;
+                    SwordTaskResponse swordtaskresponse = m_processswordtask.GetSwordTaskResponse();
+
+                    // Bail if we already have data, this should be error
+                    // data, since this is the only function that should
+                    // be constructing the response on success...
+                    if (!string.IsNullOrEmpty(swordtaskresponse.GetTaskResponse()))
+                    {
+                        return (true);
+                    }
+
+                    // If we don't have any actions, then return an empty action
+                    // array with success...
+                    if (GetFirstAction() == null)
+                    {
+                        swordtaskresponse.JSON_OBJ_BGN(0, "");
+                        swordtaskresponse.JSON_ARR_BGN(1, "actions");
+                        swordtaskresponse.JSON_OBJ_BGN(2, "");
+                        swordtaskresponse.JSON_STR_SET(3, "action", ",", "");
+                        swordtaskresponse.JSON_OBJ_BGN(3, "results");
+                        swordtaskresponse.JSON_TOK_SET(4, "success", "", "true");
+                        swordtaskresponse.JSON_OBJ_END(3, ""); // results
+                        swordtaskresponse.JSON_OBJ_END(2, ""); // action
+                        swordtaskresponse.JSON_ARR_END(1, ""); // actions
+                        swordtaskresponse.JSON_OBJ_END(0, ""); // root
+                        return (true);
+                    }
+
+                    // Start of the root...
+                    swordtaskresponse.JSON_OBJ_BGN(0, "");
+
+                    // Start of the actions array...
+                    swordtaskresponse.JSON_ARR_BGN(1, "actions");
+
+                    // List our actions...
+                    for (swordaction = GetFirstAction();
+                         swordaction != null;
+                         swordaction = swordaction.GetNextAction())
+                    {
+                        // List an action...
+                        blSuccess = swordaction.BuildTaskReply(swordaction == GetFirstAction());
                         if (!blSuccess)
                         {
                             break;
                         }
                     }
 
-                    // End of the streams array...
-                    m_swordtaskresponse.JSON_ARR_END(3, "");
+                    // End of the actions array...
+                    swordtaskresponse.JSON_ARR_END(1, "");
+
+                    // End of the root...
+                    swordtaskresponse.JSON_OBJ_END(0, "");
+
+                    // All done...
+                    return (true);
                 }
 
-                // Handle anything we don't recognize...
-                else
+                /// <summary>
+                /// The head of the actions list...
+                /// </summary>
+                /// <returns>the first action or null</returns>
+                public SwordAction GetFirstAction()
                 {
+                    return (m_swordaction);
                 }
 
-                // End of the action...
-                m_swordtaskresponse.JSON_OBJ_END(2, ",");
+                /// <summary>
+                /// The culture name in the format languagecode2-country/regioncode2.
+                /// languagecode2 is a lowercase two-letter code derived from ISO 639-1.
+                /// country/regioncode2 is derived from ISO 3166 and usually consists of
+                /// two uppercase letters, or a BCP-47 language tag.
+                /// </summary>
+                /// <returns></returns>
+                public string GetLocale()
+                {
+                    if (string.IsNullOrEmpty(m_szLocale))
+                    {
+                        return (Thread.CurrentThread.CurrentCulture.Name);
+                    }
+                    return (m_szLocale);
+                }
 
-                // Add this action's response to the one for the task...
-                swordtaskresponse.AppendTaskResponse
+                /// <summary>
+                /// The culture name in the format languagecode2-country/regioncode2.
+                /// languagecode2 is a lowercase two-letter code derived from ISO 639-1.
+                /// country/regioncode2 is derived from ISO 3166 and usually consists of
+                /// two uppercase letters, or a BCP-47 language tag.
+                /// </summary>
+                /// <returns></returns>
+                public bool SetLocale(string a_szLocale)
+                {
+                    // Skip if we have nothing, we'll default to the current...
+                    if (string.IsNullOrEmpty(a_szLocale))
+                    {
+                        return (true);
+                    }
+                    // Validate it...
+                    try
+                    {
+                        CultureInfo culture = CultureInfo.GetCultureInfo(a_szLocale);
+                    }
+                    catch (Exception exception)
+                    {
+                        TWAINWorkingGroup.Log.Error("SetLocale failed: " + exception.Message);
+                        return (false);
+                    }
+                    // Save it...
+                    m_szLocale = a_szLocale;
+                    return (true);
+                }
+
+                /// <summary>
+                /// The object given to us...
+                /// </summary>
+                private ProcessSwordTask m_processswordtask;
+
+                /// <summary>
+                /// The head of the actions list...
+                /// </summary>
+                private SwordAction m_swordaction;
+
+                /// <summary>
+                /// The locale to apply to all actions in this task...
+                /// </summary>
+                private string m_szLocale;
+            }
+
+            /// <summary>
+            /// A list of zero or more actions for a task...
+            /// </summary>
+            sealed class SwordAction
+            {
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Constructor...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordAction
                 (
-                    (a_blFirstAction ? "" : ",") +
-                    m_swordtaskresponse.GetTaskResponse()
-                );
-
-                // All done...
-                return (true);
-            }
-
-            /// <summary>
-            /// Get action for this action...
-            /// </summary>
-            /// <returns>the action</returns>
-            public string GetAction()
-            {
-                return (m_szAction);
-            }
-
-            /// <summary>
-            /// Get the exception for this action...
-            /// </summary>
-            /// <returns>the exception</returns>
-            public string GetException()
-            {
-                return (m_szException);
-            }
-
-            /// <summary>
-            /// Get the first stream for this action...
-            /// </summary>
-            /// <returns>the head of the streams or null</returns>
-            public SwordStream GetFirstStream()
-            {
-                return (m_swordstream);
-            }
-
-            /// <summary>
-            /// Get the JSON key for this action...
-            /// </summary>
-            /// <returns>the json key for this action</returns>
-            public string GetJsonKey()
-            {
-                return (m_szJsonKey);
-            }
-
-            /// <summary>
-            /// Get the next action...
-            /// </summary>
-            /// <returns>the next action or null</returns>
-            public SwordAction GetNextAction()
-            {
-                return (m_swordactionNext);
-            }
-
-            /// <summary>
-            /// Get the process sword task object that's at
-            /// the root of all this fun...
-            /// </summary>
-            /// <returns>the object which has yummy data in it</returns>
-            public ProcessSwordTask GetProcessSwordTask()
-            {
-                return (m_processswordtask);
-            }
-
-            /// <summary>
-            /// Get the status for this action...
-            /// </summary>
-            /// <returns>the status</returns>
-            public SwordStatus GetSwordStatus()
-            {
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Get the sword task response object...
-            /// </summary>
-            /// <returns>the object</returns>
-            public SwordTaskResponse GetSwordTaskResponse()
-            {
-                return (m_swordtaskresponse);
-            }
-
-            /// <summary>
-            /// Get the vendor for this action...
-            /// </summary>
-            /// <returns>the vendor</returns>
-            public string GetVendor()
-            {
-                return (m_szVendor);
-            }
-
-            /// <summary>
-            /// Process this action...
-            /// </summary>
-            /// <returns>the status of the processing</returns>
-            public SwordStatus Process()
-            {
-                SwordStatus swordstatus;
-                SwordStream swordstream;
-
-                // Assume success...
-                m_swordstatus = SwordStatus.Run;
-
-                // Switch
-                switch (GetAction())
+                    ProcessSwordTask a_processswordtask,
+                    SwordAction a_swordactionHead,
+	                string a_szJsonKey,
+                    string a_szAction,
+                    string a_szException,
+                    string a_szVendor
+                )
                 {
-                    // We have no idea what this is...
-                    default:
-                        // Apply our exceptions...
-                        switch (m_szException)
-                        {
-                            default:
-                            case "ignore":
-                                // Keep going...
-                                m_swordstatus = SwordStatus.SuccessIgnore;
-                                break;
-                            case "nextAction":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextAction;
-                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".action", "invalidValue", -1);
-                                return (m_swordstatus);
-                            case "nextStream":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextStream;
-                                return (m_swordstatus);
-                            case "fail":
-                                // Whoops, time to empty the pool...
-                                m_swordstatus = SwordStatus.Fail;
-                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".action", "invalidValue", -1);
-                                return (m_swordstatus);
-                        }
-                        break;
+                    // If the vendor isn't us, then skip it, this isn't subject to exceptions,
+                    // so we return right away...
+                    m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
+	                if (m_vendorowner == VendorOwner.Unknown)
+	                {
+		                m_swordstatus = SwordStatus.VendorMismatch;
+		                return;
+	                }
 
-                    // Handle the configure action...
-                    case "configure":
-                        // Invoke the process function for each of our streams...
-                        for (swordstream = m_swordstream;
+                    // There are two categories of task responses in the system.  There's one
+                    // for the entire task that reports problems detected with the TWAIN Direct
+                    // language.  Then there are task responses at the level of each of the
+                    // actions.  These will be reported back in the task reply.
+                    m_swordtaskresponse = new SwordTaskResponse(a_processswordtask);
+
+                    // Init stuff...
+                    m_processswordtask = a_processswordtask;
+	                m_swordstatus = SwordStatus.Success;
+                    m_szJsonKey = a_szJsonKey;
+                    m_szException = a_szException;
+                    m_szVendor = a_szVendor;
+                    m_szAction = a_szAction;
+
+                    // If we didn't get an exception, then assign the nextaction placeholder...
+                    if (string.IsNullOrEmpty(m_szException))
+                    {
+                        m_szException = "@nextActionOrIgnore";
+                    }
+
+                    // We're the head of the list...
+                    if (a_swordactionHead == null)
+	                {
+		                // nothing needed...
+	                }
+
+	                // We're being appended to the list...
+	                else
+	                {
+		                SwordAction swordactionParent;
+		                for (swordactionParent = a_swordactionHead; swordactionParent.m_swordactionNext != null; swordactionParent = swordactionParent.m_swordactionNext) ;
+		                swordactionParent.m_swordactionNext = this;
+
+                    }
+                }
+
+                /// <summary>
+                /// Add a stream to an action...
+                /// </summary>
+                /// <param name="a_szJsonKey">actions[].streams[] key</param>
+                /// <param name="a_szStreamName">name of the stream</param>
+                /// <param name="a_szException">exception for this stream</param>
+                /// <param name="a_szVendor">vendor id, if any</param>
+                /// <returns></returns>
+                public SwordStream AppendStream
+                (
+	                string a_szJsonKey,
+                    string a_szStreamName,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+                    SwordStream swordstream;
+
+                    // Allocate a new stream and initialize it...
+                    swordstream = new SwordStream(m_processswordtask, m_swordtaskresponse, m_swordstream, a_szJsonKey, a_szStreamName, a_szException, a_szVendor);
+                    if (swordstream == null)
+                    {
+                        return (null);
+                    }
+
+                    // We're not supported...
+                    if (swordstream.GetSwordStatus() == SwordStatus.VendorMismatch)
+                    {
+                        swordstream = null;
+                        return (null);
+                    }
+
+                    // Make us the head of the list...
+                    if (m_swordstream == null)
+                    {
+                        m_swordstream = swordstream;
+                    }
+
+                    // All done...
+                    return (swordstream);
+                }
+
+                /// <summary>
+                /// Add an encryptionProfile to an action...
+                /// </summary>
+                /// <param name="a_szJsonKey">actions[].streams[] key</param>
+                /// <param name="a_szEncryptionProfileName">name of the encryptionProfile</param>
+                /// <param name="a_szException">exception for this encryptionProfile</param>
+                /// <param name="a_szVendor">vendor id, if any</param>
+                /// /// <param name="a_szEncryptionProfileProfile">profile of the encryptionProfile</param>
+                /// <returns></returns>
+                public SwordEncryptionProfile AppendEncryptionProfile
+                (
+                    string a_szJsonKey,
+                    string a_szEncryptionProfileName,
+                    string a_szException,
+                    string a_szVendor,
+                    string a_szEncryptionProfileProfile
+                )
+                {
+                    SwordEncryptionProfile swordencryptionprofile;
+
+                    // Allocate a new stream and initialize it...
+                    swordencryptionprofile = new SwordEncryptionProfile(m_processswordtask, m_swordtaskresponse, m_swordencryptionprofile, a_szJsonKey, a_szEncryptionProfileName, a_szException, a_szVendor, a_szEncryptionProfileProfile);
+                    if (swordencryptionprofile == null)
+                    {
+                        return (null);
+                    }
+
+                    // We're not supported...
+                    if (swordencryptionprofile.GetSwordStatus() == SwordStatus.VendorMismatch)
+                    {
+                        swordencryptionprofile = null;
+                        return (null);
+                    }
+
+                    // Make us the head of the list...
+                    if (m_swordencryptionprofile == null)
+                    {
+                        m_swordencryptionprofile = swordencryptionprofile;
+                    }
+
+                    // All done...
+                    return (swordencryptionprofile);
+                }
+
+                /// <summary>
+                /// Build the task reply...
+                /// </summary>
+                /// <param name="a_blFirstAction">true for the first action</param>
+                /// <returns>true on success</returns>
+                public bool BuildTaskReply(bool a_blFirstAction)
+                {
+                    bool blSuccess;
+                    string szAddComma;
+                    SwordStream swordstream;
+                    SwordTaskResponse swordtaskresponse = m_processswordtask.GetSwordTaskResponse();
+
+                    // Only report on success or successignore...
+                    if (   (m_swordstatus != SwordStatus.Success)
+                        && (m_swordstatus != SwordStatus.SuccessIgnore)
+                        && (m_swordstatus != SwordStatus.NextAction))
+                    {
+                        swordtaskresponse.AppendTaskResponse
+                        (
+                            (a_blFirstAction ? "" : ",") +
+                            m_swordtaskresponse.GetTaskResponse()
+                        );
+                        return (true);
+                    }
+
+                    // Handle successignore and nextaction...
+                    if (    (m_swordstatus == SwordStatus.SuccessIgnore)
+                        ||  (m_swordstatus == SwordStatus.NextAction))
+                    {
+                        // Add this action's response to the one for the task...
+                        swordtaskresponse.AppendTaskResponse
+                        (
+                            (a_blFirstAction ? "" : ",") +
+                            m_swordtaskresponse.GetTaskResponse()
+                        );
+                        return (true);
+                    }
+
+                    // Start of the action...
+                    m_swordtaskresponse.JSON_OBJ_BGN(2, "");
+
+                    // The vendor (if any) and the action...
+                    if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(3, "vendor", ",", m_szVendor);
+                    m_swordtaskresponse.JSON_STR_SET(3, "action", ",", m_szAction);
+
+                    // The response...
+                    m_swordtaskresponse.JSON_OBJ_BGN(3, "results");
+                    m_swordtaskresponse.JSON_TOK_SET(4, "success", "", "true");
+                    m_swordtaskresponse.JSON_OBJ_END(3, ",");
+                    szAddComma = "";
+
+                    // Only do this bit for the configure action...
+                if (m_szAction == "configure")
+                    {
+                        // Start of the streams array...
+                        m_swordtaskresponse.JSON_ARR_BGN(3, "streams");
+
+                        // List our streams...
+                        for (swordstream = GetFirstStream();
                              swordstream != null;
                              swordstream = swordstream.GetNextStream())
                         {
-                            // Process this stream (and all of its contents)...
-                            swordstatus = swordstream.Process();
-
-                            // We've been asked to go to the next stream...
-                            if (swordstatus == SwordStatus.NextStream)
+                            // List a stream...
+                            blSuccess = swordstream.BuildTaskReply();
+                            if (!blSuccess)
                             {
-                                continue;
-                            }
-
-                            // Check the result...
-                            if (    (swordstatus != SwordStatus.Run)
-                                &&  (swordstatus != SwordStatus.Success)
-                                &&  (swordstatus != SwordStatus.SuccessIgnore))
-                            {
-                                m_swordstatus = swordstatus;
-                                return (m_swordstatus);
-                            }
-                        }
-                        break;
-                }
-
-                // All done...
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Set a task error...
-            /// </summary>
-            /// <param name="a_szException">the exception  we're processing</param>
-            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
-            /// <param name="a_szCode">the error code</param>
-            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
-            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
-            public void SetError
-            (
-                string a_szException,
-                string a_szJsonExceptionKey,
-                string a_szCode,
-                long a_lJsonErrorIndex
-            )
-            {
-                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
-            }
-
-            /// <summary>
-            /// Set the exception for this action...
-            /// </summary>
-            /// <param name="a_szException"></param>
-            public void SetException(string a_szException)
-            {
-                m_szException = a_szException;
-            }
-
-            /// <summary>
-            /// Set the status for this action...
-            /// </summary>
-            /// <param name="a_eswordstatus"></param>
-            public void SetSwordStatus(SwordStatus a_swordstatus)
-            {
-                m_swordstatus = a_swordstatus;
-            }
-
-            /// <summary>
-            /// Next one in the list, note if we're the head...
-            /// </summary>
-            private SwordAction m_swordactionNext;
-
-            /// <summary>
-            /// Our main object...
-            /// </summary>
-            private ProcessSwordTask m_processswordtask;
-
-            /// <summary>
-            /// Our response...
-            /// </summary>
-            private SwordTaskResponse m_swordtaskresponse;
-
-            /// <summary>
-            /// Who owns us?
-            /// </summary>
-            private VendorOwner m_vendorowner;
-
-            /// <summary>
-            /// The status of the item...
-            /// </summary>
-            private SwordStatus m_swordstatus;
-
-            /// <summary>
-            /// The index of this item in the JSON string...
-            /// </summary>
-            private string m_szJsonKey;
-
-            /// <summary>
-            /// The exception for this action...
-            /// </summary>
-            private string m_szException;
-
-            /// <summary>
-            /// Vendor UUID...
-            /// </summary>
-            private string m_szVendor;
-
-            /// <summary>
-            /// The command identifier...
-            /// </summary>
-            private string m_szAction;
-
-            /// <summary>
-            /// The image streams...
-            /// </summary>
-            private SwordStream m_swordstream;
-        }
-
-        /// <summary>
-        /// Each stream contains a list of sources.  All of the sources are used to
-        /// capture image data.  This can result in some odd but perfectly acceptable
-        /// combinations: such as a feeder and a flatbed, in which case the session
-        /// would capture all of the data from the feeder, then an image from the
-        /// flatbed.
-        /// 
-        /// The more typical example would be a feeder or a flatbed, or separate
-        /// settings for the front and rear of a feeder.
-        /// </summary>
-        sealed class SwordStream
-        {
-            /// <summary>
-            /// Constructor...
-            /// </summary>
-            /// <param name="a_swordtaskresponse">object for the response</param>
-            /// <param name="a_swordstreamHead">head of the streams or null</param>
-            /// <param name="a_szJsonKey">actions[].streams[]</param>
-            /// <param name="a_szStream">name of the stream</param>
-            /// <param name="a_szException">exception for this stream</param>
-            /// <param name="a_szVendor">vendor id, if any</param>
-            public SwordStream
-            (
-                ProcessSwordTask a_processsowrdtask,
-	            SwordTaskResponse a_swordtaskresponse,
-                SwordStream a_swordstreamHead,
-	            string a_szJsonKey,
-                string a_szStreamName,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-	            // If the vendor isn't us, then skip it, this isn't subject to exceptions,
-	            // so we return right away...
-	            m_vendorowner = a_processsowrdtask.GetVendorOwner(a_szVendor);
-	            if (m_vendorowner == VendorOwner.Unknown)
-	            {
-		            m_swordstatus = SwordStatus.VendorMismatch;
-		            return;
-	            }
-
-                // Init stuff...
-                m_processswordtask = a_processsowrdtask;
-                m_swordtaskresponse = a_swordtaskresponse;
-	            m_swordstatus = SwordStatus.Success;
-                m_szJsonKey = a_szJsonKey;
-                m_szStreamName = a_szStreamName;
-                m_szException = a_szException;
-                m_szVendor = a_szVendor;
-
-                // If we didn't get an exception, or if the exception is
-                // the nextaction placeholder, then assign the nextstream
-                // placeholder...
-                if (string.IsNullOrEmpty(m_szException) || (m_szException == "@nextActionOrIgnore"))
-                {
-                    m_szException = "@nextStreamOrIgnore";
-                }
-
-	            // We're the head of the list...
-	            if (a_swordstreamHead == null)
-	            {
-                    // nothing needed...
-                }
-
-                // We're being appended to the list...
-                else
-                {
-		            SwordStream swordstreamParent;
-		            for (swordstreamParent = a_swordstreamHead; swordstreamParent.m_swordstreamNext != null; swordstreamParent = swordstreamParent.m_swordstreamNext) ;
-		            swordstreamParent.m_swordstreamNext = this;
-                }
-            }
-
-            /// <summary>
-            /// Add a source to the stream...
-            /// </summary>
-            /// <param name="a_szJsonKey">actions[].streams[].source</param>
-            /// <param name="a_szSourceName">name for this source</param>
-            /// <param name="a_szSource">source we're adding</param>
-            /// <param name="a_szException">exception for this source</param>
-            /// <param name="a_szVendor">vendor id, if any</param>
-            /// <returns></returns>
-            public SwordSource AppendSource
-            (
-	            string a_szJsonKey,
-                string a_szSourceName,
-                string a_szSource,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-                SwordSource swordsource;
-
-                // Allocate and init our beastie...
-                swordsource = new SwordSource(m_processswordtask, m_swordtaskresponse, m_swordsource, a_szJsonKey, a_szSourceName, a_szSource, a_szException, a_szVendor);
-                if (swordsource == null)
-                {
-                    return (null);
-                }
-
-                // We're not supported...
-                if (swordsource.GetSwordStatus() == SwordStatus.VendorMismatch)
-                {
-                    swordsource = null;
-                    return (null);
-                }
-
-                // Make us the head of the list...
-                if (m_swordsource == null)
-                {
-                    m_swordsource = swordsource;
-                }
-
-                // All done...
-                return (swordsource);
-            }
-
-            /// <summary>
-            /// Build the task reply...
-            /// </summary>
-            /// <returns>true on success</returns>
-            public bool BuildTaskReply()
-            {
-                bool blSuccess;
-                SwordSource swordsource;
-
-                // Only report on success...
-                if (m_swordstatus != SwordStatus.Success)
-                {
-                    return (true);
-                }
-
-                // Start of the stream...
-                m_swordtaskresponse.JSON_OBJ_BGN(4, "");
-
-                // The vendor (if any) and the stream's name...
-                if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(5, "vendor", ",", m_szVendor);
-                m_swordtaskresponse.JSON_STR_SET(5, "name", ",", m_szStreamName);
-
-                // Start of the sources array...
-                m_swordtaskresponse.JSON_ARR_BGN(5, "sources");
-
-                // List our sources...
-                for (swordsource = GetFirstSource();
-                     swordsource != null;
-                     swordsource = swordsource.GetNextSource())
-                {
-                    // List a stream...
-                    blSuccess = swordsource.BuildTaskReply();
-                    if (!blSuccess)
-                    {
-                        break;
-                    }
-                }
-
-                // End of the sources array...
-                m_swordtaskresponse.JSON_ARR_END(5, "");
-
-                // End of the stream...
-                m_swordtaskresponse.JSON_OBJ_END(4, ",");
-
-                // All done...
-                return (true);
-            }
-
-            /// <summary>
-            /// Get the name of the stream...
-            /// </summary>
-            /// <returns>the name</returns>
-            public string GetName()
-            {
-                return (m_szStreamName);
-            }
-
-            /// <summary>
-            /// Get the next stream in the list...
-            /// </summary>
-            /// <returns>the next stream or null</returns>
-            public SwordStream GetNextStream()
-            {
-                return (m_swordstreamNext);
-            }
-
-            /// <summary>
-            /// Get the first source in the stream...
-            /// </summary>
-            /// <returns>the first source or null</returns>
-            public SwordSource GetFirstSource()
-            {
-                return (m_swordsource);
-            }
-
-            /// <summary>
-            /// Get the exception for this stream...
-            /// </summary>
-            /// <returns>th exception</returns>
-            public string GetException()
-            {
-                return (m_szException);
-            }
-
-            /// <summary>
-            /// Get the status for this stream...
-            /// </summary>
-            /// <returns></returns>
-            public SwordStatus GetSwordStatus()
-            {
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Get the vendor for this stream...
-            /// </summary>
-            /// <returns></returns>
-            public string GetVendor()
-            {
-                return (m_szVendor);
-            }
-
-            /// <summary>
-            /// Process this stream...
-            /// </summary>
-            /// <returns>the status of processing</returns>
-            public SwordStatus Process()
-            {
-                SwordStatus swordstatus;
-                SwordSource swordsource;
-
-                // Assume success...
-                m_swordstatus = SwordStatus.Run;
-
-                // Make sure we have a name...
-                if (string.IsNullOrEmpty(m_szStreamName))
-                {
-                    int szIndex;
-                    szIndex = m_szJsonKey.LastIndexOf("[");
-                    if (szIndex != -1)
-                    {
-                        m_szStreamName = "stream" + m_szJsonKey.Substring(szIndex + 1);
-                        szIndex = m_szStreamName.LastIndexOf("]");
-                        if (szIndex != -1)
-                        {
-                            m_szStreamName = m_szStreamName.Remove(szIndex);
-                        }
-                    }
-                }
-
-                // Invoke the process function for each of our sources...
-                for (swordsource = m_swordsource;
-                     swordsource != null;
-                     swordsource = swordsource.GetNextSource())
-                {
-                    // Process this source (and all of its contents)...
-                    swordstatus = swordsource.Process();
-
-                    // Check the result...
-                    if (    (swordstatus != SwordStatus.Run)
-                        &&  (swordstatus != SwordStatus.Success)
-                        &&  (swordstatus != SwordStatus.SuccessIgnore))
-                    {
-                        m_swordstatus = swordstatus;
-                        return (m_swordstatus);
-                    }
-                }
-
-                // All done...
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Set a task error...
-            /// </summary>
-            /// <param name="a_szException">the exception  we're processing</param>
-            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
-            /// <param name="a_szCode">the error code</param>
-            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
-            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
-            public void SetError
-            (
-                string a_szException,
-                string a_szJsonExceptionKey,
-                string a_szCode,
-                long a_lJsonErrorIndex
-            )
-            {
-                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
-            }
-
-            /// <summary>
-            /// Set the exception for this stream...
-            /// </summary>
-            /// <param name="a_szException"></param>
-            public void SetException(string a_szException)
-            {
-                m_szException = a_szException;
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Set the status for this stream...
-            ////////////////////////////////////////////////////////////////////////////////
-            public void SetSwordStatus(SwordStatus a_swordstatus)
-            {
-                m_swordstatus = a_swordstatus;
-            }
-
-            /// <summary>
-            /// Next one in the list, not if we're the head...
-            /// </summary>
-            private SwordStream m_swordstreamNext;
-
-            /// <summary>
-            /// Our main object...
-            /// </summary>
-            private ProcessSwordTask m_processswordtask;
-
-            /// <summary>
-            /// Our response...
-            /// </summary>
-            private SwordTaskResponse m_swordtaskresponse;
-
-            /// <summary>
-            /// Who owns us?
-            /// </summary>
-            private VendorOwner m_vendorowner;
-
-            /// <summary>
-            /// The status of the item...
-            /// </summary>
-            private SwordStatus m_swordstatus;
-
-            /// <summary>
-            /// The name of the stream...
-            /// </summary>
-            private string m_szStreamName;
-
-            /// <summary>
-            /// The index of this item in the JSON string...
-            /// </summary>
-            private string m_szJsonKey;
-
-            /// <summary>
-            /// The default exception for this stream...
-            /// </summary>
-            private string m_szException;
-
-            /// <summary>
-            /// Vendor UUID...
-            /// </summary>
-            private string m_szVendor;
-
-            /// <summary>
-            /// The image sources...
-            /// </summary>
-            private SwordSource m_swordsource;
-        }
-
-        /// <summary>
-        /// Each source corresponds to a physical element that captures image data,
-        /// like a front or rear camera on a feeder, or a flatbed.  If multiple
-        /// sources are included then multistream is being requested.
-        /// 
-        /// The use of the "any" source is a shorthand for a stream that asks for
-        /// images from every source the scanner has to offer.  It should only be
-        /// used in the simplest cases or as a exception if other sources have failed.
-        /// </summary>
-        sealed class SwordSource
-        {
-            /// <summary>
-            /// Constructor...
-            /// </summary>
-            /// <param name="a_swordtaskresponse">our response</param>
-            /// <param name="a_swordsourceHead">the first source</param>
-            /// <param name="a_szJsonKey">actions[].streams[].sources[]</param>
-            /// <param name="a_szSource">name of the source</param>
-            /// <param name="a_szException">exception for the source</param>
-            /// <param name="a_szVendor">vendor id, if any</param>
-            public SwordSource
-            (
-                ProcessSwordTask a_processswordtask,
-                SwordTaskResponse a_swordtaskresponse,
-                SwordSource a_swordsourceHead,
-	            string a_szJsonKey,
-                string a_szSourceName,
-                string a_szSource,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-	            // If the vendor isn't us, then skip it, this isn't subject to exceptions,
-	            // so we return right away...
-	            m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
-	            if (m_vendorowner == VendorOwner.Unknown)
-	            {
-		            m_swordstatus = SwordStatus.VendorMismatch;
-		            return;
-	            }
-
-                // Init stuff...
-                m_processswordtask = a_processswordtask;
-                m_swordtaskresponse = a_swordtaskresponse;
-	            m_swordstatus = SwordStatus.Success;
-                m_szJsonKey = a_szJsonKey;
-                m_szException = a_szException;
-                m_szVendor = a_szVendor;
-                m_szSourceName = a_szSourceName;
-                m_szSource = a_szSource;
-                m_szAutomaticSenseMedium = "";
-                m_szCameraSide = "";
-                m_szDuplexEnabled = "";
-                m_szFeederEnabled = "";
-
-                // We're the head of the list...
-                if (a_swordsourceHead == null)
-	            {
-                    // nothing needed...
-                }
-
-                // We're being appended to the list...
-                else
-                {
-		            SwordSource swordsourceParent;
-		            for (swordsourceParent = a_swordsourceHead; swordsourceParent.m_swordsourceNext != null; swordsourceParent = swordsourceParent.m_swordsourceNext) ;
-		            swordsourceParent.m_swordsourceNext = this;
-
-                }
-            }
-
-            /// <summary>
-            /// Add a pixelformat to this source...
-            /// </summary>
-            /// <param name="a_szJsonKey"></param>
-            /// <param name="a_szPixelFormatName"></param>
-            /// <param name="a_szPixelFormat"></param>
-            /// <param name="a_szException"></param>
-            /// <param name="a_szVendor"></param>
-            /// <returns>the new pixelFormat</returns>
-            public SwordPixelFormat AppendPixelFormat
-            (
-	            string a_szJsonKey,
-                string a_szPixelFormatName,
-                string a_szPixelFormat,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-                SwordPixelFormat swordpixelformat;
-
-                // Allocate and init it...
-                swordpixelformat = new SwordPixelFormat(m_processswordtask, m_swordtaskresponse, m_swordpixelformat, a_szJsonKey, a_szPixelFormatName, a_szPixelFormat, a_szException, a_szVendor);
-                if (swordpixelformat == null)
-                {
-                    return (null);
-                }
-
-                // This is unsupported...
-                if (swordpixelformat.GetSwordStatus() == SwordStatus.VendorMismatch)
-                {
-                    swordpixelformat = null;
-                    return (null);
-                }
-
-                // Make us the head of the list...
-                if (m_swordpixelformat == null)
-                {
-                    m_swordpixelformat = swordpixelformat;
-                }
-
-                // All done...
-                return (swordpixelformat);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Build the task reply...
-            ////////////////////////////////////////////////////////////////////////////////
-            public bool BuildTaskReply()
-            {
-                bool blSuccess;
-                SwordPixelFormat swordpixelformat;
-
-                // Only report on success...
-                if (m_swordstatus != SwordStatus.Success)
-                {
-                    return (true);
-                }
-
-                // Start of the source...
-                m_swordtaskresponse.JSON_OBJ_BGN(6, "");
-
-                // The vendor (if any) and the source...
-                if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(7, "vendor", ",", m_szVendor);
-                m_swordtaskresponse.JSON_STR_SET(7, "source", ",", m_szSource);
-                m_swordtaskresponse.JSON_STR_SET(7, "name", ",", m_szSourceName);
-
-                // Start of the pixelFormats array...
-                m_swordtaskresponse.JSON_ARR_BGN(7, "pixelFormats");
-
-                // List our pixelFormats...
-                for (swordpixelformat = GetFirstPixelFormat();
-                     swordpixelformat != null;
-                     swordpixelformat = swordpixelformat.GetNextPixelFormat())
-                {
-                    // List a pixelFormat...
-                    blSuccess = swordpixelformat.BuildTaskReply();
-                    if (!blSuccess)
-                    {
-                        break;
-                    }
-                }
-
-                // End of the pixelFormats array...
-                m_swordtaskresponse.JSON_ARR_END(7, "");
-
-                // End of the source...
-                m_swordtaskresponse.JSON_OBJ_END(6, ",");
-
-                // All done...
-                return (true);
-            }
-
-            /// <summary>
-            /// Return the automatic sense medium setting...
-            /// </summary>
-            /// <returns>the TWAIN command or an empty string</returns>
-            public string GetAutomaticSenseMedium()
-            {
-                // We don't support CAP_AUTOMATICSENSEMEDIUM, reporting
-                // an empty string will cause other parts of the code to
-                // skip this capability...
-                if (!m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetAutomaticSenseMedium())
-                {
-                    return ("");
-                }
-
-                // We support it, so return whatever we have...
-                return (m_szAutomaticSenseMedium);
-            }
-
-            /// <summary>
-            /// Return the camera side setting...
-            /// </summary>
-            /// <returns>the TWAIN command or an empty string</returns>
-            public string GetCameraSide()
-            {
-                // We don't support CAP_CAMERASIDES, reporting an empty
-                // string will cause other parts of the code to skip
-                // this capability...
-                if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetCameraSides() == "[]")
-                {
-                    return ("");
-                }
-
-                // We support it, so return whatever we have...
-                return (m_szCameraSide);
-            }
-
-            /// <summary>
-            /// Return the feeder enabled setting...
-            /// </summary>
-            /// <returns>the TWAIN command or an empty string</returns>
-            public string GetFeederEnabled()
-            {
-                // We don't support CAP_FEEDERENABLED, reporting an empty
-                // string will cause other parts of the code to skip
-                // this capability, (we need to see both a feeder and a
-                // flatbed to treat this capability as supported)...
-                if (    !m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetFeederDetected()
-                    ||  !m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetFlatbedDetected())
-                {
-                    return ("");
-                }
-
-                // We support it, so return whatever we have...
-                return (m_szFeederEnabled);
-            }
-
-            /// <summary>
-            /// Return the JSON key...
-            /// </summary>
-            /// <returns>the JSON key</returns>
-            public string GetJsonKey()
-            {
-                return (m_szJsonKey);
-            }
-
-            /// <summary>
-            /// Return the name of the source...
-            /// </summary>
-            /// <returns>the name</returns>
-            public string GetName()
-            {
-                return (m_szSourceName);
-            }
-
-            /// <summary>
-            /// Get the next source...
-            /// </summary>
-            /// <returns>the next source or null</returns>
-            public SwordSource GetNextSource()
-            {
-                return (m_swordsourceNext);
-            }
-
-            /// <summary>
-            /// Get the first pixelformat for this source...
-            /// </summary>
-            /// <returns>the head of the list or null</returns>
-            public SwordPixelFormat GetFirstPixelFormat()
-            {
-                return (m_swordpixelformat);
-            }
-
-            /// <summary>
-            /// Get the exception for this source...
-            /// </summary>
-            /// <returns>the exception</returns>
-            public string GetException()
-            {
-                return (m_szException);
-            }
-
-            /// <summary>
-            /// Get the source for this source...
-            /// </summary>
-            /// <returns>the source</returns>
-            public string GetSource()
-            {
-                return (m_szSource);
-            }
-
-            /// <summary>
-            /// Get the status for this source...
-            /// </summary>
-            /// <returns></returns>
-            public SwordStatus GetSwordStatus()
-            {
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Get the vendor for this source...
-            /// </summary>
-            /// <returns>the vendor, if any</returns>
-            public string GetVendor()
-            {
-                return (m_szVendor);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		We don't know our pixelformat at the source, so we use the default
-            //		imageformat as a place holder...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus Process()
-            {
-                bool blForceAny = false;
-                string szStatus;
-                string szCapability;
-                SwordStatus swordstatus;
-                SwordPixelFormat swordpixelformat;
-
-                // *************************************************************************
-                // Note that our addressing variables were all initialized to their default
-                // values when this object was made, which is why you don't see them being
-                // set inside of this function...
-                // *************************************************************************
-
-                // Let's start by assuming that we'll be okay, and we'll adjust as needed...
-                m_swordstatus = SwordStatus.Run;
-
-                // Make sure we recognize the source...
-                switch (m_szSource)
-                {
-                    // So much for that idea...
-                    default:
-                        // Apply our exceptions...
-                        switch (m_szException)
-                        {
-                            default:
-                            case "ignore":
-                                // Keep going...
                                 break;
-                            case "nextAction":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextAction;
-                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".source", "invalidValue", -1);
-                                return (m_swordstatus);
-                            case "nextStream":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextStream;
-                                return (m_swordstatus);
-                            case "fail":
-                                // Whoops, time to empty the pool...
-                                m_swordstatus = SwordStatus.Fail;
-                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
-                                return (m_swordstatus);
+                            }
                         }
-                        break;
 
-                    // We're good, keep going...
-                    case "any":
-                    case "feeder":
-                    case "feederFront":
-                    case "feederRear":
-                    case "flatbed":
-                        break;
-                }
+                        // End of the streams array...
+                        m_swordtaskresponse.JSON_ARR_END(3, "");
 
-                // Make sure we have a name...
-                if (string.IsNullOrEmpty(m_szSourceName))
-                {
-                    int szIndex;
-                    szIndex = m_szJsonKey.LastIndexOf("[");
-                    if (szIndex != -1)
-                    {
-                        m_szSourceName = "source" + m_szJsonKey.Substring(szIndex + 1);
-                        szIndex = m_szSourceName.LastIndexOf("]");
-                        if (szIndex != -1)
-                        {
-                            m_szSourceName = m_szSourceName.Remove(szIndex);
-                        }
-                    }
-                }
-
-                // We're a standard TWAIN Direct property, as described in the
-                // TWAIN Direct Specification...
-                #region TWAIN Direct
-
-                if (m_vendorowner == VendorOwner.TwainDirect)
-                {
-                    // ANY: use the default for this scanner, we also come here if
-                    // not given a source value...
-                    if (    string.IsNullOrEmpty(m_szSource)
-                        ||  (m_szSource == "any"))
-                    {
-                        blForceAny = true;
-                        m_szAutomaticSenseMedium = "CAP_AUTOMATICSENSEMEDIUM,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                        m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                        m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCS_BOTH
+                        // We need a command...
+                        szAddComma = ",";
                     }
 
-                    // FEEDER/FEEDERFRONT/FEEDERREAR: but don't lose the default elevator value...
-                    else if (   (m_szSource == "feeder")
-                             || (m_szSource == "feederFront")
-                             || (m_szSource == "feederRear"))
+                    // Only do this bit for the encryptionProfiles...
+                    else if (m_szAction == "encryptionProfiles")
                     {
-                        // Address the feeder...
-                        m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1";
-
-                        // Feeder front and rear...
-                        if (m_szSource == "feeder")
-                        {
-                            m_szDuplexEnabled = "CAP_DUPLEXENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                            m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCS_BOTH
-                        }
-
-                        // Feeder front...
-                        else if (m_szSource == "feederFront")
-                        {
-                            m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                            m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,1"; // TWCS_TOP
-                        }
-
-                        // Feeder rear...
-                        else if (m_szSource == "feederRear")
-                        {
-                            m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                            m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,2"; // TWCS_BOTTOM
-                        }
+                        // No action needed at this time...
                     }
 
-                    // FLATBED: ask for the flatbed...
-                    // TBD, gotta have a way to tell the standard TWAIN Direct
-                    // flatbed value from the Vendor specific flatbed, so we
-                    // can report it back properly...
-                    else if (m_szSource == "flatbed")
+                    // Only do this bit for the encryptionReport...
+                    else if (m_szAction == "encryptionReport")
                     {
-                        m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,0";
+                        // I don't think we get into here, but it's important
+                        // to account for all the commands...
                     }
 
-                    // We don't recognize this item in any way shape or form, so
-                    // use the default, but report our failure...
+                    // Handle anything we don't recognize, note that we already
+                    // have the trailing comma from the results object, so we
+                    // don't need to add another...
                     else
                     {
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        blForceAny = true;
-                        m_szAutomaticSenseMedium = "CAP_AUTOMATICSENSEMEDIUM,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                        m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                        m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCS_BOTH
-                        goto ABORT;
+                        // No action needed at this time...
                     }
-                }
 
-                #endregion
+                    // End of the action...
+                    m_swordtaskresponse.JSON_OBJ_END(2, szAddComma);
 
+                    // Add this action's response to the one for the task...
+                    swordtaskresponse.AppendTaskResponse
+                    (
+                        (a_blFirstAction ? "" : ",") +
+                        m_swordtaskresponse.GetTaskResponse()
+                    );
 
-                // Negotiate the source...
-                #region Negotiate the source...
-
-                // Feeder enabled...
-                if (!string.IsNullOrEmpty(m_szSource) && (m_szSource != "any"))
-                {
-                    szStatus = "";
-                    szCapability = m_szFeederEnabled;
-                    m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                }
-
-                // Duplex enabled...
-                if (!string.IsNullOrEmpty(m_szDuplexEnabled))
-                {
-                    szStatus = "";
-                    szCapability = m_szDuplexEnabled;
-                    m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                }
-
-                #endregion
-
-
-                // Handle problems...
-                #region Handle problems
-
-                // Decide if we need to bail...
-                ABORT:
-
-                // Only if not successful...
-                if (m_swordstatus != SwordStatus.Run)
-                {
-                    // Apply our exceptions...
-                    switch (m_szException)
-                    {
-                        default:
-                            m_swordstatus = SwordStatus.SuccessIgnore;
-                            return (m_swordstatus);
-                        case "nextAction":
-                            m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".source", "invalidValue", -1);
-                            m_swordstatus = SwordStatus.NextAction;
-                            return (m_swordstatus);
-                        case "nextStream":
-                            m_swordstatus = SwordStatus.NextStream;
-                            return (m_swordstatus);
-                        case "fail":
-                            m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
-                            m_swordstatus = SwordStatus.Fail;
-                            return (m_swordstatus);
-                    }
-                }
-
-                // Force the name to "any", we do this down here so
-                // that we don't interfere with the original name if
-                // have to error out, and so that we know we'll have
-                // a meaningful value...
-                if (blForceAny)
-                {
-                    m_szSource = "any";
-                }
-
-                #endregion
-
-
-                // Process all of the pixelformats that we detect...
-                #region Process pixelFormats
-
-                // Invoke the process function for each of our pixelformats...
-                for (swordpixelformat = m_swordpixelformat;
-                     swordpixelformat != null;
-                     swordpixelformat = swordpixelformat.GetNextPixelFormat())
-                {
-                    // Process this pixelformat (and all of its contents)...
-                    swordstatus = swordpixelformat.Process(m_szException, m_szAutomaticSenseMedium, m_szCameraSide, m_szDuplexEnabled, m_szFeederEnabled);
-
-                    // Check the result, we only continue on success and successignore,
-                    // anything else kicks us out...
-                    if (    (swordstatus != SwordStatus.Run)
-                        &&  (swordstatus != SwordStatus.Success)
-                        &&  (swordstatus != SwordStatus.SuccessIgnore))
-                    {
-                        m_swordstatus = swordstatus;
-                        return (m_swordstatus);
-                    }
-                }
-
-                #endregion
-
-
-                // Return with whatever we currently have for a status...
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Set a task error...
-            /// </summary>
-            /// <param name="a_szException">the exception  we're processing</param>
-            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
-            /// <param name="a_szCode">the error code</param>
-            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
-            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
-            public void SetError
-            (
-                string a_szException,
-                string a_szJsonExceptionKey,
-                string a_szCode,
-                long a_lJsonErrorIndex
-            )
-            {
-                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
-            }
-
-            /// <summary>
-            /// Set the exception for this source...
-            /// </summary>
-            /// <param name="a_szException"></param>
-            public void SetException(string a_szException)
-            {
-                m_szException = a_szException;
-            }
-
-            /// <summary>
-            /// Set the status for this source...
-            /// </summary>
-            /// <param name="a_eswordstatus"></param>
-            public void SetSwordStatus(SwordStatus a_swordstatus)
-            {
-                m_swordstatus = a_swordstatus;
-            }
-
-            /// <summary>
-            /// Next one in the list, note if we're the head...
-            /// </summary>
-            private SwordSource m_swordsourceNext;
-
-            /// <summary>
-            /// Our main object...
-            /// </summary>
-            private ProcessSwordTask m_processswordtask;
-
-            /// <summary>
-            /// Our response...
-            /// </summary>
-            private SwordTaskResponse m_swordtaskresponse;
-
-            /// <summary>
-            /// Who owns us?
-            /// </summary>
-            private VendorOwner m_vendorowner;
-
-            /// <summary>
-            /// The status of the item...
-            /// </summary>
-            private SwordStatus m_swordstatus;
-
-            /// <summary>
-            /// The name of the source...
-            /// </summary>
-            private string m_szSourceName;
-
-            /// <summary>
-            /// The index of this item in the JSON string...
-            /// </summary>
-            private string m_szJsonKey;
-
-            /// <summary>
-            /// The default exception for all items in this source...
-            /// </summary>
-            private string m_szException;
-
-            /// <summary>
-            /// Vendor UUID...
-            /// </summary>
-            private string m_szVendor;
-
-            /// <summary>
-            /// Source of images (ex: any, feederduplex, feederfront, flatbed, etc)...
-            /// </summary>
-            private string m_szSource;
-
-            /// <summary>
-            // The format list contains one or more formats.  This may
-            // correspond to physical capture elements, but more usually
-            // are capture settings on a source.  If multiple formats
-            // appear in the same source it's an "OR" operation.  The
-            // best fit is selected.  This is how the imageformat can be
-            // automatically detected.
-            /// </summary>
-            private SwordPixelFormat m_swordpixelformat;
-
-            // Our address...
-            private string m_szAutomaticSenseMedium;
-            private string m_szCameraSide;
-            private string m_szDuplexEnabled;
-            private string m_szFeederEnabled;
-        }
-
-        /// <summary>
-        ///	A list of zero or more pixelFormats for a source, more than one signals
-        ///	the desire to automatically select the pixelFormat that best represents
-        ///	the contents of a side of a sheet of paper (color vs bitonal).  We store
-        ///	our database items at this level, along with information about the
-        ///	papersource / camera / imageformat...
-        /// </summary>
-        sealed class SwordPixelFormat
-        {
-
-            /// <summary>
-            /// Constructor...
-            /// </summary>
-            /// <param name="a_swordtaskresponse">our response</param>
-            /// <param name="a_swordpixelformatHead">the first pixelFormat</param>
-            /// <param name="a_szJsonKey">actions[].streams[].sources[].pixelFormats[]</param>
-            /// <param name="a_szPixelFormat">the pixelFormat</param>
-            /// <param name="a_szException">the exception</param>
-            /// <param name="a_szVendor">the vendor, if any</param>
-            public SwordPixelFormat
-            (
-                ProcessSwordTask a_processswordtask,
-                SwordTaskResponse a_swordtaskresponse,
-                SwordPixelFormat a_swordpixelformatHead,
-                string a_szJsonKey,
-                string a_szPixelFormatName,
-                string a_szPixelFormat,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-                // If the vendor isn't us, then skip it, this isn't subject
-                // to exceptions, so we return here...
-                m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
-                if (m_vendorowner == VendorOwner.Unknown)
-                {
-                    m_swordstatus = SwordStatus.VendorMismatch;
-                    return;
-                }
-
-                // Init stuff...
-                m_processswordtask = a_processswordtask;
-                m_swordtaskresponse = a_swordtaskresponse;
-                m_swordstatus = SwordStatus.Success;
-                m_szJsonKey = a_szJsonKey;
-                m_szPixelFormatName = a_szPixelFormatName;
-                m_szPixelFormat = a_szPixelFormat;
-                m_szException = a_szException;
-                m_szVendor = a_szVendor;
-                m_capabilityCompression = null;
-                m_capabilityPixeltype = null;
-                m_capabilityResolution = null;
-                m_capabilityXfercount = null;
-                m_aswordattribute = null;
-
-                // Our addressing attributes...
-                m_swordattributeAutomaticsensemedium = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_AUTOMATICSENSEMEDIUM", a_szException, a_szVendor);
-                m_swordattributeFeederenabled = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_FEEDERENABLED", a_szException, a_szVendor);
-                m_swordattributeDuplexenabled = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_DUPLEXENABLED", a_szException, a_szVendor);
-                m_swordattributeCameraside = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_CAMERASIDE", a_szException, a_szVendor);
-                m_swordattributePixeltype = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "ICAP_PIXELTYPE", a_szException, a_szVendor);
-                if ((m_swordattributeAutomaticsensemedium == null)
-                    || (m_swordattributeFeederenabled == null)
-                    || (m_swordattributeDuplexenabled == null)
-                    || (m_swordattributeCameraside == null)
-                    || (m_swordattributePixeltype == null))
-                {
-                    m_swordstatus = SwordStatus.Fail;
-                    return;
-                }
-
-                // We're the head of the list...
-                if (a_swordpixelformatHead == null)
-                {
-                    // nothing needed...
-                }
-
-                // We're being appended to the list...
-                else
-                {
-                    SwordPixelFormat swordpixelformatParent;
-                    for (swordpixelformatParent = a_swordpixelformatHead; swordpixelformatParent.m_swordpixelformatNext != null; swordpixelformatParent = swordpixelformatParent.m_swordpixelformatNext) ;
-                    swordpixelformatParent.m_swordpixelformatNext = this;
-
-                }
-
-                // All done...
-                SetSwordStatus(SwordStatus.Success);
-                return;
-            }
-
-            /// <summary>
-            /// Add an attribute...
-            /// </summary>
-            /// <param name="a_szJsonKey"></param>
-            /// <param name="a_szAttribute"></param>
-            /// <param name="a_szException"></param>
-            /// <param name="a_szVendor"></param>
-            /// <returns></returns>
-            public SwordAttribute AddAttribute
-            (
-                string a_szJsonKey,
-                string a_szAttribute,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-                SwordAttribute swordattribute;
-
-                // Create an attribute object, note that we don't have a
-                // TWAIN name at this point...
-                swordattribute = new SwordAttribute(m_processswordtask, m_swordtaskresponse, m_swordattribute, a_szJsonKey, a_szAttribute, "", a_szException, a_szVendor);
-                if (swordattribute == null)
-                {
-                    return (null);
-                }
-
-                // We're not supported...
-                if (swordattribute.GetSwordStatus() == SwordStatus.VendorMismatch)
-                {
-                    swordattribute = null;
-                    return (null);
-                }
-
-                // If this is the first time, store it at the head of
-                // the list.  Note that we keep the list so that we
-                // have a record of all of the attributes we encounter,
-                // while the array only has the attributes that we will
-                // send to the scanner...
-                if (m_swordattribute == null)
-                {
-                    m_swordattribute = swordattribute;
-                }
-
-                // Any status other than success stops us here...
-                if (swordattribute.GetSwordStatus() != SwordStatus.Success)
-                {
-                    return (swordattribute);
-                }
-
-                // All done...
-                return (swordattribute);
-            }
-
-            /// <summary>
-            /// Build the task reply...
-            /// </summary>
-            /// <returns></returns>
-            public bool BuildTaskReply()
-            {
-                bool blSuccess;
-                SwordAttribute swordattribute;
-
-                // Only report on success...
-                if (m_swordstatus != SwordStatus.Success)
-                {
+                    // All done...
                     return (true);
                 }
 
-                // Start of the pixelFormat...
-                m_swordtaskresponse.JSON_OBJ_BGN(8, "");
-
-                // The vendor (if any) and the pixelFormat...
-                if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(9, "vendor", ",", m_szVendor);
-                m_swordtaskresponse.JSON_STR_SET(9, "pixelFormat", ",", m_szPixelFormat);
-                m_swordtaskresponse.JSON_STR_SET(9, "name", ",", m_szPixelFormatName);
-
-                // Start of the attributes array...
-                m_swordtaskresponse.JSON_ARR_BGN(9, "attributes");
-
-                // List our attributes...
-                for (swordattribute = GetFirstAttribute();
-                     swordattribute != null;
-                     swordattribute = swordattribute.GetNextAttribute())
+                /// <summary>
+                /// Get action for this action...
+                /// </summary>
+                /// <returns>the action</returns>
+                public string GetAction()
                 {
-                    // List an attribute...
-                    blSuccess = swordattribute.BuildTaskReply();
-                    if (!blSuccess)
-                    {
-                        break;
-                    }
+                    return (m_szAction);
                 }
 
-                // End of the attributes array...
-                m_swordtaskresponse.JSON_ARR_END(9, "");
-
-                // End of the source...
-                m_swordtaskresponse.JSON_OBJ_END(8, ",");
-
-                // All done...
-                return (true);
-            }
-
-            /// <summary>
-            /// Get the name for this pixelFormat...
-            /// </summary>
-            /// <returns>the name</returns>
-            public string GetName()
-            {
-                return (m_szPixelFormatName);
-            }
-
-            /// <summary>
-            /// Get the next pixelformat for this source...
-            /// </summary>
-            /// <returns></returns>
-            public SwordPixelFormat GetNextPixelFormat()
-            {
-                return (m_swordpixelformatNext);
-            }
-
-            /// <summary>
-            /// Get the first attribute for this pixelformat...
-            /// </summary>
-            /// <returns></returns>
-            public SwordAttribute GetFirstAttribute()
-            {
-                return (m_swordattribute);
-            }
-
-            /// <summary>
-            /// Get the attribute object...
-            /// </summary>
-            /// <param name="a_edbid"></param>
-            /// <param name=""></param>
-            /// <param name="a_blForceArray"></param>
-            /// <returns></returns>
-            public SwordAttribute GetAttribute
-            (
-                string a_szCapability,
-                bool a_blForceArray
-            )
-            {
-                long ii;
-                long cc;
-
-                // Look for special items (if allowed)...
-                if (!a_blForceArray)
+                /// <summary>
+                /// Get the exception for this action...
+                /// </summary>
+                /// <returns>the exception</returns>
+                public string GetException()
                 {
-                    switch (a_szCapability)
-                    {
-                        default: break;
-                        case "CAP_AUTOMATICSENSEMEDIUM": return (m_swordattributeAutomaticsensemedium);
-                        case "CAP_FEEDERENABLED": return (m_swordattributeFeederenabled);
-                        case "CAP_DUPLEXENABLED": return (m_swordattributeDuplexenabled);
-                        case "CAP_CAMERASIDE": return (m_swordattributeCameraside);
-                        case "ICAP_PIXELTYPE": return (m_swordattributePixeltype);
-                    }
+                    return (m_szException);
                 }
 
-                // We don't have a value...
-                if ((m_aswordattribute == null) || (m_aswordattribute.Length == 0))
+                /// <summary>
+                /// Get the first stream for this action...
+                /// </summary>
+                /// <returns>the head of the streams or null</returns>
+                public SwordStream GetFirstStream()
                 {
-                    return (null);
+                    return (m_swordstream);
                 }
 
-                // Return it from the array, bearing in mind that each capability can
-                // try to set more than one thing...
-                for (ii = 0; ii < m_aswordattribute.Length; ii++)
+                /// <summary>
+                /// Get the first encryptionProfile for this action...
+                /// </summary>
+                /// <returns>the head of the encryptionProfiles or null</returns>
+                public SwordEncryptionProfile GetFirstEncryptionProfile()
                 {
-                    string[] aszCapability = m_aswordattribute[ii].GetCapability();
-                    if ((aszCapability != null) && (aszCapability.Length > 0))
+                    return (m_swordencryptionprofile);
+                }
+
+                /// <summary>
+                /// Get the JSON key for this action...
+                /// </summary>
+                /// <returns>the json key for this action</returns>
+                public string GetJsonKey()
+                {
+                    return (m_szJsonKey);
+                }
+
+                /// <summary>
+                /// Get the next action...
+                /// </summary>
+                /// <returns>the next action or null</returns>
+                public SwordAction GetNextAction()
+                {
+                    return (m_swordactionNext);
+                }
+
+                /// <summary>
+                /// Get the process sword task object that's at
+                /// the root of all this fun...
+                /// </summary>
+                /// <returns>the object which has yummy data in it</returns>
+                public ProcessSwordTask GetProcessSwordTask()
+                {
+                    return (m_processswordtask);
+                }
+
+                /// <summary>
+                /// Get the status for this action...
+                /// </summary>
+                /// <returns>the status</returns>
+                public SwordStatus GetSwordStatus()
+                {
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Get the sword task response object...
+                /// </summary>
+                /// <returns>the object</returns>
+                public SwordTaskResponse GetSwordTaskResponse()
+                {
+                    return (m_swordtaskresponse);
+                }
+
+                /// <summary>
+                /// Get the vendor for this action...
+                /// </summary>
+                /// <returns>the vendor</returns>
+                public string GetVendor()
+                {
+                    return (m_szVendor);
+                }
+
+                /// <summary>
+                /// Process this action, this is where we examine what
+                /// we've deserialized, we're not running it yet...
+                /// </summary>
+                /// <returns>the status of the processing</returns>
+                public SwordStatus Process()
+                {
+                    SwordStatus swordstatus;
+                    SwordStream swordstream;
+                    SwordEncryptionProfile swordencryptionprofiles;
+
+                    // Assume success...
+                    m_swordstatus = SwordStatus.Run;
+
+                    // Switch
+                    switch (GetAction())
                     {
-                        for (cc = 0; cc < aszCapability.Length; cc++)
-                        {
-                            if (aszCapability[ii].StartsWith(a_szCapability + ","))
+                        // We have no idea what this is...
+                        default:
+                            // Apply our exceptions...
+                            switch (m_szException)
                             {
-                                return (m_aswordattribute[ii]);
+                                default:
+                                case "ignore":
+                                    // Keep going...
+                                    m_swordstatus = SwordStatus.SuccessIgnore;
+                                    break;
+                                case "nextAction":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextAction;
+                                    m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".action", "invalidValue", -1);
+                                    return (m_swordstatus);
+                                case "nextEncryptionProfile":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextEncryptionProfile;
+                                    return (m_swordstatus);
+                                case "nextStream":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextStream;
+                                    return (m_swordstatus);
+                                case "fail":
+                                    // Whoops, time to empty the pool...
+                                    m_swordstatus = SwordStatus.Fail;
+                                    m_swordtaskresponse.SetError("fail", m_szJsonKey + ".action", "invalidValue", -1);
+                                    return (m_swordstatus);
+                            }
+                            break;
+
+                        // Handle the configure action...
+                        case "configure":
+                            // Invoke the process function for each of our streams...
+                            for (swordstream = m_swordstream;
+                                 swordstream != null;
+                                 swordstream = swordstream.GetNextStream())
+                            {
+                                // Process this stream (and all of its contents)...
+                                swordstatus = swordstream.Process();
+
+                                // We've been asked to go to the next stream...
+                                if (swordstatus == SwordStatus.NextStream)
+                                {
+                                    continue;
+                                }
+
+                                // Check the result...
+                                if (    (swordstatus != SwordStatus.Run)
+                                    &&  (swordstatus != SwordStatus.Success)
+                                    &&  (swordstatus != SwordStatus.SuccessIgnore))
+                                {
+                                    m_swordstatus = swordstatus;
+                                    return (m_swordstatus);
+                                }
+                            }
+                            break;
+
+                        // Handle the encryptionProfiles action...
+                        case "encryptionProfiles":
+                            // Invoke the process function for each of our encryptionProfiles...
+                            for (swordencryptionprofiles = m_swordencryptionprofile;
+                                 swordencryptionprofiles != null;
+                                 swordencryptionprofiles = swordencryptionprofiles.GetNextEncryptionProfile())
+                            {
+                                // Process this stream (and all of its contents)...
+                                swordstatus = swordencryptionprofiles.Process();
+
+                                // We've been asked to go to the next stream...
+                                if (swordstatus == SwordStatus.NextEncryptionProfile)
+                                {
+                                    continue;
+                                }
+
+                                // Check the result...
+                                if (    (swordstatus != SwordStatus.Run)
+                                    &&  (swordstatus != SwordStatus.Success)
+                                    &&  (swordstatus != SwordStatus.SuccessIgnore))
+                                {
+                                    m_swordstatus = swordstatus;
+                                    return (m_swordstatus);
+                                }
+                            }
+                            break;
+
+                        // Handle the encryptionReport action...
+                        case "encryptionReport":
+                            // report back what we have, if anything...
+                            break;
+                    }
+
+                    // All done...
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Set a task error...
+                /// </summary>
+                /// <param name="a_szException">the exception  we're processing</param>
+                /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+                /// <param name="a_szCode">the error code</param>
+                /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+                /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
+                public void SetError
+                (
+                    string a_szException,
+                    string a_szJsonExceptionKey,
+                    string a_szCode,
+                    long a_lJsonErrorIndex
+                )
+                {
+                    m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+                }
+
+                /// <summary>
+                /// Set the exception for this action...
+                /// </summary>
+                /// <param name="a_szException"></param>
+                public void SetException(string a_szException)
+                {
+                    m_szException = a_szException;
+                }
+
+                /// <summary>
+                /// Set the status for this action...
+                /// </summary>
+                /// <param name="a_eswordstatus"></param>
+                public void SetSwordStatus(SwordStatus a_swordstatus)
+                {
+                    m_swordstatus = a_swordstatus;
+                }
+
+                /// <summary>
+                /// Next one in the list, note if we're the head...
+                /// </summary>
+                private SwordAction m_swordactionNext;
+
+                /// <summary>
+                /// Our main object...
+                /// </summary>
+                private ProcessSwordTask m_processswordtask;
+
+                /// <summary>
+                /// Our response...
+                /// </summary>
+                private SwordTaskResponse m_swordtaskresponse;
+
+                /// <summary>
+                /// Who owns us?
+                /// </summary>
+                private VendorOwner m_vendorowner;
+
+                /// <summary>
+                /// The status of the item...
+                /// </summary>
+                private SwordStatus m_swordstatus;
+
+                /// <summary>
+                /// The index of this item in the JSON string...
+                /// </summary>
+                private string m_szJsonKey;
+
+                /// <summary>
+                /// The exception for this action...
+                /// </summary>
+                private string m_szException;
+
+                /// <summary>
+                /// Vendor UUID...
+                /// </summary>
+                private string m_szVendor;
+
+                /// <summary>
+                /// The command identifier...
+                /// </summary>
+                private string m_szAction;
+
+                /// <summary>
+                /// The image streams...
+                /// </summary>
+                private SwordStream m_swordstream;
+
+                /// <summary>
+                /// The encryption profiles...
+                /// </summary>
+                private SwordEncryptionProfile m_swordencryptionprofile;
+            }
+
+            /// <summary>
+            /// Each stream contains a list of sources.  All of the sources are used to
+            /// capture image data.  This can result in some odd but perfectly acceptable
+            /// combinations: such as a feeder and a flatbed, in which case the session
+            /// would capture all of the data from the feeder, then an image from the
+            /// flatbed.
+            /// 
+            /// The more typical example would be a feeder or a flatbed, or separate
+            /// settings for the front and rear of a feeder.
+            /// </summary>
+            sealed class SwordStream
+            {
+                /// <summary>
+                /// Constructor...
+                /// </summary>
+                /// <param name="a_swordtaskresponse">object for the response</param>
+                /// <param name="a_swordstreamHead">head of the streams or null</param>
+                /// <param name="a_szJsonKey">actions[].streams[]</param>
+                /// <param name="a_szStream">name of the stream</param>
+                /// <param name="a_szException">exception for this stream</param>
+                /// <param name="a_szVendor">vendor id, if any</param>
+                public SwordStream
+                (
+                    ProcessSwordTask a_processsowrdtask,
+	                SwordTaskResponse a_swordtaskresponse,
+                    SwordStream a_swordstreamHead,
+	                string a_szJsonKey,
+                    string a_szStreamName,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+	                // If the vendor isn't us, then skip it, this isn't subject to exceptions,
+	                // so we return right away...
+	                m_vendorowner = a_processsowrdtask.GetVendorOwner(a_szVendor);
+	                if (m_vendorowner == VendorOwner.Unknown)
+	                {
+		                m_swordstatus = SwordStatus.VendorMismatch;
+		                return;
+	                }
+
+                    // Init stuff...
+                    m_processswordtask = a_processsowrdtask;
+                    m_swordtaskresponse = a_swordtaskresponse;
+	                m_swordstatus = SwordStatus.Success;
+                    m_szJsonKey = a_szJsonKey;
+                    m_szStreamName = a_szStreamName;
+                    m_szException = a_szException;
+                    m_szVendor = a_szVendor;
+
+                    // If we didn't get an exception, or if the exception is
+                    // the nextaction placeholder, then assign the nextstream
+                    // placeholder...
+                    if (string.IsNullOrEmpty(m_szException) || (m_szException == "@nextActionOrIgnore"))
+                    {
+                        m_szException = "@nextStreamOrIgnore";
+                    }
+
+	                // We're the head of the list...
+	                if (a_swordstreamHead == null)
+	                {
+                        // nothing needed...
+                    }
+
+                    // We're being appended to the list...
+                    else
+                    {
+		                SwordStream swordstreamParent;
+		                for (swordstreamParent = a_swordstreamHead; swordstreamParent.m_swordstreamNext != null; swordstreamParent = swordstreamParent.m_swordstreamNext) ;
+		                swordstreamParent.m_swordstreamNext = this;
+                    }
+                }
+
+                /// <summary>
+                /// Add a source to the stream...
+                /// </summary>
+                /// <param name="a_szJsonKey">actions[].streams[].source</param>
+                /// <param name="a_szSourceName">name for this source</param>
+                /// <param name="a_szSource">source we're adding</param>
+                /// <param name="a_szException">exception for this source</param>
+                /// <param name="a_szVendor">vendor id, if any</param>
+                /// <returns></returns>
+                public SwordSource AppendSource
+                (
+	                string a_szJsonKey,
+                    string a_szSourceName,
+                    string a_szSource,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+                    SwordSource swordsource;
+
+                    // Allocate and init our beastie...
+                    swordsource = new SwordSource(m_processswordtask, m_swordtaskresponse, m_swordsource, a_szJsonKey, a_szSourceName, a_szSource, a_szException, a_szVendor);
+                    if (swordsource == null)
+                    {
+                        return (null);
+                    }
+
+                    // We're not supported...
+                    if (swordsource.GetSwordStatus() == SwordStatus.VendorMismatch)
+                    {
+                        swordsource = null;
+                        return (null);
+                    }
+
+                    // Make us the head of the list...
+                    if (m_swordsource == null)
+                    {
+                        m_swordsource = swordsource;
+                    }
+
+                    // All done...
+                    return (swordsource);
+                }
+
+                /// <summary>
+                /// Build the task reply...
+                /// </summary>
+                /// <returns>true on success</returns>
+                public bool BuildTaskReply()
+                {
+                    bool blSuccess;
+                    SwordSource swordsource;
+
+                    // Only report on success...
+                    if (m_swordstatus != SwordStatus.Success)
+                    {
+                        return (true);
+                    }
+
+                    // Start of the stream...
+                    m_swordtaskresponse.JSON_OBJ_BGN(4, "");
+
+                    // The vendor (if any) and the stream's name...
+                    if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(5, "vendor", ",", m_szVendor);
+                    m_swordtaskresponse.JSON_STR_SET(5, "name", ",", m_szStreamName);
+
+                    // Start of the sources array...
+                    m_swordtaskresponse.JSON_ARR_BGN(5, "sources");
+
+                    // List our sources...
+                    for (swordsource = GetFirstSource();
+                         swordsource != null;
+                         swordsource = swordsource.GetNextSource())
+                    {
+                        // List a stream...
+                        blSuccess = swordsource.BuildTaskReply();
+                        if (!blSuccess)
+                        {
+                            break;
+                        }
+                    }
+
+                    // End of the sources array...
+                    m_swordtaskresponse.JSON_ARR_END(5, "");
+
+                    // End of the stream...
+                    m_swordtaskresponse.JSON_OBJ_END(4, ",");
+
+                    // All done...
+                    return (true);
+                }
+
+                /// <summary>
+                /// Get the name of the stream...
+                /// </summary>
+                /// <returns>the name</returns>
+                public string GetName()
+                {
+                    return (m_szStreamName);
+                }
+
+                /// <summary>
+                /// Get the next stream in the list...
+                /// </summary>
+                /// <returns>the next stream or null</returns>
+                public SwordStream GetNextStream()
+                {
+                    return (m_swordstreamNext);
+                }
+
+                /// <summary>
+                /// Get the first source in the stream...
+                /// </summary>
+                /// <returns>the first source or null</returns>
+                public SwordSource GetFirstSource()
+                {
+                    return (m_swordsource);
+                }
+
+                /// <summary>
+                /// Get the exception for this stream...
+                /// </summary>
+                /// <returns>th exception</returns>
+                public string GetException()
+                {
+                    return (m_szException);
+                }
+
+                /// <summary>
+                /// Get the status for this stream...
+                /// </summary>
+                /// <returns></returns>
+                public SwordStatus GetSwordStatus()
+                {
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Get the vendor for this stream...
+                /// </summary>
+                /// <returns></returns>
+                public string GetVendor()
+                {
+                    return (m_szVendor);
+                }
+
+                /// <summary>
+                /// Process this stream...
+                /// </summary>
+                /// <returns>the status of processing</returns>
+                public SwordStatus Process()
+                {
+                    SwordStatus swordstatus;
+                    SwordSource swordsource;
+
+                    // Assume success...
+                    m_swordstatus = SwordStatus.Run;
+
+                    // Make sure we have a name...
+                    if (string.IsNullOrEmpty(m_szStreamName))
+                    {
+                        int szIndex;
+                        szIndex = m_szJsonKey.LastIndexOf("[");
+                        if (szIndex != -1)
+                        {
+                            m_szStreamName = "stream" + m_szJsonKey.Substring(szIndex + 1);
+                            szIndex = m_szStreamName.LastIndexOf("]");
+                            if (szIndex != -1)
+                            {
+                                m_szStreamName = m_szStreamName.Remove(szIndex);
                             }
                         }
                     }
+
+                    // Invoke the process function for each of our sources...
+                    for (swordsource = m_swordsource;
+                         swordsource != null;
+                         swordsource = swordsource.GetNextSource())
+                    {
+                        // Process this source (and all of its contents)...
+                        swordstatus = swordsource.Process();
+
+                        // Check the result...
+                        if (    (swordstatus != SwordStatus.Run)
+                            &&  (swordstatus != SwordStatus.Success)
+                            &&  (swordstatus != SwordStatus.SuccessIgnore))
+                        {
+                            m_swordstatus = swordstatus;
+                            return (m_swordstatus);
+                        }
+                    }
+
+                    // All done...
+                    return (m_swordstatus);
                 }
 
-                // No joy...
-                return (null);
-            }
-
-            /// <summary>
-            /// TWAIN: get the compression...
-            /// </summary>
-            /// <returns>the object</returns>
-            public Capability GetCapabilityCompression()
-            {
-                return (m_capabilityCompression);
-            }
-
-            /// <summary>
-            /// TWAIN: get the pixeltype...
-            /// </summary>
-            /// <returns>the object</returns>
-            public Capability GetCapabilityPixeltype()
-            {
-                return (m_capabilityPixeltype);
-            }
-
-            /// <summary>
-            /// TWAIN: get the resolution...
-            /// </summary>
-            /// <returns>the object</returns>
-            public Capability GetCapabilityResolution()
-            {
-                return (m_capabilityResolution);
-            }
-
-            /// <summary>
-            /// TWAIN: get the xfercount...
-            /// </summary>
-            /// <returns>the object</returns>
-            public Capability GetCapabilityXfercount()
-            {
-                return (m_capabilityXfercount);
-            }
-
-            /// <summary>
-            /// Get the exception for this pixelformat...
-            /// </summary>
-            /// <returns>the exception</returns>
-            public string GetException()
-            {
-                return (m_szException);
-            }
-
-            /// <summary>
-            /// Get the pixelformat value for this pixelformat...
-            /// </summary>
-            /// <returns>the pixelFormat</returns>
-            public string GetPixelFormat()
-            {
-                return (m_szPixelFormat);
-            }
-
-            /// <summary>
-            ///	Process this pixelformat.  We sort out what the topology
-            ///	is, and then process all of the attributes...
-            /// </summary>
-            /// <param name="a_szSourceException"></param>
-            /// <param name="a_szAutomaticSenseMedium"></param>
-            /// <param name="a_szCameraSide"></param>
-            /// <param name="a_szDuplexEnabled"></param>
-            /// <param name="a_szFeederEnabled"></param>
-            /// <param name="a_szPixelType"></param>
-            /// <returns></returns>
-            public SwordStatus Process
-            (
-	            string a_szSourceException,
-                string a_szAutomaticSenseMedium,
-                string a_szCameraSide,
-                string a_szDuplexEnabled,
-                string a_szFeederEnabled
-            )
-            {
-                SwordStatus swordstatus;
-                SwordAttribute swordattribute;
-
-                // Assume success, unless told otherwise...
-                m_swordstatus = SwordStatus.Run;
-
-                // Make sure we have a name...
-                if (string.IsNullOrEmpty(m_szPixelFormatName))
+                /// <summary>
+                /// Set a task error...
+                /// </summary>
+                /// <param name="a_szException">the exception  we're processing</param>
+                /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+                /// <param name="a_szCode">the error code</param>
+                /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+                /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
+                public void SetError
+                (
+                    string a_szException,
+                    string a_szJsonExceptionKey,
+                    string a_szCode,
+                    long a_lJsonErrorIndex
+                )
                 {
-                    int szIndex;
-                    szIndex = m_szJsonKey.LastIndexOf("[");
-                    if (szIndex != -1)
+                    m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+                }
+
+                /// <summary>
+                /// Set the exception for this stream...
+                /// </summary>
+                /// <param name="a_szException"></param>
+                public void SetException(string a_szException)
+                {
+                    m_szException = a_szException;
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Set the status for this stream...
+                ////////////////////////////////////////////////////////////////////////////////
+                public void SetSwordStatus(SwordStatus a_swordstatus)
+                {
+                    m_swordstatus = a_swordstatus;
+                }
+
+                /// <summary>
+                /// Next one in the list, not if we're the head...
+                /// </summary>
+                private SwordStream m_swordstreamNext;
+
+                /// <summary>
+                /// Our main object...
+                /// </summary>
+                private ProcessSwordTask m_processswordtask;
+
+                /// <summary>
+                /// Our response...
+                /// </summary>
+                private SwordTaskResponse m_swordtaskresponse;
+
+                /// <summary>
+                /// Who owns us?
+                /// </summary>
+                private VendorOwner m_vendorowner;
+
+                /// <summary>
+                /// The status of the item...
+                /// </summary>
+                private SwordStatus m_swordstatus;
+
+                /// <summary>
+                /// The name of the stream...
+                /// </summary>
+                private string m_szStreamName;
+
+                /// <summary>
+                /// The index of this item in the JSON string...
+                /// </summary>
+                private string m_szJsonKey;
+
+                /// <summary>
+                /// The default exception for this stream...
+                /// </summary>
+                private string m_szException;
+
+                /// <summary>
+                /// Vendor UUID...
+                /// </summary>
+                private string m_szVendor;
+
+                /// <summary>
+                /// The image sources...
+                /// </summary>
+                private SwordSource m_swordsource;
+            }
+
+            /// <summary>
+            /// Each source corresponds to a physical element that captures image data,
+            /// like a front or rear camera on a feeder, or a flatbed.  If multiple
+            /// sources are included then multistream is being requested.
+            /// 
+            /// The use of the "any" source is a shorthand for a stream that asks for
+            /// images from every source the scanner has to offer.  It should only be
+            /// used in the simplest cases or as a exception if other sources have failed.
+            /// </summary>
+            sealed class SwordSource
+            {
+                /// <summary>
+                /// Constructor...
+                /// </summary>
+                /// <param name="a_swordtaskresponse">our response</param>
+                /// <param name="a_swordsourceHead">the first source</param>
+                /// <param name="a_szJsonKey">actions[].streams[].sources[]</param>
+                /// <param name="a_szSource">name of the source</param>
+                /// <param name="a_szException">exception for the source</param>
+                /// <param name="a_szVendor">vendor id, if any</param>
+                public SwordSource
+                (
+                    ProcessSwordTask a_processswordtask,
+                    SwordTaskResponse a_swordtaskresponse,
+                    SwordSource a_swordsourceHead,
+	                string a_szJsonKey,
+                    string a_szSourceName,
+                    string a_szSource,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+	                // If the vendor isn't us, then skip it, this isn't subject to exceptions,
+	                // so we return right away...
+	                m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
+	                if (m_vendorowner == VendorOwner.Unknown)
+	                {
+		                m_swordstatus = SwordStatus.VendorMismatch;
+		                return;
+	                }
+
+                    // Init stuff...
+                    m_processswordtask = a_processswordtask;
+                    m_swordtaskresponse = a_swordtaskresponse;
+	                m_swordstatus = SwordStatus.Success;
+                    m_szJsonKey = a_szJsonKey;
+                    m_szException = a_szException;
+                    m_szVendor = a_szVendor;
+                    m_szSourceName = a_szSourceName;
+                    m_szSource = a_szSource;
+                    m_szAutomaticSenseMedium = "";
+                    m_szCameraSide = "";
+                    m_szDuplexEnabled = "";
+                    m_szFeederEnabled = "";
+
+                    // We're the head of the list...
+                    if (a_swordsourceHead == null)
+	                {
+                        // nothing needed...
+                    }
+
+                    // We're being appended to the list...
+                    else
                     {
-                        m_szPixelFormatName = "pixelFormat" + m_szJsonKey.Substring(szIndex + 1);
-                        szIndex = m_szPixelFormatName.LastIndexOf("]");
-                        if (szIndex != -1)
-                        {
-                            m_szPixelFormatName = m_szPixelFormatName.Remove(szIndex);
-                        }
+		                SwordSource swordsourceParent;
+		                for (swordsourceParent = a_swordsourceHead; swordsourceParent.m_swordsourceNext != null; swordsourceParent = swordsourceParent.m_swordsourceNext) ;
+		                swordsourceParent.m_swordsourceNext = this;
+
                     }
                 }
 
-                // Make sure we recognize the pixelFormat...
-                switch (m_szPixelFormat)
+                /// <summary>
+                /// Add a pixelformat to this source...
+                /// </summary>
+                /// <param name="a_szJsonKey"></param>
+                /// <param name="a_szPixelFormatName"></param>
+                /// <param name="a_szPixelFormat"></param>
+                /// <param name="a_szException"></param>
+                /// <param name="a_szVendor"></param>
+                /// <returns>the new pixelFormat</returns>
+                public SwordPixelFormat AppendPixelFormat
+                (
+	                string a_szJsonKey,
+                    string a_szPixelFormatName,
+                    string a_szPixelFormat,
+                    string a_szException,
+                    string a_szVendor
+                )
                 {
-                    // So much for that idea...
-                    default:
-                        // Apply our exceptions...
-                        switch (m_szException)
-                        {
-                            default:
-                            case "ignore":
-                                // Keep going...
-                                break;
-                            case "nextAction":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextAction;
-                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
-                                return (m_swordstatus);
-                            case "nextStream":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextStream;
-                                return (m_swordstatus);
-                            case "fail":
-                                // Whoops, time to empty the pool...
-                                m_swordstatus = SwordStatus.Fail;
-                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
-                                return (m_swordstatus);
-                        }
-                        break;
+                    SwordPixelFormat swordpixelformat;
 
-                    // We're good, keep going...
-                    case "any":
-                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,*", a_szSourceException, m_szVendor);
-                        break;
-
-                    case "bw1":
-                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,0", a_szSourceException, m_szVendor);
-                        break;
-
-                    case "gray8":
-                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,1", a_szSourceException, m_szVendor);
-                        break;
-
-                    case "rgb24":
-                        m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2", a_szSourceException, m_szVendor);
-                        break;
-                }
-
-
-                // Take care of our topology issue...
-                #region Topology
-
-                // CAP_AUTOMATICSENSEMEDIUM...
-                if (string.IsNullOrEmpty(a_szAutomaticSenseMedium))
-                {
-                    m_swordattributeAutomaticsensemedium.AppendValue(m_szJsonKey, "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
-                }
-                else
-                {
-                    m_swordattributeAutomaticsensemedium.AppendValue(m_szJsonKey, a_szAutomaticSenseMedium, a_szSourceException, m_szVendor);
-                }
-
-                // CAP_CAMERASIDE...
-                if (string.IsNullOrEmpty(a_szCameraSide) || (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetCameraSides() == "[]"))
-                {
-                    m_swordattributeCameraside.AppendValue(m_szJsonKey, "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
-                }
-                else
-                {
-                    m_swordattributeCameraside.AppendValue(m_szJsonKey, a_szCameraSide, a_szSourceException, m_szVendor);
-                }
-
-                // CAP_DUPLEXENABLED...
-                if (string.IsNullOrEmpty(a_szDuplexEnabled))
-                {
-                    m_swordattributeDuplexenabled.AppendValue(m_szJsonKey, "CAP_DUPLEXENABLED,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
-                }
-                else
-                {
-                    m_swordattributeDuplexenabled.AppendValue(m_szJsonKey, a_szDuplexEnabled, a_szSourceException, m_szVendor);
-                }
-
-                // CAP_FEEDERENABLED...
-                if (string.IsNullOrEmpty(a_szFeederEnabled))
-                {
-                    m_swordattributeFeederenabled.AppendValue(m_szJsonKey, "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
-                }
-                else
-                {
-                    m_swordattributeFeederenabled.AppendValue(m_szJsonKey, a_szFeederEnabled, a_szSourceException, m_szVendor);
-                }
-
-                #endregion
-
-
-                // Handle problems...
-                #region Handle problems
-
-                // Only if not successful...
-                if (m_swordstatus != SwordStatus.Run)
-                {
-                    // Apply our exceptions...
-                    switch (m_szException)
+                    // Allocate and init it...
+                    swordpixelformat = new SwordPixelFormat(m_processswordtask, m_swordtaskresponse, m_swordpixelformat, a_szJsonKey, a_szPixelFormatName, a_szPixelFormat, a_szException, a_szVendor);
+                    if (swordpixelformat == null)
                     {
-                        default:
-                            m_swordstatus = SwordStatus.SuccessIgnore;
-                            return (m_swordstatus);
-                        case "nextAction":
-                            m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
-                            m_swordstatus = SwordStatus.NextAction;
-                            return (m_swordstatus);
-                        case "nextStream":
-                            m_swordstatus = SwordStatus.NextStream;
-                            return (m_swordstatus);
-                        case "fail":
-                            m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
-                            m_swordstatus = SwordStatus.Fail;
-                            return (m_swordstatus);
+                        return (null);
                     }
+
+                    // This is unsupported...
+                    if (swordpixelformat.GetSwordStatus() == SwordStatus.VendorMismatch)
+                    {
+                        swordpixelformat = null;
+                        return (null);
+                    }
+
+                    // Make us the head of the list...
+                    if (m_swordpixelformat == null)
+                    {
+                        m_swordpixelformat = swordpixelformat;
+                    }
+
+                    // All done...
+                    return (swordpixelformat);
                 }
 
-                #endregion
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Build the task reply...
+                ////////////////////////////////////////////////////////////////////////////////
+                public bool BuildTaskReply()
+                {
+                    bool blSuccess;
+                    SwordPixelFormat swordpixelformat;
 
+                    // Only report on success...
+                    if (m_swordstatus != SwordStatus.Success)
+                    {
+                        return (true);
+                    }
 
-                // Process attributes...
-                #region Process attributes
+                    // Start of the source...
+                    m_swordtaskresponse.JSON_OBJ_BGN(6, "");
 
-                // Process the addressing attributes...
-                m_swordstatus = m_swordattributeFeederenabled.Process(null);
-                if (    (m_swordstatus != SwordStatus.Run)
-                    &&  (m_swordstatus != SwordStatus.Success)
-                    &&  (m_swordstatus != SwordStatus.SuccessIgnore))
+                    // The vendor (if any) and the source...
+                    if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(7, "vendor", ",", m_szVendor);
+                    m_swordtaskresponse.JSON_STR_SET(7, "source", ",", m_szSource);
+                    m_swordtaskresponse.JSON_STR_SET(7, "name", ",", m_szSourceName);
+
+                    // Start of the pixelFormats array...
+                    m_swordtaskresponse.JSON_ARR_BGN(7, "pixelFormats");
+
+                    // List our pixelFormats...
+                    for (swordpixelformat = GetFirstPixelFormat();
+                         swordpixelformat != null;
+                         swordpixelformat = swordpixelformat.GetNextPixelFormat())
+                    {
+                        // List a pixelFormat...
+                        blSuccess = swordpixelformat.BuildTaskReply();
+                        if (!blSuccess)
+                        {
+                            break;
+                        }
+                    }
+
+                    // End of the pixelFormats array...
+                    m_swordtaskresponse.JSON_ARR_END(7, "");
+
+                    // End of the source...
+                    m_swordtaskresponse.JSON_OBJ_END(6, ",");
+
+                    // All done...
+                    return (true);
+                }
+
+                /// <summary>
+                /// Return the automatic sense medium setting...
+                /// </summary>
+                /// <returns>the TWAIN command or an empty string</returns>
+                public string GetAutomaticSenseMedium()
+                {
+                    // We don't support CAP_AUTOMATICSENSEMEDIUM, reporting
+                    // an empty string will cause other parts of the code to
+                    // skip this capability...
+                    if (!m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetAutomaticSenseMedium())
+                    {
+                        return ("");
+                    }
+
+                    // We support it, so return whatever we have...
+                    return (m_szAutomaticSenseMedium);
+                }
+
+                /// <summary>
+                /// Return the camera side setting...
+                /// </summary>
+                /// <returns>the TWAIN command or an empty string</returns>
+                public string GetCameraSide()
+                {
+                    // We don't support CAP_CAMERASIDES, reporting an empty
+                    // string will cause other parts of the code to skip
+                    // this capability...
+                    if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetCameraSides() == "[]")
+                    {
+                        return ("");
+                    }
+
+                    // We support it, so return whatever we have...
+                    return (m_szCameraSide);
+                }
+
+                /// <summary>
+                /// Return the feeder enabled setting...
+                /// </summary>
+                /// <returns>the TWAIN command or an empty string</returns>
+                public string GetFeederEnabled()
+                {
+                    // We don't support CAP_FEEDERENABLED, reporting an empty
+                    // string will cause other parts of the code to skip
+                    // this capability, (we need to see both a feeder and a
+                    // flatbed to treat this capability as supported)...
+                    if (    !m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetFeederDetected()
+                        ||  !m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetFlatbedDetected())
+                    {
+                        return ("");
+                    }
+
+                    // We support it, so return whatever we have...
+                    return (m_szFeederEnabled);
+                }
+
+                /// <summary>
+                /// Return the JSON key...
+                /// </summary>
+                /// <returns>the JSON key</returns>
+                public string GetJsonKey()
+                {
+                    return (m_szJsonKey);
+                }
+
+                /// <summary>
+                /// Return the name of the source...
+                /// </summary>
+                /// <returns>the name</returns>
+                public string GetName()
+                {
+                    return (m_szSourceName);
+                }
+
+                /// <summary>
+                /// Get the next source...
+                /// </summary>
+                /// <returns>the next source or null</returns>
+                public SwordSource GetNextSource()
+                {
+                    return (m_swordsourceNext);
+                }
+
+                /// <summary>
+                /// Get the first pixelformat for this source...
+                /// </summary>
+                /// <returns>the head of the list or null</returns>
+                public SwordPixelFormat GetFirstPixelFormat()
+                {
+                    return (m_swordpixelformat);
+                }
+
+                /// <summary>
+                /// Get the exception for this source...
+                /// </summary>
+                /// <returns>the exception</returns>
+                public string GetException()
+                {
+                    return (m_szException);
+                }
+
+                /// <summary>
+                /// Get the source for this source...
+                /// </summary>
+                /// <returns>the source</returns>
+                public string GetSource()
+                {
+                    return (m_szSource);
+                }
+
+                /// <summary>
+                /// Get the status for this source...
+                /// </summary>
+                /// <returns></returns>
+                public SwordStatus GetSwordStatus()
                 {
                     return (m_swordstatus);
                 }
-                m_swordstatus = m_swordattributeCameraside.Process(null);
-                if (    (m_swordstatus != SwordStatus.Run)
-                    &&  (m_swordstatus != SwordStatus.Success)
-                    &&  (m_swordstatus != SwordStatus.SuccessIgnore))
+
+                /// <summary>
+                /// Get the vendor for this source...
+                /// </summary>
+                /// <returns>the vendor, if any</returns>
+                public string GetVendor()
                 {
-                    return (m_swordstatus);
-                }
-                m_swordstatus = m_swordattributePixeltype.Process(null);
-                if (    (m_swordstatus != SwordStatus.Run)
-                    &&  (m_swordstatus != SwordStatus.Success)
-                    &&  (m_swordstatus != SwordStatus.SuccessIgnore))
-                {
-                    return (m_swordstatus);
+                    return (m_szVendor);
                 }
 
-                // If we don't have a value, then get what we currently have...
-                string szPixeltype;
-                if (m_swordattributePixeltype.GetFirstValue() != null)
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		We don't know our pixelformat at the source, so we use the default
+                //		imageformat as a place holder...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus Process()
                 {
-                    szPixeltype = m_swordattributePixeltype.GetFirstValue().GetValue();
-                }
-                else
-                {
+                    bool blForceAny = false;
                     string szStatus;
-                    szStatus = "";
-                    szPixeltype = "ICAP_PIXELTYPE";
-                    m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szPixeltype, ref szStatus);
-                }
+                    string szCapability;
+                    SwordStatus swordstatus;
+                    SwordPixelFormat swordpixelformat;
 
-                // Invoke the process function for each of our attributes...
-                for (swordattribute = m_swordattribute;
-                     swordattribute != null;
-                     swordattribute = swordattribute.GetNextAttribute())
-                {
-                    // Process this attribute (and all of its contents)...
-                    swordstatus = swordattribute.Process(szPixeltype);
+                    // *************************************************************************
+                    // Note that our addressing variables were all initialized to their default
+                    // values when this object was made, which is why you don't see them being
+                    // set inside of this function...
+                    // *************************************************************************
 
-                    // Check the result...
-                    if (    (swordstatus != SwordStatus.Run)
-                        &&  (swordstatus != SwordStatus.Success)
-                        &&  (swordstatus != SwordStatus.SuccessIgnore))
+                    // Let's start by assuming that we'll be okay, and we'll adjust as needed...
+                    m_swordstatus = SwordStatus.Run;
+
+                    // Make sure we recognize the source...
+                    switch (m_szSource)
                     {
-                        m_swordstatus = swordstatus;
-                        return (m_swordstatus);
-                    }
-                }
-
-                #endregion
-
-
-                // Return with whatever we currently have for a status...
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Set a task error...
-            /// </summary>
-            /// <param name="a_szException">the exception  we're processing</param>
-            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
-            /// <param name="a_szCode">the error code</param>
-            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
-            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
-            public void SetError
-            (
-                string a_szException,
-                string a_szJsonExceptionKey,
-                string a_szCode,
-                long a_lJsonErrorIndex
-            )
-            {
-                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
-            }
-
-            /// <summary>
-            /// Set the exception for this pixelformat...
-            /// </summary>
-            /// <param name="a_szException"></param>
-            public void SetException(string a_szException)
-            {
-                m_szException = a_szException;
-            }
-
-            /// <summary>
-            /// Set the exception for this pixelformat...
-            /// </summary>
-            /// <param name="a_swordstatus"></param>
-            public void SetSwordStatus(SwordStatus a_swordstatus)
-            {
-                m_swordstatus = a_swordstatus;
-            }
-
-            /// <summary>
-            /// Get the exception for this pixelformat...
-            /// </summary>
-            /// <returns>the status</returns>
-            public SwordStatus GetSwordStatus()
-            {
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Get the vendor for this pixelformat...
-            /// </summary>
-            /// <returns>the vendor, if any</returns>
-            public string GetVendor()
-            {
-                return (m_szVendor);
-            }
-
-            /// <summary>
-            /// Next one in the list...
-            /// </summary>
-            private SwordPixelFormat m_swordpixelformatNext;
-
-            /// <summary>
-            /// Our main object...
-            /// </summary>
-            private ProcessSwordTask m_processswordtask;
-
-            /// <summary>
-            /// Our response...
-            /// </summary>
-            private SwordTaskResponse m_swordtaskresponse;
-
-            /// <summary>
-            /// The status of the item...
-            /// </summary>
-            private SwordStatus m_swordstatus;
-
-            /// <summary>
-            /// The name of the pixelFormat...
-            /// </summary>
-            private string m_szPixelFormatName;
-
-            /// <summary>
-            /// The index of this item in the JSON string...
-            /// </summary>
-            private string m_szJsonKey;
-
-            /// <summary>
-            /// The default exception for all items in this source...
-            /// </summary>
-            private string m_szException;
-
-            /// <summary>
-            /// Vendor UUID...
-            /// </summary>
-            private string m_szVendor;
-
-            /// <summary>
-            /// Vendor info...
-            /// </summary>
-            private VendorOwner m_vendorowner;
-
-            /// <summary>
-            /// Format of images (ex: bw1, gray8, rgb24, etc)
-            /// </summary>
-            private string m_szPixelFormat;
-
-            /// <summary>
-            /// The source/pixelFormat attributes...
-            /// </summary>
-            private SwordAttribute m_swordattributeAutomaticsensemedium;
-            private SwordAttribute m_swordattributeCameraside;
-            private SwordAttribute m_swordattributeDuplexenabled;
-            private SwordAttribute m_swordattributeFeederenabled;
-            private SwordAttribute m_swordattributePixeltype;
-
-            /// <summary>
-            /// TWAIN stuff...
-            /// </summary>
-            private Capability m_capabilityCompression;
-            private Capability m_capabilityPixeltype;
-            private Capability m_capabilityResolution;
-            private Capability m_capabilityXfercount;
-
-            /// <summary>
-            /// The first attribute in the list...
-            /// </summary>
-            private SwordAttribute m_swordattribute;
-
-            /// <summary>
-            /// We'll maintain a list of the attributes at this level
-            /// to make it easier to parse them, when it's time to
-            /// send stuff to the scanner...
-            /// </summary>
-            private SwordAttribute[] m_aswordattribute;
-        }
-
-        /// <summary>
-        ///	A list of zero or more attributes for a pixelFormat, all of which are
-        ///	used (or at least an attempt is made to use them)...
-        /// </summary>
-        sealed class SwordAttribute
-        {
-            /// <summary>
-            /// Constructor...
-            /// </summary>
-            /// <param name="a_swordtaskresponse">our response</param>
-            /// <param name="a_swordattributeHead">the first attribute</param>
-            /// <param name="a_szJsonKey">actions[].streams[].sources[].pixelTypes[].attributes</param>
-            /// <param name="a_szSwordAttribute">the sword attribute name</param>
-            /// <param name="a_szTwainAttribute">the twain attribute name</param>
-            /// <param name="a_szException">the exception for this attribute</param>
-            /// <param name="a_szVendor">the vendor id, if any</param>
-            public SwordAttribute
-            (
-                ProcessSwordTask a_processswordtask,
-                SwordTaskResponse a_swordtaskresponse,
-	            SwordAttribute a_swordattributeHead,
-	            string a_szJsonKey,
-                string a_szSwordAttribute,
-                string a_szTwainAttribute,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-	            // If the vendor isn't us, then skip it, this isn't subject
-	            // to exceptions, so we return here...
-	            m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
-	            if (m_vendorowner == VendorOwner.Unknown)
-	            {
-		            m_swordstatus = SwordStatus.VendorMismatch;
-		            return;
-	            }
-
-                // Non-zero stuff...
-                m_processswordtask = a_processswordtask;
-                m_swordtaskresponse = a_swordtaskresponse;
-	            m_swordstatus = SwordStatus.Success;
-	            m_szJsonKey = a_szJsonKey;
-	            m_szException = a_szException;
-	            m_szVendor = a_szVendor;
-	            m_szSwordAttribute = a_szSwordAttribute;
-                m_szTwainAttribute = a_szTwainAttribute;
-
-                // We're the head of the list...
-                if (a_swordattributeHead == null)
-	            {
-                    // nothing needed...
-                }
-
-                // We're being appended to the list...
-                else
-                {
-		            SwordAttribute swordattributeParent;
-		            for (swordattributeParent = a_swordattributeHead; swordattributeParent.m_swordattributeNext != null; swordattributeParent = swordattributeParent.m_swordattributeNext) ;
-		            swordattributeParent.m_swordattributeNext = this;
-	            }
-
-	            // All done...
-	            return;
-            }
-
-            /// <summary>
-            /// Append a value to the attribute...
-            /// </summary>
-            /// <param name="a_szJsonKey">our key</param>
-            /// <param name="a_szValue">the value</param>
-            /// <param name="a_szException">our exception</param>
-            /// <param name="a_szVendor">our vendor id, if any</param>
-            /// <returns></returns>
-            public SwordValue AppendValue
-            (
-	            string a_szJsonKey,
-                string a_szValue,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-	            SwordValue swordvalue;
-
-	            // Allocate and init stuff...
-	            swordvalue = new SwordValue(m_processswordtask, m_swordtaskresponse, m_swordvalue,a_szJsonKey,a_szValue,a_szException,a_szVendor);
-	            if (swordvalue == null)
-	            {
-		            return (null);
-	            }
-
-	            // We're not supported...
-	            if (swordvalue.GetSwordStatus() == SwordStatus.VendorMismatch)
-	            {
-                    swordvalue = null;
-
-                    return (null);
-	            }
-
-	            // Make us the head of the list...
-	            if (m_swordvalue == null)
-	            {
-		            m_swordvalue = swordvalue;
-	            }
-
-	            // All done...
-	            return (swordvalue);
-            }
-
-            /// <summary>
-            /// Build the task reply...
-            /// </summary>
-            /// <returns>true on success</returns>
-            public bool BuildTaskReply()
-            {
-	            bool blSuccess;
-	            SwordValue swordvalue;
-
-	            // Only report on success...
-	            if (m_swordstatus != SwordStatus.Success)
-	            {
-		            return (true);
-	            }
-
-                // Start of the attribute...
-                m_swordtaskresponse.JSON_OBJ_BGN(10,"");
-
-	            // The vendor (if any) and the attribute...
-	            if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(11,"vendor",",",m_szVendor);
-                m_swordtaskresponse.JSON_STR_SET(11,"attribute",",",m_szSwordAttribute);
-
-                // Start of the values array...
-                m_swordtaskresponse.JSON_ARR_BGN(11,"values");
-
-	            // List our attributes...
-	            for (swordvalue = GetFirstValue();
-		             swordvalue != null;
-		             swordvalue = swordvalue.GetNextValue())
-	            {
-		            // List an attribute...
-		            blSuccess = swordvalue.BuildTaskReply();
-		            if (!blSuccess)
-		            {
-			            break;
-		            }
-	            }
-
-                // End of the values array...
-                m_swordtaskresponse.JSON_ARR_END(11,"");
-
-                // End of the attribute...
-                m_swordtaskresponse.JSON_OBJ_END(10,",");
-
-	            // All done...
-	            return (true);
-            }
-
-            /// <summary>
-            /// Get the sword attribute value for this attribute...
-            /// </summary>
-            /// <returns>the sword attribute</returns>
-            public string GetSwordAttribute()
-            {
-	            return (m_szSwordAttribute);
-            }
-
-            /// <summary>
-            /// Get the TWAIN attribute value for this attribute...
-            /// </summary>
-            /// <returns>the twain attribute</returns>
-            public string GetTwainAttribute()
-            {
-                return (m_szTwainAttribute);
-            }
-
-            /// <summary>
-            /// Get the TWAIN capability value for this attribute...
-            /// </summary>
-            /// <returns>the capability</returns>
-            public string[] GetCapability()
-            {
-                return (m_swordvalue.GetCapability());
-            }
-
-            /// <summary>
-            /// Get the next attribute...
-            /// </summary>
-            /// <returns>the next attribute or null</returns>
-            public SwordAttribute GetNextAttribute()
-            {
-	            return (m_swordattributeNext);
-            }
-
-            /// <summary>
-            /// Get the first value for this attribute...
-            /// </summary>
-            /// <returns>the sword value</returns>
-            public SwordValue GetFirstValue()
-            {
-	            return (m_swordvalue);
-            }
-
-            /// <summary>
-            /// Get the exception for this attribute...
-            /// </summary>
-            /// <returns>the exception</returns>
-            public string GetException()
-            {
-	            return (m_szException);
-            }
-
-            /// <summary>
-            /// Get the status for this attribute...
-            /// </summary>
-            /// <returns>the status</returns>
-            public SwordStatus GetSwordStatus()
-            {
-	            return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Get the vendor for this attribute...
-            /// </summary>
-            /// <returns>the vendor id, if any</returns>
-            public string GetVendor()
-            {
-	            return (m_szVendor);
-            }
-
-            /// <summary>
-            /// Process this attribute, which means try to map it to
-            ///	TWAIN capabilities...
-            /// </summary>
-            /// <returns>the status of the process</returns>
-            public SwordStatus Process(string a_szPixelformat)
-            {
-	            SwordStatus swordstatus;
-	            SwordValue swordvalue;
-
-	            // Assume success...
-	            m_swordstatus = SwordStatus.Run;
-
-                // Make sure we recognize the attribute...
-                switch (m_szSwordAttribute)
-                {
-                    // So much for that idea...
-                    default:
-                        // Apply our exceptions...
-                        switch (m_szException)
-                        {
-                            default:
-                            case "ignore":
-                                // Keep going...
-                                break;
-                            case "nextAction":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextAction;
-                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".attribute", "invalidValue", -1);
-                                return (m_swordstatus);
-                            case "nextStream":
-                                // We're out of here...
-                                m_swordstatus = SwordStatus.NextStream;
-                                return (m_swordstatus);
-                            case "fail":
-                                // Whoops, time to empty the pool...
-                                m_swordstatus = SwordStatus.Fail;
-                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".attribute", "invalidValue", -1);
-                                return (m_swordstatus);
-                        }
-                        break;
-
-                    // We're good, keep going...
-                    case "compression":
-                    case "doubleFeedDectection":
-                    case "numberOfSheets":
-                    case "pixelFormat":
-                    case "resolution":
-                        break;
-                }
-
-	            // Invoke the process function for each of our values...
-	            for (swordvalue = m_swordvalue;
-		             swordvalue != null;
-		             swordvalue = swordvalue.GetNextValue())
-	            {
-		            // Process this value (and all of its contents)...
-		            swordstatus = swordvalue.Process(a_szPixelformat, GetSwordAttribute(), GetFirstValue());
-
-		            // Check the result...
-		            if (	(swordstatus != SwordStatus.Run)
-			            &&	(swordstatus != SwordStatus.Success)
-			            &&	(swordstatus != SwordStatus.SuccessIgnore))
-		            {
-			            m_swordstatus = swordstatus;
-			            return (m_swordstatus);
-		            }
-	            }
-
-	            // Return with whatever we currently have for a status...
-	            return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Set a task error...
-            /// </summary>
-            /// <param name="a_szException">the exception  we're processing</param>
-            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
-            /// <param name="a_szCode">the error code</param>
-            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
-            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
-            public void SetError
-            (
-                string a_szException,
-                string a_szJsonExceptionKey,
-                string a_szCode,
-                long a_lJsonErrorIndex
-            )
-            {
-                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
-            }
-
-            /// <summary>
-            /// Set the vendor for this attribute...
-            /// </summary>
-            /// <param name="a_szException">the exception to set</param>
-            public void SetException(string a_szException)
-            {
-	            m_szException = a_szException;
-            }
-
-            /// <summary>
-            /// Set the status for this attribute...
-            /// </summary>
-            /// <param name="a_swordstatus">the status</param>
-            public void SetSwordStatus(SwordStatus a_swordstatus)
-            {
-	            m_swordstatus = a_swordstatus;
-            }
-
-			// Next one in the list, note if we're the first...
-			private SwordAttribute		m_swordattributeNext;
-
-            // Our main object...
-            private ProcessSwordTask    m_processswordtask;
-
-			// Our response...
-			private SwordTaskResponse	m_swordtaskresponse;
-
-			// Who owns us...
-			private VendorOwner			m_vendorowner;
-
-			// The status of the item...
-			private SwordStatus		    m_swordstatus;
-
-			// The index of this item in the JSON string...
-			private string				m_szJsonKey;
-
-			// The exception for this attribute...
-			private string				m_szException;
-
-			// Vendor UUID...
-			private string				m_szVendor;
-
-            // The SWORD and TWAIN ids of the attribute...
-            private string              m_szSwordAttribute;
-            private string				m_szTwainAttribute;
-
-			// The first value in the list...
-			private SwordValue		    m_swordvalue;
-        }
-
-        /// <summary>
-        /// A list of zero or more values for an attribute, only one will be used...
-        /// </summary>
-        sealed class SwordValue
-        {
-
-            /// <summary>
-            /// Constructor...
-            /// </summary>
-            /// <param name="a_swordtaskresponse">our response</param>
-            /// <param name="a_swordvalueHead">the first value</param>
-            /// <param name="a_szJsonKey">actions[].streams[].sources[].pixelFormats[].attributes[].values[]</param>
-            /// <param name="a_szTdValue">the value</param>
-            /// <param name="a_szException">the exception</param>
-            /// <param name="a_szVendor">the vendor, if any</param>
-            public SwordValue
-            (
-                ProcessSwordTask a_processswordtask,
-	            SwordTaskResponse a_swordtaskresponse,
-	            SwordValue a_swordvalueHead,
-	            string a_szJsonKey,
-                string a_szTdValue,
-                string a_szException,
-                string a_szVendor
-            )
-            {
-	            // If the vendor isn't us, then skip it, this isn't subject
-	            // to exceptions, so we return here...
-	            m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
-	            if (m_vendorowner == VendorOwner.Unknown)
-	            {
-		            m_swordstatus = SwordStatus.VendorMismatch;
-		            return;
-	            }
-
-                // Init stuff...
-                m_processswordtask = a_processswordtask;
-                m_swordtaskresponse = a_swordtaskresponse;
-	            m_swordstatus = SwordStatus.Success;
-	            m_szJsonKey = a_szJsonKey;
-	            m_szException = a_szException;
-	            m_szVendor = a_szVendor;
-	            m_szTdValue = a_szTdValue;
-
-                // We're the head of the list...
-                if (a_swordvalueHead == null)
-	            {
-                    // nothing needed...
-                }
-
-                // We're being appended to the list...
-                else
-                {
-		            SwordValue swordvalueParent;
-		            for (swordvalueParent = a_swordvalueHead; swordvalueParent.m_swordvalueNext != null; swordvalueParent = swordvalueParent.m_swordvalueNext) ;
-		            swordvalueParent.m_swordvalueNext = this;
-	            }
-
-	            // All done...
-	            return;
-            }
-
-            /// <summary>
-            /// Build the task reply...
-            /// </summary>
-            /// <returns>true on success</returns>
-            public bool BuildTaskReply()
-            {
-	            // Only report on success...
-	            if (m_swordstatus != SwordStatus.Success)
-	            {
-		            return (true);
-	            }
-
-	            // Start of the value...
-	            m_swordtaskresponse.JSON_OBJ_BGN(12,"");
-
-	            // The vendor (if any) and the value...
-	            if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(13,"vendor",",",m_szVendor);
-	            if (string.IsNullOrEmpty(m_szTdValue))
-	            {
-                    m_swordtaskresponse.JSON_STR_SET(13,"value","",m_szTdValue);
-	            }
-	            else if (	(m_szTdValue == "false")
-			             ||	(m_szTdValue == "null")
-			             ||	(m_szTdValue == "true"))
-	            {
-                    m_swordtaskresponse.JSON_STR_SET(13,"value","",m_szTdValue);
-	            }
-	            else
-	            {
-                    int iValue;
-		            if (!int.TryParse(m_szTdValue,out iValue))
-		            {
-                        m_swordtaskresponse.JSON_STR_SET(13,"value","",m_szTdValue);
-		            }
-		            else
-		            {
-                        m_swordtaskresponse.JSON_NUM_SET(13,"value","",iValue);
-		            }
-	            }
-
-                // End of the value...
-                m_swordtaskresponse.JSON_OBJ_END(12,"");
-
-	            // All done...
-	            return (true);
-            }
-
-            /// <summary>
-            /// Return the capability(s) for this value...
-            /// </summary>
-            /// <returns>the capability(s)</returns>
-            public string[] GetCapability()
-            {
-                return (m_aszTwValue);
-            }
-
-            /// <summary>
-            /// Return the exception for this value...
-            /// </summary>
-            /// <returns>the exception</returns>
-            public string GetException()
-            {
-	            return (m_szException);
-            }
-
-            /// <summary>
-            /// Return the json key for this value...
-            /// </summary>
-            /// <returns>the json key</returns>
-            public string GetJsonKey()
-            {
-                return (m_szJsonKey);
-            }
-
-            /// <summary>
-            /// Return the next value in our attribute...
-            /// </summary>
-            /// <returns>the next value</returns>
-            public SwordValue GetNextValue()
-            {
-	            return (m_swordvalueNext);
-            }
-
-            /// <summary>
-            /// Get the SWORD status for this value...
-            /// </summary>
-            /// <returns>the status</returns>
-            public SwordStatus GetSwordStatus()
-            {
-	            return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Get the task value...
-            /// </summary>
-            /// <returns>the value</returns>
-            public string GetValue()
-            {
-	            return (m_szTdValue);
-            }
-
-            /// <summary>
-            /// Return the vendor id for this value....
-            /// </summary>
-            /// <returns>the vendor id</returns>
-            public string GetVendor()
-            {
-	            return (m_szVendor);
-            }
-
-            /// <summary>
-            /// Process this value...
-            /// </summary>
-            /// <param name="a_szAttribute">the TWAIN Direct attribute name</param>
-            /// <returns>our status when done</returns>
-            public SwordStatus Process(string a_szPixelformat, string a_szAttribute, SwordValue a_swordvalueHead)
-            {
-	            // Init stuff...
-	            m_aszTwValue = null;
-
-                // Assume success...
-                m_swordstatus = SwordStatus.Run;
-
-                // TWAIN Direct...
-                #region TWAIN Direct
-
-                if (m_vendorowner == VendorOwner.TwainDirect) 
-	            {
-		            // Handle TWAIN Direct here...
-		            switch (a_szAttribute)
-		            {
-			            default:
+                        // So much for that idea...
+                        default:
                             // Apply our exceptions...
                             switch (m_szException)
                             {
@@ -7156,7 +6118,7 @@ namespace TwainDirect.OnTwain
                                 case "nextAction":
                                     // We're out of here...
                                     m_swordstatus = SwordStatus.NextAction;
-                                    m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".value", "invalidValue", -1);
+                                    m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".source", "invalidValue", -1);
                                     return (m_swordstatus);
                                 case "nextStream":
                                     // We're out of here...
@@ -7165,1513 +6127,3357 @@ namespace TwainDirect.OnTwain
                                 case "fail":
                                     // Whoops, time to empty the pool...
                                     m_swordstatus = SwordStatus.Fail;
-                                    m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
+                                    m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
                                     return (m_swordstatus);
                             }
                             break;
 
-			            case "automaticDeskew":
-				            if (ProcessAutomaticdeskew() != SwordStatus.Success)
-				            {
-					            goto ABORT;
-				            }
-				            break;
-
-                        case "compression":
-                            if (ProcessCompression(a_szPixelformat) != SwordStatus.Success)
-                            {
-                                goto ABORT;
-                            }
+                        // We're good, keep going...
+                        case "any":
+                        case "feeder":
+                        case "feederFront":
+                        case "feederRear":
+                        case "flatbed":
                             break;
+                    }
 
-                        case "continuousScan":
-                            if (ProcessContinuousscan() != SwordStatus.Success)
-                            {
-                                goto ABORT;
-                            }
-                            break;
-
-			            case "contrast":
-				            if (ProcessContrast() != SwordStatus.Success)
-				            {
-					            goto ABORT;
-				            }
-				            break;
-
-			            case "cropping":
-				            if (ProcessCropping() != SwordStatus.Success)
-				            {
-					            goto ABORT;
-				            }
-				            break;
-
-                        case "discardBlankImages":
-                            if (ProcessDiscardblankimages() != SwordStatus.Success)
-                            {
-                                goto ABORT;
-                            }
-                            break;
-
-                        case "doubleFeedDetection":
-                            if (ProcessDoublefeeddetection() != SwordStatus.Success)
-                            {
-                                goto ABORT;
-                            }
-                            break;
-
-                        case "imageMerge":
-                            if (ProcessImagemerge() != SwordStatus.Success)
-				            {
-					            goto ABORT;
-				            }
-				            break;
-
-			            case "noiseFilter":
-				            if (ProcessNoisefilter() != SwordStatus.Success)
-				            {
-					            goto ABORT;
-				            }
-				            break;
-
-			            case "numberOfSheets":
-				            if (ProcessNumberofsheets() != SwordStatus.Success)
-				            {
-					            goto ABORT;
-				            }
-				            break;
-
-                        case "pixelFormat":
-                            // Just accept it...
-                            break;
-
-                        case "resolution":
-                            if (ProcessResolution(a_swordvalueHead) != SwordStatus.Success)
-                            {
-                                goto ABORT;
-                            }
-                            break;
-
-                        case "rotation":
-                            if (ProcessRotation() != SwordStatus.Success)
-                            {
-                                goto ABORT;
-                            }
-                            break;
-
-                        case "sheetHandling":
-                            if (ProcessSheethandling() != SwordStatus.Success)
-                            {
-                                goto ABORT;
-                            }
-                            break;
-
-                        case "threshold":
-				            if (ProcessThreshold() != SwordStatus.Success)
-				            {
-					            goto ABORT;
-				            }
-				            break;
-		            }
-	            }
-
-	            #endregion
-
-
-	            // Handle problems...
-	            ABORT:
-
-	            // Only if not successful...
-	            if (m_swordstatus != SwordStatus.Run)
-	            {
-                    // Apply our exceptions...
-                    switch (m_szException)
+                    // Make sure we have a name...
+                    if (string.IsNullOrEmpty(m_szSourceName))
                     {
-                        default:
+                        int szIndex;
+                        szIndex = m_szJsonKey.LastIndexOf("[");
+                        if (szIndex != -1)
+                        {
+                            m_szSourceName = "source" + m_szJsonKey.Substring(szIndex + 1);
+                            szIndex = m_szSourceName.LastIndexOf("]");
+                            if (szIndex != -1)
+                            {
+                                m_szSourceName = m_szSourceName.Remove(szIndex);
+                            }
+                        }
+                    }
+
+                    // We're a standard TWAIN Direct property, as described in the
+                    // TWAIN Direct Specification...
+                    #region TWAIN Direct
+
+                    if (m_vendorowner == VendorOwner.TwainDirect)
+                    {
+                        // ANY: use the default for this scanner, we also come here if
+                        // not given a source value...
+                        if (    string.IsNullOrEmpty(m_szSource)
+                            ||  (m_szSource == "any"))
+                        {
+                            blForceAny = true;
+                            m_szAutomaticSenseMedium = "CAP_AUTOMATICSENSEMEDIUM,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                            m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                            m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCS_BOTH
+                        }
+
+                        // FEEDER/FEEDERFRONT/FEEDERREAR: but don't lose the default elevator value...
+                        else if (   (m_szSource == "feeder")
+                                 || (m_szSource == "feederFront")
+                                 || (m_szSource == "feederRear"))
+                        {
+                            // Address the feeder...
+                            m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1";
+
+                            // Feeder front and rear...
+                            if (m_szSource == "feeder")
+                            {
+                                m_szDuplexEnabled = "CAP_DUPLEXENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                                m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCS_BOTH
+                            }
+
+                            // Feeder front...
+                            else if (m_szSource == "feederFront")
+                            {
+                                m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                                m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,1"; // TWCS_TOP
+                            }
+
+                            // Feeder rear...
+                            else if (m_szSource == "feederRear")
+                            {
+                                m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                                m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,2"; // TWCS_BOTTOM
+                            }
+                        }
+
+                        // FLATBED: ask for the flatbed...
+                        // TBD, gotta have a way to tell the standard TWAIN Direct
+                        // flatbed value from the Vendor specific flatbed, so we
+                        // can report it back properly...
+                        else if (m_szSource == "flatbed")
+                        {
+                            m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,0";
+                        }
+
+                        // We don't recognize this item in any way shape or form, so
+                        // use the default, but report our failure...
+                        else
+                        {
                             m_swordstatus = SwordStatus.SuccessIgnore;
-                            return (m_swordstatus);
-                        case "nextAction":
-                            m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".value", "invalidValue", -1);
-                            m_swordstatus = SwordStatus.NextAction;
-                            return (m_swordstatus);
-                        case "nextStream":
-                            m_swordstatus = SwordStatus.NextStream;
-                            return (m_swordstatus);
-                        case "fail":
-                            m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
-                            m_swordstatus = SwordStatus.Fail;
-                            return (m_swordstatus);
-                    }         
-	            }
+                            blForceAny = true;
+                            m_szAutomaticSenseMedium = "CAP_AUTOMATICSENSEMEDIUM,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                            m_szFeederEnabled = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                            m_szCameraSide = "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCS_BOTH
+                            goto ABORT;
+                        }
+                    }
 
-	            // Return with whatever we currently have for a status...
-	            return (m_swordstatus);
+                    #endregion
+
+
+                    // Negotiate the source...
+                    #region Negotiate the source...
+
+                    // Feeder enabled...
+                    if (!string.IsNullOrEmpty(m_szSource) && (m_szSource != "any"))
+                    {
+                        szStatus = "";
+                        szCapability = m_szFeederEnabled;
+                        m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    }
+
+                    // Duplex enabled...
+                    if (!string.IsNullOrEmpty(m_szDuplexEnabled))
+                    {
+                        szStatus = "";
+                        szCapability = m_szDuplexEnabled;
+                        m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    }
+
+                    #endregion
+
+
+                    // Handle problems...
+                    #region Handle problems
+
+                    // Decide if we need to bail...
+                    ABORT:
+
+                    // Only if not successful...
+                    if (m_swordstatus != SwordStatus.Run)
+                    {
+                        // Apply our exceptions...
+                        switch (m_szException)
+                        {
+                            default:
+                                m_swordstatus = SwordStatus.SuccessIgnore;
+                                return (m_swordstatus);
+                            case "nextAction":
+                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".source", "invalidValue", -1);
+                                m_swordstatus = SwordStatus.NextAction;
+                                return (m_swordstatus);
+                            case "nextStream":
+                                m_swordstatus = SwordStatus.NextStream;
+                                return (m_swordstatus);
+                            case "fail":
+                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".source", "invalidValue", -1);
+                                m_swordstatus = SwordStatus.Fail;
+                                return (m_swordstatus);
+                        }
+                    }
+
+                    // Force the name to "any", we do this down here so
+                    // that we don't interfere with the original name if
+                    // have to error out, and so that we know we'll have
+                    // a meaningful value...
+                    if (blForceAny)
+                    {
+                        m_szSource = "any";
+                    }
+
+                    #endregion
+
+
+                    // Process all of the pixelformats that we detect...
+                    #region Process pixelFormats
+
+                    // Invoke the process function for each of our pixelformats...
+                    for (swordpixelformat = m_swordpixelformat;
+                         swordpixelformat != null;
+                         swordpixelformat = swordpixelformat.GetNextPixelFormat())
+                    {
+                        // Process this pixelformat (and all of its contents)...
+                        swordstatus = swordpixelformat.Process(m_szException, m_szAutomaticSenseMedium, m_szCameraSide, m_szDuplexEnabled, m_szFeederEnabled);
+
+                        // Check the result, we only continue on success and successignore,
+                        // anything else kicks us out...
+                        if (    (swordstatus != SwordStatus.Run)
+                            &&  (swordstatus != SwordStatus.Success)
+                            &&  (swordstatus != SwordStatus.SuccessIgnore))
+                        {
+                            m_swordstatus = swordstatus;
+                            return (m_swordstatus);
+                        }
+                    }
+
+                    #endregion
+
+
+                    // Return with whatever we currently have for a status...
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Set a task error...
+                /// </summary>
+                /// <param name="a_szException">the exception  we're processing</param>
+                /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+                /// <param name="a_szCode">the error code</param>
+                /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+                /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
+                public void SetError
+                (
+                    string a_szException,
+                    string a_szJsonExceptionKey,
+                    string a_szCode,
+                    long a_lJsonErrorIndex
+                )
+                {
+                    m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+                }
+
+                /// <summary>
+                /// Set the exception for this source...
+                /// </summary>
+                /// <param name="a_szException"></param>
+                public void SetException(string a_szException)
+                {
+                    m_szException = a_szException;
+                }
+
+                /// <summary>
+                /// Set the status for this source...
+                /// </summary>
+                /// <param name="a_eswordstatus"></param>
+                public void SetSwordStatus(SwordStatus a_swordstatus)
+                {
+                    m_swordstatus = a_swordstatus;
+                }
+
+                /// <summary>
+                /// Next one in the list, note if we're the head...
+                /// </summary>
+                private SwordSource m_swordsourceNext;
+
+                /// <summary>
+                /// Our main object...
+                /// </summary>
+                private ProcessSwordTask m_processswordtask;
+
+                /// <summary>
+                /// Our response...
+                /// </summary>
+                private SwordTaskResponse m_swordtaskresponse;
+
+                /// <summary>
+                /// Who owns us?
+                /// </summary>
+                private VendorOwner m_vendorowner;
+
+                /// <summary>
+                /// The status of the item...
+                /// </summary>
+                private SwordStatus m_swordstatus;
+
+                /// <summary>
+                /// The name of the source...
+                /// </summary>
+                private string m_szSourceName;
+
+                /// <summary>
+                /// The index of this item in the JSON string...
+                /// </summary>
+                private string m_szJsonKey;
+
+                /// <summary>
+                /// The default exception for all items in this source...
+                /// </summary>
+                private string m_szException;
+
+                /// <summary>
+                /// Vendor UUID...
+                /// </summary>
+                private string m_szVendor;
+
+                /// <summary>
+                /// Source of images (ex: any, feederduplex, feederfront, flatbed, etc)...
+                /// </summary>
+                private string m_szSource;
+
+                /// <summary>
+                // The format list contains one or more formats.  This may
+                // correspond to physical capture elements, but more usually
+                // are capture settings on a source.  If multiple formats
+                // appear in the same source it's an "OR" operation.  The
+                // best fit is selected.  This is how the imageformat can be
+                // automatically detected.
+                /// </summary>
+                private SwordPixelFormat m_swordpixelformat;
+
+                // Our address...
+                private string m_szAutomaticSenseMedium;
+                private string m_szCameraSide;
+                private string m_szDuplexEnabled;
+                private string m_szFeederEnabled;
             }
 
             /// <summary>
-            /// Process automaticdeskew...
+            ///	A list of zero or more pixelFormats for a source, more than one signals
+            ///	the desire to automatically select the pixelFormat that best represents
+            ///	the contents of a side of a sheet of paper (color vs bitonal).  We store
+            ///	our database items at this level, along with information about the
+            ///	papersource / camera / imageformat...
             /// </summary>
-            /// <returns>our status</returns>
-            public SwordStatus ProcessAutomaticdeskew()
+            sealed class SwordPixelFormat
             {
-	            if (m_szTdValue == "on")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                }
 
-	            else if (m_szTdValue == "off")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                }
-
-                else
-	            {
-		            m_swordstatus = SwordStatus.SuccessIgnore;
-		            return (m_swordstatus);
-	            }
-
-	            // All done...
-	            return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process compression...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessCompression(string a_szPixelFormat)
-            {
-                // Basic scanners are only allowed uncompressed images, because
-                // we're going to use native transfer, which is more likely to
-                // result in a successful scan...
-                if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Basic)
+                /// <summary>
+                /// Constructor...
+                /// </summary>
+                /// <param name="a_swordtaskresponse">our response</param>
+                /// <param name="a_swordpixelformatHead">the first pixelFormat</param>
+                /// <param name="a_szJsonKey">actions[].streams[].sources[].pixelFormats[]</param>
+                /// <param name="a_szPixelFormat">the pixelFormat</param>
+                /// <param name="a_szException">the exception</param>
+                /// <param name="a_szVendor">the vendor, if any</param>
+                public SwordPixelFormat
+                (
+                    ProcessSwordTask a_processswordtask,
+                    SwordTaskResponse a_swordtaskresponse,
+                    SwordPixelFormat a_swordpixelformatHead,
+                    string a_szJsonKey,
+                    string a_szPixelFormatName,
+                    string a_szPixelFormat,
+                    string a_szException,
+                    string a_szVendor
+                )
                 {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
-                }
-
-                // TWAIN Direct from this point down...
-                else if (m_szTdValue == "none")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
-                }
-
-	            else if (m_szTdValue == "group4")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
-                }
-
-	            else if (m_szTdValue == "jpeg")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
-                }
-
-                else if (m_szTdValue == "autoVersion1")
-	            {
-                    string szTwPixelType = "*";
-                    string[] asz = a_szPixelFormat.Split(','); // ex: ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2
-                    if ((asz != null) || (asz.Length >= 4))
+                    // If the vendor isn't us, then skip it, this isn't subject
+                    // to exceptions, so we return here...
+                    m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
+                    if (m_vendorowner == VendorOwner.Unknown)
                     {
-                        szTwPixelType = asz[3];
+                        m_swordstatus = SwordStatus.VendorMismatch;
+                        return;
                     }
-		            switch (szTwPixelType)
-		            {
-			            default:
-                        case "*":
-				            m_swordstatus = SwordStatus.SuccessIgnore;
-				            return (SwordStatus.SuccessIgnore);
-			            case "0": // TWPT_BW
-                            m_aszTwValue = new string[1];
-                            m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
+
+                    // Init stuff...
+                    m_processswordtask = a_processswordtask;
+                    m_swordtaskresponse = a_swordtaskresponse;
+                    m_swordstatus = SwordStatus.Success;
+                    m_szJsonKey = a_szJsonKey;
+                    m_szPixelFormatName = a_szPixelFormatName;
+                    m_szPixelFormat = a_szPixelFormat;
+                    m_szException = a_szException;
+                    m_szVendor = a_szVendor;
+                    m_capabilityCompression = null;
+                    m_capabilityPixeltype = null;
+                    m_capabilityResolution = null;
+                    m_capabilityXfercount = null;
+                    m_aswordattribute = null;
+
+                    // Our addressing attributes...
+                    m_swordattributeAutomaticsensemedium = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_AUTOMATICSENSEMEDIUM", a_szException, a_szVendor);
+                    m_swordattributeFeederenabled = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_FEEDERENABLED", a_szException, a_szVendor);
+                    m_swordattributeDuplexenabled = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_DUPLEXENABLED", a_szException, a_szVendor);
+                    m_swordattributeCameraside = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "CAP_CAMERASIDE", a_szException, a_szVendor);
+                    m_swordattributePixeltype = new SwordAttribute(a_processswordtask, a_swordtaskresponse, null, a_szJsonKey, "pixelFormat", "ICAP_PIXELTYPE", a_szException, a_szVendor);
+                    if ((m_swordattributeAutomaticsensemedium == null)
+                        || (m_swordattributeFeederenabled == null)
+                        || (m_swordattributeDuplexenabled == null)
+                        || (m_swordattributeCameraside == null)
+                        || (m_swordattributePixeltype == null))
+                    {
+                        m_swordstatus = SwordStatus.Fail;
+                        return;
+                    }
+
+                    // We're the head of the list...
+                    if (a_swordpixelformatHead == null)
+                    {
+                        // nothing needed...
+                    }
+
+                    // We're being appended to the list...
+                    else
+                    {
+                        SwordPixelFormat swordpixelformatParent;
+                        for (swordpixelformatParent = a_swordpixelformatHead; swordpixelformatParent.m_swordpixelformatNext != null; swordpixelformatParent = swordpixelformatParent.m_swordpixelformatNext) ;
+                        swordpixelformatParent.m_swordpixelformatNext = this;
+
+                    }
+
+                    // All done...
+                    SetSwordStatus(SwordStatus.Success);
+                    return;
+                }
+
+                /// <summary>
+                /// Add an attribute...
+                /// </summary>
+                /// <param name="a_szJsonKey"></param>
+                /// <param name="a_szAttribute"></param>
+                /// <param name="a_szException"></param>
+                /// <param name="a_szVendor"></param>
+                /// <returns></returns>
+                public SwordAttribute AddAttribute
+                (
+                    string a_szJsonKey,
+                    string a_szAttribute,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+                    SwordAttribute swordattribute;
+
+                    // Create an attribute object, note that we don't have a
+                    // TWAIN name at this point...
+                    swordattribute = new SwordAttribute(m_processswordtask, m_swordtaskresponse, m_swordattribute, a_szJsonKey, a_szAttribute, "", a_szException, a_szVendor);
+                    if (swordattribute == null)
+                    {
+                        return (null);
+                    }
+
+                    // We're not supported...
+                    if (swordattribute.GetSwordStatus() == SwordStatus.VendorMismatch)
+                    {
+                        swordattribute = null;
+                        return (null);
+                    }
+
+                    // If this is the first time, store it at the head of
+                    // the list.  Note that we keep the list so that we
+                    // have a record of all of the attributes we encounter,
+                    // while the array only has the attributes that we will
+                    // send to the scanner...
+                    if (m_swordattribute == null)
+                    {
+                        m_swordattribute = swordattribute;
+                    }
+
+                    // Any status other than success stops us here...
+                    if (swordattribute.GetSwordStatus() != SwordStatus.Success)
+                    {
+                        return (swordattribute);
+                    }
+
+                    // All done...
+                    return (swordattribute);
+                }
+
+                /// <summary>
+                /// Build the task reply...
+                /// </summary>
+                /// <returns></returns>
+                public bool BuildTaskReply()
+                {
+                    bool blSuccess;
+                    SwordAttribute swordattribute;
+
+                    // Only report on success...
+                    if (m_swordstatus != SwordStatus.Success)
+                    {
+                        return (true);
+                    }
+
+                    // Start of the pixelFormat...
+                    m_swordtaskresponse.JSON_OBJ_BGN(8, "");
+
+                    // The vendor (if any) and the pixelFormat...
+                    if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(9, "vendor", ",", m_szVendor);
+                    m_swordtaskresponse.JSON_STR_SET(9, "pixelFormat", ",", m_szPixelFormat);
+                    m_swordtaskresponse.JSON_STR_SET(9, "name", ",", m_szPixelFormatName);
+
+                    // Start of the attributes array...
+                    m_swordtaskresponse.JSON_ARR_BGN(9, "attributes");
+
+                    // List our attributes...
+                    for (swordattribute = GetFirstAttribute();
+                         swordattribute != null;
+                         swordattribute = swordattribute.GetNextAttribute())
+                    {
+                        // List an attribute...
+                        blSuccess = swordattribute.BuildTaskReply();
+                        if (!blSuccess)
+                        {
                             break;
-			            case "1": // TWPT_GRAY
-                        case "2": // TWPT_RGB
-                            m_aszTwValue = new string[1];
-                            m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
-                            break;
-		            }
-	            }
-
-	            // Ruh-roh...
-	            else
-	            {
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (SwordStatus.SuccessIgnore);
-                }
-
-                // All done...
-                return (SwordStatus.Success);
-            }
-
-            /// <summary>
-            /// Process continuousScan...
-            /// </summary>
-            /// <returns></returns>
-            public SwordStatus ProcessContinuousscan()
-            {
-                // Fast batch scan...
-                if (m_szTdValue == "on")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                    return (m_swordstatus);
-                }
-
-                // Page on demand, releaseImageBlocks will cause the next sheet
-                // of paper to be read...
-                if (m_szTdValue == "off")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    return (m_swordstatus);
-                }
-
-                // No joy...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process contrast...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessContrast()
-            {
-                // Just take the value, TWAIN will validate it...
-                m_aszTwValue = new string[1];
-                m_aszTwValue[0] = "ICAP_CONTRAST,TWON_ONEVALUE,TWTY_FIX32," + m_szTdValue;
-
-                // All done...
-                return (SwordStatus.Success);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process croppingmode...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessCropping()
-            {
-	            if (m_szTdValue == "automatic")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                    return (m_swordstatus);
-                }
-
-	            if (m_szTdValue == "automaticMultiple")
-	            {
-                    // Not supported...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "fixed")
-	            {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "fixedAutomaticLength")
-	            {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "long")
-	            {
-                    // Not supported...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "relative")
-	            {
-                    // Not supported...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                // Ruh-roh...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Process discardBlankImage...
-            /// </summary>
-            /// <returns>our status</returns>
-            public SwordStatus ProcessDiscardblankimages()
-            {
-                // Toss blank images...
-                if (m_szTdValue == "on")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_INT32,-1"; // TWBP_AUTO
-                    return (m_swordstatus);
-                }
-
-                // Keep blank images...
-                if (m_szTdValue == "off")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_INT32,-2"; // TWBP_DISABLE
-                    return (m_swordstatus);
-                }
-
-                // Oh well...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-            }
-
-            /// <summary>
-            /// Process doubleFeedDetection...
-            /// </summary>
-            /// <returns>our status</returns>
-            public SwordStatus ProcessDoublefeeddetection()
-            {
-                // Detect doublefeeds...
-                if (m_szTdValue == "on")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_DOUBLEFEEDDETECTION,TWON_ARRAY,TWTY_UINT16,1,0"; // TWDF_ULTRASONIC
-                    return (m_swordstatus);
-                }
-
-                // Don't detect doublefeeds...
-                if (m_szTdValue == "off")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_DOUBLEFEEDDETECTION,TWON_ARRAY,TWTY_UINT16,0"; // (empty array)
-                    return (m_swordstatus);
-                }
-
-                // Oh well...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process imagemerge...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessImagemerge()
-            {
-	            if (m_szTdValue == "off")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWIM_NONE
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "frontAboveRear")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,1"; // TWIM_FRONTONTOP
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "frontBelowRear")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,2"; // TWIM_FRONTONBOTTOM
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "frontLeftOfRear")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,3"; // TWIM_FRONTONLEFT
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "frontRightOfRear")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,4"; // TWIM_FRONTONRIGHT
-                    return (m_swordstatus);
-                }
-
-                // No matches...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process noisefilter...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessNoisefilter()
-            {
-	            if (m_szTdValue == "off")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,0"; // TWNF_NONE
-                    return (m_swordstatus);
-                }
-
-	            if (m_szTdValue == "auto")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,1"; // TWNF_AUTO
-                    return (m_swordstatus);
-                }
-
-	            if (m_szTdValue == "lonePixel")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,2"; // TWNF_LONEPIXEL
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "majorityRule")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,3"; // TWNF_MAJORITYRULE
-                    return (m_swordstatus);
-                }
-
-                // Nope...
-		        m_swordstatus = SwordStatus.SuccessIgnore;
-		        return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process numberOfSheets...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessNumberofsheets()
-            {
-                int iNumberofsheets;
-
-                // Handle the max...
-                if (m_szTdValue == "maximum")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_SHEETCOUNT,TWON_ONEVALUE,TWTY_INT32,0";
-                    return (m_swordstatus);
-                }
-
-                // If we support CAP_SHEETCOUNT, go with that...
-                if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetSheetCount())
-                {
-                    if (int.TryParse(m_szTdValue, out iNumberofsheets))
-                    {
-                        m_aszTwValue = new string[1];
-                        m_aszTwValue[0] = "CAP_SHEETCOUNT,TWON_ONEVALUE,TWTY_INT32," + iNumberofsheets;
-                        return (m_swordstatus);
-                    }
-                }
-
-                // Otherwise, see what we can do with CAP_XFERCOUNT, we need
-                // to find a way to hook this to CAP_DUPLEXENABLED.  For now
-                // we're just going to assume that we should mulitply it by
-                // 2.  This is okay for flatbeds, they'll just give us the
-                // one image...
-                else
-                {
-                    if (int.TryParse(m_szTdValue, out iNumberofsheets))
-                    {
-                        m_aszTwValue = new string[1];
-                        m_aszTwValue[0] = "CAP_XFERCOUNT,TWON_ONEVALUE,TWTY_INT16," + (iNumberofsheets * 2);
-                        return (m_swordstatus);
-                    }
-                }
-
-                // Well foo, that didn't work...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process pixelflavor...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessPixelflavor()
-            {
-	            if (m_szTdValue == "off")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPF_CHOCOLATE
-                    return (m_swordstatus);
-                }
-
-	            if (m_szTdValue == "on")
-	            {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPF_VANILLA
-                    return (m_swordstatus);
-                }
-
-                // Blarg...
-		        m_swordstatus = SwordStatus.SuccessIgnore;
-		        return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process resolution...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessResolution(SwordValue a_swordvalueHead)
-            {
-                int ee;
-                bool blSuccess;
-                int iResolution;
-                string szTdPreviousValue;
-                SwordValue swordvaluePrevious;
-                int[] aiResolution = m_processswordtask.Resolution();
-
-                // If it's a number, take it...
-                if (int.TryParse(m_szTdValue, out iResolution))
-                {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + iResolution;
-                    m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + iResolution;
-                    return (SwordStatus.Success);
-                }
-
-                // Make sure we have our TWAIN data for this scanner...
-                blSuccess = m_processswordtask.LoadTwainListInfo();
-                if (    !blSuccess
-                    ||  (aiResolution == null)
-                    ||  (aiResolution.Length < 1))
-                {
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                // Get the closest value, higher or lower...
-                if (m_szTdValue == "closest")
-	            {
-		            // If we're the first item, ignore this value...
-		            if (this == a_swordvalueHead)
-		            {
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        return (m_swordstatus);
-                    }
-
-			        // Find the previous value...
-			        for (swordvaluePrevious = a_swordvalueHead; swordvaluePrevious.GetNextValue() != this; swordvaluePrevious = swordvaluePrevious.GetNextValue()) ;
-                    szTdPreviousValue = swordvaluePrevious.GetValue();
-
-                    // If we're not a number, ignore this value...
-			        if (int.TryParse(szTdPreviousValue, out iResolution))
-			        {
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        return (m_swordstatus);
-                    }
-
-				    // If the value we were given is less than the miminum, use the minimum...
-				    if (iResolution <= m_processswordtask.Resolution()[0])
-				    {
-                        m_aszTwValue = new string[2];
-                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                        return (SwordStatus.Success);
-                    }
-
-                    // If the value we were given is more than the max, use the max...
-                    if (iResolution >= m_processswordtask.Resolution()[m_processswordtask.Resolution().Length - 1])
-                    {
-                        m_aszTwValue = new string[2];
-                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                        return (SwordStatus.Success);
-                    }
-
-                    // Otherwise, walk the list...
-                    for (ee = 0; ee < aiResolution.Length; ee++)
-					{
-						if ((iResolution >= aiResolution[ee]) && (iResolution < aiResolution[ee+1]))
-						{
-							if (iResolution < ((aiResolution[ee] + aiResolution[ee+1]) / 2))
-							{
-                                m_aszTwValue = new string[2];
-                                m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                                m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                                return (SwordStatus.Success);
-                            }
-                            else
-							{
-                                m_aszTwValue = new string[2];
-                                m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee + 1];
-                                m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee + 1];
-                                return (SwordStatus.Success);
-                            }
-						}
-					}
-
-                    // We shouldn't be here...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                // Get the next number higher than us, or the max...
-                if (m_szTdValue == "closestGreaterThan")
-	            {
-                    // If we're the first item, ignore this value...
-                    if (this == a_swordvalueHead)
-                    {
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        return (m_swordstatus);
-                    }                       
-
-                    // Find the previous value...
-                    for (swordvaluePrevious = a_swordvalueHead; swordvaluePrevious.GetNextValue() != this; swordvaluePrevious = swordvaluePrevious.GetNextValue()) ;
-                    szTdPreviousValue = swordvaluePrevious.GetValue();
-
-                    // If we're not a number, ignore this value...
-                    if (int.TryParse(szTdPreviousValue, out iResolution))
-                    {
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        return (m_swordstatus);
-                    }
-
-                    // If the value we were given is less than the miminum, use the minimum...
-                    if (iResolution <= aiResolution[0])
-                    {
-                        m_aszTwValue = new string[2];
-                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                        return (SwordStatus.Success);
-                    }
-
-                    // If the value we were given is more than the max, use the max...
-                    if (iResolution >= aiResolution[aiResolution.Length - 1])
-                    {
-                        m_aszTwValue = new string[2];
-                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                        return (SwordStatus.Success);
-                    }
-
-                    // Otherwise, walk the list...
-                    for (ee = 0; ee < aiResolution.Length; ee++)
-				    {
-					    if ((iResolution >= aiResolution[ee]) && (iResolution <= aiResolution[ee+1]))
-					    {
-                            m_aszTwValue = new string[2];
-                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                            return (SwordStatus.Success);
-                        }
-				    }
-
-                    // We shouldn't be here...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-	            }
-
-                // Get the closest value less than us, or the min...
-	            if (m_szTdValue == "closestLessThan")
-	            {
-                    // If we're the first item, ignore this value...
-                    if (this == a_swordvalueHead)
-                    {
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        return (m_swordstatus);
-                    }
-
-                    // Find the previous value...
-                    for (swordvaluePrevious = a_swordvalueHead; swordvaluePrevious.GetNextValue() != this; swordvaluePrevious = swordvaluePrevious.GetNextValue()) ;
-                    szTdPreviousValue = swordvaluePrevious.GetValue();
-
-                    // If we're not a number, ignore this value...
-                    if (int.TryParse(szTdPreviousValue, out iResolution))
-                    {
-                        m_swordstatus = SwordStatus.SuccessIgnore;
-                        return (m_swordstatus);
-                    }
-
-                    // If the value we were given is less than the miminum, use the minimum...
-                    if (iResolution <= aiResolution[0])
-                    {
-                        m_aszTwValue = new string[2];
-                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                        return (SwordStatus.Success);
-                    }
-
-                    // If the value we were given is more than the max, use the max...
-                    if (iResolution >= aiResolution[aiResolution.Length - 1])
-                    {
-                        m_aszTwValue = new string[2];
-                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                        return (SwordStatus.Success);
-                    }
-
-                    // Otherwise, walk the list...
-                    for (ee = 0; ee < aiResolution.Length; ee++)
-					{
-						if ((iResolution >= aiResolution[ee]) && (iResolution < aiResolution[ee+1]))
-						{
-                            m_aszTwValue = new string[2];
-                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                            return (SwordStatus.Success);
-						}
-					}
-
-                    // We shouldn't be here...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                // Get the max...
-                if (m_szTdValue == "maximum")
-	            {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                    m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
-                    return (SwordStatus.Success);
-                }
-
-                // Get the min...
-                if (m_szTdValue == "minimum")
-	            {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                    m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
-                    return (SwordStatus.Success);
-                }
-
-                // Get the optical resolution...
-                if (m_szTdValue == "optical")
-	            {
-                    // TDB, need this value in the twainlist file...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                // 75dpi or the min...
-                if (m_szTdValue == "preview")
-	            {
-                    // Loopy...
-                    for (ee = 0; ee < aiResolution.Length; ee++)
-                    {
-                        if (aiResolution[ee] >= 75)
-                        {
-                            m_aszTwValue = new string[2];
-                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
-                            return (SwordStatus.Success);
                         }
                     }
 
-                    // We shouldn't be here...
-                    m_swordstatus = SwordStatus.SuccessIgnore;
-                    return (m_swordstatus);
-                }
-
-                // Run-roh...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-		        return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process orthogonalrotate...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessRotation()
-            {
-                if (m_szTdValue == "0")
-                {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,0";
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "90")
-                {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,90";
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "180")
-                {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,180";
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "270")
-                {
-                    m_aszTwValue = new string[2];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
-                    m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,270";
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "automatic")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                    return (m_swordstatus);
-                }
-
-                // Fiddlesticks...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process sheethandling...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessSheethandling()
-            {
-                if (m_szTdValue == "normal")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPH_NORMAL
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "fragile")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPH_FRAGILE
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "photograph")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,4"; // TWPH_PHOTOGRAPH
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "thick")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,2"; // TWPH_THICK
-                    return (m_swordstatus);
-                }
-
-                if (m_szTdValue == "trifold")
-                {
-                    m_aszTwValue = new string[1];
-                    m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,3"; // TWPH_TRIFOLD
-                    return (m_swordstatus);
-                }
-
-                // Gee willikers...
-                m_swordstatus = SwordStatus.SuccessIgnore;
-                return (m_swordstatus);
-             }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Process threshold...
-            ////////////////////////////////////////////////////////////////////////////////
-            public SwordStatus ProcessThreshold()
-            {
-                // Just take the value, TWAIN will validate it...
-                m_aszTwValue = new string[1];
-                m_aszTwValue[0] = "ICAP_THRESHOLD,TWON_ONEVALUE,TWTY_FIX32," + m_szTdValue;
-
-	            // All done...
-	            return (SwordStatus.Success);
-            }
-
-            /// <summary>
-            /// Set a task error...
-            /// </summary>
-            /// <param name="a_szException">the exception  we're processing</param>
-            /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
-            /// <param name="a_szCode">the error code</param>
-            /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
-            /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
-            public void SetError
-            (
-                string a_szException,
-                string a_szJsonExceptionKey,
-                string a_szCode,
-                long a_lJsonErrorIndex
-            )
-            {
-                m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Set the exception for this value....
-            ////////////////////////////////////////////////////////////////////////////////
-            public void SetException(string a_szException)
-            {
-	            m_szException = a_szException;
-            }
-
-            ////////////////////////////////////////////////////////////////////////////////
-            //	Description:
-            //		Set the status for this value....
-            ////////////////////////////////////////////////////////////////////////////////
-            public void SetSwordStatus(SwordStatus a_swordstatus)
-            {
-	            m_swordstatus = a_swordstatus;
-            }
-
-            /// <summary>
-            /// Next value in the list, and are we the head?
-            /// </summary>
-            private SwordValue			m_swordvalueNext;
-
-            /// <summary>
-            /// Our main object...
-            /// </summary>
-            private ProcessSwordTask    m_processswordtask;
-
-            /// <summary>
-            /// How we respond...
-            /// </summary>
-            private SwordTaskResponse	m_swordtaskresponse;
-
-            /// <summary>
-            /// Who owns us?
-            /// </summary>
-            private VendorOwner			m_vendorowner;
-
-            /// <summary>
-            /// The status of the item, this includes if it has been sent to
-            /// the scanner...
-            /// </summary>
-            private SwordStatus		    m_swordstatus;
-
-            /// <summary>
-            /// The full index of this item in the JSON string...
-            /// </summary>
-            private string				m_szJsonKey;
-
-            /// <summary>
-            /// The exception for this value, null means "ignore"...
-            /// </summary>
-            private string				m_szException;
-
-            /// <summary>
-            /// Vendor UUID, allocated as needed, null means that it's a standard
-            /// TWAIN Direct property...
-            /// </summary>
-            private string				m_szVendor;
-
-            /// <summary>
-            /// A single TWAIN Direct value, which we allocate as needed...
-            /// </summary>
-            private string				m_szTdValue;
-
-            /// <summary>
-            /// A TWAIN value of the form container,type,value
-            /// </summary>
-            private string[]            m_aszTwValue;
-        }
-
-        /// <summary>
-        /// A capability contains one or more values, which will be tried in order until
-        /// the scanner accepts one, or we run out.
-        /// </summary>
-        sealed class Capability
-        {
-            ///////////////////////////////////////////////////////////////////////////////
-            // Public Methods...
-            ///////////////////////////////////////////////////////////////////////////////
-            #region Public Methods...
-
-            /// <summary>
-            /// Init the object...
-            /// </summary>
-            /// <param name="a_szCapability">the TWAIN capability we'll be using</param>
-            /// <param name="a_szSwordName">the SWORD name</param>
-            /// <param name="a_szException">the SWORD value</param>
-            /// <param name="a_szException">the SWORD exception</param>
-            /// <param name="a_szJsonIndex">the location of the data in the original JSON string</param>
-            /// <param name="a_szVendor">the vendor for this item</param>
-            public Capability(string a_szCapability, string a_szSwordName, string a_szSwordValue, string a_szException, string a_szJsonIndex, string a_szVendor)
-            {
-                // Init value...
-                m_acapabilityvalue = null;
-
-                // Seed stuff...
-                if ((a_szCapability != null) && (a_szCapability.Length > 0))
-                {
-                    m_acapabilityvalue = new CapabilityValue[1];
-                    m_acapabilityvalue[0] = new CapabilityValue(a_szCapability, a_szSwordName, a_szSwordValue, a_szException, a_szJsonIndex, a_szVendor);
-                }
-            }
-
-            /// <summary>
-            /// Init the object...
-            /// </summary>
-            /// <param name="a_szCapability">the TWAIN capability we'll be using</param>
-            /// <param name="a_swordvalue">value to use</param>
-            public Capability(string a_szCapability, string a_szSwordName, SwordValue a_swordvalue)
-            {
-                // Init value...
-                m_acapabilityvalue = null;
-
-                // Seed stuff...
-                if ((a_szCapability != null) && (a_szCapability.Length > 0))
-                {
-                    m_acapabilityvalue = new CapabilityValue[1];
-                    m_acapabilityvalue[0] = new CapabilityValue
-                    (
-                        a_szCapability,
-                        a_szSwordName,
-                        a_swordvalue.GetValue(),
-                        a_swordvalue.GetException(),
-                        a_swordvalue.GetJsonKey(),
-                        a_swordvalue.GetVendor()
-                    );
-                }
-            }
-
-            /// <summary>
-            /// Add another value to the capability.  We'll be trying them in order
-            /// until we find one that works, or until we run out.
-            /// </summary>
-            /// <param name="a_szCapability">the TWAIN capability we'll be using</param>
-            /// <param name="a_swordvalue">value to use</param>
-            public void AddValue(string a_szCapability, SwordValue a_swordvalue)
-            {
-                // Seed stuff...
-                if ((a_szCapability != null) && (a_szCapability.Length > 0))
-                {
-                    CapabilityValue[] acapabilityvalue = new CapabilityValue[m_acapabilityvalue.Length + 1];
-                    m_acapabilityvalue.CopyTo(acapabilityvalue, 0);
-                    acapabilityvalue[m_acapabilityvalue.Length] = new CapabilityValue
-                    (
-                        a_szCapability,
-                        acapabilityvalue[0].GetSwordName(),
-                        a_swordvalue.GetValue(),
-                        a_swordvalue.GetException(),
-                        a_swordvalue.GetJsonKey(),
-                        a_swordvalue.GetVendor()
-                    );
-                    m_acapabilityvalue = acapabilityvalue;
-                }
-            }
-
-            /// <summary>
-            /// Set the scanner...
-            /// </summary>
-            /// <param name="a_twaincstoolkit">toolkit object</param>
-            /// <param name="a_szSwordName">the SWORD name we picked</param>
-            /// <param name="a_szSwordValue">the SWORD value we picked</param>
-            /// <param name="a_szTwainValue">the TWAIN value we picked</param>
-            /// <param name="a_szVendor">vendor id</param>
-            /// <param name="a_swordtaskresponse">the task response object</param>
-            /// <returns></returns>
-            public string SetScanner
-            (
-                TWAINCSToolkit a_twaincstoolkit,
-                out string a_szSwordName,
-                out string a_szSwordValue,
-                out string a_szTwainValue,
-                string a_szVendor,
-                SwordTaskResponse a_swordtaskresponse
-            )
-            {
-                int iTryValue;
-                string szStatus;
-                string szTwainValue;
-                TWAIN.STS sts;
-
-                // Init stuff...
-                szTwainValue = "";
-                a_szSwordName = null;
-                a_szSwordValue = null;
-                a_szTwainValue = null;
-
-                // Keep trying till we set something...
-                sts = TWAIN.STS.SUCCESS;
-                for (iTryValue = 0; iTryValue < m_acapabilityvalue.Length; iTryValue++)
-                {
-                    // Skip stuff that isn't ours...
-                    if (    !string.IsNullOrEmpty(m_acapabilityvalue[iTryValue].GetVendor())
-                        &&  (m_acapabilityvalue[iTryValue].GetVendor() != a_szVendor))
-                    {
-                        continue;
-                    }
-
-                    // Try to set the value...
-                    szStatus = "";
-                    szTwainValue = m_acapabilityvalue[iTryValue].GetCapability();
-                    sts = a_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
-                    if (sts == TWAIN.STS.SUCCESS)
-                    {
-                        a_szSwordName = m_acapabilityvalue[iTryValue].GetSwordName();
-                        a_szSwordValue = m_acapabilityvalue[iTryValue].GetSwordValue();
-                        a_szTwainValue = szTwainValue;
-                        break;
-                    }
-                }
-
-                // TBD
-                // This section is messed up, try to get the ICAP_YRESOLUTION
-                // handler out of here...
-                if (    (szTwainValue != "")
-                    &&  ((sts == TWAIN.STS.SUCCESS) || (sts == TWAIN.STS.CHECKSTATUS)))
-                {
-                    string[] asz = CSV.Parse(szTwainValue);
-                    switch (asz[0])
-                    {
-                        // All done...
-                        default:
-                            return ("success");
-
-                        // Handle ICAP_XRESOLUTION/ICAP_YRESOLUTION...
-                        case "ICAP_XRESOLUTION":
-                            szStatus = "";
-                            szTwainValue = m_acapabilityvalue[iTryValue].GetCapability().Replace("ICAP_XRESOLUTION", "ICAP_YRESOLUTION");
-                            sts = a_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
-                            break;
-                    }
-
-                    // We're good...
-                    if ((sts == TWAIN.STS.SUCCESS)
-                        || (sts == TWAIN.STS.CHECKSTATUS))
-                    {
-                        return ("success");
-                    }
-                }
-
-                // We ran into a problem, make sure that we're looking at valid value
-                // in array (usually the last item)...
-                if (iTryValue >= m_acapabilityvalue.Length)
-                {
-                    iTryValue = m_acapabilityvalue.Length - 1;
-                }
-
-                // Handle the exception...
-                switch (m_acapabilityvalue[iTryValue].GetException())
-                {
-                    // Do nothing, stick with the current value, this includes if we
-                    // don't recognize the exception, because TWAIN Direct is supposed
-                    // to emphasize success...
-                    default:
-                    case "ignore":
-                        return ("success");
-
-                    // Pass the item up...
-                    case "nextAction":
-                        if (string.IsNullOrEmpty(szTwainValue))
-                        {
-                            a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), null, -1);
-                        }
-                        else
-                        {
-                            a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), szTwainValue, -1);
-                        }
-                        return (m_acapabilityvalue[iTryValue].GetException());
-
-                    // Pass the item up...
-                    case "nextStream":
-                        return (m_acapabilityvalue[iTryValue].GetException());
-
-                    // Pass the item up...
-                    case "fail":
-                        if (string.IsNullOrEmpty(szTwainValue))
-                        {
-                            a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), null, -1);
-                        }
-                        else
-                        {
-                            a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), szTwainValue, -1);
-                        }
-                        return (m_acapabilityvalue[iTryValue].GetException());
-                }
-            }
-
-            #endregion
-
-
-            ///////////////////////////////////////////////////////////////////////////////
-            // Private Attributes...
-            ///////////////////////////////////////////////////////////////////////////////
-            #region Private Attributes...
-
-            // The array of values to try...
-            private CapabilityValue[] m_acapabilityvalue;
-
-            #endregion
-        }
-
-        /// <summary>
-        /// A capability value contains all the stuff it needs to try to set a value...
-        /// </summary>
-        sealed class CapabilityValue
-        {
-            ///////////////////////////////////////////////////////////////////////////////
-            // Public Methods...
-            ///////////////////////////////////////////////////////////////////////////////
-            #region Public Methods...
-
-            /// <summary>
-            /// Init the object...
-            /// </summary>
-            /// <param name="a_szCapability">The TWAIN setting in CSV format</param>
-            /// <param name="a_szSwordName">the SWORD name</param>
-            /// <param name="a_szSwordValue">the SWORD value</param>
-            /// <param name="a_szException">the SWORD exception</param>
-            /// <param name="a_szJsonIndex">the location of the data in the original JSON string</param>
-            /// <param name="a_szVendor">the vendor for this item</param>
-            public CapabilityValue(string a_szCapability, string a_szSwordName, string a_szSwordValue, string a_szException, string a_szJsonIndex, string a_szVendor)
-            {
-                // Controls...
-                m_szCapability = a_szCapability;
-                m_szSwordName = a_szSwordName;
-                m_szSwordValue = a_szSwordValue;
-                m_szException = a_szException;
-                m_szJsonKey = a_szJsonIndex;
-                m_szVendor = a_szVendor;
-            }
-
-            /// <summary>
-            /// Return the TWAIN setting in CSV format...
-            /// </summary>
-            /// <returns>YWAIN capability</returns>
-            public string GetCapability()
-            {
-                return (m_szCapability);
-            }
-
-            /// <summary>
-            /// Return the exception...
-            /// </summary>
-            /// <returns>exception</returns>
-            public string GetException()
-            {
-                return (m_szException);
-            }
-
-            /// <summary>
-            /// Return the vendor identification...
-            /// </summary>
-            /// <returns>the vendor</returns>
-            public string GetVendor()
-            {
-                return (m_szVendor);
-            }
-
-            /// <summary>
-            /// Return the JSON key to this item...
-            /// </summary>
-            /// <returns>key in dotted notation</returns>
-            public string GetJsonKey()
-            {
-                return (m_szJsonKey);
-            }
-
-            /// <summary>
-            /// Return the SWORD name to this item...
-            /// </summary>
-            /// <returns>SWORD name</returns>
-            public string GetSwordName()
-            {
-                return (m_szSwordName);
-            }
-
-            /// <summary>
-            /// Return the SWORD value to this item...
-            /// </summary>
-            /// <returns>SWORD value</returns>
-            public string GetSwordValue()
-            {
-                return (m_szSwordValue);
-            }
-
-            #endregion
-
-
-            ///////////////////////////////////////////////////////////////////////////////
-            // Private Attributes...
-            ///////////////////////////////////////////////////////////////////////////////
-            #region Private Attributes...
-
-            /// <summary>
-            /// The TWAIN MSG_SET command in CSV format...
-            /// </summary>
-            private string m_szCapability;
-
-            /// <summary>
-            /// The name of this sword item...
-            /// </summary>
-            private string m_szSwordName;
-
-            /// <summary>
-            /// The value to report back when building the task reply...
-            /// </summary>
-            private string m_szSwordValue;
-
-            /// <summary>
-            /// The TWAIN Direct exception for this value...
-            /// </summary>
-            private string m_szException;
-
-            // The dotted key notation to locate this item in the original task...
-            private string m_szJsonKey;
-
-            /// <summary>
-            /// The vendor owning this value...
-            /// </summary>
-            private string m_szVendor;
-
-            #endregion
-        }
-
-        /// <summary>
-        /// All of the TWAIN values are here, in their capability order...
-        /// </summary>
-        sealed class TwainCapability
-        {
-            /// <summary>
-            /// Our constructor...
-            /// </summary>
-            public TwainCapability()
-            {
-                // nothing needed at this time...
-            }
-
-            /// <summary>
-            /// Add a capability...
-            /// </summary>
-            /// <param name="a_swordsource">we must have a source</param>
-            /// <param name="a_swordpixelformat">pixelformat is optional</param>
-            /// <param name="a_swordattribute">attribute is optional</param>
-            /// <param name="a_swordvalue">value is optional</param>
-            /// <param name="a_szTwainCapability">we must have a MSG_SET capability string</param>
-            /// <returns></returns>
-            public bool Add
-            (
-                SwordSource a_swordsource,
-                SwordPixelFormat a_swordpixelformat,
-                SwordAttribute a_swordattribute,
-                SwordValue a_swordvalue,
-                string a_szTwainCapability
-            )
-            {
-                bool blSuccess = true;
-                CapabilityOrdering capabilityordering;
-
-                // Dispatch the capability to either the machine (if the cap is less
-                // than CAP_CAMERASIDE) or to the source/pixelformat topology in all
-                // other cases.  If a spot is already in use, discard the item based
-                // on the exception...
-
-                // we have to have a source and a TWAIN Capability...
-                if ((a_swordsource == null) || string.IsNullOrEmpty(a_szTwainCapability))
-                {
-                    return (false);
-                }
-
-                // We must be able to extract the TWAIN capability...
-                string[] asz = a_szTwainCapability.Split(new char[] { ',' });
-                if ((asz == null) || (asz.Length == 0) || string.IsNullOrEmpty(asz[0]))
-                {
-                    goto ABORT;
-                }
-                if (!Enum.TryParse<CapabilityOrdering>(asz[0], out capabilityordering))
-                {
-                    goto ABORT;
-                }
-
-                // This is a machine value...
-                if (capabilityordering < CapabilityOrdering.CAP_CAMERASIDE)
-                {
-                    // We need one of these...
-                    if (m_acapabilitymapMachine == null)
-                    {
-                        m_acapabilitymapMachine = new CapabilityMap[(int)CapabilityOrdering.Length];
-                    }
-
-                    // Check if there's already a chicken in the coop...
-                    if (m_acapabilitymapMachine[(int)capabilityordering] != null)
-                    {
-                        goto ABORT;
-                    }
-
-                    // Save it...
-                    m_acapabilitymapMachine[(int)capabilityordering].m_swordsource = a_swordsource;
-                    m_acapabilitymapMachine[(int)capabilityordering].m_swordpixelformat = a_swordpixelformat;
-                    m_acapabilitymapMachine[(int)capabilityordering].m_swordattribute = a_swordattribute;
-                    m_acapabilitymapMachine[(int)capabilityordering].m_swordvalue = a_swordvalue;
-                    m_acapabilitymapMachine[(int)capabilityordering].m_szTwainCapability = a_szTwainCapability;
+                    // End of the attributes array...
+                    m_swordtaskresponse.JSON_ARR_END(9, "");
+
+                    // End of the source...
+                    m_swordtaskresponse.JSON_OBJ_END(8, ",");
 
                     // All done...
                     return (true);
                 }
 
-                // Get our topology...
-
-
-                // We only have a source (we know we got that, see above)...
-                if (a_swordpixelformat == null)
+                /// <summary>
+                /// Get the name for this pixelFormat...
+                /// </summary>
+                /// <returns>the name</returns>
+                public string GetName()
                 {
+                    return (m_szPixelFormatName);
                 }
 
-                // We only have a pixelFormat...
-                if ((a_swordattribute == null) || (a_swordvalue == null))
+                /// <summary>
+                /// Get the next pixelformat for this source...
+                /// </summary>
+                /// <returns></returns>
+                public SwordPixelFormat GetNextPixelFormat()
                 {
+                    return (m_swordpixelformatNext);
                 }
 
-                // We've got it all...
-
-                // All done...
-                return (true);
-
-                // Abort...
-                ABORT:
-
-                // We have a value...
-                if (a_swordvalue != null)
+                /// <summary>
+                /// Get the first attribute for this pixelformat...
+                /// </summary>
+                /// <returns></returns>
+                public SwordAttribute GetFirstAttribute()
                 {
+                    return (m_swordattribute);
                 }
 
-                // We have an attribute...
-                if (a_swordvalue != null)
+                /// <summary>
+                /// Get the attribute object...
+                /// </summary>
+                /// <param name="a_edbid"></param>
+                /// <param name=""></param>
+                /// <param name="a_blForceArray"></param>
+                /// <returns></returns>
+                public SwordAttribute GetAttribute
+                (
+                    string a_szCapability,
+                    bool a_blForceArray
+                )
                 {
+                    long ii;
+                    long cc;
+
+                    // Look for special items (if allowed)...
+                    if (!a_blForceArray)
+                    {
+                        switch (a_szCapability)
+                        {
+                            default: break;
+                            case "CAP_AUTOMATICSENSEMEDIUM": return (m_swordattributeAutomaticsensemedium);
+                            case "CAP_FEEDERENABLED": return (m_swordattributeFeederenabled);
+                            case "CAP_DUPLEXENABLED": return (m_swordattributeDuplexenabled);
+                            case "CAP_CAMERASIDE": return (m_swordattributeCameraside);
+                            case "ICAP_PIXELTYPE": return (m_swordattributePixeltype);
+                        }
+                    }
+
+                    // We don't have a value...
+                    if ((m_aswordattribute == null) || (m_aswordattribute.Length == 0))
+                    {
+                        return (null);
+                    }
+
+                    // Return it from the array, bearing in mind that each capability can
+                    // try to set more than one thing...
+                    for (ii = 0; ii < m_aswordattribute.Length; ii++)
+                    {
+                        string[] aszCapability = m_aswordattribute[ii].GetCapability();
+                        if ((aszCapability != null) && (aszCapability.Length > 0))
+                        {
+                            for (cc = 0; cc < aszCapability.Length; cc++)
+                            {
+                                if (aszCapability[ii].StartsWith(a_szCapability + ","))
+                                {
+                                    return (m_aswordattribute[ii]);
+                                }
+                            }
+                        }
+                    }
+
+                    // No joy...
+                    return (null);
                 }
 
-                // We have a pixelFormat...
-                if (a_swordvalue != null)
+                /// <summary>
+                /// TWAIN: get the compression...
+                /// </summary>
+                /// <returns>the object</returns>
+                public Capability GetCapabilityCompression()
                 {
+                    return (m_capabilityCompression);
                 }
 
-                // We'd better have a source (see above)...
+                /// <summary>
+                /// TWAIN: get the pixeltype...
+                /// </summary>
+                /// <returns>the object</returns>
+                public Capability GetCapabilityPixeltype()
+                {
+                    return (m_capabilityPixeltype);
+                }
 
-                // All done...
-                return (blSuccess);
+                /// <summary>
+                /// TWAIN: get the resolution...
+                /// </summary>
+                /// <returns>the object</returns>
+                public Capability GetCapabilityResolution()
+                {
+                    return (m_capabilityResolution);
+                }
+
+                /// <summary>
+                /// TWAIN: get the xfercount...
+                /// </summary>
+                /// <returns>the object</returns>
+                public Capability GetCapabilityXfercount()
+                {
+                    return (m_capabilityXfercount);
+                }
+
+                /// <summary>
+                /// Get the exception for this pixelformat...
+                /// </summary>
+                /// <returns>the exception</returns>
+                public string GetException()
+                {
+                    return (m_szException);
+                }
+
+                /// <summary>
+                /// Get the pixelformat value for this pixelformat...
+                /// </summary>
+                /// <returns>the pixelFormat</returns>
+                public string GetPixelFormat()
+                {
+                    return (m_szPixelFormat);
+                }
+
+                /// <summary>
+                ///	Process this pixelformat.  We sort out what the topology
+                ///	is, and then process all of the attributes...
+                /// </summary>
+                /// <param name="a_szSourceException"></param>
+                /// <param name="a_szAutomaticSenseMedium"></param>
+                /// <param name="a_szCameraSide"></param>
+                /// <param name="a_szDuplexEnabled"></param>
+                /// <param name="a_szFeederEnabled"></param>
+                /// <param name="a_szPixelType"></param>
+                /// <returns></returns>
+                public SwordStatus Process
+                (
+	                string a_szSourceException,
+                    string a_szAutomaticSenseMedium,
+                    string a_szCameraSide,
+                    string a_szDuplexEnabled,
+                    string a_szFeederEnabled
+                )
+                {
+                    SwordStatus swordstatus;
+                    SwordAttribute swordattribute;
+
+                    // Assume success, unless told otherwise...
+                    m_swordstatus = SwordStatus.Run;
+
+                    // Make sure we have a name...
+                    if (string.IsNullOrEmpty(m_szPixelFormatName))
+                    {
+                        int szIndex;
+                        szIndex = m_szJsonKey.LastIndexOf("[");
+                        if (szIndex != -1)
+                        {
+                            m_szPixelFormatName = "pixelFormat" + m_szJsonKey.Substring(szIndex + 1);
+                            szIndex = m_szPixelFormatName.LastIndexOf("]");
+                            if (szIndex != -1)
+                            {
+                                m_szPixelFormatName = m_szPixelFormatName.Remove(szIndex);
+                            }
+                        }
+                    }
+
+                    // Make sure we recognize the pixelFormat...
+                    switch (m_szPixelFormat)
+                    {
+                        // So much for that idea...
+                        default:
+                            // Apply our exceptions...
+                            switch (m_szException)
+                            {
+                                default:
+                                case "ignore":
+                                    // Keep going...
+                                    break;
+                                case "nextAction":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextAction;
+                                    m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
+                                    return (m_swordstatus);
+                                case "nextStream":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextStream;
+                                    return (m_swordstatus);
+                                case "fail":
+                                    // Whoops, time to empty the pool...
+                                    m_swordstatus = SwordStatus.Fail;
+                                    m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
+                                    return (m_swordstatus);
+                            }
+                            break;
+
+                        // We're good, keep going...
+                        case "any":
+                            m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,*", a_szSourceException, m_szVendor);
+                            break;
+
+                        case "bw1":
+                            m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,0", a_szSourceException, m_szVendor);
+                            break;
+
+                        case "gray8":
+                            m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,1", a_szSourceException, m_szVendor);
+                            break;
+
+                        case "rgb24":
+                            m_swordattributePixeltype.AppendValue(m_szJsonKey, "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2", a_szSourceException, m_szVendor);
+                            break;
+                    }
+
+
+                    // Take care of our topology issue...
+                    #region Topology
+
+                    // CAP_AUTOMATICSENSEMEDIUM...
+                    if (string.IsNullOrEmpty(a_szAutomaticSenseMedium))
+                    {
+                        m_swordattributeAutomaticsensemedium.AppendValue(m_szJsonKey, "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
+                    }
+                    else
+                    {
+                        m_swordattributeAutomaticsensemedium.AppendValue(m_szJsonKey, a_szAutomaticSenseMedium, a_szSourceException, m_szVendor);
+                    }
+
+                    // CAP_CAMERASIDE...
+                    if (string.IsNullOrEmpty(a_szCameraSide) || (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetCameraSides() == "[]"))
+                    {
+                        m_swordattributeCameraside.AppendValue(m_szJsonKey, "CAP_CAMERASIDE,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
+                    }
+                    else
+                    {
+                        m_swordattributeCameraside.AppendValue(m_szJsonKey, a_szCameraSide, a_szSourceException, m_szVendor);
+                    }
+
+                    // CAP_DUPLEXENABLED...
+                    if (string.IsNullOrEmpty(a_szDuplexEnabled))
+                    {
+                        m_swordattributeDuplexenabled.AppendValue(m_szJsonKey, "CAP_DUPLEXENABLED,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
+                    }
+                    else
+                    {
+                        m_swordattributeDuplexenabled.AppendValue(m_szJsonKey, a_szDuplexEnabled, a_szSourceException, m_szVendor);
+                    }
+
+                    // CAP_FEEDERENABLED...
+                    if (string.IsNullOrEmpty(a_szFeederEnabled))
+                    {
+                        m_swordattributeFeederenabled.AppendValue(m_szJsonKey, "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,*", a_szSourceException, m_szVendor);
+                    }
+                    else
+                    {
+                        m_swordattributeFeederenabled.AppendValue(m_szJsonKey, a_szFeederEnabled, a_szSourceException, m_szVendor);
+                    }
+
+                    #endregion
+
+
+                    // Handle problems...
+                    #region Handle problems
+
+                    // Only if not successful...
+                    if (m_swordstatus != SwordStatus.Run)
+                    {
+                        // Apply our exceptions...
+                        switch (m_szException)
+                        {
+                            default:
+                                m_swordstatus = SwordStatus.SuccessIgnore;
+                                return (m_swordstatus);
+                            case "nextAction":
+                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
+                                m_swordstatus = SwordStatus.NextAction;
+                                return (m_swordstatus);
+                            case "nextStream":
+                                m_swordstatus = SwordStatus.NextStream;
+                                return (m_swordstatus);
+                            case "fail":
+                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".pixelFormat", "invalidValue", -1);
+                                m_swordstatus = SwordStatus.Fail;
+                                return (m_swordstatus);
+                        }
+                    }
+
+                    #endregion
+
+
+                    // Process attributes...
+                    #region Process attributes
+
+                    // Process the addressing attributes...
+                    m_swordstatus = m_swordattributeFeederenabled.Process(null);
+                    if (    (m_swordstatus != SwordStatus.Run)
+                        &&  (m_swordstatus != SwordStatus.Success)
+                        &&  (m_swordstatus != SwordStatus.SuccessIgnore))
+                    {
+                        return (m_swordstatus);
+                    }
+                    m_swordstatus = m_swordattributeCameraside.Process(null);
+                    if (    (m_swordstatus != SwordStatus.Run)
+                        &&  (m_swordstatus != SwordStatus.Success)
+                        &&  (m_swordstatus != SwordStatus.SuccessIgnore))
+                    {
+                        return (m_swordstatus);
+                    }
+                    m_swordstatus = m_swordattributePixeltype.Process(null);
+                    if (    (m_swordstatus != SwordStatus.Run)
+                        &&  (m_swordstatus != SwordStatus.Success)
+                        &&  (m_swordstatus != SwordStatus.SuccessIgnore))
+                    {
+                        return (m_swordstatus);
+                    }
+
+                    // If we don't have a value, then get what we currently have...
+                    string szPixeltype;
+                    if (m_swordattributePixeltype.GetFirstValue() != null)
+                    {
+                        szPixeltype = m_swordattributePixeltype.GetFirstValue().GetValue();
+                    }
+                    else
+                    {
+                        string szStatus;
+                        szStatus = "";
+                        szPixeltype = "ICAP_PIXELTYPE";
+                        m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szPixeltype, ref szStatus);
+                    }
+
+                    // Invoke the process function for each of our attributes...
+                    for (swordattribute = m_swordattribute;
+                         swordattribute != null;
+                         swordattribute = swordattribute.GetNextAttribute())
+                    {
+                        // Process this attribute (and all of its contents)...
+                        swordstatus = swordattribute.Process(szPixeltype);
+
+                        // Check the result...
+                        if (    (swordstatus != SwordStatus.Run)
+                            &&  (swordstatus != SwordStatus.Success)
+                            &&  (swordstatus != SwordStatus.SuccessIgnore))
+                        {
+                            m_swordstatus = swordstatus;
+                            return (m_swordstatus);
+                        }
+                    }
+
+                    #endregion
+
+
+                    // Return with whatever we currently have for a status...
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Set a task error...
+                /// </summary>
+                /// <param name="a_szException">the exception  we're processing</param>
+                /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+                /// <param name="a_szCode">the error code</param>
+                /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+                /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
+                public void SetError
+                (
+                    string a_szException,
+                    string a_szJsonExceptionKey,
+                    string a_szCode,
+                    long a_lJsonErrorIndex
+                )
+                {
+                    m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+                }
+
+                /// <summary>
+                /// Set the exception for this pixelformat...
+                /// </summary>
+                /// <param name="a_szException"></param>
+                public void SetException(string a_szException)
+                {
+                    m_szException = a_szException;
+                }
+
+                /// <summary>
+                /// Set the exception for this pixelformat...
+                /// </summary>
+                /// <param name="a_swordstatus"></param>
+                public void SetSwordStatus(SwordStatus a_swordstatus)
+                {
+                    m_swordstatus = a_swordstatus;
+                }
+
+                /// <summary>
+                /// Get the exception for this pixelformat...
+                /// </summary>
+                /// <returns>the status</returns>
+                public SwordStatus GetSwordStatus()
+                {
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Get the vendor for this pixelformat...
+                /// </summary>
+                /// <returns>the vendor, if any</returns>
+                public string GetVendor()
+                {
+                    return (m_szVendor);
+                }
+
+                /// <summary>
+                /// Next one in the list...
+                /// </summary>
+                private SwordPixelFormat m_swordpixelformatNext;
+
+                /// <summary>
+                /// Our main object...
+                /// </summary>
+                private ProcessSwordTask m_processswordtask;
+
+                /// <summary>
+                /// Our response...
+                /// </summary>
+                private SwordTaskResponse m_swordtaskresponse;
+
+                /// <summary>
+                /// The status of the item...
+                /// </summary>
+                private SwordStatus m_swordstatus;
+
+                /// <summary>
+                /// The name of the pixelFormat...
+                /// </summary>
+                private string m_szPixelFormatName;
+
+                /// <summary>
+                /// The index of this item in the JSON string...
+                /// </summary>
+                private string m_szJsonKey;
+
+                /// <summary>
+                /// The default exception for all items in this source...
+                /// </summary>
+                private string m_szException;
+
+                /// <summary>
+                /// Vendor UUID...
+                /// </summary>
+                private string m_szVendor;
+
+                /// <summary>
+                /// Vendor info...
+                /// </summary>
+                private VendorOwner m_vendorowner;
+
+                /// <summary>
+                /// Format of images (ex: bw1, gray8, rgb24, etc)
+                /// </summary>
+                private string m_szPixelFormat;
+
+                /// <summary>
+                /// The source/pixelFormat attributes...
+                /// </summary>
+                private SwordAttribute m_swordattributeAutomaticsensemedium;
+                private SwordAttribute m_swordattributeCameraside;
+                private SwordAttribute m_swordattributeDuplexenabled;
+                private SwordAttribute m_swordattributeFeederenabled;
+                private SwordAttribute m_swordattributePixeltype;
+
+                /// <summary>
+                /// TWAIN stuff...
+                /// </summary>
+                private Capability m_capabilityCompression;
+                private Capability m_capabilityPixeltype;
+                private Capability m_capabilityResolution;
+                private Capability m_capabilityXfercount;
+
+                /// <summary>
+                /// The first attribute in the list...
+                /// </summary>
+                private SwordAttribute m_swordattribute;
+
+                /// <summary>
+                /// We'll maintain a list of the attributes at this level
+                /// to make it easier to parse them, when it's time to
+                /// send stuff to the scanner...
+                /// </summary>
+                private SwordAttribute[] m_aswordattribute;
             }
 
             /// <summary>
-            /// All of the capabilities in capability order (mapped through the
-            /// CapabilityOrdering enumeration).  We fill in this stuff in a first
-            /// come first serve mode.  However, when we run it, we'll do the
-            /// flatbed before the ADF, so the ADFs values will take if the scanner
-            /// can't handle separate values for both...
+            ///	A list of zero or more attributes for a pixelFormat, all of which are
+            ///	used (or at least an attempt is made to use them)...
             /// </summary>
-            private CapabilityMap[] m_acapabilitymapMachine;
-            //private CapabilityMap[] m_acapabilitymapFlatbedBw1;
-            //private CapabilityMap[] m_acapabilitymapFlatbedGray8;
-            //private CapabilityMap[] m_acapabilitymapFlatbedRgb24;
-            //private CapabilityMap[] m_acapabilitymapFrontBw1;
-            //private CapabilityMap[] m_acapabilitymapFrontGray8;
-            //private CapabilityMap[] m_acapabilitymapFrontRgb24;
-            //private CapabilityMap[] m_acapabilitymapRearBw1;
-            //private CapabilityMap[] m_acapabilitymapRearGray8;
-            //private CapabilityMap[] m_acapabilitymapRearRgb24;
-        }
+            sealed class SwordAttribute
+            {
+                /// <summary>
+                /// Constructor...
+                /// </summary>
+                /// <param name="a_swordtaskresponse">our response</param>
+                /// <param name="a_swordattributeHead">the first attribute</param>
+                /// <param name="a_szJsonKey">actions[].streams[].sources[].pixelTypes[].attributes</param>
+                /// <param name="a_szSwordAttribute">the sword attribute name</param>
+                /// <param name="a_szTwainAttribute">the twain attribute name</param>
+                /// <param name="a_szException">the exception for this attribute</param>
+                /// <param name="a_szVendor">the vendor id, if any</param>
+                public SwordAttribute
+                (
+                    ProcessSwordTask a_processswordtask,
+                    SwordTaskResponse a_swordtaskresponse,
+	                SwordAttribute a_swordattributeHead,
+	                string a_szJsonKey,
+                    string a_szSwordAttribute,
+                    string a_szTwainAttribute,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+	                // If the vendor isn't us, then skip it, this isn't subject
+	                // to exceptions, so we return here...
+	                m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
+	                if (m_vendorowner == VendorOwner.Unknown)
+	                {
+		                m_swordstatus = SwordStatus.VendorMismatch;
+		                return;
+	                }
 
-        #endregion
+                    // Non-zero stuff...
+                    m_processswordtask = a_processswordtask;
+                    m_swordtaskresponse = a_swordtaskresponse;
+	                m_swordstatus = SwordStatus.Success;
+	                m_szJsonKey = a_szJsonKey;
+	                m_szException = a_szException;
+	                m_szVendor = a_szVendor;
+	                m_szSwordAttribute = a_szSwordAttribute;
+                    m_szTwainAttribute = a_szTwainAttribute;
+
+                    // We're the head of the list...
+                    if (a_swordattributeHead == null)
+	                {
+                        // nothing needed...
+                    }
+
+                    // We're being appended to the list...
+                    else
+                    {
+		                SwordAttribute swordattributeParent;
+		                for (swordattributeParent = a_swordattributeHead; swordattributeParent.m_swordattributeNext != null; swordattributeParent = swordattributeParent.m_swordattributeNext) ;
+		                swordattributeParent.m_swordattributeNext = this;
+	                }
+
+	                // All done...
+	                return;
+                }
+
+                /// <summary>
+                /// Append a value to the attribute...
+                /// </summary>
+                /// <param name="a_szJsonKey">our key</param>
+                /// <param name="a_szValue">the value</param>
+                /// <param name="a_szException">our exception</param>
+                /// <param name="a_szVendor">our vendor id, if any</param>
+                /// <returns></returns>
+                public SwordValue AppendValue
+                (
+	                string a_szJsonKey,
+                    string a_szValue,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+	                SwordValue swordvalue;
+
+	                // Allocate and init stuff...
+	                swordvalue = new SwordValue(m_processswordtask, m_swordtaskresponse, m_swordvalue,a_szJsonKey,a_szValue,a_szException,a_szVendor);
+	                if (swordvalue == null)
+	                {
+		                return (null);
+	                }
+
+	                // We're not supported...
+	                if (swordvalue.GetSwordStatus() == SwordStatus.VendorMismatch)
+	                {
+                        swordvalue = null;
+
+                        return (null);
+	                }
+
+	                // Make us the head of the list...
+	                if (m_swordvalue == null)
+	                {
+		                m_swordvalue = swordvalue;
+	                }
+
+	                // All done...
+	                return (swordvalue);
+                }
+
+                /// <summary>
+                /// Build the task reply...
+                /// </summary>
+                /// <returns>true on success</returns>
+                public bool BuildTaskReply()
+                {
+	                bool blSuccess;
+	                SwordValue swordvalue;
+
+	                // Only report on success...
+	                if (m_swordstatus != SwordStatus.Success)
+	                {
+		                return (true);
+	                }
+
+                    // Start of the attribute...
+                    m_swordtaskresponse.JSON_OBJ_BGN(10,"");
+
+	                // The vendor (if any) and the attribute...
+	                if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(11,"vendor",",",m_szVendor);
+                    m_swordtaskresponse.JSON_STR_SET(11,"attribute",",",m_szSwordAttribute);
+
+                    // Start of the values array...
+                    m_swordtaskresponse.JSON_ARR_BGN(11,"values");
+
+	                // List our attributes...
+	                for (swordvalue = GetFirstValue();
+		                 swordvalue != null;
+		                 swordvalue = swordvalue.GetNextValue())
+	                {
+		                // List an attribute...
+		                blSuccess = swordvalue.BuildTaskReply();
+		                if (!blSuccess)
+		                {
+			                break;
+		                }
+	                }
+
+                    // End of the values array...
+                    m_swordtaskresponse.JSON_ARR_END(11,"");
+
+                    // End of the attribute...
+                    m_swordtaskresponse.JSON_OBJ_END(10,",");
+
+	                // All done...
+	                return (true);
+                }
+
+                /// <summary>
+                /// Get the sword attribute value for this attribute...
+                /// </summary>
+                /// <returns>the sword attribute</returns>
+                public string GetSwordAttribute()
+                {
+	                return (m_szSwordAttribute);
+                }
+
+                /// <summary>
+                /// Get the TWAIN attribute value for this attribute...
+                /// </summary>
+                /// <returns>the twain attribute</returns>
+                public string GetTwainAttribute()
+                {
+                    return (m_szTwainAttribute);
+                }
+
+                /// <summary>
+                /// Get the TWAIN capability value for this attribute...
+                /// </summary>
+                /// <returns>the capability</returns>
+                public string[] GetCapability()
+                {
+                    return (m_swordvalue.GetCapability());
+                }
+
+                /// <summary>
+                /// Get the next attribute...
+                /// </summary>
+                /// <returns>the next attribute or null</returns>
+                public SwordAttribute GetNextAttribute()
+                {
+	                return (m_swordattributeNext);
+                }
+
+                /// <summary>
+                /// Get the first value for this attribute...
+                /// </summary>
+                /// <returns>the sword value</returns>
+                public SwordValue GetFirstValue()
+                {
+	                return (m_swordvalue);
+                }
+
+                /// <summary>
+                /// Get the exception for this attribute...
+                /// </summary>
+                /// <returns>the exception</returns>
+                public string GetException()
+                {
+	                return (m_szException);
+                }
+
+                /// <summary>
+                /// Get the status for this attribute...
+                /// </summary>
+                /// <returns>the status</returns>
+                public SwordStatus GetSwordStatus()
+                {
+	                return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Get the vendor for this attribute...
+                /// </summary>
+                /// <returns>the vendor id, if any</returns>
+                public string GetVendor()
+                {
+	                return (m_szVendor);
+                }
+
+                /// <summary>
+                /// Process this attribute, which means try to map it to
+                ///	TWAIN capabilities...
+                /// </summary>
+                /// <returns>the status of the process</returns>
+                public SwordStatus Process(string a_szPixelformat)
+                {
+	                SwordStatus swordstatus;
+	                SwordValue swordvalue;
+
+	                // Assume success...
+	                m_swordstatus = SwordStatus.Run;
+
+                    // Make sure we recognize the attribute...
+                    switch (m_szSwordAttribute)
+                    {
+                        // So much for that idea...
+                        default:
+                            // Apply our exceptions...
+                            switch (m_szException)
+                            {
+                                default:
+                                case "ignore":
+                                    // Keep going...
+                                    break;
+                                case "nextAction":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextAction;
+                                    m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".attribute", "invalidValue", -1);
+                                    return (m_swordstatus);
+                                case "nextStream":
+                                    // We're out of here...
+                                    m_swordstatus = SwordStatus.NextStream;
+                                    return (m_swordstatus);
+                                case "fail":
+                                    // Whoops, time to empty the pool...
+                                    m_swordstatus = SwordStatus.Fail;
+                                    m_swordtaskresponse.SetError("fail", m_szJsonKey + ".attribute", "invalidValue", -1);
+                                    return (m_swordstatus);
+                            }
+                            break;
+
+                        // We're good, keep going...
+                        case "compression":
+                        case "doubleFeedDectection":
+                        case "numberOfSheets":
+                        case "pixelFormat":
+                        case "resolution":
+                            break;
+                    }
+
+	                // Invoke the process function for each of our values...
+	                for (swordvalue = m_swordvalue;
+		                 swordvalue != null;
+		                 swordvalue = swordvalue.GetNextValue())
+	                {
+		                // Process this value (and all of its contents)...
+		                swordstatus = swordvalue.Process(a_szPixelformat, GetSwordAttribute(), GetFirstValue());
+
+		                // Check the result...
+		                if (	(swordstatus != SwordStatus.Run)
+			                &&	(swordstatus != SwordStatus.Success)
+			                &&	(swordstatus != SwordStatus.SuccessIgnore))
+		                {
+			                m_swordstatus = swordstatus;
+			                return (m_swordstatus);
+		                }
+	                }
+
+	                // Return with whatever we currently have for a status...
+	                return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Set a task error...
+                /// </summary>
+                /// <param name="a_szException">the exception  we're processing</param>
+                /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+                /// <param name="a_szCode">the error code</param>
+                /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+                /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
+                public void SetError
+                (
+                    string a_szException,
+                    string a_szJsonExceptionKey,
+                    string a_szCode,
+                    long a_lJsonErrorIndex
+                )
+                {
+                    m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+                }
+
+                /// <summary>
+                /// Set the vendor for this attribute...
+                /// </summary>
+                /// <param name="a_szException">the exception to set</param>
+                public void SetException(string a_szException)
+                {
+	                m_szException = a_szException;
+                }
+
+                /// <summary>
+                /// Set the status for this attribute...
+                /// </summary>
+                /// <param name="a_swordstatus">the status</param>
+                public void SetSwordStatus(SwordStatus a_swordstatus)
+                {
+	                m_swordstatus = a_swordstatus;
+                }
+
+			    // Next one in the list, note if we're the first...
+			    private SwordAttribute		m_swordattributeNext;
+
+                // Our main object...
+                private ProcessSwordTask    m_processswordtask;
+
+			    // Our response...
+			    private SwordTaskResponse	m_swordtaskresponse;
+
+			    // Who owns us...
+			    private VendorOwner			m_vendorowner;
+
+			    // The status of the item...
+			    private SwordStatus		    m_swordstatus;
+
+			    // The index of this item in the JSON string...
+			    private string				m_szJsonKey;
+
+			    // The exception for this attribute...
+			    private string				m_szException;
+
+			    // Vendor UUID...
+			    private string				m_szVendor;
+
+                // The SWORD and TWAIN ids of the attribute...
+                private string              m_szSwordAttribute;
+                private string				m_szTwainAttribute;
+
+			    // The first value in the list...
+			    private SwordValue		    m_swordvalue;
+            }
+
+            /// <summary>
+            /// A list of zero or more values for an attribute, only one will be used...
+            /// </summary>
+            sealed class SwordValue
+            {
+
+                /// <summary>
+                /// Constructor...
+                /// </summary>
+                /// <param name="a_swordtaskresponse">our response</param>
+                /// <param name="a_swordvalueHead">the first value</param>
+                /// <param name="a_szJsonKey">actions[].streams[].sources[].pixelFormats[].attributes[].values[]</param>
+                /// <param name="a_szTdValue">the value</param>
+                /// <param name="a_szException">the exception</param>
+                /// <param name="a_szVendor">the vendor, if any</param>
+                public SwordValue
+                (
+                    ProcessSwordTask a_processswordtask,
+	                SwordTaskResponse a_swordtaskresponse,
+	                SwordValue a_swordvalueHead,
+	                string a_szJsonKey,
+                    string a_szTdValue,
+                    string a_szException,
+                    string a_szVendor
+                )
+                {
+	                // If the vendor isn't us, then skip it, this isn't subject
+	                // to exceptions, so we return here...
+	                m_vendorowner = a_processswordtask.GetVendorOwner(a_szVendor);
+	                if (m_vendorowner == VendorOwner.Unknown)
+	                {
+		                m_swordstatus = SwordStatus.VendorMismatch;
+		                return;
+	                }
+
+                    // Init stuff...
+                    m_processswordtask = a_processswordtask;
+                    m_swordtaskresponse = a_swordtaskresponse;
+	                m_swordstatus = SwordStatus.Success;
+	                m_szJsonKey = a_szJsonKey;
+	                m_szException = a_szException;
+	                m_szVendor = a_szVendor;
+	                m_szTdValue = a_szTdValue;
+
+                    // We're the head of the list...
+                    if (a_swordvalueHead == null)
+	                {
+                        // nothing needed...
+                    }
+
+                    // We're being appended to the list...
+                    else
+                    {
+		                SwordValue swordvalueParent;
+		                for (swordvalueParent = a_swordvalueHead; swordvalueParent.m_swordvalueNext != null; swordvalueParent = swordvalueParent.m_swordvalueNext) ;
+		                swordvalueParent.m_swordvalueNext = this;
+	                }
+
+	                // All done...
+	                return;
+                }
+
+                /// <summary>
+                /// Build the task reply...
+                /// </summary>
+                /// <returns>true on success</returns>
+                public bool BuildTaskReply()
+                {
+	                // Only report on success...
+	                if (m_swordstatus != SwordStatus.Success)
+	                {
+		                return (true);
+	                }
+
+	                // Start of the value...
+	                m_swordtaskresponse.JSON_OBJ_BGN(12,"");
+
+	                // The vendor (if any) and the value...
+	                if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(13,"vendor",",",m_szVendor);
+	                if (string.IsNullOrEmpty(m_szTdValue))
+	                {
+                        m_swordtaskresponse.JSON_STR_SET(13,"value","",m_szTdValue);
+	                }
+	                else if (	(m_szTdValue == "false")
+			                 ||	(m_szTdValue == "null")
+			                 ||	(m_szTdValue == "true"))
+	                {
+                        m_swordtaskresponse.JSON_STR_SET(13,"value","",m_szTdValue);
+	                }
+	                else
+	                {
+                        int iValue;
+		                if (!int.TryParse(m_szTdValue,out iValue))
+		                {
+                            m_swordtaskresponse.JSON_STR_SET(13,"value","",m_szTdValue);
+		                }
+		                else
+		                {
+                            m_swordtaskresponse.JSON_NUM_SET(13,"value","",iValue);
+		                }
+	                }
+
+                    // End of the value...
+                    m_swordtaskresponse.JSON_OBJ_END(12,"");
+
+	                // All done...
+	                return (true);
+                }
+
+                /// <summary>
+                /// Return the capability(s) for this value...
+                /// </summary>
+                /// <returns>the capability(s)</returns>
+                public string[] GetCapability()
+                {
+                    return (m_aszTwValue);
+                }
+
+                /// <summary>
+                /// Return the exception for this value...
+                /// </summary>
+                /// <returns>the exception</returns>
+                public string GetException()
+                {
+	                return (m_szException);
+                }
+
+                /// <summary>
+                /// Return the json key for this value...
+                /// </summary>
+                /// <returns>the json key</returns>
+                public string GetJsonKey()
+                {
+                    return (m_szJsonKey);
+                }
+
+                /// <summary>
+                /// Return the next value in our attribute...
+                /// </summary>
+                /// <returns>the next value</returns>
+                public SwordValue GetNextValue()
+                {
+	                return (m_swordvalueNext);
+                }
+
+                /// <summary>
+                /// Get the SWORD status for this value...
+                /// </summary>
+                /// <returns>the status</returns>
+                public SwordStatus GetSwordStatus()
+                {
+	                return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Get the task value...
+                /// </summary>
+                /// <returns>the value</returns>
+                public string GetValue()
+                {
+	                return (m_szTdValue);
+                }
+
+                /// <summary>
+                /// Return the vendor id for this value....
+                /// </summary>
+                /// <returns>the vendor id</returns>
+                public string GetVendor()
+                {
+	                return (m_szVendor);
+                }
+
+                /// <summary>
+                /// Process this value...
+                /// </summary>
+                /// <param name="a_szAttribute">the TWAIN Direct attribute name</param>
+                /// <returns>our status when done</returns>
+                public SwordStatus Process(string a_szPixelformat, string a_szAttribute, SwordValue a_swordvalueHead)
+                {
+	                // Init stuff...
+	                m_aszTwValue = null;
+
+                    // Assume success...
+                    m_swordstatus = SwordStatus.Run;
+
+                    // TWAIN Direct...
+                    #region TWAIN Direct
+
+                    if (m_vendorowner == VendorOwner.TwainDirect) 
+	                {
+		                // Handle TWAIN Direct here...
+		                switch (a_szAttribute)
+		                {
+			                default:
+                                // Apply our exceptions...
+                                switch (m_szException)
+                                {
+                                    default:
+                                    case "ignore":
+                                        // Keep going...
+                                        break;
+                                    case "nextAction":
+                                        // We're out of here...
+                                        m_swordstatus = SwordStatus.NextAction;
+                                        m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".value", "invalidValue", -1);
+                                        return (m_swordstatus);
+                                    case "nextStream":
+                                        // We're out of here...
+                                        m_swordstatus = SwordStatus.NextStream;
+                                        return (m_swordstatus);
+                                    case "fail":
+                                        // Whoops, time to empty the pool...
+                                        m_swordstatus = SwordStatus.Fail;
+                                        m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
+                                        return (m_swordstatus);
+                                }
+                                break;
+
+			                case "automaticDeskew":
+				                if (ProcessAutomaticdeskew() != SwordStatus.Success)
+				                {
+					                goto ABORT;
+				                }
+				                break;
+
+                            case "compression":
+                                if (ProcessCompression(a_szPixelformat) != SwordStatus.Success)
+                                {
+                                    goto ABORT;
+                                }
+                                break;
+
+                            case "continuousScan":
+                                if (ProcessContinuousscan() != SwordStatus.Success)
+                                {
+                                    goto ABORT;
+                                }
+                                break;
+
+			                case "contrast":
+				                if (ProcessContrast() != SwordStatus.Success)
+				                {
+					                goto ABORT;
+				                }
+				                break;
+
+			                case "cropping":
+				                if (ProcessCropping() != SwordStatus.Success)
+				                {
+					                goto ABORT;
+				                }
+				                break;
+
+                            case "discardBlankImages":
+                                if (ProcessDiscardblankimages() != SwordStatus.Success)
+                                {
+                                    goto ABORT;
+                                }
+                                break;
+
+                            case "doubleFeedDetection":
+                                if (ProcessDoublefeeddetection() != SwordStatus.Success)
+                                {
+                                    goto ABORT;
+                                }
+                                break;
+
+                            case "imageMerge":
+                                if (ProcessImagemerge() != SwordStatus.Success)
+				                {
+					                goto ABORT;
+				                }
+				                break;
+
+			                case "noiseFilter":
+				                if (ProcessNoisefilter() != SwordStatus.Success)
+				                {
+					                goto ABORT;
+				                }
+				                break;
+
+			                case "numberOfSheets":
+				                if (ProcessNumberofsheets() != SwordStatus.Success)
+				                {
+					                goto ABORT;
+				                }
+				                break;
+
+                            case "pixelFormat":
+                                // Just accept it...
+                                break;
+
+                            case "resolution":
+                                if (ProcessResolution(a_swordvalueHead) != SwordStatus.Success)
+                                {
+                                    goto ABORT;
+                                }
+                                break;
+
+                            case "rotation":
+                                if (ProcessRotation() != SwordStatus.Success)
+                                {
+                                    goto ABORT;
+                                }
+                                break;
+
+                            case "sheetHandling":
+                                if (ProcessSheethandling() != SwordStatus.Success)
+                                {
+                                    goto ABORT;
+                                }
+                                break;
+
+                            case "threshold":
+				                if (ProcessThreshold() != SwordStatus.Success)
+				                {
+					                goto ABORT;
+				                }
+				                break;
+		                }
+	                }
+
+	                #endregion
+
+
+	                // Handle problems...
+	                ABORT:
+
+	                // Only if not successful...
+	                if (m_swordstatus != SwordStatus.Run)
+	                {
+                        // Apply our exceptions...
+                        switch (m_szException)
+                        {
+                            default:
+                                m_swordstatus = SwordStatus.SuccessIgnore;
+                                return (m_swordstatus);
+                            case "nextAction":
+                                m_swordtaskresponse.SetError("nextAction", m_szJsonKey + ".value", "invalidValue", -1);
+                                m_swordstatus = SwordStatus.NextAction;
+                                return (m_swordstatus);
+                            case "nextStream":
+                                m_swordstatus = SwordStatus.NextStream;
+                                return (m_swordstatus);
+                            case "fail":
+                                m_swordtaskresponse.SetError("fail", m_szJsonKey + ".value", "invalidValue", -1);
+                                m_swordstatus = SwordStatus.Fail;
+                                return (m_swordstatus);
+                        }         
+	                }
+
+	                // Return with whatever we currently have for a status...
+	                return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Process automaticdeskew...
+                /// </summary>
+                /// <returns>our status</returns>
+                public SwordStatus ProcessAutomaticdeskew()
+                {
+	                if (m_szTdValue == "on")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                    }
+
+	                else if (m_szTdValue == "off")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICDESKEW,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                    }
+
+                    else
+	                {
+		                m_swordstatus = SwordStatus.SuccessIgnore;
+		                return (m_swordstatus);
+	                }
+
+	                // All done...
+	                return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process compression...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessCompression(string a_szPixelFormat)
+                {
+                    // Basic scanners are only allowed uncompressed images, because
+                    // we're going to use native transfer, which is more likely to
+                    // result in a successful scan...
+                    if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Basic)
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                    }
+
+                    // TWAIN Direct from this point down...
+                    else if (m_szTdValue == "none")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                    }
+
+	                else if (m_szTdValue == "group4")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
+                    }
+
+	                else if (m_szTdValue == "jpeg")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
+                    }
+
+                    else if (m_szTdValue == "autoVersion1")
+	                {
+                        string szTwPixelType = "*";
+                        string[] asz = a_szPixelFormat.Split(','); // ex: ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2
+                        if ((asz != null) || (asz.Length >= 4))
+                        {
+                            szTwPixelType = asz[3];
+                        }
+		                switch (szTwPixelType)
+		                {
+			                default:
+                            case "*":
+				                m_swordstatus = SwordStatus.SuccessIgnore;
+				                return (SwordStatus.SuccessIgnore);
+			                case "0": // TWPT_BW
+                                m_aszTwValue = new string[1];
+                                m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
+                                break;
+			                case "1": // TWPT_GRAY
+                            case "2": // TWPT_RGB
+                                m_aszTwValue = new string[1];
+                                m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
+                                break;
+		                }
+	                }
+
+	                // Ruh-roh...
+	                else
+	                {
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (SwordStatus.SuccessIgnore);
+                    }
+
+                    // All done...
+                    return (SwordStatus.Success);
+                }
+
+                /// <summary>
+                /// Process continuousScan...
+                /// </summary>
+                /// <returns></returns>
+                public SwordStatus ProcessContinuousscan()
+                {
+                    // Fast batch scan...
+                    if (m_szTdValue == "on")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                        return (m_swordstatus);
+                    }
+
+                    // Page on demand, releaseImageBlocks will cause the next sheet
+                    // of paper to be read...
+                    if (m_szTdValue == "off")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_AUTOSCAN,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        return (m_swordstatus);
+                    }
+
+                    // No joy...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process contrast...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessContrast()
+                {
+                    // Just take the value, TWAIN will validate it...
+                    m_aszTwValue = new string[1];
+                    m_aszTwValue[0] = "ICAP_CONTRAST,TWON_ONEVALUE,TWTY_FIX32," + m_szTdValue;
+
+                    // All done...
+                    return (SwordStatus.Success);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process croppingmode...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessCropping()
+                {
+	                if (m_szTdValue == "automatic")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                        return (m_swordstatus);
+                    }
+
+	                if (m_szTdValue == "automaticMultiple")
+	                {
+                        // Not supported...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "fixed")
+	                {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "fixedAutomaticLength")
+	                {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICBORDERDETECTION,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        m_aszTwValue[1] = "ICAP_AUTOMATICLENGTHDETECTION,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "long")
+	                {
+                        // Not supported...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "relative")
+	                {
+                        // Not supported...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    // Ruh-roh...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Process discardBlankImage...
+                /// </summary>
+                /// <returns>our status</returns>
+                public SwordStatus ProcessDiscardblankimages()
+                {
+                    // Toss blank images...
+                    if (m_szTdValue == "on")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_INT32,-1"; // TWBP_AUTO
+                        return (m_swordstatus);
+                    }
+
+                    // Keep blank images...
+                    if (m_szTdValue == "off")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_AUTODISCARDBLANKPAGES,TWON_ONEVALUE,TWTY_INT32,-2"; // TWBP_DISABLE
+                        return (m_swordstatus);
+                    }
+
+                    // Oh well...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Process doubleFeedDetection...
+                /// </summary>
+                /// <returns>our status</returns>
+                public SwordStatus ProcessDoublefeeddetection()
+                {
+                    // Detect doublefeeds...
+                    if (m_szTdValue == "on")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_DOUBLEFEEDDETECTION,TWON_ARRAY,TWTY_UINT16,1,0"; // TWDF_ULTRASONIC
+                        return (m_swordstatus);
+                    }
+
+                    // Don't detect doublefeeds...
+                    if (m_szTdValue == "off")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_DOUBLEFEEDDETECTION,TWON_ARRAY,TWTY_UINT16,0"; // (empty array)
+                        return (m_swordstatus);
+                    }
+
+                    // Oh well...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process imagemerge...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessImagemerge()
+                {
+	                if (m_szTdValue == "off")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWIM_NONE
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "frontAboveRear")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,1"; // TWIM_FRONTONTOP
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "frontBelowRear")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,2"; // TWIM_FRONTONBOTTOM
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "frontLeftOfRear")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,3"; // TWIM_FRONTONLEFT
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "frontRightOfRear")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_IMAGEMERGE,TWON_ONEVALUE,TWTY_UINT16,4"; // TWIM_FRONTONRIGHT
+                        return (m_swordstatus);
+                    }
+
+                    // No matches...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process noisefilter...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessNoisefilter()
+                {
+	                if (m_szTdValue == "off")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,0"; // TWNF_NONE
+                        return (m_swordstatus);
+                    }
+
+	                if (m_szTdValue == "auto")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,1"; // TWNF_AUTO
+                        return (m_swordstatus);
+                    }
+
+	                if (m_szTdValue == "lonePixel")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,2"; // TWNF_LONEPIXEL
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "majorityRule")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_NOISEFILTER,TWON_ONEVALUE,TWTY_UINT16,3"; // TWNF_MAJORITYRULE
+                        return (m_swordstatus);
+                    }
+
+                    // Nope...
+		            m_swordstatus = SwordStatus.SuccessIgnore;
+		            return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process numberOfSheets...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessNumberofsheets()
+                {
+                    int iNumberofsheets;
+
+                    // Handle the max...
+                    if (m_szTdValue == "maximum")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_SHEETCOUNT,TWON_ONEVALUE,TWTY_INT32,0";
+                        return (m_swordstatus);
+                    }
+
+                    // If we support CAP_SHEETCOUNT, go with that...
+                    if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetSheetCount())
+                    {
+                        if (int.TryParse(m_szTdValue, out iNumberofsheets))
+                        {
+                            m_aszTwValue = new string[1];
+                            m_aszTwValue[0] = "CAP_SHEETCOUNT,TWON_ONEVALUE,TWTY_INT32," + iNumberofsheets;
+                            return (m_swordstatus);
+                        }
+                    }
+
+                    // Otherwise, see what we can do with CAP_XFERCOUNT, we need
+                    // to find a way to hook this to CAP_DUPLEXENABLED.  For now
+                    // we're just going to assume that we should mulitply it by
+                    // 2.  This is okay for flatbeds, they'll just give us the
+                    // one image...
+                    else
+                    {
+                        if (int.TryParse(m_szTdValue, out iNumberofsheets))
+                        {
+                            m_aszTwValue = new string[1];
+                            m_aszTwValue[0] = "CAP_XFERCOUNT,TWON_ONEVALUE,TWTY_INT16," + (iNumberofsheets * 2);
+                            return (m_swordstatus);
+                        }
+                    }
+
+                    // Well foo, that didn't work...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process pixelflavor...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessPixelflavor()
+                {
+	                if (m_szTdValue == "off")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPF_CHOCOLATE
+                        return (m_swordstatus);
+                    }
+
+	                if (m_szTdValue == "on")
+	                {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_PIXELFLAVOR,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPF_VANILLA
+                        return (m_swordstatus);
+                    }
+
+                    // Blarg...
+		            m_swordstatus = SwordStatus.SuccessIgnore;
+		            return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process resolution...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessResolution(SwordValue a_swordvalueHead)
+                {
+                    int ee;
+                    bool blSuccess;
+                    int iResolution;
+                    string szTdPreviousValue;
+                    SwordValue swordvaluePrevious;
+                    int[] aiResolution = m_processswordtask.Resolution();
+
+                    // If it's a number, take it...
+                    if (int.TryParse(m_szTdValue, out iResolution))
+                    {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + iResolution;
+                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + iResolution;
+                        return (SwordStatus.Success);
+                    }
+
+                    // Make sure we have our TWAIN data for this scanner...
+                    blSuccess = m_processswordtask.LoadTwainListInfo();
+                    if (    !blSuccess
+                        ||  (aiResolution == null)
+                        ||  (aiResolution.Length < 1))
+                    {
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    // Get the closest value, higher or lower...
+                    if (m_szTdValue == "closest")
+	                {
+		                // If we're the first item, ignore this value...
+		                if (this == a_swordvalueHead)
+		                {
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        }
+
+			            // Find the previous value...
+			            for (swordvaluePrevious = a_swordvalueHead; swordvaluePrevious.GetNextValue() != this; swordvaluePrevious = swordvaluePrevious.GetNextValue()) ;
+                        szTdPreviousValue = swordvaluePrevious.GetValue();
+
+                        // If we're not a number, ignore this value...
+			            if (int.TryParse(szTdPreviousValue, out iResolution))
+			            {
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        }
+
+				        // If the value we were given is less than the miminum, use the minimum...
+				        if (iResolution <= m_processswordtask.Resolution()[0])
+				        {
+                            m_aszTwValue = new string[2];
+                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                            return (SwordStatus.Success);
+                        }
+
+                        // If the value we were given is more than the max, use the max...
+                        if (iResolution >= m_processswordtask.Resolution()[m_processswordtask.Resolution().Length - 1])
+                        {
+                            m_aszTwValue = new string[2];
+                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                            return (SwordStatus.Success);
+                        }
+
+                        // Otherwise, walk the list...
+                        for (ee = 0; ee < aiResolution.Length; ee++)
+					    {
+						    if ((iResolution >= aiResolution[ee]) && (iResolution < aiResolution[ee+1]))
+						    {
+							    if (iResolution < ((aiResolution[ee] + aiResolution[ee+1]) / 2))
+							    {
+                                    m_aszTwValue = new string[2];
+                                    m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                    m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                    return (SwordStatus.Success);
+                                }
+                                else
+							    {
+                                    m_aszTwValue = new string[2];
+                                    m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee + 1];
+                                    m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee + 1];
+                                    return (SwordStatus.Success);
+                                }
+						    }
+					    }
+
+                        // We shouldn't be here...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    // Get the next number higher than us, or the max...
+                    if (m_szTdValue == "closestGreaterThan")
+	                {
+                        // If we're the first item, ignore this value...
+                        if (this == a_swordvalueHead)
+                        {
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        }                       
+
+                        // Find the previous value...
+                        for (swordvaluePrevious = a_swordvalueHead; swordvaluePrevious.GetNextValue() != this; swordvaluePrevious = swordvaluePrevious.GetNextValue()) ;
+                        szTdPreviousValue = swordvaluePrevious.GetValue();
+
+                        // If we're not a number, ignore this value...
+                        if (int.TryParse(szTdPreviousValue, out iResolution))
+                        {
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        }
+
+                        // If the value we were given is less than the miminum, use the minimum...
+                        if (iResolution <= aiResolution[0])
+                        {
+                            m_aszTwValue = new string[2];
+                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                            return (SwordStatus.Success);
+                        }
+
+                        // If the value we were given is more than the max, use the max...
+                        if (iResolution >= aiResolution[aiResolution.Length - 1])
+                        {
+                            m_aszTwValue = new string[2];
+                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                            return (SwordStatus.Success);
+                        }
+
+                        // Otherwise, walk the list...
+                        for (ee = 0; ee < aiResolution.Length; ee++)
+				        {
+					        if ((iResolution >= aiResolution[ee]) && (iResolution <= aiResolution[ee+1]))
+					        {
+                                m_aszTwValue = new string[2];
+                                m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                return (SwordStatus.Success);
+                            }
+				        }
+
+                        // We shouldn't be here...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+	                }
+
+                    // Get the closest value less than us, or the min...
+	                if (m_szTdValue == "closestLessThan")
+	                {
+                        // If we're the first item, ignore this value...
+                        if (this == a_swordvalueHead)
+                        {
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        }
+
+                        // Find the previous value...
+                        for (swordvaluePrevious = a_swordvalueHead; swordvaluePrevious.GetNextValue() != this; swordvaluePrevious = swordvaluePrevious.GetNextValue()) ;
+                        szTdPreviousValue = swordvaluePrevious.GetValue();
+
+                        // If we're not a number, ignore this value...
+                        if (int.TryParse(szTdPreviousValue, out iResolution))
+                        {
+                            m_swordstatus = SwordStatus.SuccessIgnore;
+                            return (m_swordstatus);
+                        }
+
+                        // If the value we were given is less than the miminum, use the minimum...
+                        if (iResolution <= aiResolution[0])
+                        {
+                            m_aszTwValue = new string[2];
+                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                            return (SwordStatus.Success);
+                        }
+
+                        // If the value we were given is more than the max, use the max...
+                        if (iResolution >= aiResolution[aiResolution.Length - 1])
+                        {
+                            m_aszTwValue = new string[2];
+                            m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                            m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                            return (SwordStatus.Success);
+                        }
+
+                        // Otherwise, walk the list...
+                        for (ee = 0; ee < aiResolution.Length; ee++)
+					    {
+						    if ((iResolution >= aiResolution[ee]) && (iResolution < aiResolution[ee+1]))
+						    {
+                                m_aszTwValue = new string[2];
+                                m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                return (SwordStatus.Success);
+						    }
+					    }
+
+                        // We shouldn't be here...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    // Get the max...
+                    if (m_szTdValue == "maximum")
+	                {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[aiResolution.Length - 1];
+                        return (SwordStatus.Success);
+                    }
+
+                    // Get the min...
+                    if (m_szTdValue == "minimum")
+	                {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                        m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[0];
+                        return (SwordStatus.Success);
+                    }
+
+                    // Get the optical resolution...
+                    if (m_szTdValue == "optical")
+	                {
+                        // TDB, need this value in the twainlist file...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    // 75dpi or the min...
+                    if (m_szTdValue == "preview")
+	                {
+                        // Loopy...
+                        for (ee = 0; ee < aiResolution.Length; ee++)
+                        {
+                            if (aiResolution[ee] >= 75)
+                            {
+                                m_aszTwValue = new string[2];
+                                m_aszTwValue[0] = "ICAP_XRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                m_aszTwValue[1] = "ICAP_YRESOLUTION,TWON_ONEVALUE,TWTY_FIX32," + aiResolution[ee];
+                                return (SwordStatus.Success);
+                            }
+                        }
+
+                        // We shouldn't be here...
+                        m_swordstatus = SwordStatus.SuccessIgnore;
+                        return (m_swordstatus);
+                    }
+
+                    // Run-roh...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+		            return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process orthogonalrotate...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessRotation()
+                {
+                    if (m_szTdValue == "0")
+                    {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,0";
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "90")
+                    {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,90";
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "180")
+                    {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,180";
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "270")
+                    {
+                        m_aszTwValue = new string[2];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,0"; // FALSE
+                        m_aszTwValue[1] = "ICAP_ROTATION,TWON_ONEVALUE,TWTY_FIX32,270";
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "automatic")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "ICAP_AUTOMATICROTATE,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                        return (m_swordstatus);
+                    }
+
+                    // Fiddlesticks...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process sheethandling...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessSheethandling()
+                {
+                    if (m_szTdValue == "normal")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPH_NORMAL
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "fragile")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPH_FRAGILE
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "photograph")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,4"; // TWPH_PHOTOGRAPH
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "thick")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,2"; // TWPH_THICK
+                        return (m_swordstatus);
+                    }
+
+                    if (m_szTdValue == "trifold")
+                    {
+                        m_aszTwValue = new string[1];
+                        m_aszTwValue[0] = "CAP_PAPERHANDLING,TWON_ONEVALUE,TWTY_UINT16,3"; // TWPH_TRIFOLD
+                        return (m_swordstatus);
+                    }
+
+                    // Gee willikers...
+                    m_swordstatus = SwordStatus.SuccessIgnore;
+                    return (m_swordstatus);
+                 }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Process threshold...
+                ////////////////////////////////////////////////////////////////////////////////
+                public SwordStatus ProcessThreshold()
+                {
+                    // Just take the value, TWAIN will validate it...
+                    m_aszTwValue = new string[1];
+                    m_aszTwValue[0] = "ICAP_THRESHOLD,TWON_ONEVALUE,TWTY_FIX32," + m_szTdValue;
+
+	                // All done...
+	                return (SwordStatus.Success);
+                }
+
+                /// <summary>
+                /// Set a task error...
+                /// </summary>
+                /// <param name="a_szException">the exception  we're processing</param>
+                /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+                /// <param name="a_szCode">the error code</param>
+                /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+                /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
+                public void SetError
+                (
+                    string a_szException,
+                    string a_szJsonExceptionKey,
+                    string a_szCode,
+                    long a_lJsonErrorIndex
+                )
+                {
+                    m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Set the exception for this value....
+                ////////////////////////////////////////////////////////////////////////////////
+                public void SetException(string a_szException)
+                {
+	                m_szException = a_szException;
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Set the status for this value....
+                ////////////////////////////////////////////////////////////////////////////////
+                public void SetSwordStatus(SwordStatus a_swordstatus)
+                {
+	                m_swordstatus = a_swordstatus;
+                }
+
+                /// <summary>
+                /// Next value in the list, and are we the head?
+                /// </summary>
+                private SwordValue			m_swordvalueNext;
+
+                /// <summary>
+                /// Our main object...
+                /// </summary>
+                private ProcessSwordTask    m_processswordtask;
+
+                /// <summary>
+                /// How we respond...
+                /// </summary>
+                private SwordTaskResponse	m_swordtaskresponse;
+
+                /// <summary>
+                /// Who owns us?
+                /// </summary>
+                private VendorOwner			m_vendorowner;
+
+                /// <summary>
+                /// The status of the item, this includes if it has been sent to
+                /// the scanner...
+                /// </summary>
+                private SwordStatus		    m_swordstatus;
+
+                /// <summary>
+                /// The full index of this item in the JSON string...
+                /// </summary>
+                private string				m_szJsonKey;
+
+                /// <summary>
+                /// The exception for this value, null means "ignore"...
+                /// </summary>
+                private string				m_szException;
+
+                /// <summary>
+                /// Vendor UUID, allocated as needed, null means that it's a standard
+                /// TWAIN Direct property...
+                /// </summary>
+                private string				m_szVendor;
+
+                /// <summary>
+                /// A single TWAIN Direct value, which we allocate as needed...
+                /// </summary>
+                private string				m_szTdValue;
+
+                /// <summary>
+                /// A TWAIN value of the form container,type,value
+                /// </summary>
+                private string[]            m_aszTwValue;
+            }
+
+            /// <summary>
+            /// A capability contains one or more values, which will be tried in order until
+            /// the scanner accepts one, or we run out.
+            /// </summary>
+            sealed class Capability
+            {
+                ///////////////////////////////////////////////////////////////////////////////
+                // Public Methods...
+                ///////////////////////////////////////////////////////////////////////////////
+                #region Public Methods...
+
+                /// <summary>
+                /// Init the object...
+                /// </summary>
+                /// <param name="a_szCapability">the TWAIN capability we'll be using</param>
+                /// <param name="a_szSwordName">the SWORD name</param>
+                /// <param name="a_szException">the SWORD value</param>
+                /// <param name="a_szException">the SWORD exception</param>
+                /// <param name="a_szJsonIndex">the location of the data in the original JSON string</param>
+                /// <param name="a_szVendor">the vendor for this item</param>
+                public Capability(string a_szCapability, string a_szSwordName, string a_szSwordValue, string a_szException, string a_szJsonIndex, string a_szVendor)
+                {
+                    // Init value...
+                    m_acapabilityvalue = null;
+
+                    // Seed stuff...
+                    if ((a_szCapability != null) && (a_szCapability.Length > 0))
+                    {
+                        m_acapabilityvalue = new CapabilityValue[1];
+                        m_acapabilityvalue[0] = new CapabilityValue(a_szCapability, a_szSwordName, a_szSwordValue, a_szException, a_szJsonIndex, a_szVendor);
+                    }
+                }
+
+                /// <summary>
+                /// Init the object...
+                /// </summary>
+                /// <param name="a_szCapability">the TWAIN capability we'll be using</param>
+                /// <param name="a_swordvalue">value to use</param>
+                public Capability(string a_szCapability, string a_szSwordName, SwordValue a_swordvalue)
+                {
+                    // Init value...
+                    m_acapabilityvalue = null;
+
+                    // Seed stuff...
+                    if ((a_szCapability != null) && (a_szCapability.Length > 0))
+                    {
+                        m_acapabilityvalue = new CapabilityValue[1];
+                        m_acapabilityvalue[0] = new CapabilityValue
+                        (
+                            a_szCapability,
+                            a_szSwordName,
+                            a_swordvalue.GetValue(),
+                            a_swordvalue.GetException(),
+                            a_swordvalue.GetJsonKey(),
+                            a_swordvalue.GetVendor()
+                        );
+                    }
+                }
+
+                /// <summary>
+                /// Add another value to the capability.  We'll be trying them in order
+                /// until we find one that works, or until we run out.
+                /// </summary>
+                /// <param name="a_szCapability">the TWAIN capability we'll be using</param>
+                /// <param name="a_swordvalue">value to use</param>
+                public void AddValue(string a_szCapability, SwordValue a_swordvalue)
+                {
+                    // Seed stuff...
+                    if ((a_szCapability != null) && (a_szCapability.Length > 0))
+                    {
+                        CapabilityValue[] acapabilityvalue = new CapabilityValue[m_acapabilityvalue.Length + 1];
+                        m_acapabilityvalue.CopyTo(acapabilityvalue, 0);
+                        acapabilityvalue[m_acapabilityvalue.Length] = new CapabilityValue
+                        (
+                            a_szCapability,
+                            acapabilityvalue[0].GetSwordName(),
+                            a_swordvalue.GetValue(),
+                            a_swordvalue.GetException(),
+                            a_swordvalue.GetJsonKey(),
+                            a_swordvalue.GetVendor()
+                        );
+                        m_acapabilityvalue = acapabilityvalue;
+                    }
+                }
+
+                /// <summary>
+                /// Set the scanner...
+                /// </summary>
+                /// <param name="a_twaincstoolkit">toolkit object</param>
+                /// <param name="a_szSwordName">the SWORD name we picked</param>
+                /// <param name="a_szSwordValue">the SWORD value we picked</param>
+                /// <param name="a_szTwainValue">the TWAIN value we picked</param>
+                /// <param name="a_szVendor">vendor id</param>
+                /// <param name="a_swordtaskresponse">the task response object</param>
+                /// <returns></returns>
+                public string SetScanner
+                (
+                    TWAINCSToolkit a_twaincstoolkit,
+                    out string a_szSwordName,
+                    out string a_szSwordValue,
+                    out string a_szTwainValue,
+                    string a_szVendor,
+                    SwordTaskResponse a_swordtaskresponse
+                )
+                {
+                    int iTryValue;
+                    string szStatus;
+                    string szTwainValue;
+                    TWAIN.STS sts;
+
+                    // Init stuff...
+                    szTwainValue = "";
+                    a_szSwordName = null;
+                    a_szSwordValue = null;
+                    a_szTwainValue = null;
+
+                    // Keep trying till we set something...
+                    sts = TWAIN.STS.SUCCESS;
+                    for (iTryValue = 0; iTryValue < m_acapabilityvalue.Length; iTryValue++)
+                    {
+                        // Skip stuff that isn't ours...
+                        if (    !string.IsNullOrEmpty(m_acapabilityvalue[iTryValue].GetVendor())
+                            &&  (m_acapabilityvalue[iTryValue].GetVendor() != a_szVendor))
+                        {
+                            continue;
+                        }
+
+                        // Try to set the value...
+                        szStatus = "";
+                        szTwainValue = m_acapabilityvalue[iTryValue].GetCapability();
+                        sts = a_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
+                        if (sts == TWAIN.STS.SUCCESS)
+                        {
+                            a_szSwordName = m_acapabilityvalue[iTryValue].GetSwordName();
+                            a_szSwordValue = m_acapabilityvalue[iTryValue].GetSwordValue();
+                            a_szTwainValue = szTwainValue;
+                            break;
+                        }
+                    }
+
+                    // TBD
+                    // This section is messed up, try to get the ICAP_YRESOLUTION
+                    // handler out of here...
+                    if (    (szTwainValue != "")
+                        &&  ((sts == TWAIN.STS.SUCCESS) || (sts == TWAIN.STS.CHECKSTATUS)))
+                    {
+                        string[] asz = CSV.Parse(szTwainValue);
+                        switch (asz[0])
+                        {
+                            // All done...
+                            default:
+                                return ("success");
+
+                            // Handle ICAP_XRESOLUTION/ICAP_YRESOLUTION...
+                            case "ICAP_XRESOLUTION":
+                                szStatus = "";
+                                szTwainValue = m_acapabilityvalue[iTryValue].GetCapability().Replace("ICAP_XRESOLUTION", "ICAP_YRESOLUTION");
+                                sts = a_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
+                                break;
+                        }
+
+                        // We're good...
+                        if ((sts == TWAIN.STS.SUCCESS)
+                            || (sts == TWAIN.STS.CHECKSTATUS))
+                        {
+                            return ("success");
+                        }
+                    }
+
+                    // We ran into a problem, make sure that we're looking at valid value
+                    // in array (usually the last item)...
+                    if (iTryValue >= m_acapabilityvalue.Length)
+                    {
+                        iTryValue = m_acapabilityvalue.Length - 1;
+                    }
+
+                    // Handle the exception...
+                    switch (m_acapabilityvalue[iTryValue].GetException())
+                    {
+                        // Do nothing, stick with the current value, this includes if we
+                        // don't recognize the exception, because TWAIN Direct is supposed
+                        // to emphasize success...
+                        default:
+                        case "ignore":
+                            return ("success");
+
+                        // Pass the item up...
+                        case "nextAction":
+                            if (string.IsNullOrEmpty(szTwainValue))
+                            {
+                                a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), null, -1);
+                            }
+                            else
+                            {
+                                a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), szTwainValue, -1);
+                            }
+                            return (m_acapabilityvalue[iTryValue].GetException());
+
+                        // Pass the item up...
+                        case "nextStream":
+                            return (m_acapabilityvalue[iTryValue].GetException());
+
+                        // Pass the item up...
+                        case "fail":
+                            if (string.IsNullOrEmpty(szTwainValue))
+                            {
+                                a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), null, -1);
+                            }
+                            else
+                            {
+                                a_swordtaskresponse.SetError(m_acapabilityvalue[iTryValue].GetException(), m_acapabilityvalue[iTryValue].GetJsonKey(), szTwainValue, -1);
+                            }
+                            return (m_acapabilityvalue[iTryValue].GetException());
+                    }
+                }
+
+                #endregion
+
+
+                ///////////////////////////////////////////////////////////////////////////////
+                // Private Attributes...
+                ///////////////////////////////////////////////////////////////////////////////
+                #region Private Attributes...
+
+                // The array of values to try...
+                private CapabilityValue[] m_acapabilityvalue;
+
+                #endregion
+            }
+
+            /// <summary>
+            /// A capability value contains all the stuff it needs to try to set a value...
+            /// </summary>
+            sealed class CapabilityValue
+            {
+                ///////////////////////////////////////////////////////////////////////////////
+                // Public Methods...
+                ///////////////////////////////////////////////////////////////////////////////
+                #region Public Methods...
+
+                /// <summary>
+                /// Init the object...
+                /// </summary>
+                /// <param name="a_szCapability">The TWAIN setting in CSV format</param>
+                /// <param name="a_szSwordName">the SWORD name</param>
+                /// <param name="a_szSwordValue">the SWORD value</param>
+                /// <param name="a_szException">the SWORD exception</param>
+                /// <param name="a_szJsonIndex">the location of the data in the original JSON string</param>
+                /// <param name="a_szVendor">the vendor for this item</param>
+                public CapabilityValue(string a_szCapability, string a_szSwordName, string a_szSwordValue, string a_szException, string a_szJsonIndex, string a_szVendor)
+                {
+                    // Controls...
+                    m_szCapability = a_szCapability;
+                    m_szSwordName = a_szSwordName;
+                    m_szSwordValue = a_szSwordValue;
+                    m_szException = a_szException;
+                    m_szJsonKey = a_szJsonIndex;
+                    m_szVendor = a_szVendor;
+                }
+
+                /// <summary>
+                /// Return the TWAIN setting in CSV format...
+                /// </summary>
+                /// <returns>YWAIN capability</returns>
+                public string GetCapability()
+                {
+                    return (m_szCapability);
+                }
+
+                /// <summary>
+                /// Return the exception...
+                /// </summary>
+                /// <returns>exception</returns>
+                public string GetException()
+                {
+                    return (m_szException);
+                }
+
+                /// <summary>
+                /// Return the vendor identification...
+                /// </summary>
+                /// <returns>the vendor</returns>
+                public string GetVendor()
+                {
+                    return (m_szVendor);
+                }
+
+                /// <summary>
+                /// Return the JSON key to this item...
+                /// </summary>
+                /// <returns>key in dotted notation</returns>
+                public string GetJsonKey()
+                {
+                    return (m_szJsonKey);
+                }
+
+                /// <summary>
+                /// Return the SWORD name to this item...
+                /// </summary>
+                /// <returns>SWORD name</returns>
+                public string GetSwordName()
+                {
+                    return (m_szSwordName);
+                }
+
+                /// <summary>
+                /// Return the SWORD value to this item...
+                /// </summary>
+                /// <returns>SWORD value</returns>
+                public string GetSwordValue()
+                {
+                    return (m_szSwordValue);
+                }
+
+                #endregion
+
+
+                ///////////////////////////////////////////////////////////////////////////////
+                // Private Attributes...
+                ///////////////////////////////////////////////////////////////////////////////
+                #region Private Attributes...
+
+                /// <summary>
+                /// The TWAIN MSG_SET command in CSV format...
+                /// </summary>
+                private string m_szCapability;
+
+                /// <summary>
+                /// The name of this sword item...
+                /// </summary>
+                private string m_szSwordName;
+
+                /// <summary>
+                /// The value to report back when building the task reply...
+                /// </summary>
+                private string m_szSwordValue;
+
+                /// <summary>
+                /// The TWAIN Direct exception for this value...
+                /// </summary>
+                private string m_szException;
+
+                // The dotted key notation to locate this item in the original task...
+                private string m_szJsonKey;
+
+                /// <summary>
+                /// The vendor owning this value...
+                /// </summary>
+                private string m_szVendor;
+
+                #endregion
+            }
+
+            /// <summary>
+            /// All of the TWAIN values are here, in their capability order...
+            /// </summary>
+            sealed class TwainCapability
+            {
+                /// <summary>
+                /// Our constructor...
+                /// </summary>
+                public TwainCapability()
+                {
+                    // nothing needed at this time...
+                }
+
+                /// <summary>
+                /// Add a capability...
+                /// </summary>
+                /// <param name="a_swordsource">we must have a source</param>
+                /// <param name="a_swordpixelformat">pixelformat is optional</param>
+                /// <param name="a_swordattribute">attribute is optional</param>
+                /// <param name="a_swordvalue">value is optional</param>
+                /// <param name="a_szTwainCapability">we must have a MSG_SET capability string</param>
+                /// <returns></returns>
+                public bool Add
+                (
+                    SwordSource a_swordsource,
+                    SwordPixelFormat a_swordpixelformat,
+                    SwordAttribute a_swordattribute,
+                    SwordValue a_swordvalue,
+                    string a_szTwainCapability
+                )
+                {
+                    bool blSuccess = true;
+                    CapabilityOrdering capabilityordering;
+
+                    // Dispatch the capability to either the machine (if the cap is less
+                    // than CAP_CAMERASIDE) or to the source/pixelformat topology in all
+                    // other cases.  If a spot is already in use, discard the item based
+                    // on the exception...
+
+                    // we have to have a source and a TWAIN Capability...
+                    if ((a_swordsource == null) || string.IsNullOrEmpty(a_szTwainCapability))
+                    {
+                        return (false);
+                    }
+
+                    // We must be able to extract the TWAIN capability...
+                    string[] asz = a_szTwainCapability.Split(new char[] { ',' });
+                    if ((asz == null) || (asz.Length == 0) || string.IsNullOrEmpty(asz[0]))
+                    {
+                        goto ABORT;
+                    }
+                    if (!Enum.TryParse<CapabilityOrdering>(asz[0], out capabilityordering))
+                    {
+                        goto ABORT;
+                    }
+
+                    // This is a machine value...
+                    if (capabilityordering < CapabilityOrdering.CAP_CAMERASIDE)
+                    {
+                        // We need one of these...
+                        if (m_acapabilitymapMachine == null)
+                        {
+                            m_acapabilitymapMachine = new CapabilityMap[(int)CapabilityOrdering.Length];
+                        }
+
+                        // Check if there's already a chicken in the coop...
+                        if (m_acapabilitymapMachine[(int)capabilityordering] != null)
+                        {
+                            goto ABORT;
+                        }
+
+                        // Save it...
+                        m_acapabilitymapMachine[(int)capabilityordering].m_swordsource = a_swordsource;
+                        m_acapabilitymapMachine[(int)capabilityordering].m_swordpixelformat = a_swordpixelformat;
+                        m_acapabilitymapMachine[(int)capabilityordering].m_swordattribute = a_swordattribute;
+                        m_acapabilitymapMachine[(int)capabilityordering].m_swordvalue = a_swordvalue;
+                        m_acapabilitymapMachine[(int)capabilityordering].m_szTwainCapability = a_szTwainCapability;
+
+                        // All done...
+                        return (true);
+                    }
+
+                    // Get our topology...
+
+
+                    // We only have a source (we know we got that, see above)...
+                    if (a_swordpixelformat == null)
+                    {
+                    }
+
+                    // We only have a pixelFormat...
+                    if ((a_swordattribute == null) || (a_swordvalue == null))
+                    {
+                    }
+
+                    // We've got it all...
+
+                    // All done...
+                    return (true);
+
+                    // Abort...
+                    ABORT:
+
+                    // We have a value...
+                    if (a_swordvalue != null)
+                    {
+                    }
+
+                    // We have an attribute...
+                    if (a_swordvalue != null)
+                    {
+                    }
+
+                    // We have a pixelFormat...
+                    if (a_swordvalue != null)
+                    {
+                    }
+
+                    // We'd better have a source (see above)...
+
+                    // All done...
+                    return (blSuccess);
+                }
+
+                /// <summary>
+                /// All of the capabilities in capability order (mapped through the
+                /// CapabilityOrdering enumeration).  We fill in this stuff in a first
+                /// come first serve mode.  However, when we run it, we'll do the
+                /// flatbed before the ADF, so the ADFs values will take if the scanner
+                /// can't handle separate values for both...
+                /// </summary>
+                private CapabilityMap[] m_acapabilitymapMachine;
+                //private CapabilityMap[] m_acapabilitymapFlatbedBw1;
+                //private CapabilityMap[] m_acapabilitymapFlatbedGray8;
+                //private CapabilityMap[] m_acapabilitymapFlatbedRgb24;
+                //private CapabilityMap[] m_acapabilitymapFrontBw1;
+                //private CapabilityMap[] m_acapabilitymapFrontGray8;
+                //private CapabilityMap[] m_acapabilitymapFrontRgb24;
+                //private CapabilityMap[] m_acapabilitymapRearBw1;
+                //private CapabilityMap[] m_acapabilitymapRearGray8;
+                //private CapabilityMap[] m_acapabilitymapRearRgb24;
+            }
+
+            /// <summary>
+            /// Each encryptionProfile provides a name that the scanner uses to lookup
+            /// encryption profile actions in its firmware...
+            /// </summary>
+            sealed class SwordEncryptionProfile
+            {
+                /// <summary>
+                /// Constructor...
+                /// </summary>
+                /// <param name="a_swordtaskresponse">object for the response</param>
+                /// <param name="a_swordencryptionprofileHead">head of the encryptionProfile or null</param>
+                /// <param name="a_szJsonKey">actions[].encryptionprofiles[]</param>
+                /// <param name="a_szEncryptionProfileName">name of the encryptionProfile</param>
+                /// <param name="a_szException">exception for this encryptionProfile</param>
+                /// <param name="a_szVendor">vendor id, if any</param>
+                /// <param name="a_szEncryptionProfileProfile">profile of the encryptionProfile</param>
+                public SwordEncryptionProfile
+                (
+                    ProcessSwordTask a_processsowrdtask,
+                    SwordTaskResponse a_swordtaskresponse,
+                    SwordEncryptionProfile a_swordencryptionprofileHead,
+                    string a_szJsonKey,
+                    string a_szEncryptionProfileName,
+                    string a_szException,
+                    string a_szVendor,
+                    string a_szEncryptionProfileProfile
+                )
+                {
+                    // If the vendor isn't us, then skip it, this isn't subject to exceptions,
+                    // so we return right away...
+                    m_vendorowner = a_processsowrdtask.GetVendorOwner(a_szVendor);
+                    if (m_vendorowner == VendorOwner.Unknown)
+                    {
+                        m_swordstatus = SwordStatus.VendorMismatch;
+                        return;
+                    }
+
+                    // Init stuff...
+                    m_processswordtask = a_processsowrdtask;
+                    m_swordtaskresponse = a_swordtaskresponse;
+                    m_swordstatus = SwordStatus.Success;
+                    m_szJsonKey = a_szJsonKey;
+                    m_szEncryptionProfileName = a_szEncryptionProfileName;
+                    m_szException = a_szException;
+                    m_szVendor = a_szVendor;
+                    m_szEncryptionProfileProfile = a_szEncryptionProfileProfile;
+
+                    // If we didn't get an exception, or if the exception is
+                    // the nextaction placeholder, then assign the nextencrptionprofile
+                    // placeholder...
+                    if (string.IsNullOrEmpty(m_szException) || (m_szException == "@nextActionOrIgnore"))
+                    {
+                        m_szException = "@nextEncryptionProfileOrIgnore";
+                    }
+
+                    // We're the head of the list...
+                    if (a_swordencryptionprofileHead == null)
+                    {
+                        // nothing needed...
+                    }
+
+                    // We're being appended to the list...
+                    else
+                    {
+                        SwordEncryptionProfile swordencryptionprofileParent;
+                        for (swordencryptionprofileParent = a_swordencryptionprofileHead; swordencryptionprofileParent.m_swordencryptionprofileNext != null; swordencryptionprofileParent = swordencryptionprofileParent.m_swordencryptionprofileNext) ;
+                        swordencryptionprofileParent.m_swordencryptionprofileNext = this;
+                    }
+                }
+
+                /// <summary>
+                /// Build the task reply...
+                /// </summary>
+                /// <returns>true on success</returns>
+                public bool BuildTaskReply()
+                {
+                    // Only report on success...
+                    if (m_swordstatus != SwordStatus.Success)
+                    {
+                        return (true);
+                    }
+
+                    // Start of the encryption profile...
+                    m_swordtaskresponse.JSON_OBJ_BGN(4, "");
+
+                    // The vendor (if any) and the stream's name...
+                    if (m_vendorowner == VendorOwner.Scanner) m_swordtaskresponse.JSON_STR_SET(5, "vendor", ",", m_szVendor);
+                    m_swordtaskresponse.JSON_STR_SET(5, "name", ",", m_szEncryptionProfileName);
+
+                    // End of the  encryption profile...
+                    m_swordtaskresponse.JSON_OBJ_END(4, ",");
+
+                    // All done...
+                    return (true);
+                }
+
+                /// <summary>
+                /// Get the name of the encryptionProfile...
+                /// </summary>
+                /// <returns>the name</returns>
+                public string GetName()
+                {
+                    return (m_szEncryptionProfileName);
+                }
+
+                /// <summary>
+                /// Get the profile of the encryptionProfile...
+                /// </summary>
+                /// <returns>the name</returns>
+                public string GetProfile()
+                {
+                    return (m_szEncryptionProfileProfile);
+                }
+
+                /// <summary>
+                /// Get the next encryption profile in the list...
+                /// </summary>
+                /// <returns>the next encryptionProfile or null</returns>
+                public SwordEncryptionProfile GetNextEncryptionProfile()
+                {
+                    return (m_swordencryptionprofileNext);
+                }
+
+                /// <summary>
+                /// Get the exception for this stream...
+                /// </summary>
+                /// <returns>th exception</returns>
+                public string GetException()
+                {
+                    return (m_szException);
+                }
+
+                /// <summary>
+                /// Get the status for this stream...
+                /// </summary>
+                /// <returns></returns>
+                public SwordStatus GetSwordStatus()
+                {
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Get the vendor for this stream...
+                /// </summary>
+                /// <returns></returns>
+                public string GetVendor()
+                {
+                    return (m_szVendor);
+                }
+
+                /// <summary>
+                /// Process this encryption profile...
+                /// </summary>
+                /// <returns>the status of processing</returns>
+                public SwordStatus Process()
+                {
+                    // Assume success...
+                    m_swordstatus = SwordStatus.Run;
+
+                    // Make sure we have a name...
+                    if (string.IsNullOrEmpty(m_szEncryptionProfileName))
+                    {
+                        int szIndex;
+                        szIndex = m_szJsonKey.LastIndexOf("[");
+                        if (szIndex != -1)
+                        {
+                            m_szEncryptionProfileName = "encryptionprofile" + m_szJsonKey.Substring(szIndex + 1);
+                            szIndex = m_szEncryptionProfileName.LastIndexOf("]");
+                            if (szIndex != -1)
+                            {
+                                m_szEncryptionProfileName = m_szEncryptionProfileName.Remove(szIndex);
+                            }
+                        }
+                    }
+
+                    // All done...
+                    return (m_swordstatus);
+                }
+
+                /// <summary>
+                /// Set a task error...
+                /// </summary>
+                /// <param name="a_szException">the exception  we're processing</param>
+                /// <param name="a_szJsonExceptionKey">JSON key where the error occurred (if applicable)</param>
+                /// <param name="a_szCode">the error code</param>
+                /// <param name="a_lJsonErrorIndex">character offset where the error occurred (if applicable)</param>
+                /// <param name="a_blAddActionsArray">embed the error in an actions array</param>
+                public void SetError
+                (
+                    string a_szException,
+                    string a_szJsonExceptionKey,
+                    string a_szCode,
+                    long a_lJsonErrorIndex
+                )
+                {
+                    m_swordtaskresponse.SetError(a_szException, a_szJsonExceptionKey, a_szCode, a_lJsonErrorIndex);
+                }
+
+                /// <summary>
+                /// Set the exception for this encryption profile...
+                /// </summary>
+                /// <param name="a_szException"></param>
+                public void SetException(string a_szException)
+                {
+                    m_szException = a_szException;
+                }
+
+                ////////////////////////////////////////////////////////////////////////////////
+                //	Description:
+                //		Set the status for this stream...
+                ////////////////////////////////////////////////////////////////////////////////
+                public void SetSwordStatus(SwordStatus a_swordstatus)
+                {
+                    m_swordstatus = a_swordstatus;
+                }
+
+                /// <summary>
+                /// Next one in the list, not if we're the head...
+                /// </summary>
+                private SwordEncryptionProfile m_swordencryptionprofileNext;
+
+                /// <summary>
+                /// Our main object...
+                /// </summary>
+                private ProcessSwordTask m_processswordtask;
+
+                /// <summary>
+                /// Our response...
+                /// </summary>
+                private SwordTaskResponse m_swordtaskresponse;
+
+                /// <summary>
+                /// Who owns us?
+                /// </summary>
+                private VendorOwner m_vendorowner;
+
+                /// <summary>
+                /// The status of the item...
+                /// </summary>
+                private SwordStatus m_swordstatus;
+
+                /// <summary>
+                /// The name of the encryption profile...
+                /// </summary>
+                private string m_szEncryptionProfileName;
+
+                /// <summary>
+                /// The name of the encryption profile's profile...
+                /// </summary>
+                private string m_szEncryptionProfileProfile;
+
+                /// <summary>
+                /// The index of this item in the JSON string...
+                /// </summary>
+                private string m_szJsonKey;
+
+                /// <summary>
+                /// The default exception for this stream...
+                /// </summary>
+                private string m_szException;
+
+                /// <summary>
+                /// Vendor UUID...
+                /// </summary>
+                private string m_szVendor;
+            }
+
+            #endregion
 
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -8798,6 +9604,12 @@ namespace TwainDirect.OnTwain
         /// Place where we write stuff...
         /// </summary>
         private string m_szImagesFolder;
+
+        /// <summary>
+        /// If non-null, points to the encryptionProfile we should use
+        /// to encrypt images when we scan...
+        /// </summary>
+        private string m_szEncryptionProfileName;
 
         #endregion
     }

@@ -969,6 +969,7 @@ namespace TwainDirect.OnSane
                         szPdfFile,
                         null,
                         null,
+                        null,
                         "",
                         abImage,
                         0,

@@ -4816,11 +4816,9 @@ namespace TWAINWorkingGroup
                             try
                             {
                                 sts = (STS)NativeMethods.LinuxDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
-                                Log.Error("mlm>>> new " + sts);
                             }
                             catch
                             {
-                                Log.Error("mlm>>> new " + twidentitylegacy.ProductName.Get());
                                 sts = STS.NODS;
                             }
                         }
@@ -4841,11 +4839,9 @@ namespace TWAINWorkingGroup
                             try
                             {
                                 sts = (STS)NativeMethods.Linux020302Dsm64bitEntryIdentity(ref twidentitylinux64App, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylinux64);
-                                Log.Error("mlm>>> old " + sts);
                             }
                             catch
                             {
-                                Log.Error("mlm>>> old " + twidentitylegacy.ProductName.Get());
                                 sts = STS.NODS;
                             }
 
