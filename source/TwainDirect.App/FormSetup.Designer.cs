@@ -37,13 +37,14 @@
             this.m_textboxUseUiSettings = new System.Windows.Forms.TextBox();
             this.m_buttonUseUiSettings = new System.Windows.Forms.Button();
             this.m_labelUseUiSettings = new System.Windows.Forms.Label();
+            this.m_buttonGetEncryptionReport = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // m_labelSelectDestinationFolder
             // 
             this.m_labelSelectDestinationFolder.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.m_labelSelectDestinationFolder.AutoSize = true;
-            this.m_labelSelectDestinationFolder.Location = new System.Drawing.Point(14, 11);
+            this.m_labelSelectDestinationFolder.Location = new System.Drawing.Point(14, 12);
             this.m_labelSelectDestinationFolder.Name = "m_labelSelectDestinationFolder";
             this.m_labelSelectDestinationFolder.Size = new System.Drawing.Size(152, 13);
             this.m_labelSelectDestinationFolder.TabIndex = 4;
@@ -52,7 +53,7 @@
             // m_textboxFolder
             // 
             this.m_textboxFolder.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.m_textboxFolder.Location = new System.Drawing.Point(17, 29);
+            this.m_textboxFolder.Location = new System.Drawing.Point(17, 30);
             this.m_textboxFolder.Name = "m_textboxFolder";
             this.m_textboxFolder.Size = new System.Drawing.Size(456, 20);
             this.m_textboxFolder.TabIndex = 5;
@@ -62,7 +63,7 @@
             // 
             this.m_buttonSelectDestinationFolder.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.m_buttonSelectDestinationFolder.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("m_buttonSelectDestinationFolder.BackgroundImage")));
-            this.m_buttonSelectDestinationFolder.Location = new System.Drawing.Point(492, 27);
+            this.m_buttonSelectDestinationFolder.Location = new System.Drawing.Point(492, 28);
             this.m_buttonSelectDestinationFolder.Name = "m_buttonSelectDestinationFolder";
             this.m_buttonSelectDestinationFolder.Size = new System.Drawing.Size(26, 23);
             this.m_buttonSelectDestinationFolder.TabIndex = 6;
@@ -73,7 +74,7 @@
             // 
             this.m_checkboxThumbnails.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.m_checkboxThumbnails.AutoSize = true;
-            this.m_checkboxThumbnails.Location = new System.Drawing.Point(17, 125);
+            this.m_checkboxThumbnails.Location = new System.Drawing.Point(17, 114);
             this.m_checkboxThumbnails.Name = "m_checkboxThumbnails";
             this.m_checkboxThumbnails.Size = new System.Drawing.Size(100, 17);
             this.m_checkboxThumbnails.TabIndex = 17;
@@ -84,7 +85,7 @@
             // 
             this.m_checkboxMetadataWithImage.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.m_checkboxMetadataWithImage.AutoSize = true;
-            this.m_checkboxMetadataWithImage.Location = new System.Drawing.Point(17, 145);
+            this.m_checkboxMetadataWithImage.Location = new System.Drawing.Point(17, 134);
             this.m_checkboxMetadataWithImage.Name = "m_checkboxMetadataWithImage";
             this.m_checkboxMetadataWithImage.Size = new System.Drawing.Size(269, 17);
             this.m_checkboxMetadataWithImage.TabIndex = 19;
@@ -94,7 +95,7 @@
             // m_textboxUseUiSettings
             // 
             this.m_textboxUseUiSettings.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.m_textboxUseUiSettings.Location = new System.Drawing.Point(17, 86);
+            this.m_textboxUseUiSettings.Location = new System.Drawing.Point(17, 78);
             this.m_textboxUseUiSettings.Name = "m_textboxUseUiSettings";
             this.m_textboxUseUiSettings.Size = new System.Drawing.Size(456, 20);
             this.m_textboxUseUiSettings.TabIndex = 7;
@@ -103,7 +104,7 @@
             // 
             this.m_buttonUseUiSettings.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.m_buttonUseUiSettings.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("m_buttonUseUiSettings.BackgroundImage")));
-            this.m_buttonUseUiSettings.Location = new System.Drawing.Point(492, 86);
+            this.m_buttonUseUiSettings.Location = new System.Drawing.Point(492, 78);
             this.m_buttonUseUiSettings.Name = "m_buttonUseUiSettings";
             this.m_buttonUseUiSettings.Size = new System.Drawing.Size(26, 23);
             this.m_buttonUseUiSettings.TabIndex = 8;
@@ -114,17 +115,28 @@
             // 
             this.m_labelUseUiSettings.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.m_labelUseUiSettings.AutoSize = true;
-            this.m_labelUseUiSettings.Location = new System.Drawing.Point(14, 70);
+            this.m_labelUseUiSettings.Location = new System.Drawing.Point(14, 62);
             this.m_labelUseUiSettings.Name = "m_labelUseUiSettings";
             this.m_labelUseUiSettings.Size = new System.Drawing.Size(271, 13);
             this.m_labelUseUiSettings.TabIndex = 1;
             this.m_labelUseUiSettings.Text = "Select task for next scan (if blank use scanner defaults):";
             // 
+            // m_buttonGetEncryptionReport
+            // 
+            this.m_buttonGetEncryptionReport.Location = new System.Drawing.Point(17, 169);
+            this.m_buttonGetEncryptionReport.Name = "m_buttonGetEncryptionReport";
+            this.m_buttonGetEncryptionReport.Size = new System.Drawing.Size(186, 23);
+            this.m_buttonGetEncryptionReport.TabIndex = 20;
+            this.m_buttonGetEncryptionReport.Text = "Get Encryption Report";
+            this.m_buttonGetEncryptionReport.UseVisualStyleBackColor = true;
+            this.m_buttonGetEncryptionReport.Click += new System.EventHandler(this.m_buttonGetEncryptionReport_Click);
+            // 
             // FormSetup
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(536, 171);
+            this.ClientSize = new System.Drawing.Size(536, 211);
+            this.Controls.Add(this.m_buttonGetEncryptionReport);
             this.Controls.Add(this.m_buttonSelectDestinationFolder);
             this.Controls.Add(this.m_buttonUseUiSettings);
             this.Controls.Add(this.m_labelUseUiSettings);
@@ -135,9 +147,9 @@
             this.Controls.Add(this.m_labelSelectDestinationFolder);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-            this.MaximumSize = new System.Drawing.Size(552, 210);
+            this.MaximumSize = new System.Drawing.Size(552, 250);
             this.MinimizeBox = false;
-            this.MinimumSize = new System.Drawing.Size(552, 210);
+            this.MinimumSize = new System.Drawing.Size(552, 250);
             this.Name = "FormSetup";
             this.Text = "setup scan session";
             this.ResumeLayout(false);
@@ -154,5 +166,6 @@
         private System.Windows.Forms.TextBox m_textboxUseUiSettings;
         private System.Windows.Forms.Button m_buttonUseUiSettings;
         private System.Windows.Forms.Label m_labelUseUiSettings;
+        private System.Windows.Forms.Button m_buttonGetEncryptionReport;
     }
 }

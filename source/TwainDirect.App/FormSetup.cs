@@ -33,9 +33,7 @@
 using System;
 using System.Drawing;
 using System.IO;
-using System.Reflection;
 using System.Resources;
-using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
 
@@ -61,6 +59,7 @@ namespace TwainDirect.App
         /// <param name="a_twainlocalscannerclient">our interface to the scanner</param>
         /// <param name="a_szWriteFolder">where we get/put stuff</param>
         /// <param name="a_resourcemanager">for localization</param>
+        /// <param name="a_twainlocalscannerclient">for encryptionReport</param>
         public FormSetup
         (
             Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
@@ -356,6 +355,45 @@ namespace TwainDirect.App
             {
                 folderbrowserdialog.Dispose();
                 folderbrowserdialog = null;
+            }
+        }
+
+        /// <summary>
+        /// Send an encryption report to the scanner and show the results...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonGetEncryptionReport_Click(object sender, EventArgs e)
+        {
+            bool blSuccess;
+            long lJsonErrorIndex = 0;
+            ApiCmd apicmd;
+            JsonLookup jsonlookup;
+
+            // Issue the command...
+            apicmd = new ApiCmd(m_dnssddeviceinfo);
+            m_twainlocalscannerclient.ClientScannerSendTask("{\"actions\":[{\"action\":\"encryptionReport\"}]}", ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerSendTask", ref apicmd);
+            if (!blSuccess)
+            {
+                MessageBox.Show("Command failed...", Config.GetResource(m_resourcemanager, "strFormScanTitle"));
+                return;
+            }
+
+            // Parse the JSON...
+            jsonlookup = new JsonLookup();
+            blSuccess = jsonlookup.Load(apicmd.GetHttpResponseData(), out lJsonErrorIndex);
+            if (!blSuccess)
+            {
+                MessageBox.Show("JSON error at: " + lJsonErrorIndex, Config.GetResource(m_resourcemanager, "strFormScanTitle"));
+                return;
+            }
+
+            // Show the result...
+            string szTask = jsonlookup.Get("results.session.task");
+            if (!string.IsNullOrEmpty(szTask))
+            {
+                MessageBox.Show(szTask, Config.GetResource(m_resourcemanager, "strFormScanTitle"));
             }
         }
 

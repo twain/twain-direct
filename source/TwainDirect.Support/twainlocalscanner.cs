@@ -102,7 +102,6 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using Microsoft.Win32;
 [assembly: CLSCompliant(true)]
 
 // This namespace supports applications and scanners...

@@ -40,13 +40,9 @@
 
 // Helpers...
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using TwainDirect.Support;
 using TWAINWorkingGroup;
@@ -2456,10 +2452,36 @@ namespace TwainDirect.OnTwain
                  swordencryptionprofile != null;
                  swordencryptionprofile = swordencryptionprofile.GetNextEncryptionProfile())
             {
+                bool blFound;
+                int iProfile;
+
                 // Skip this encryptionProfile...
                 if (swordencryptionprofile.GetSwordStatus() != SwordStatus.Run)
                 {
                     continue;
+                }
+
+                // Check our config to see what we have...
+                iProfile = 0;
+                blFound = false;
+                while (true)
+                {
+                    // Get the next encryptionProfile...
+                    string szProfileName = Config.Get("encryptionProfiles[" + iProfile + "].name", "");
+                    if (string.IsNullOrEmpty(szProfileName))
+                    {
+                        break;
+                    }
+
+                    // We match it...
+                    if (swordencryptionprofile.GetName() == szProfileName)
+                    {
+                        blFound = true;
+                        break;
+                    }
+
+                    // Look for another...
+                    iProfile += 1;
                 }
 
                 // If we recognize the profile, then use it...
@@ -4657,12 +4679,24 @@ namespace TwainDirect.OnTwain
             }
 
             // List our encryption profiles...
-            a_processswordtask.m_swordtaskresponse.JSON_ARR_BGN(5, "encryptionProfiles");                       //          "encryptionProfiles":[
-            a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(6, "");                                         //              {
-            a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "name", ",", "password");                    //                  "name":"XYZ",
-            a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "profile", "", "Password");                  //                  "profile":"XYZ"
-            a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(6, "");                                         //              }
-            a_processswordtask.m_swordtaskresponse.JSON_ARR_END(5, ",");                                        //          ],
+            if (!string.IsNullOrEmpty(Config.Get("encryptionProfiles[0].name", "")))
+            {
+                a_processswordtask.m_swordtaskresponse.JSON_ARR_BGN(5, "encryptionProfiles");                   //          "encryptionProfiles":[
+                int iProfile = 0;
+                while (true)
+                {
+                    if (string.IsNullOrEmpty(Config.Get("encryptionProfiles[" + iProfile + "].name", "")))
+                    {
+                        break;
+                    }
+                    a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(6, "");                                 //              {
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "name", ",", Config.Get("encryptionProfiles[" + iProfile + "].name", ""));        //                  "name":"XYZ",
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "profile", "", Config.Get("encryptionProfiles[" + iProfile + "].profile", ""));   //                  "profile":"XYZ"
+                    a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(6, string.IsNullOrEmpty(Config.Get("encryptionProfiles[0].name", "")) ? "" : ",");   //              }
+                    iProfile += 1;
+                }
+                a_processswordtask.m_swordtaskresponse.JSON_ARR_END(5, ",");                                    //          ],
+            }
 
             // Provide an empty list to indicate that we support public keys...
             a_processswordtask.m_swordtaskresponse.JSON_ARR_BGN(5, "encryptionPublicKeys");                     //          "encryptionPublicKeys":[

@@ -8,5 +8,19 @@
     "XdelayTwainDirectOnTwain": 0,
 
     "comment": "yes:if TWAIN Driver supports TWAIN Direct, use it",
-    "XuseDatTwaindirect": "yes"
+    "XuseDatTwaindirect": "yes",
+
+    "comment": "pfx file used for the digital signature",
+    "xpfxfile": "",
+
+    "comment": "supported encryptionProfiles",
+    "encryptionProfiles": [
+        {
+            "name": "password",
+            "profile": "Password",
+            "type": "password",
+            "passwordUser": "open",
+            "passwordOwner": "edit"
+        }
+    ]
 }

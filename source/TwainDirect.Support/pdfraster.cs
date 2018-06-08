@@ -40,7 +40,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Xml;
-using System.Xml.Schema;
 
 namespace TwainDirect.Support
 {
@@ -325,10 +324,48 @@ namespace TwainDirect.Support
                 }
 
                 // Request encryption...
-                if (    !string.IsNullOrEmpty(a_szEncryptionProfileName)
-                    &&  (a_szEncryptionProfileName == "password"))
+                if (!string.IsNullOrEmpty(a_szEncryptionProfileName))
                 {
-                    pdfRasWr.encoder_set_AES256_encrypter(enc, "open", "master", PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_COPY_FROM_DOCUMENT, 0);
+                    bool blFound = false;
+                    int iProfile = 0;
+
+                    // Look for a match...
+                    while (true)
+                    {
+                        // Get the next encryptionProfile...
+                        string szProfileName = Config.Get("encryptionProfiles[" + iProfile + "].name", "");
+                        if (string.IsNullOrEmpty(szProfileName))
+                        {
+                            break;
+                        }
+
+                        // Do we have a match?
+                        if (a_szEncryptionProfileName == szProfileName)
+                        {
+                            blFound = true;
+                            break;
+                        }
+                    }
+
+                    // Found it...
+                    if (blFound)
+                    {
+                        switch (Config.Get("encryptionProfiles[" + iProfile + "].type", ""))
+                        {
+                            default:
+                                break;
+                            case "password":
+                                pdfRasWr.encoder_set_AES256_encrypter
+                                (
+                                    enc,
+                                    Config.Get("encryptionProfiles[" + iProfile + "].passwordUser", ""),
+                                    Config.Get("encryptionProfiles[" + iProfile + "].passwordOwner", ""),
+                                    PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_COPY_FROM_DOCUMENT,
+                                    0
+                                );
+                                break;
+                        }
+                    }
                 }
 
                 // Create the page (we only ever have one)...
