@@ -2655,7 +2655,10 @@ namespace TwainDirect.Support
             m_httpresponsedata.szResponseData = a_exception.Message;
 
             // Alert the request that we're done...
-            m_httprequestdata.autoreseteventHttpWebRequest.Set();
+            if (m_httprequestdata.autoreseteventHttpWebRequest != null)
+            {
+                m_httprequestdata.autoreseteventHttpWebRequest.Set();
+            }
             return (false);
         }
 
@@ -2760,7 +2763,10 @@ namespace TwainDirect.Support
             m_httpresponsedata.szResponseData = szStatusData;
 
             // Alert the request that we're done...
-            m_httprequestdata.autoreseteventHttpWebRequest.Set();
+            if (m_httprequestdata.autoreseteventHttpWebRequest != null)
+            {
+                m_httprequestdata.autoreseteventHttpWebRequest.Set();
+            }
             return (false);
         }
 

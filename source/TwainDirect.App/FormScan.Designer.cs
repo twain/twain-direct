@@ -52,6 +52,7 @@
             this.m_pictureboxImage1.Size = new System.Drawing.Size(335, 424);
             this.m_pictureboxImage1.TabIndex = 0;
             this.m_pictureboxImage1.TabStop = false;
+            this.m_pictureboxImage1.DoubleClick += new System.EventHandler(this.m_pictureboxImage_DoubleClick);
             // 
             // m_buttonScan
             // 
@@ -85,6 +86,7 @@
             this.m_pictureboxImage2.Size = new System.Drawing.Size(335, 424);
             this.m_pictureboxImage2.TabIndex = 4;
             this.m_pictureboxImage2.TabStop = false;
+            this.m_pictureboxImage2.DoubleClick += new System.EventHandler(this.m_pictureboxImage_DoubleClick);
             // 
             // m_buttonClose
             // 
@@ -149,6 +151,7 @@
             this.m_textbox1.ReadOnly = true;
             this.m_textbox1.Size = new System.Drawing.Size(335, 20);
             this.m_textbox1.TabIndex = 13;
+            this.m_textbox1.DoubleClick += new System.EventHandler(this.m_textbox_DoubleClick);
             // 
             // m_textbox2
             // 
@@ -159,6 +162,7 @@
             this.m_textbox2.ReadOnly = true;
             this.m_textbox2.Size = new System.Drawing.Size(335, 20);
             this.m_textbox2.TabIndex = 14;
+            this.m_textbox2.DoubleClick += new System.EventHandler(this.m_textbox_DoubleClick);
             // 
             // m_textboxSummary
             // 

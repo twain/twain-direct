@@ -32,6 +32,10 @@
             <File Id="TwainDirect.App.exe.config" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe.config" KeyPath="yes" />
           </Component>
 
+          <Component Id="TwainDirect.App.appdata.installed.txt" Guid="{85587DE4-B9A3-4300-97F5-30E2FB094FEC}">
+            <File Id="TwainDirect.App.appdata.installed.txt" Source="$(var.TwainDirect.App.TargetDir)\data\TwainDirect.App.appdata.installed.txt" KeyPath="yes" />
+          </Component>
+
           <Component Id="TwainDirect.Support.dll" Guid="{3374B2B1-DDF2-4E8C-99FF-2B6C21667077}">
             <File Id="TwainDirect.Support.dll" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.Support.dll" KeyPath="yes" />
           </Component>

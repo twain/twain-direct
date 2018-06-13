@@ -33,9 +33,7 @@
 using System;
 using System.Drawing;
 using System.IO;
-using System.Reflection;
 using System.Resources;
-using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
 
@@ -60,14 +58,22 @@ namespace TwainDirect.App
         /// <param name="a_dnssddeviceinfo">the device we're talking to</param>
         /// <param name="a_twainlocalscannerclient">our interface to the scanner</param>
         /// <param name="a_szWriteFolder">where we get/put stuff</param>
-        public FormSetup(Dnssd.DnssdDeviceInfo a_dnssddeviceinfo, TwainLocalScannerClient a_twainlocalscannerclient, string a_szWriteFolder)
+        /// <param name="a_resourcemanager">for localization</param>
+        /// <param name="a_twainlocalscannerclient">for encryptionReport</param>
+        public FormSetup
+        (
+            Dnssd.DnssdDeviceInfo a_dnssddeviceinfo,
+            TwainLocalScannerClient a_twainlocalscannerclient,
+            string a_szWriteFolder,
+            ResourceManager a_resourcemanager
+        )
         {
             float fScale;
-            ResourceManager resourcemanager;
 
             // Init stuff...
             InitializeComponent();
             m_dnssddeviceinfo = a_dnssddeviceinfo;
+            m_resourcemanager = a_resourcemanager;
 
             // Handle scaling...
             fScale = (float)Config.Get("scale", 1.0);
@@ -85,21 +91,8 @@ namespace TwainDirect.App
             }
 
             // Localize...
-            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
-            if (szCurrentUiCulture == ".en-US")
-            {
-                szCurrentUiCulture = "";
-            }
-            try
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
-            }
-            catch
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
-            }
-            m_labelSelectDestinationFolder.Text = resourcemanager.GetString("strLabelSelectImageDestination");
-            this.Text = resourcemanager.GetString("strFormSetupTitle");
+            m_labelSelectDestinationFolder.Text = Config.GetResource(m_resourcemanager, "strLabelSelectImageDestination");
+            this.Text = Config.GetResource(m_resourcemanager, "strFormSetupTitle");
 
             // More init stuff...
             m_twainlocalscannerclient = a_twainlocalscannerclient;
@@ -366,6 +359,45 @@ namespace TwainDirect.App
         }
 
         /// <summary>
+        /// Send an encryption report to the scanner and show the results...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonGetEncryptionReport_Click(object sender, EventArgs e)
+        {
+            bool blSuccess;
+            long lJsonErrorIndex = 0;
+            ApiCmd apicmd;
+            JsonLookup jsonlookup;
+
+            // Issue the command...
+            apicmd = new ApiCmd(m_dnssddeviceinfo);
+            m_twainlocalscannerclient.ClientScannerSendTask("{\"actions\":[{\"action\":\"encryptionReport\"}]}", ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerSendTask", ref apicmd);
+            if (!blSuccess)
+            {
+                MessageBox.Show("Command failed...", Config.GetResource(m_resourcemanager, "strFormScanTitle"));
+                return;
+            }
+
+            // Parse the JSON...
+            jsonlookup = new JsonLookup();
+            blSuccess = jsonlookup.Load(apicmd.GetHttpResponseData(), out lJsonErrorIndex);
+            if (!blSuccess)
+            {
+                MessageBox.Show("JSON error at: " + lJsonErrorIndex, Config.GetResource(m_resourcemanager, "strFormScanTitle"));
+                return;
+            }
+
+            // Show the result...
+            string szTask = jsonlookup.Get("results.session.task");
+            if (!string.IsNullOrEmpty(szTask))
+            {
+                MessageBox.Show(szTask, Config.GetResource(m_resourcemanager, "strFormScanTitle"));
+            }
+        }
+
+        /// <summary>
         /// Pick the settings for a scan session...
         /// </summary>
         /// <param name="sender"></param>
@@ -389,7 +421,16 @@ namespace TwainDirect.App
                     }
                     catch (Exception exception)
                     {
-                        MessageBox.Show("Unable to create settings folder...'" + m_szTasksFolder + "' - " + exception.Message);
+                        // Unable to create settings folder.
+                        MessageBox.Show
+                        (
+                            Config.GetResource(m_resourcemanager, "errCantCreateSettingsFolder") + "\n" +
+                            "\n" +
+                            m_szTasksFolder + "\n" +
+                            "\n" +
+                            exception.Message,
+                            Config.GetResource(m_resourcemanager, "strFormScanTitle")
+                        );
                         return;
                     }
                 }
@@ -444,6 +485,11 @@ namespace TwainDirect.App
         /// The device we're talking to...
         /// </summary>
         private Dnssd.DnssdDeviceInfo m_dnssddeviceinfo;
+
+        /// <summary>
+        /// For localization...
+        /// </summary>
+        private ResourceManager m_resourcemanager;
 
         /// <summary>
         /// The settings folder...

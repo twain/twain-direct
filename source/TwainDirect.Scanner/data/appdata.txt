@@ -1,8 +1,0 @@
-{
-    "logLevel": 3,
-    "delayTwainDirectScanner": 0,
-    "imageBlockSize": 0,
-    "sessionTimeout": 300000,
-    "useHttps": "yes",
-    "usePort": 34034
-}

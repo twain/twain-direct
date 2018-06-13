@@ -1,0 +1,24 @@
+{
+    "comment": "copy this file to TwainDirect.App.appdata.txt, and remove the X from any lines you'd like to use",
+
+    "comment": "0-off, +1-on, +2-verbose, +4-flush (so 3 for on and verbose)",
+    "XlogLevel": 0,
+
+    "comment": "en-US, fr-FR",
+    "Xlanguage": "en-US",
+
+    "comment": "milliseconds that scanner has to respond to a command",
+    "XhttpTimeoutCommand": 30000,
+
+    "comment": "milliseconds that scanner has to deliver data to the app",
+    "XhttpTimeoutData": 30000,
+
+    "comment": "milliseconds that events wait for data",
+    "XhttpTimeoutEvent": 60000,
+
+    "comment": "auto:allow http or https, no:http only, yes:https only",
+    "XuseHttps": "auto",
+
+    "comment": "yes:use TWAIN Direct infoex instead of info",
+    "XuseInfoex": "yes"
+}

@@ -1,0 +1,81 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TWAIN Direct EncryptionReport v1.0 04-Jun-2018
+; arg:1 - scanner to use
+; returns: pass or fail
+;
+; Get an encryptionReport using TWAIN Direct...
+;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pick a scanner, default to the first scanner if we
+; don't get one...
+;
+select '${arg:1}'
+if '${ret:}' != 'true' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Get the scanner info, including its x-privet-token...
+;
+echo 'CMD: infoex'
+infoex
+if '${rj:x-privet-token}' == '' goto MAIN.FAIL
+echo 'SCANNER:' '${rj:description}' / '${rj:name}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Create a new session...
+;
+echo 'CMD: createSession'
+createSession
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+if '${rj:results.session.state}' != 'ready' goto MAIN.FAIL
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Wait for events (we won't get a response)...
+;
+echo 'CMD: waitForEvents'
+waitForEvents
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Send a task asking for an encryptionReport...
+;
+set task '{"actions":[{"action":"encryptionReport"}]}'
+echo 'CMD: sendTask'
+sendTask '${get:task}'
+if '${rj:results.success}' != 'true' goto MAIN.FAIL
+echo '${rj:results}'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Close the session...
+;
+echo 'CMD: closeSession'
+closeSession
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bye-bye...
+;
+echo 'Done...'
+return pass
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN.FAIL
+;
+:MAIN.FAIL
+closeSession
+echo 'script failed...'
+return 'fail'

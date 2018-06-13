@@ -32,6 +32,7 @@
 // Helpers...
 using System;
 using System.Reflection;
+using System.Resources;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
@@ -183,6 +184,41 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Get a string from the supplied resource, return the key if we can't
+        /// find the resource...
+        /// </summary>
+        /// <param name="a_resourcemanager">resource to use</param>
+        /// <param name="a_szKey">key to lookup</param>
+        /// <returns>string we found, or the keyname</returns>
+        public static string GetResource(ResourceManager a_resourcemanager, string a_szKey)
+        {
+            string szResult = "";
+
+            // Ruh-roh...
+            if (a_resourcemanager == null)
+            {
+                return (a_szKey);
+            }
+
+            // Also, ruh-roh...
+            try
+            {
+                szResult = a_resourcemanager.GetString(a_szKey);
+            }
+            catch
+            {
+                return (a_szKey);
+            }
+            if (string.IsNullOrEmpty(szResult))
+            {
+                return (a_szKey);
+            }
+
+            // Got it...
+            return (szResult);
+        }
+
+        /// <summary>
         /// Load the configuration object.  We want to read in the
         /// configuaration data (in JSON format) and a list of the
         /// command line arguments.
@@ -216,8 +252,14 @@ namespace TwainDirect.Support
                 // Store the command line...
                 ms_aszCommandLine = a_aszCommandLine;
 
-                // Load the config...
-                string szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
+                // Load the config, we'll first look for a name decorated version
+                // of the file (ex: TwainDirect.Scanner.appdata.txt), and if that
+                // fails, then we'll try appdata.txt...
+                string szConfigFile = Path.Combine(ms_szReadFolder, ms_szExecutableName + "." + a_szConfigFile);
+                if (!File.Exists(szConfigFile))
+                {
+                    szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
+                }
                 if (File.Exists(szConfigFile))
                 {
                     long a_lJsonErrorindex;

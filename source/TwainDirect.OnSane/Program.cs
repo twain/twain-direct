@@ -78,7 +78,7 @@ namespace TwainDirect.OnSane
             // so that we can access them from anywhere in the code...
             if (!Config.Load(Application.ExecutablePath, a_aszArgs, "appdata.txt"))
             {
-                MessageBox.Show("Error starting, is appdata.txt damaged?");
+                MessageBox.Show("Error starting.  Try uninstalling and reinstalling this software.", "Error");
                 Application.Exit();
             }
 

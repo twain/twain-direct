@@ -192,7 +192,7 @@ namespace TwainDirect.OnSane
                 swordaction.m_szAction = jsonlookup.Get(szSwordAction + ".action");
                 if (string.IsNullOrEmpty(swordaction.m_szAction))
                 {
-                    swordaction.m_szAction = "configuration";
+                    swordaction.m_szAction = "configure";
                 }
 
                 // Set the action exception...

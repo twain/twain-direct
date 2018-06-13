@@ -403,7 +403,7 @@ namespace TwainDirect.Scanner
             blSuccess = m_twainlocalscannerdevice.DeviceRegisterLoad();
             if (!blSuccess)
             {
-                m_displaycallback(m_resourcemanager.GetString("strTextNoScannersRegistered")); // "No scanners registered..."
+                m_displaycallback(Config.GetResource(m_resourcemanager, "strTextNoScannersRegistered")); // "No scanners registered..."
                 Log.Error("DeviceRegisterLoad failed...");
                 return (true);
             }
@@ -414,9 +414,17 @@ namespace TwainDirect.Scanner
             // If yes, display the names...
             if (m_displaycallback != null)
             {
-                m_displaycallback(m_resourcemanager.GetString("strTextListingScannersBegin")); // "Listing registered scanners...(please wait for the list)"
-                m_displaycallback(m_twainlocalscannerdevice.GetTwainLocalTy());
-                m_displaycallback(m_resourcemanager.GetString("strTextListingScannersEnd")); // "Listing complete..."
+                m_displaycallback(Config.GetResource(m_resourcemanager, "strTextListingScannersBegin")); // "Listing registered scanners...(please wait for the list)"
+                string szNote = m_twainlocalscannerdevice.GetTwainLocalNote();
+                if (!string.IsNullOrEmpty(szNote))
+                {
+                    m_displaycallback(m_twainlocalscannerdevice.GetTwainLocalTy() + " (" + szNote + ")");
+                }
+                else
+                {
+                    m_displaycallback(m_twainlocalscannerdevice.GetTwainLocalTy());
+                }
+                m_displaycallback(Config.GetResource(m_resourcemanager, "strTextListingScannersEnd")); // "Listing complete..."
             }
 
             // All done...

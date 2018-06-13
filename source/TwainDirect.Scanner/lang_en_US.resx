@@ -117,60 +117,63 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="strButtonClose" xml:space="preserve">
-    <value>Terminer</value>
-    <comment>Close a scanner session...</comment>
+  <data name="errCloseTwainBridge" xml:space="preserve">
+    <value>Do you want to close the 'TWAIN Direct: TWAIN Bridge' program?</value>
   </data>
-  <data name="strButtonOpen" xml:space="preserve">
-    <value>Ouvert</value>
-    <comment>Open a scanner...</comment>
+  <data name="errLookingForScanners" xml:space="preserve">
+    <value>Looking for scanners...</value>
+  </data>
+  <data name="errNoScannersFound" xml:space="preserve">
+    <value>No scanners found.</value>
+  </data>
+  <data name="errRegisterTwainDriver" xml:space="preserve">
+    <value>Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.</value>
+  </data>
+  <data name="errUnableToUseScanner" xml:space="preserve">
+    <value>We are unable to use the selected scanner.  Please make sure your scanner is turned on and connected before trying again.</value>
   </data>
   <data name="strButtonRegisterEllipsis" xml:space="preserve">
-    <value>Enregister...</value>
-    <comment>Register a new scanner in the cloud...</comment>
+    <value>Register...</value>
+    <comment>Pick a new TWAIN Driver...</comment>
   </data>
-  <data name="strButtonScan" xml:space="preserve">
-    <value>Balayage</value>
-    <comment>Start scanning...</comment>
-  </data>
-  <data name="strButtonSelectEllipsis" xml:space="preserve">
-    <value>Choisir...</value>
-    <comment>Open the scanner select dialog...</comment>
-  </data>
-  <data name="strButtonSetupEllipsis" xml:space="preserve">
-    <value>Configurer...</value>
-    <comment>Setup the scanner session...</comment>
+  <data name="strButtonStart" xml:space="preserve">
+    <value>Start</value>
+    <comment>Start server...</comment>
   </data>
   <data name="strButtonStop" xml:space="preserve">
-    <value>Arrêt</value>
-    <comment>Stop scanning...</comment>
+    <value>Stop</value>
+    <comment>Stop server...</comment>
   </data>
-  <data name="strButtonUnregisterEllipsis" xml:space="preserve">
-    <value>Desenregisterer...</value>
-    <comment>Unregister (remove) a scanner from the cloud...</comment>
+  <data name="strFormMainTitle" xml:space="preserve">
+    <value>TWAIN Direct: TWAIN Bridge</value>
+    <comment>Main Form title...</comment>
   </data>
-  <data name="strFormScanTitle" xml:space="preserve">
-    <value>TWAIN Direct: Application</value>
-    <comment>Main title...</comment>
+  <data name="strMenuAbout" xml:space="preserve">
+    <value>&amp;About</value>
+    <comment>Information about this program...</comment>
   </data>
-  <data name="strFormSetupTitle" xml:space="preserve">
-    <value>Ouvrir Scanner</value>
-    <comment>Select and open a scanner...</comment>
+  <data name="strMenuExit" xml:space="preserve">
+    <value>E&amp;xit...</value>
+    <comment>Exit the program...</comment>
   </data>
-  <data name="strFormSetupTitle1" xml:space="preserve">
-    <value>Configuration session de numérisation</value>
-    <comment>Setup dialog title...</comment>
+  <data name="strMenuShowConsole" xml:space="preserve">
+    <value>&amp;Open</value>
+    <comment>Raise the server console window...</comment>
   </data>
-  <data name="strGroupboxSelectImageDestination" xml:space="preserve">
-    <value>Sélectionnez la destination de l'image</value>
-    <comment>Select image destination groupbox...</comment>
+  <data name="strTextAbout" xml:space="preserve">
+    <value>A program allowing TWAIN Direct applications to communicate with scanners supported by TWAIN drivers.</value>
+    <comment>Information about this program...</comment>
   </data>
-  <data name="strLabelSelectImageDestination" xml:space="preserve">
-    <value>Sélectionnez le dossier image de destination:</value>
-    <comment>Select image destination label...</comment>
+  <data name="strTextListingScannersBegin" xml:space="preserve">
+    <value>Listing registered scanners...(please wait for the list)</value>
+    <comment>Notice that listing is starting...</comment>
   </data>
-  <data name="strLabelSelectScanner" xml:space="preserve">
-    <value>Sélectionner un scanner:</value>
-    <comment>Label for select scanner listbox...</comment>
+  <data name="strTextListingScannersEnd" xml:space="preserve">
+    <value>Listing complete...</value>
+    <comment>Notice that listing is done...</comment>
+  </data>
+  <data name="strTextNoScannersRegistered" xml:space="preserve">
+    <value>No scanners registered...</value>
+    <comment>Couldn't find any scanners...</comment>
   </data>
 </root>

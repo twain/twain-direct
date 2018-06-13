@@ -36,6 +36,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Resources;
 using System.Threading;
@@ -62,7 +63,40 @@ namespace TwainDirect.App
         /// <param name="a_fScale">scale factor for our form</param>
         public FormScan()
         {
-            ResourceManager resourcemanager;
+            // Set up a data folder, in this instance we're assuming the project
+            // name matches the binary, so we can quickly locate it...
+            string szExecutableName = Config.Get("executableName", "");
+            string szWriteFolder = Config.Get("writeFolder", "");
+
+            // Turn on logging...
+            Log.Open(szExecutableName, szWriteFolder, 1);
+            Log.SetLevel((int)Config.Get("logLevel", 0));
+            Log.Info(szExecutableName + " Log Started...");
+
+            // Localize, the user can override the system default...
+            string szCurrentUiCulture = Config.Get("language", "");
+            if (string.IsNullOrEmpty(szCurrentUiCulture))
+            {
+                szCurrentUiCulture = Thread.CurrentThread.CurrentUICulture.ToString();
+            }
+            switch (szCurrentUiCulture.ToLower())
+            {
+                default:
+                    Log.Info("UiCulture: " + szCurrentUiCulture + " (not supported, so using en-US)");
+                    m_resourcemanager = lang_en_US.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+                    break;
+                case "en-us":
+                    Log.Info("UiCulture: " + szCurrentUiCulture);
+                    m_resourcemanager = lang_en_US.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+                    break;
+                case "fr-fr":
+                    Log.Info("UiCulture: " + szCurrentUiCulture);
+                    m_resourcemanager = lang_fr_FR.ResourceManager;
+                    Thread.CurrentThread.CurrentUICulture = new CultureInfo("fr-FR");
+                    break;
+            }
 
             // Build our form...
             InitializeComponent();
@@ -84,28 +118,16 @@ namespace TwainDirect.App
             {
                 this.Font = new Font(this.Font.FontFamily, this.Font.Size * m_fScale, this.Font.Style);
             }
+            Log.Info("Scale: " + m_fScale);
 
             // Localize...
-            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
-            if (szCurrentUiCulture == ".en-US")
-            {
-                szCurrentUiCulture = "";
-            }
-            try
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
-            }
-            catch
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
-            }
-            m_buttonClose.Text = resourcemanager.GetString("strButtonClose");
-            m_buttonOpen.Text = resourcemanager.GetString("strButtonOpen");
-            m_buttonSelect.Text = resourcemanager.GetString("strButtonSelectEllipsis");
-            m_buttonScan.Text = resourcemanager.GetString("strButtonScan");
-            m_buttonSetup.Text = resourcemanager.GetString("strButtonSetupEllipsis");
-            m_buttonStop.Text = resourcemanager.GetString("strButtonStop");
-            this.Text = resourcemanager.GetString("strFormScanTitle");
+            this.Text = Config.GetResource(m_resourcemanager, "strFormScanTitle"); // TWAIN Direct: Application
+            m_buttonClose.Text = Config.GetResource(m_resourcemanager, "strButtonClose");
+            m_buttonOpen.Text = Config.GetResource(m_resourcemanager, "strButtonOpen");
+            m_buttonSelect.Text = Config.GetResource(m_resourcemanager, "strButtonSelectEllipsis");
+            m_buttonScan.Text = Config.GetResource(m_resourcemanager, "strButtonScan");
+            m_buttonSetup.Text = Config.GetResource(m_resourcemanager, "strButtonSetupEllipsis");
+            m_buttonStop.Text = Config.GetResource(m_resourcemanager, "strButtonStop");
 
             // Help with scaling...
             this.Resize += new EventHandler(FormScan_Resize);
@@ -124,16 +146,6 @@ namespace TwainDirect.App
             this.m_listviewCertification.Columns.Add("Category", 130);
             this.m_listviewCertification.Columns.Add("Summary", 400);
             this.m_listviewCertification.Columns.Add("Status", 100);
-
-            // Set up a data folder, in this instance we're assuming the project
-            // name matches the binary, so we can quickly locate it...
-            string szExecutableName = Config.Get("executableName", "");
-            string szWriteFolder = Config.Get("writeFolder", "");
-
-            // Turn on logging...
-            Log.Open(szExecutableName, szWriteFolder, 1);
-            Log.SetLevel((int)Config.Get("logLevel", 0));
-            Log.Info(szExecutableName + " Log Started...");
 
             // Init our picture box...
             InitImage();
@@ -247,15 +259,16 @@ namespace TwainDirect.App
                     case ApiCmd.ApiErrorFacility.undefined:
                         if ((aszDescriptions == null) || (aszDescriptions.Length == 0))
                         {
-                            Log.Error("unknown error, please check the logs for more information (yeah this is meta, if mean look up from this message)");
+                            Log.Error("unknown error, please check the logs for more information (yeah this is meta, it means look up from this message)");
                             m_buttonClose_Click(null, null);
-                            MessageBox.Show("unknown error, please check the logs for more information.");
+                            // Unknown error, please checks the logs for more information.
+                            MessageBox.Show(Config.GetResource(m_resourcemanager, "errUnknownCheckLogs"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                         }
                         else
                         {
                             Log.Error(aszDescriptions[0]);
                             m_buttonClose_Click(null, null);
-                            MessageBox.Show(aszDescriptions[0]);
+                            MessageBox.Show(aszDescriptions[0], Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                         }
                         break;
 
@@ -263,7 +276,7 @@ namespace TwainDirect.App
                     case ApiCmd.ApiErrorFacility.httpstatus:
                         Log.Error(aszDescriptions[0]);
                         m_buttonClose_Click(null, null);
-                        MessageBox.Show(aszDescriptions[0]);
+                        MessageBox.Show(aszDescriptions[0], Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                         break;
 
                     // Somebody didn't code stuff properly, end the session, because
@@ -271,7 +284,7 @@ namespace TwainDirect.App
                     case ApiCmd.ApiErrorFacility.security:
                         Log.Error(aszDescriptions[0]);
                         m_buttonClose_Click(null, null);
-                        MessageBox.Show(aszDescriptions[0]);
+                        MessageBox.Show(aszDescriptions[0], Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                         break;
 
                     // We have an error in the TWAIN Local procotol, it's up
@@ -279,15 +292,25 @@ namespace TwainDirect.App
                     // a ready state...
                     case ApiCmd.ApiErrorFacility.protocol:
                         Log.Error(aszDescriptions[0]);
-                        MessageBox.Show(aszDescriptions[0]);
+                        MessageBox.Show(aszDescriptions[0], Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                         break;
 
                     // We have an error in the TWAIN Direct language...
                     case ApiCmd.ApiErrorFacility.language:
+                        // This error is the result of the task specifying an exception of 'fail' somewhere within it.  The scanner triggered this when it was unable to set a required value.  There are two possible solutions: find a scanner that supports the feature required by the task, or use a different task.
+                        // The dotted notation, indicated above, points to the value that triggered the failure condition.
                         foreach (string sz in aszDescriptions)
                         {
                             Log.Error(sz);
-                            MessageBox.Show(sz);
+                            MessageBox.Show
+                            (
+                                sz + "\n" +
+                                "\n" +
+                                Config.GetResource(m_resourcemanager, "errTaskFailed") + "\n" +
+                                "\n" +
+                                Config.GetResource(m_resourcemanager, "errDottedNotation"),
+                                Config.GetResource(m_resourcemanager, "strFormScanTitle")
+                            );
                         }
                         break;
                 }
@@ -299,7 +322,15 @@ namespace TwainDirect.App
             string szDetected;
             if (!m_twainlocalscannerclient.ClientGetSessionStatusSuccess(out szDetected))
             {
-                MessageBox.Show(szDetected);
+                long lJsonErrorIndex;
+                JsonLookup jsonlookup = new JsonLookup();
+                jsonlookup.Load(apicmd.GetSendCommand(), out lJsonErrorIndex);
+                string szCommand = jsonlookup.Get("method");
+                if (string.IsNullOrEmpty(szCommand))
+                {
+                    szCommand = "scanning";
+                }
+                MessageBox.Show(ReportError(szCommand, apicmd.GetHttpResponseData()), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
             }
 
             // We're in good shape, set the buttons to allow more scanning...
@@ -723,10 +754,49 @@ namespace TwainDirect.App
                 m_threadClientScan.Abort();
                 m_threadClientScan = null;
             }
-            MessageBox.Show("Your scanner session has aborted.", "Notification");
+            // Your scanner session has aborted.  Check your scanner to make sure it's on and connected to the network.
+            MessageBox.Show(Config.GetResource(m_resourcemanager, "errSessionAborted"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
             SetButtons(EBUTTONSTATE.CLOSED);
         }
 
+        /// <summary>
+        /// Write some text to an image so we can display it...
+        /// </summary>
+        /// <param name="a_szText"></param>
+        /// <returns>the image to display</returns>
+        private Image DrawText(String a_szText)
+        {
+            Font fontText = new Font(FontFamily.GenericSansSerif, 20.0F, FontStyle.Bold);
+
+            // first, create a dummy bitmap just to get a graphics object
+            Image image = new Bitmap(1, 1);
+            Graphics graphics = Graphics.FromImage(image);
+
+            // measure the string to see how big the image needs to be
+            SizeF textSize = graphics.MeasureString(a_szText, fontText);
+
+            // free up the dummy image and old graphics object
+            image.Dispose();
+            graphics.Dispose();
+
+            // create a new image of the right size
+            image = new Bitmap((int)textSize.Width, (int)textSize.Height);
+            graphics = Graphics.FromImage(image);
+
+            // paint the background
+            graphics.Clear(Color.Black);
+
+            // create a brush for the text
+            Brush textBrush = new SolidBrush(Color.White);
+            graphics.DrawString(a_szText, fontText, textBrush, 0, 0);
+            graphics.Save();
+
+            // Cleanup and done...
+            textBrush.Dispose();
+            graphics.Dispose();
+            return (image);
+
+        }
         /// <summary>
         /// Handle sessionTimedOut errors...
         /// </summary>
@@ -734,7 +804,7 @@ namespace TwainDirect.App
         {
             SetButtons(EBUTTONSTATE.UNDEFINED);
             m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
-            MessageBox.Show("Your scanner session has timed out.", "Notification");
+            MessageBox.Show(Config.GetResource(m_resourcemanager, "errSessionTimeout"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
             SetButtons(EBUTTONSTATE.CLOSED);
         }
 
@@ -987,6 +1057,23 @@ namespace TwainDirect.App
             if (abImage == null)
             {
                 Log.Error("failed to convert the image...");
+                // Get the image data...
+                using (var bitmap = new Bitmap(DrawText("...DISPLAY ERROR...")))
+                {
+                    // Display the image...
+                    if (m_iUseBitmap == 0)
+                    {
+                        m_iUseBitmap = 1;
+                        szImageText = Path.GetFileName(szPdf);
+                        LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, bitmap, szImageText);
+                    }
+                    else
+                    {
+                        m_iUseBitmap = 0;
+                        szImageText = Path.GetFileName(szPdf);
+                        LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, bitmap, szImageText);
+                    }
+                }
                 return (blGotImage);
             }
 
@@ -1263,7 +1350,7 @@ namespace TwainDirect.App
             adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated);
             if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
             {
-                MessageBox.Show("There are no TWAIN Direct scanners available at this time.");
+                MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoTwainScanners"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1403,7 +1490,7 @@ namespace TwainDirect.App
                         if ((aszDescriptions != null) && (aszDescriptions.Length > 0))
                         {
                             Log.Error(aszDescriptions[0]);
-                            MessageBox.Show(aszDescriptions[0]);
+                            MessageBox.Show(aszDescriptions[0], Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                         }
                     }
                 }
@@ -1438,7 +1525,7 @@ namespace TwainDirect.App
             // Instantiate our selection form with the list of devices, and
             // wait for the user to pick something...
             dialogresult = DialogResult.Cancel;
-            formselect = new FormSelect(m_dnssd, m_fScale, _cloudTokens, out blSuccess);
+            formselect = new FormSelect(m_dnssd, m_fScale, _cloudTokens, out blSuccess, m_resourcemanager);
             if (!blSuccess)
             {
                 SetButtons(EBUTTONSTATE.CLOSED);
@@ -1477,7 +1564,7 @@ namespace TwainDirect.App
             // Validate...
             if (m_dnssddeviceinfo == null)
             {
-                MessageBox.Show("No device selected...");
+                MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoDeviceSelected"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 formselect = null;
                 return;
@@ -1502,6 +1589,248 @@ namespace TwainDirect.App
         }
 
         /// <summary>
+        /// Parse the response data, and try to provide a useful message
+        /// to the user...
+        /// </summary>
+        /// <param name="a_szCommand">command that was issued</param>
+        /// <param name="a_szHttpResponseData">response received</param>
+        /// <returns>the message to display</returns>
+        private string ReportError(string a_szCommand, string a_szHttpResponseData)
+        {
+            long lJsonErrorIndex;
+            JsonLookup jsonlookup;
+
+            // If we have no data we've probably timed out on the connection,
+            // that can happen for a number of reasons.  We'll try to offer
+            // the best explanation, based on the command...
+            if (string.IsNullOrEmpty(a_szHttpResponseData))
+            {
+                switch (a_szCommand)
+                {
+                    default:
+                        // timeout
+                        // The scanner did not respond in a timely fashion.  Check that the scanner is still on, and that there is a good connection to the network.
+                        return
+                        (
+                            a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errTimeout") + ".\n" +
+                            "\n" +
+                            Config.GetResource(m_resourcemanager, "errTimeoutFix")
+                        );
+                    case "CreateSession":
+                        // timeout
+                        // The scanner did not respond in a timely fashion. Check that the scanner is still on, and that there is a good connection to the network.  Since this happened for 'createSession' it's possible the scanner was in a sleep state, and took too long to wake up.  Trying a second time may be successful.
+                        return
+                        (
+                            a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errTimeout") + ".\n" +
+                            "\n" +
+                            Config.GetResource(m_resourcemanager, "errTimeoutWakeupFix")
+                        );
+                }
+            }
+
+            // Load the JSON, if that blows up in our face, then give the user the raw data...
+            jsonlookup = new JsonLookup();
+            if (!jsonlookup.Load(a_szHttpResponseData, out lJsonErrorIndex))
+            {
+                // json error, index=
+                // We have a response from the scanner, but it can't be parsed due to an error in its construction.  The index shows where we ran into trouble.  What follows is the raw data we received.
+                return
+                (
+                    a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errJsonErrorIndex") + lJsonErrorIndex + ".\n" +
+                    "\n" +
+                    Config.GetResource(m_resourcemanager, "errJsonErrorIndexFix") + "\n" +
+                    "\n" +
+                    a_szHttpResponseData
+                );
+            }
+
+            // We have two codes to check, there's the protocol and
+            // the session.  Check if the protocol reports success,
+            // if so, get the session data...
+            string szCode;
+            if (jsonlookup.Get("results.success") == "true")
+            {
+                szCode = jsonlookup.Get("results.session.status.detected");
+            }
+            // We seem to have a protocol problem, so sort that out...
+            else
+            {
+                szCode = jsonlookup.Get("results.code");
+            }
+
+            // If we don't have an error code, tell them about it...
+            if (string.IsNullOrEmpty(szCode))
+            {
+                // missing error code
+                // When an error occurs we expect to receive a code.  The response does not have this code, so we can't tell what error happened What follows is the raw data we received.
+                return
+                (
+                    a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errMissingErrorCode") + ".\n" +
+                    "\n" +
+                    Config.GetResource(m_resourcemanager, "errMissingErrorCodeFix") + "\n" +
+                    "\n" +
+                    a_szHttpResponseData
+                );
+            }
+
+            // Handle the errors...
+            switch (szCode)
+            {
+                default:
+                    // unrecognized error code
+                    // We don't have any advice to offer for this error, it may be custom to the scanner, or this application may not be recent enough to know about it.  What follows is the raw data we received.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errUnrecognizedErrorCode") + " - " + szCode + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errUnrecognizedErrorCodeFix") + "\n" +
+                        "\n" +
+                        a_szHttpResponseData
+                    );
+
+                case "newSessionNotAllowed":
+                    // new session not allowed
+                    // The scanner may be in use by another user.  Or it may be turned off or disconnected.  Check to to see which it is, and then retry.  If the problem persists, try turning the scanner off, wait a bit, and turn it back on. If you're using the TWAIN Bridge try exiting from it and restarting it.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errNewSessionNotAllowed") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errNewSessionNotAllowedFix")
+                    );
+
+                case "invalidSessionId":
+                    // invalid session id
+                    // Communication was lost or compromised.  Make sure this session is closed, and try to create a new session.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errInvalidSessionId") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errInvalidSessionIdFix")
+                    );
+
+                case "closedSession":
+                    // closed session
+                    // This session has been closed, and will not accept attempts to scan.  Drain all images to free the scanner.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errClosedSession") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errClosedSessionFix")
+                    );
+
+                case "notReady":
+                    // not ready
+                    // This session is not ready, and will not accept attempts to negotiate tasks.  Close this session and start a new one, if you want to continue.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errNotReady") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errNotReadyFix")
+                    );
+
+                case "notCapturing":
+                    // not capturing
+                    // This session is not capturing, and will not accept attempts to transfer images.  Close this session and start a new one, if you want to continue.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errNotCapturing") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errNotCapturingFix")
+                    );
+
+                case "invalidImageBlockNumber":
+                    // invalid image block number
+                    // The scanner was asked for image data that it can't provide.  Close this session and start a new one, if you want to continue.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errInvalidImageBlockNumber") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errInvalidImageBlockNumberFix")
+                    );
+
+                case "invalidCapturingOptions":
+                    // invalid capturing options
+                    // The scanner has rejected this task.  This only happens when the task requires specific capabilities from the scanner.  Either select a task that this scanner will accept, or change to a scanner that supports the features required by the current task.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errInvalidCapturingOptions") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errInvalidCapturingOptionsFix")
+                    );
+
+                case "busy":
+                    // busy
+                    // The scanner is busy working on another command.  Try again in a little bit.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errBusy") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errBusyFix")
+                    );
+
+                case "noMedia":
+                    // no media
+                    // There was no paper for the scanner to capture.  Please check that the paper is properly loaded, and try again.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errNoMedia") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errNoMediaFix")
+                    );
+
+                case "foldedCorner":
+                    // folded corner
+                    // The scanner was asked to detect problems with the paper being scanned, such as folded corners.  Please check the paper, and try again.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errFoldedCorner") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errFoldedCornerFix")
+                    );
+
+                case "coverOpen":
+                    // cover open
+                    // A cover or an interlock on the scanner is not properly secured.  Please check the scanner, and try again.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errCoverOpen") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errCoverOpenFix")
+                    );
+
+                case "doubleFeed":
+                    // double feed
+                    // The scanner was requested or defaulted to check for instances where two or more sheets pass through the automatic document feeder.  Check the paper to see if any are stuck together, and try again.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errDoubleFeed") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errDoubleFeedFix")
+                    );
+
+                case "paperJam":
+                    // paper jam
+                    // A paper jam has been reported.  Please clear the jam and try again.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errPaperJam") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errPaperJamFix")
+                    );
+
+                case "misfeed":
+                    // misfeed
+                    // A misfeed has occurred with the scanner.  This is a somewhat generic error, and could include communication errors.  Please resolve the problem, and try again.
+                    return
+                    (
+                        a_szCommand + ": " + Config.GetResource(m_resourcemanager, "errMisfeed") + ".\n" +
+                        "\n" +
+                        Config.GetResource(m_resourcemanager, "errMisfeedFix")
+                    );
+            }
+        }
+
+        /// <summary>
         /// Open a scanner with the last selected DnssdDeviceInfo...
         /// </summary>
         private void OpenScanner()
@@ -1517,7 +1846,7 @@ namespace TwainDirect.App
             if (!blSuccess)
             {
                 Log.Error("ClientInfo failed: " + apicmd.GetHttpResponseData());
-                MessageBox.Show("ClientInfo failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
+                MessageBox.Show(ReportError("infoex", apicmd.GetHttpResponseData()), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1527,7 +1856,7 @@ namespace TwainDirect.App
             if (!blSuccess)
             {
                 Log.Error("ClientScannerCreateSession failed: " + apicmd.GetHttpResponseData());
-                MessageBox.Show("ClientScannerCreateSession failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
+                MessageBox.Show(ReportError("createSession", apicmd.GetHttpResponseData()), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 return;
             }
@@ -1559,14 +1888,14 @@ namespace TwainDirect.App
             {
                 // Log it, but stay open...
                 Log.Error("ClientScannerWaitForEvents failed: " + apicmd.GetHttpResponseData());
-                MessageBox.Show("ClientScannerWaitForEvents failed, the reason follows:\n\n" + apicmd.GetHttpResponseData(), "Error");
+                MessageBox.Show(ReportError("waitForEvents", apicmd.GetHttpResponseData()), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
             }
 
             // Update the title bar...
             Text = "TWAIN Direct: Application (" + m_dnssddeviceinfo.GetLinkLocal() + ")";
 
             // Create the setup form...
-            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient, m_szWriteFolder);
+            m_formsetup = new FormSetup(m_dnssddeviceinfo, m_twainlocalscannerclient, m_szWriteFolder, m_resourcemanager);
 
             // Clear the images folder...
             bool blWarnOnce = true;
@@ -1583,13 +1912,15 @@ namespace TwainDirect.App
                     if (blWarnOnce)
                     {
                         blWarnOnce = false;
+                        // We were unable to delete the following file.  It may be open in another program.  Please close any applications that are using these files, and then close and reopen the session before scanning.
                         MessageBox.Show
                         (
-                            "We were unable to delete the following file.  It may be open in another\n" +
-                            "program.  Please close any applications that are using these files, and\n" +
-                            "then close and reopen the session before scanning.\n" +
+                            Config.GetResource(m_resourcemanager, "errCantDeleteFile") +
+                            "\n" +
                             szFile + "\n" +
-                            exception.Message
+                            "\n" +
+                            exception.Message,
+                            Config.GetResource(m_resourcemanager, "strFormScanTitle")
                         );
                     }
                 }
@@ -1629,6 +1960,35 @@ namespace TwainDirect.App
             else
             {
                 m_textboxSummary.Text = "state=noSession";
+            }
+        }
+
+        /// <summary>
+        /// Bring up the folder containing the images...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_pictureboxImage_DoubleClick(object sender, EventArgs e)
+        {
+            string szImagesFolder = Path.Combine(m_szWriteFolder, "images");
+            if (Directory.Exists(szImagesFolder))
+            {
+                System.Diagnostics.Process.Start(szImagesFolder);
+            }
+        }
+
+        /// <summary>
+        /// Open the PDF file, if we have one...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_textbox_DoubleClick(object sender, EventArgs e)
+        {
+            TextBox textbox = (TextBox)sender;
+            string szPdfFile = Path.Combine(m_szWriteFolder, Path.Combine("images", textbox.Text));
+            if (File.Exists(szPdfFile))
+            {
+                System.Diagnostics.Process.Start(szPdfFile);
             }
         }
 
@@ -1720,6 +2080,9 @@ namespace TwainDirect.App
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
         private TwainCloudTokens _cloudTokens;
+
+        // Where we get our localized strings...
+        ResourceManager m_resourcemanager;
 
         #endregion
 

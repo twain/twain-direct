@@ -68,7 +68,7 @@ namespace TwainDirect.OnTwain
             m_szTwainDefaultDriver = ProcessSwordTask.GetCurrentDriver(m_szWriteFolder, szScanner);
             if (m_szTwainDefaultDriver == null)
             {
-                MessageBox.Show("No TWAIN drivers installed...", "Warning");
+                MessageBox.Show("There are no TWAIN drivers installed on this system.", "Error");
                 SetButtonMode(ButtonMode.Disabled);
             }
         }

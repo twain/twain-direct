@@ -1,0 +1,326 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="errBusy" xml:space="preserve">
+    <value>busy</value>
+  </data>
+  <data name="errBusyFix" xml:space="preserve">
+    <value>The scanner is busy working on another command.  Try again in a little bit.</value>
+  </data>
+  <data name="errCantCreateSettingsFolder" xml:space="preserve">
+    <value>Unable to create settings folder.</value>
+  </data>
+  <data name="errCantDeleteFile" xml:space="preserve">
+    <value>We were unable to delete the following file.  It may be open in another program.  Please close any applications that are using these files, and then close and reopen the session before scanning.</value>
+  </data>
+  <data name="errClosedSession" xml:space="preserve">
+    <value>closed session</value>
+  </data>
+  <data name="errClosedSessionFix" xml:space="preserve">
+    <value>This session has been closed, and will not accept attempts to scan.  Drain all images to free the scanner.</value>
+  </data>
+  <data name="errCoverOpen" xml:space="preserve">
+    <value>cover open</value>
+  </data>
+  <data name="errCoverOpenFix" xml:space="preserve">
+    <value>A cover or an interlock on the scanner is not properly secured.  Please check the scanner, and try again.</value>
+  </data>
+  <data name="errDottedNotation" xml:space="preserve">
+    <value>The dotted notation, indicated above, points to the value that triggered the failure condition.</value>
+  </data>
+  <data name="errDoubleFeed" xml:space="preserve">
+    <value>double feed</value>
+  </data>
+  <data name="errDoubleFeedFix" xml:space="preserve">
+    <value>The scanner was requested or defaulted to check for instances where two or more sheets pass through the automatic document feeder.  Check the paper to see if any are stuck together, and try again.</value>
+  </data>
+  <data name="errErrorStarting" xml:space="preserve">
+    <value>Error starting.  Try uninstalling and reinstalling this software.</value>
+  </data>
+  <data name="errFoldedCorner" xml:space="preserve">
+    <value>folded corner</value>
+  </data>
+  <data name="errFoldedCornerFix" xml:space="preserve">
+    <value>The scanner was asked to detect problems with the paper being scanned, such as folded corners.  Please check the paper, and try again.</value>
+  </data>
+  <data name="errInvalidCapturingOptions" xml:space="preserve">
+    <value>invalid capturing options</value>
+  </data>
+  <data name="errInvalidCapturingOptionsFix" xml:space="preserve">
+    <value>The scanner has rejected this task.  This only happens when the task requires specific capabilities from the scanner.  Either select a task that this scanner will accept, or change to a scanner that supports the features required by the current task.</value>
+  </data>
+  <data name="errInvalidImageBlockNumber" xml:space="preserve">
+    <value>invalid image block number</value>
+  </data>
+  <data name="errInvalidImageBlockNumberFix" xml:space="preserve">
+    <value>The scanner was asked for image data that it can't provide.  Close this session and start a new one, if you want to continue.</value>
+  </data>
+  <data name="errInvalidSessionId" xml:space="preserve">
+    <value>invalid session id</value>
+  </data>
+  <data name="errInvalidSessionIdFix" xml:space="preserve">
+    <value>Communication was lost or compromised.  Make sure this session is closed, and try to create a new session.</value>
+  </data>
+  <data name="errJsonErrorIndex" xml:space="preserve">
+    <value>json error, index=</value>
+  </data>
+  <data name="errJsonErrorIndexFix" xml:space="preserve">
+    <value>We have a response from the scanner, but it can't be parsed due to an error in its construction.  The index shows where we ran into trouble.  What follows is the raw data we received.</value>
+  </data>
+  <data name="errMisfeed" xml:space="preserve">
+    <value>misfeed</value>
+  </data>
+  <data name="errMisfeedFix" xml:space="preserve">
+    <value>A misfeed has occurred with the scanner.  This is a somewhat generic error, and could include communication errors.  Please resolve the problem, and try again.</value>
+  </data>
+  <data name="errMissingErrorCode" xml:space="preserve">
+    <value>missing error code</value>
+  </data>
+  <data name="errMissingErrorCodeFix" xml:space="preserve">
+    <value>When an error occurs we expect to receive a code.  The response does not have this code, so we can't tell what error happened What follows is the raw data we received.</value>
+  </data>
+  <data name="errNewSessionNotAllowed" xml:space="preserve">
+    <value>new session not allowed</value>
+  </data>
+  <data name="errNewSessionNotAllowedFix" xml:space="preserve">
+    <value>The scanner may be in use by another user.  Or it may be turned off or disconnected.  Check to to see which it is, and then retry.  If the problem persists, try turning the scanner off, wait a bit, and turn it back on. If you're using the TWAIN Bridge try exiting from it and restarting it.</value>
+  </data>
+  <data name="errNoDeviceSelected" xml:space="preserve">
+    <value>No device selected.</value>
+  </data>
+  <data name="errNoMedia" xml:space="preserve">
+    <value>no media</value>
+  </data>
+  <data name="errNoMediaFix" xml:space="preserve">
+    <value>There was no paper for the scanner to capture.  Please check that the paper is properly loaded, and try again.</value>
+  </data>
+  <data name="errNotCapturing" xml:space="preserve">
+    <value>not capturing</value>
+  </data>
+  <data name="errNotCapturingFix" xml:space="preserve">
+    <value>This session is not capturing, and will not accept attempts to transfer images.  Close this session and start a new one, if you want to continue.</value>
+  </data>
+  <data name="errNotReady" xml:space="preserve">
+    <value>not ready</value>
+  </data>
+  <data name="errNotReadyFix" xml:space="preserve">
+    <value>This session is not ready, and will not accept attempts to negotiate tasks.  Close this session and start a new one, if you want to continue.</value>
+  </data>
+  <data name="errNoTwainDriversInstalled" xml:space="preserve">
+    <value>There are no TWAIN drivers installed on this system.</value>
+  </data>
+  <data name="errNoTwainScanners" xml:space="preserve">
+    <value>There are no TWAIN Direct scanners available at this time.</value>
+  </data>
+  <data name="errPaperJam" xml:space="preserve">
+    <value>paper jam</value>
+  </data>
+  <data name="errPaperJamFix" xml:space="preserve">
+    <value>A paper jam has been reported.  Please clear the jam and try again.</value>
+  </data>
+  <data name="errSessionAborted" xml:space="preserve">
+    <value>Your scanner session has aborted.  Check your scanner to make sure it's on and connected to the network.</value>
+  </data>
+  <data name="errSessionTimeout" xml:space="preserve">
+    <value>Your scanner session has timed out due to lack of activity.</value>
+  </data>
+  <data name="errTaskFailed" xml:space="preserve">
+    <value>This error is the result of the task specifying an exception of 'fail' somewhere within it.  The scanner triggered this when it was unable to set a required value.  There are two possible solutions: find a scanner that supports the feature required by the task, or use a different task.</value>
+  </data>
+  <data name="errTimeout" xml:space="preserve">
+    <value>timeout</value>
+  </data>
+  <data name="errTimeoutFix" xml:space="preserve">
+    <value>The scanner did not respond in a timely fashion.  Check that the scanner is still on, and that there is a good connection to the network.</value>
+  </data>
+  <data name="errTimeoutWakeupFix" xml:space="preserve">
+    <value>The scanner did not respond in a timely fashion. Check that the scanner is still on, and that there is a good connection to the network.  Since this happened for 'createSession' it's possible the scanner was in a sleep state, and took too long to wake up.  Trying a second time may be successful.</value>
+  </data>
+  <data name="errUnknownCheckLogs" xml:space="preserve">
+    <value>Unknown error, please check the logs for more information.</value>
+  </data>
+  <data name="errUnrecognizedErrorCode" xml:space="preserve">
+    <value>unrecognized error code</value>
+  </data>
+  <data name="errUnrecognizedErrorCodeFix" xml:space="preserve">
+    <value>We don't have any advice to offer for this error, it may be custom to the scanner, or this application may not be recent enough to know about it.  What follows is the raw data we received.</value>
+  </data>
+  <data name="strButtonClose" xml:space="preserve">
+    <value>Close</value>
+    <comment>Close a scanner session...</comment>
+  </data>
+  <data name="strButtonOpen" xml:space="preserve">
+    <value>Open</value>
+    <comment>Open a scanner session...</comment>
+  </data>
+  <data name="strButtonRegisterEllipsis" xml:space="preserve">
+    <value>Register...</value>
+    <comment>Register a new scanner in the cloud...</comment>
+  </data>
+  <data name="strButtonScan" xml:space="preserve">
+    <value>Scan</value>
+    <comment>Start scanning...</comment>
+  </data>
+  <data name="strButtonSelectEllipsis" xml:space="preserve">
+    <value>Select...</value>
+    <comment>Open the scanner select dialog...</comment>
+  </data>
+  <data name="strButtonSetupEllipsis" xml:space="preserve">
+    <value>Setup...</value>
+    <comment>Setup the scanner session...</comment>
+  </data>
+  <data name="strButtonStop" xml:space="preserve">
+    <value>Stop</value>
+    <comment>Stop scanning...</comment>
+  </data>
+  <data name="strButtonUnregisterEllipsis" xml:space="preserve">
+    <value>Unregister...</value>
+    <comment>Unregister (remove) a scanner from the cloud...</comment>
+  </data>
+  <data name="strFormScanTitle" xml:space="preserve">
+    <value>TWAIN Direct: Application</value>
+    <comment>Main title...</comment>
+  </data>
+  <data name="strFormSelectTitle" xml:space="preserve">
+    <value>Open Scanner</value>
+    <comment>Select and open a scanner...</comment>
+  </data>
+  <data name="strFormSetupTitle" xml:space="preserve">
+    <value>Setup Scan Session</value>
+    <comment>Setup dialog title...</comment>
+  </data>
+  <data name="strGroupboxSelectImageDestination" xml:space="preserve">
+    <value>Select image destination</value>
+    <comment>Select image destination groupbox...</comment>
+  </data>
+  <data name="strLabelSelectImageDestination" xml:space="preserve">
+    <value>Select image destination folder:</value>
+    <comment>Select image destination label...</comment>
+  </data>
+  <data name="strLabelSelectScanner" xml:space="preserve">
+    <value>Select scanner:</value>
+    <comment>Label for select scanner listbox...</comment>
+  </data>
+  <data name="titleError" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="titleNotification" xml:space="preserve">
+    <value>Notification</value>
+  </data>
+</root>

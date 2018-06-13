@@ -49,14 +49,20 @@ namespace TwainDirect.App
         ///////////////////////////////////////////////////////////////////////////////
         #region Public Methods...
 
-        // Our constructor...
-        public FormSelect(Dnssd a_dnssd, float a_fScale, TwainCloudTokens cloudTokens, out bool a_blResult)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="a_dnssd">The mDNS info</param>
+        /// <param name="a_fScale">change the scale of the form</param>
+        /// <param name="cloudTokens">TWAIN Cloud access tokens</param>
+        /// <param name="a_blResult">return how we did</param>
+        /// <param name="a_resourcemanager">localization</param>
+        public FormSelect(Dnssd a_dnssd, float a_fScale, TwainCloudTokens cloudTokens, out bool a_blResult, ResourceManager a_resourcemanager)
         {
-            ResourceManager resourcemanager;
-
             // Init stuff...
             InitializeComponent();
             m_listviewSelect.MouseDoubleClick += new MouseEventHandler(m_listviewSelect_MouseDoubleClick);
+            m_resourcemanager = a_resourcemanager;
 
             // Listview Headers...
             m_listviewSelect.Columns.Add("Name");
@@ -72,22 +78,9 @@ namespace TwainDirect.App
             }
 
             // Localize...
-            string szCurrentUiCulture = "." + Thread.CurrentThread.CurrentUICulture.ToString();
-            if (szCurrentUiCulture == ".en-US")
-            {
-                szCurrentUiCulture = "";
-            }
-            try
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings" + szCurrentUiCulture, typeof(FormSelect).Assembly);
-            }
-            catch
-            {
-                resourcemanager = new ResourceManager("TwainDirect.App.WinFormStrings", typeof(FormSelect).Assembly);
-            }
-            m_buttonOpen.Text = resourcemanager.GetString("strButtonOpen");
-            m_labelSelect.Text = resourcemanager.GetString("strLabelSelectScanner");
-            this.Text = resourcemanager.GetString("strFormSelectTitle");
+            m_buttonOpen.Text = Config.GetResource(m_resourcemanager, "strButtonOpen");
+            m_labelSelect.Text = Config.GetResource(m_resourcemanager, "strLabelSelectScanner");
+            this.Text = Config.GetResource(m_resourcemanager, "strFormSelectTitle");
 
             // Hang onto this...
             m_dnssd = a_dnssd;
@@ -444,6 +437,7 @@ namespace TwainDirect.App
         private Dnssd m_dnssd;
         private Dnssd.DnssdDeviceInfo m_dnssddeviceinfoSelected;
         private Dnssd.DnssdDeviceInfo[] m_adnssddeviceinfoCompare;
+        private ResourceManager m_resourcemanager;
 
         #endregion
     }
