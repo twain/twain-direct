@@ -41,6 +41,8 @@ using System.IO;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
+using HazyBits.Twain.Cloud.Client;
+using HazyBits.Twain.Cloud.Forms;
 using TwainDirect.Support;
 
 namespace TwainDirect.App
@@ -1523,7 +1525,7 @@ namespace TwainDirect.App
             // Instantiate our selection form with the list of devices, and
             // wait for the user to pick something...
             dialogresult = DialogResult.Cancel;
-            formselect = new FormSelect(m_dnssd, m_fScale, out blSuccess, m_resourcemanager);
+            formselect = new FormSelect(m_dnssd, m_fScale, _cloudTokens, out blSuccess, m_resourcemanager);
             if (!blSuccess)
             {
                 SetButtons(EBUTTONSTATE.CLOSED);
@@ -2077,10 +2079,32 @@ namespace TwainDirect.App
         private Brush m_brushBackground;
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
+        private TwainCloudTokens _cloudTokens;
 
         // Where we get our localized strings...
         ResourceManager m_resourcemanager;
 
         #endregion
+
+        private void cloudButton_Click(object sender, EventArgs e)
+        {
+            var apiRoot = CloudManager.GetCloudApiRoot();
+            var loginUrl = $"{apiRoot}/authentication/signin/facebook";
+
+            var loginForm = new FacebookLoginForm(loginUrl);
+            loginForm.Authorized += async (_, args) =>
+            {
+                loginForm.Close();
+
+                _cloudTokens = args.Tokens;
+
+                var client = new TwainCloudClient(apiRoot, _cloudTokens);
+                await m_twainlocalscannerclient.ConnectToCloud(client);
+                m_twainlocalscannerclient.ExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
+
+            };
+
+            loginForm.ShowDialog(this);
+        }
     }
 }

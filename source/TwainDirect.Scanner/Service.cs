@@ -285,14 +285,14 @@ namespace TwainDirect.Scanner
         /// Start polling for work...
         /// </summary>
         /// <param name="args"></param>
-        protected override void OnStart(string[] args)
+        protected override async void OnStart(string[] args)
         {
             bool blSuccess;
 
             // Start polling...
             Display("");
             Display("Starting, please wait...");
-            blSuccess = m_scanner.MonitorTasksStart();
+            blSuccess = await m_scanner.MonitorTasksStart();
             if (!blSuccess)
             {
                 Log.Error("MonitorTasksStart failed...");

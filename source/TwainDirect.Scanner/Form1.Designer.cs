@@ -44,13 +44,14 @@
             this.m_buttonRegister = new System.Windows.Forms.Button();
             this.m_notifyicon = new System.Windows.Forms.NotifyIcon(this.components);
             this.panel1 = new System.Windows.Forms.Panel();
+            this.m_CloudRegisterButton = new System.Windows.Forms.Button();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // m_buttonStart
             // 
             this.m_buttonStart.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStart.Location = new System.Drawing.Point(199, 8);
+            this.m_buttonStart.Location = new System.Drawing.Point(263, 8);
             this.m_buttonStart.Name = "m_buttonStart";
             this.m_buttonStart.Size = new System.Drawing.Size(75, 23);
             this.m_buttonStart.TabIndex = 58;
@@ -61,7 +62,7 @@
             // m_buttonStop
             // 
             this.m_buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStop.Location = new System.Drawing.Point(280, 8);
+            this.m_buttonStop.Location = new System.Drawing.Point(344, 8);
             this.m_buttonStop.Name = "m_buttonStop";
             this.m_buttonStop.Size = new System.Drawing.Size(75, 23);
             this.m_buttonStop.TabIndex = 59;
@@ -77,7 +78,7 @@
             this.m_richtextboxTask.Location = new System.Drawing.Point(0, 0);
             this.m_richtextboxTask.Name = "m_richtextboxTask";
             this.m_richtextboxTask.ReadOnly = true;
-            this.m_richtextboxTask.Size = new System.Drawing.Size(340, 183);
+            this.m_richtextboxTask.Size = new System.Drawing.Size(404, 183);
             this.m_richtextboxTask.TabIndex = 61;
             this.m_richtextboxTask.Text = "";
             // 
@@ -108,14 +109,25 @@
             this.panel1.Controls.Add(this.m_richtextboxTask);
             this.panel1.Location = new System.Drawing.Point(13, 38);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(342, 185);
+            this.panel1.Size = new System.Drawing.Size(406, 185);
             this.panel1.TabIndex = 63;
+            // 
+            // m_CloudRegisterButton
+            // 
+            this.m_CloudRegisterButton.Location = new System.Drawing.Point(92, 8);
+            this.m_CloudRegisterButton.Name = "m_CloudRegisterButton";
+            this.m_CloudRegisterButton.Size = new System.Drawing.Size(101, 23);
+            this.m_CloudRegisterButton.TabIndex = 64;
+            this.m_CloudRegisterButton.Text = "Register Cloud...";
+            this.m_CloudRegisterButton.UseVisualStyleBackColor = true;
+            this.m_CloudRegisterButton.Click += new System.EventHandler(this.m_CloudRegisterButton_Click);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(367, 235);
+            this.ClientSize = new System.Drawing.Size(431, 235);
+            this.Controls.Add(this.m_CloudRegisterButton);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.m_buttonRegister);
             this.Controls.Add(this.m_buttonStop);
@@ -137,6 +149,7 @@
         private System.Windows.Forms.Button m_buttonRegister;
         private System.Windows.Forms.NotifyIcon m_notifyicon;
         private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Button m_CloudRegisterButton;
     }
 }
 

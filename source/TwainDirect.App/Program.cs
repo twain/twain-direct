@@ -33,7 +33,6 @@
 using System;
 using System.Windows.Forms;
 using TwainDirect.Support;
-[assembly: CLSCompliant(true)]
 
 namespace TwainDirect.App
 {
