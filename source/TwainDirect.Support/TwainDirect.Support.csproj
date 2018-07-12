@@ -83,10 +83,6 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Net" />
-    <Reference Include="System.Net.Http.Formatting, Version=5.2.4.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\twain-cloud-cs\Src\HazyBits.Twain.Cloud\bin\Debug\net452\System.Net.Http.Formatting.dll</HintPath>
-    </Reference>
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
@@ -108,7 +104,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="HazyBits.Twain.Cloud">
-      <Version>1.0.19</Version>
+      <Version>1.0.20</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>6.0.8</Version>
