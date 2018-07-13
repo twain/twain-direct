@@ -41,7 +41,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Cache;
-using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -795,6 +794,15 @@ namespace TwainDirect.Support
             task.Wait();
         }
 
+        /// <summary>
+        /// Squirrel away the cloud manager object...
+        /// </summary>
+        /// <param name="appManager"></param>
+        public void SetCloudManager(ApplicationManager a_applicationmanager)
+        {
+            m_applicationmanager = a_applicationmanager;
+        }
+
         private static readonly ConcurrentDictionary<string, TaskCompletionSource<CloudDeviceResponse>> OutstandingCloudRequests = 
             new ConcurrentDictionary<string, TaskCompletionSource<CloudDeviceResponse>>();
 
@@ -1130,10 +1138,10 @@ namespace TwainDirect.Support
                         {
                             var blockId = imageBlockIdToken.Value<string>();
 
-                            if (_appManager != null)
+                            if (m_applicationmanager != null)
                             {
                                 var scannerId = GetScannerIdFromRequest(m_httprequestdata.httpwebrequest.RequestUri.AbsolutePath);
-                                var downloadTask = Task.Run(async () => await _appManager.DownloadBlock(scannerId, blockId));
+                                var downloadTask = Task.Run(async () => await m_applicationmanager.DownloadBlock(scannerId, blockId));
                                 downloadTask.Wait();
                                 var bytes = downloadTask.Result;
 
@@ -2008,14 +2016,7 @@ namespace TwainDirect.Support
         /// <returns></returns>
         public bool HttpRespond(string a_szCode, string a_szResponse)
         {
-            byte[] abBufferJson = null;
-            byte[] abBufferThumbnailHeader = null;
-            byte[] abBufferThumbnail = null;
-            byte[] abBufferImageHeader = null;
             Stream streamResponse = null;
-            FileStream filestreamThumbnail = null;
-            FileStream filestreamImage = null;
-            string szBoundary = "WaFfLeSaReTaStY";
 
             // Handle a bad X-Privet-Token, we must do this before we do
             // anything else...
@@ -3116,7 +3117,11 @@ namespace TwainDirect.Support
         private bool m_blAbortClientRequest;
         private bool m_blTimeout;
 
+        /// <summary>
+        /// Cloud stuff...
+        /// </summary>
         private string m_CloudRequestId;
+        private ApplicationManager m_applicationmanager;
 
         #endregion
 
@@ -4125,12 +4130,5 @@ namespace TwainDirect.Support
         }
 
         #endregion
-
-        private ApplicationManager _appManager;
-
-        public void SetCloudManager(ApplicationManager appManager)
-        {
-            _appManager = appManager;
-        }
     }
 }

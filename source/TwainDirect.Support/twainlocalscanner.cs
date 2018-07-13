@@ -100,7 +100,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-//using System.Net.Http.Formatting;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -109,7 +108,6 @@ using HazyBits.Twain.Cloud.Application;
 using HazyBits.Twain.Cloud.Client;
 using HazyBits.Twain.Cloud.Device;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 [assembly: CLSCompliant(true)]
 
@@ -3831,19 +3829,16 @@ namespace TwainDirect.Support
             m_llPendingImageBlocks = new List<long>();
         }
 
-        public Dictionary<string, string> ExtraHeaders = new Dictionary<string, string>();
-        private ApplicationManager _appManager;
-
         public async Task ConnectToCloud(TwainCloudClient client)
         {
-            _appManager = new ApplicationManager(client);
-            _appManager.Received += (sender, e) =>
+            m_applicationmanager = new ApplicationManager(client);
+            m_applicationmanager.Received += (sender, e) =>
             {
                 Debug.WriteLine(e);
                 ApiCmd.CompleteCloudResponse(e);
             };
 
-            await _appManager.Connect();
+            await m_applicationmanager.Connect();
         }
 
         /// <summary>
@@ -5495,7 +5490,7 @@ namespace TwainDirect.Support
                 // Apps do this: send a privet token, the recommendation
                 // for info/infoex is an empty string, indicated with two
                 // double-quotes "".
-                var headers = new Dictionary<string, string>(ExtraHeaders);
+                var headers = new Dictionary<string, string>(m_dictionaryExtraHeaders);
                 headers["X-Privet-Token"] = "";
                 aszHeader = headers.Select(item => $"{item.Key}: {item.Value}").ToArray();
 
@@ -5510,7 +5505,7 @@ namespace TwainDirect.Support
             // an X-Privet-Token...
             if (szXPrivetToken == null)
             {
-                aszHeader = ExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
+                aszHeader = m_dictionaryExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
                 {
                     szContentType
                 }).ToArray();
@@ -5519,7 +5514,7 @@ namespace TwainDirect.Support
             }
 
             // Apps do this: for any POST commands...
-            aszHeader = ExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
+            aszHeader = m_dictionaryExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
             {
                 szContentType,
                 "X-Privet-Token: " + szXPrivetToken
@@ -5561,7 +5556,7 @@ namespace TwainDirect.Support
             // Our normal path...
             if (a_httpreplystyle != ApiCmd.HttpReplyStyle.Event)
             {
-                a_apicmd.SetCloudManager(this._appManager);
+                a_apicmd.SetCloudManager(this.m_applicationmanager);
 
                 // Send the RESTful API command...
                 blSuccess = a_apicmd.HttpRequest
@@ -6438,6 +6433,12 @@ namespace TwainDirect.Support
         /// </summary>
         private AutoResetEvent m_autoreseteventWaitForEventsProcessing;
         private bool m_blCancelWaitForEventsProcessing;
+
+        /// <summary>
+        /// Cloud stuff...
+        /// </summary>
+        public Dictionary<string, string> m_dictionaryExtraHeaders = new Dictionary<string, string>();
+        private ApplicationManager m_applicationmanager;
 
         #endregion
 

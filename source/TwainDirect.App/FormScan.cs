@@ -2100,7 +2100,7 @@ namespace TwainDirect.App
 
                 var client = new TwainCloudClient(apiRoot, _cloudTokens);
                 await m_twainlocalscannerclient.ConnectToCloud(client);
-                m_twainlocalscannerclient.ExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
+                m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
 
             };
 
