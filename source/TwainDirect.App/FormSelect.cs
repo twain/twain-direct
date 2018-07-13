@@ -340,19 +340,24 @@ namespace TwainDirect.App
                 m_dnssddeviceinfoSelected = null;
                 if (m_adnssddeviceinfoCompare != null)
                 {
+                    // Handle TWAIN Cloud...
                     if (m_listviewSelect.SelectedIndices.Count > 0)
                     {
                         var item = m_listviewSelect.SelectedItems[0];
                         var scanner = (ScannerInformation)item.Tag;
-                        var url = CloudManager.GetScannerCloudUrl(scanner);
+                        if (scanner != null)
+                        {
+                            var url = CloudManager.GetScannerCloudUrl(scanner);
 
-                        Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
-                        dnssddeviceinfo.SetTxtHttps(true);
-                        dnssddeviceinfo.SetLinkLocal(url);
-                        dnssddeviceinfo.SetCloud(true);
-                        return (dnssddeviceinfo);
+                            Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
+                            dnssddeviceinfo.SetTxtHttps(true);
+                            dnssddeviceinfo.SetLinkLocal(url);
+                            dnssddeviceinfo.SetCloud(true);
+                            return (dnssddeviceinfo);
+                        }
                     }
 
+                    // Handle TWAIN Local...
                     for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
                     {
                         if (m_listviewSelect.Items[ii].Selected)
