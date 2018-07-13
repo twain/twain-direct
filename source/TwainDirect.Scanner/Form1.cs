@@ -716,13 +716,23 @@ namespace TwainDirect.Scanner
             {
                 Display(m_scanner.GetTwainLocalTy());
             }
-            blSuccess = await m_scanner.MonitorTasksStart();
-            if (!blSuccess)
+
+            // Start monitoring the cloud...
+            try
+            {
+                blSuccess = await m_scanner.MonitorTasksStart();
+                if (!blSuccess)
+                {
+                    Log.Error("MonitorTasksStart failed...");
+                    MessageBox.Show("Failed to start cloud monitoring, check the logs for more information.", Config.GetResource(m_resourcemanager, "strFormMainTitle"));
+                    SetButtons(ButtonState.WaitingForStart);
+                    return;
+                }
+            }
+            catch (Exception exception)
             {
                 Log.Error("MonitorTasksStart failed...");
-                MessageBox.Show("Failed to start the device, check the logs for more information.", "Error");
-                SetButtons(ButtonState.WaitingForStart);
-                return;
+                MessageBox.Show("Failed to start the cloud monitoring, check the logs for more information." + Environment.NewLine + "Error: " + exception.Message, Config.GetResource(m_resourcemanager, "strFormMainTitle"));
             }
             Display("Ready for use...");
 

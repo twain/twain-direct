@@ -2485,7 +2485,7 @@ namespace TwainDirect.OnTwain
                 }
 
                 // If we recognize the profile, then use it...
-                if (swordencryptionprofile.GetName() == "password")
+                if (blFound)
                 {
                     swordstatus = SwordStatus.Success;
                 }
@@ -2542,7 +2542,7 @@ namespace TwainDirect.OnTwain
             SwordAction a_swordaction
         )
         {
-            // No additional work needed at this time...
+            // Create our report...
             if (CreateEncryptionReport(a_swordaction.GetProcessSwordTask(), a_swordaction) != "success")
             {
                 TWAINWorkingGroup.Log.Error("Action: CreateEncryptionReport failed");
@@ -4663,9 +4663,9 @@ namespace TwainDirect.OnTwain
                     a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(6, "");                                 //              {
                     a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "format", ",", x509certificate2.GetFormat());                                    // "format":"XYZ"
                     a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "issuer", ",", x509certificate2.Issuer);                                         // "issuer":"XYZ",
-                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "keyAlgorithm", ",", x509certificate2.GetKeyAlgorithm());                        // "keyAlgorithm":"XYZ"
-                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "notAfter", ",", x509certificate2.NotAfter.ToString("yyyy-MM-dd HH:mm:ss"));     // "notAfter":"XYZ",
-                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "notBefore", ",", x509certificate2.NotBefore.ToString("yyyy-MM-dd HH:mm:ss"));   // "notBefore":"XYZ",
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "signatureAlgorithm", ",", x509certificate2.SignatureAlgorithm.Value);                  // "signatureAlgorithm":"XYZ"
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "notAfter", ",", x509certificate2.NotAfter.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));     // "notAfter":"XYZ",
+                    a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "notBefore", ",", x509certificate2.NotBefore.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));   // "notBefore":"XYZ",
                     a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "serialNumber", ",", x509certificate2.GetSerialNumberString());                  // "serialNumber":"XYZ"
                     a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "subject", ",", x509certificate2.Subject);                                       // "subject":"XYZ",
                     a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "version", "", x509certificate2.Version.ToString());                             // "version":"XYZ"
@@ -4692,7 +4692,7 @@ namespace TwainDirect.OnTwain
                     a_processswordtask.m_swordtaskresponse.JSON_OBJ_BGN(6, "");                                 //              {
                     a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "name", ",", Config.Get("encryptionProfiles[" + iProfile + "].name", ""));        //                  "name":"XYZ",
                     a_processswordtask.m_swordtaskresponse.JSON_STR_SET(7, "profile", "", Config.Get("encryptionProfiles[" + iProfile + "].profile", ""));   //                  "profile":"XYZ"
-                    a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(6, string.IsNullOrEmpty(Config.Get("encryptionProfiles[0].name", "")) ? "" : ",");   //              }
+                    a_processswordtask.m_swordtaskresponse.JSON_OBJ_END(6, string.IsNullOrEmpty(Config.Get("encryptionProfiles[" + iProfile + "].name", "")) ? "" : ",");   //              }
                     iProfile += 1;
                 }
                 a_processswordtask.m_swordtaskresponse.JSON_ARR_END(5, ",");                                    //          ],
@@ -5110,7 +5110,7 @@ namespace TwainDirect.OnTwain
                     szAddComma = "";
 
                     // Only do this bit for the configure action...
-                if (m_szAction == "configure")
+                    if (m_szAction == "configure")
                     {
                         // Start of the streams array...
                         m_swordtaskresponse.JSON_ARR_BGN(3, "streams");
@@ -5270,7 +5270,7 @@ namespace TwainDirect.OnTwain
                 {
                     SwordStatus swordstatus;
                     SwordStream swordstream;
-                    SwordEncryptionProfile swordencryptionprofiles;
+                    SwordEncryptionProfile swordencryptionprofile;
 
                     // Assume success...
                     m_swordstatus = SwordStatus.Run;
@@ -5339,14 +5339,14 @@ namespace TwainDirect.OnTwain
                         // Handle the encryptionProfiles action...
                         case "encryptionProfiles":
                             // Invoke the process function for each of our encryptionProfiles...
-                            for (swordencryptionprofiles = m_swordencryptionprofile;
-                                 swordencryptionprofiles != null;
-                                 swordencryptionprofiles = swordencryptionprofiles.GetNextEncryptionProfile())
+                            for (swordencryptionprofile = m_swordencryptionprofile;
+                                 swordencryptionprofile != null;
+                                 swordencryptionprofile = swordencryptionprofile.GetNextEncryptionProfile())
                             {
-                                // Process this stream (and all of its contents)...
-                                swordstatus = swordencryptionprofiles.Process();
+                                // Process this encryptionProfile (and all of its contents)...
+                                swordstatus = swordencryptionprofile.Process();
 
-                                // We've been asked to go to the next stream...
+                                // We've been asked to go to the next encryptionProfile...
                                 if (swordstatus == SwordStatus.NextEncryptionProfile)
                                 {
                                     continue;
@@ -9245,7 +9245,7 @@ namespace TwainDirect.OnTwain
             }
 
             /// <summary>
-            /// Each encryptionProfile provides a name that the scanner uses to lookup
+            /// Each encryptionProfile provides a name that the scanner uses to look up
             /// encryption profile actions in its firmware...
             /// </summary>
             sealed class SwordEncryptionProfile
