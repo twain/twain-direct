@@ -193,6 +193,7 @@ namespace TwainDirect.Support
             long lResolution;
             byte[] abStripData;
             byte[] abImage = null;
+            PdfRasterReader.Reader.PdfRasterReaderSecurityType rasterreadersecuritytype;
             PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
             PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
             PdfRasterReader.Reader pdfRasRd = null;
@@ -200,7 +201,18 @@ namespace TwainDirect.Support
             // Do the conversion...
             try
             {
+                // Give us a PDF reader object...
                 pdfRasRd = new PdfRasterReader.Reader();
+
+                // We can't handle displaying encrypted images yet...
+                rasterreadersecuritytype = pdfRasRd.decoder_get_security_type(a_szImage);
+                if (rasterreadersecuritytype != PdfRasterReader.Reader.PdfRasterReaderSecurityType.PDFRASREAD_UNENCRYPTED)
+                {
+                    Log.Error("We can't decrypt images yet...");
+                    return (null);
+                }
+
+                // Okay, let's do it...
                 decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
                 lWidth = pdfRasRd.decoder_get_width(decoder);
                 lHeight = pdfRasRd.decoder_get_height(decoder);
