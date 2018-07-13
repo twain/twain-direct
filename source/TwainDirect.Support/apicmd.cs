@@ -1924,8 +1924,13 @@ namespace TwainDirect.Support
             // We're async, but we wait here for the response...
             try
             {
+                // Handle TWAIN Cloud...
+                if (m_dnssddeviceinfo.IsCloud())
+                {
+                    StartCloudRequest(m_CloudRequestId);
+                }
+
                 // Start the asynchronous request.
-                StartCloudRequest(m_CloudRequestId);
                 m_httprequestdata.autoreseteventHttpWebRequest = new AutoResetEvent(false);
                 IAsyncResult iasyncresult = (IAsyncResult)m_httprequestdata.httpwebrequest.BeginGetResponse(new AsyncCallback(ResponseCallBackLaunchpad), this);
 
@@ -1936,7 +1941,7 @@ namespace TwainDirect.Support
                 // KEYWORD:RESPONSE
                 // The response came in the allowed time. The work processing will happen in the 
                 // callback function.  The if-statement is the best place to break if all you
-                // want to do it catch the response coming back before it's processed...
+                // want to catch the response coming back before it's processed...
                 m_httprequestdata.autoreseteventHttpWebRequest.WaitOne();
                 if (m_registeredwaithandle != null)
                 {

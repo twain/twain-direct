@@ -18,7 +18,6 @@ namespace TwainDirect.Support
         {
             Request = new HttpListenerRequestBase(context.Request);
             Response = new HttpListenerResponseBase(context.Response);
-
         }
 
         public virtual HttpListenerRequestBase Request { get; set; }
@@ -43,47 +42,108 @@ namespace TwainDirect.Support
 
     public class HttpListenerResponseBase
     {
-        private DeviceSession _deviceCloudSession;
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Methods...
 
-        public HttpListenerResponseBase(DeviceSession deviceCloudSession)
+        /// <summary>
+        /// Handle TWAIN Cloud...
+        /// </summary>
+        /// <param name="deviceCloudSession"></param>
+        public HttpListenerResponseBase(DeviceSession a_devicesessionCloud)
         {
-            _deviceCloudSession = deviceCloudSession;
+            // This is how we know we're a TWAIN Cloud response...
+            m_devicesessionCloud = a_devicesessionCloud;
 
+            // Init all the other stuff...
             StatusCode = 200;
             Headers = new WebHeaderCollection();
             OutputStream = new ReactiveMemoryStream();
-
             Headers.Add(HttpResponseHeader.ContentType, "application/json; charset=UTF-8");
         }
 
-        public HttpListenerResponseBase(HttpListenerResponse response)
+        /// <summary>
+        /// Handle TWAIN Local...
+        /// </summary>
+        /// <param name="response"></param>
+        public HttpListenerResponseBase(HttpListenerResponse a_httplistenerresponse)
         {
-            Headers = response.Headers;
-            StatusDescription = response.StatusDescription;
-            StatusCode = response.StatusCode;
-            OutputStream = response.OutputStream;
-            ContentLength64 = response.ContentLength64;
+            // This is how we know we're a TWAIN Local response...
+            m_devicesessionCloud = null;
+
+            Headers = a_httplistenerresponse.Headers;
+            StatusDescription = a_httplistenerresponse.StatusDescription;
+            StatusCode = a_httplistenerresponse.StatusCode;
+            OutputStream = a_httplistenerresponse.OutputStream;
+            ContentLength64 = a_httplistenerresponse.ContentLength64;
         }
 
+        /// <summary>
+        /// Get the body as a string...
+        /// </summary>
+        /// <returns></returns>
+        public string GetBodyString()
+        {
+            if (OutputStream is MemoryStream stream)
+            {
+                return (Encoding.UTF8.GetString(stream.ToArray()));
+            }
+
+            return (null);
+        }
+
+        /// <summary>
+        /// Dispatch an image block to TWAIN Cloud or TWAIN Local...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
         public bool WriteImageBlockResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
-            return _deviceCloudSession != null
-                ? WriteCloudResponse(a_szResponse, m_szThumbnailFile, m_szImageFile)
-                : WriteMultipartResponse(a_szResponse, m_szThumbnailFile, m_szImageFile);
+            // Handle TWAIN Cloud...
+            if (m_devicesessionCloud != null)
+            {
+                return (WriteCloudResponse(a_szResponse, m_szThumbnailFile, m_szImageFile));
+            }
+
+            // Handle TWAIN Local...
+            return (WriteMultipartResponse(a_szResponse, m_szThumbnailFile, m_szImageFile));
         }
 
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Methods...
+
+        /// <summary>
+        /// Upload a block to the cloud...
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <returns></returns>
         private async Task<string> UploadBlock(string fileName)
         {
             if (!string.IsNullOrEmpty(fileName) && File.Exists(fileName))
             {
                 var bytes = File.ReadAllBytes(fileName);
-                return await _deviceCloudSession.UploadBlock(bytes);
+                return await m_devicesessionCloud.UploadBlock(bytes);
             }
 
             return null;
         }
 
-        public bool WriteCloudResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        /// <summary>
+        /// Handle TWAIN Cloud response...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
+        private bool WriteCloudResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
             var task = Task.Run(async () => await WriteCloudResponseAsync(a_szResponse, m_szThumbnailFile, m_szImageFile));
             task.Wait();
@@ -91,7 +151,14 @@ namespace TwainDirect.Support
             return task.Result;
         }
 
-        public async Task<bool> WriteCloudResponseAsync(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        /// <summary>
+        /// Handle TWAIN Cloud async portion of response...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
+        private async Task<bool> WriteCloudResponseAsync(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
             var thumbnailBlockId = await UploadBlock(m_szThumbnailFile);
             var imageBlockId = await UploadBlock(m_szImageFile);
@@ -107,7 +174,14 @@ namespace TwainDirect.Support
             return WriteJsonResponse(a_szResponse);
         }
 
-        public bool WriteMultipartResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        /// <summary>
+        /// Handle TWAIN Local response...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
+        private bool WriteMultipartResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
             byte[] abBufferJson = null;
             byte[] abBufferThumbnailHeader = null;
@@ -356,6 +430,16 @@ namespace TwainDirect.Support
             return (true);
         }
 
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Definitions...
+
+        private DeviceSession m_devicesessionCloud;
+
         //
         // Summary:
         //     Gets or sets the collection of header name/value pairs returned by the server.
@@ -369,6 +453,7 @@ namespace TwainDirect.Support
         //     The System.Net.WebHeaderCollection instance specified for a set operation is
         //     not valid for a response.
         public WebHeaderCollection Headers { get; set; }
+
         //
         // Summary:
         //     Gets or sets a text description of the HTTP status code returned to the client.
@@ -385,6 +470,7 @@ namespace TwainDirect.Support
         //   T:System.ArgumentException:
         //     The value specified for a set operation contains non-printable characters.
         public string StatusDescription { get; set; }
+
         //
         // Summary:
         //     Gets or sets the HTTP status code to be returned to the client.
@@ -403,6 +489,7 @@ namespace TwainDirect.Support
         //     The value specified for a set operation is not valid. Valid values are between
         //     100 and 999 inclusive.
         public int StatusCode { get; set; }
+
         //
         // Summary:
         //     Gets a System.IO.Stream object to which a response can be written.
@@ -414,6 +501,7 @@ namespace TwainDirect.Support
         //   T:System.ObjectDisposedException:
         //     This object is closed.
         public Stream OutputStream { get; set; }
+
         //
         // Summary:
         //     Gets or sets the number of bytes in the body data included in the response.
@@ -432,15 +520,7 @@ namespace TwainDirect.Support
         //     This object is closed.
         public long ContentLength64 { get; set; }
 
-        public string GetBodyString()
-        {
-            if (OutputStream is MemoryStream stream)
-            {
-                return Encoding.UTF8.GetString(stream.ToArray());
-            }
-
-            return null;
-        }
+        #endregion
     }
 
     public class HttpListenerRequestBase
