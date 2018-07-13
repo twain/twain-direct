@@ -247,7 +247,7 @@ namespace TwainDirect.Support
             // Confirm that this command is coming in on a good URI, if it's not
             // then ignore it...
             szUri = a_httplistenercontext.Request.RawUrl.ToString();
-            if ((szUri != "/privet/info")
+            if (    (szUri != "/privet/info")
                 &&  (szUri != "/privet/infoex")
                 &&  (szUri != "/privet/twaindirect/session"))
             {
@@ -255,8 +255,8 @@ namespace TwainDirect.Support
             }
 
             // Handle the /privet/info and /privet/infoex commands...
-            if ((szUri == "/privet/info")
-                || (szUri == "/privet/infoex"))
+            if (    (szUri == "/privet/info")
+                ||  (szUri == "/privet/infoex"))
             {
                 // Log it...
                 Log.Info("");
@@ -565,7 +565,7 @@ namespace TwainDirect.Support
         /// Start monitoring for HTTP commands...
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> DeviceHttpServerStart(DeviceSession deviceCloudSession = null)
+        public async Task<bool> DeviceHttpServerStart(DeviceSession a_devicesessionCloud = null)
         {
             int iPort;
             bool blSuccess;
@@ -575,6 +575,10 @@ namespace TwainDirect.Support
             {
                 return (true);
             }
+
+            // Squirrel this away, if it's null we're only monitoring for TWAIN Local clients,
+            // otherwise it's possible for us to get requests from TWAIN Cloud and TWAIN Local...
+            m_devicesessionCloud = a_devicesessionCloud;
 
             // Get our port...
             if (!int.TryParse(Config.Get("usePort", "34034"), out iPort))
@@ -603,7 +607,7 @@ namespace TwainDirect.Support
             // Create our server...
             m_httpserver = new HttpServer();
 
-            // Start us up...
+            // Handle TWAIN Local monitoring...
             blSuccess = m_httpserver.ServerStart
             (
                 DeviceDispatchCommand,
@@ -619,11 +623,10 @@ namespace TwainDirect.Support
                 return (false);
             }
 
-            if (deviceCloudSession != null)
+            // Handle TWAIN Cloud monitoring...
+            if (m_devicesessionCloud != null)
             {
-
-
-                deviceCloudSession.Received += (sender, message) =>
+                m_devicesessionCloud.Received += (sender, message) =>
                 {
                     Debug.WriteLine(message);
 
@@ -636,15 +639,19 @@ namespace TwainDirect.Support
                         var resource = cloudMessage.Url;
                         var startIndex = resource.IndexOf("/privet");
                         if (startIndex > 0)
+                        {
                             resource = resource.Substring(startIndex);
+                        }
 
                         var headers = new NameValueCollection();
                         foreach (var pair in cloudMessage.Headers)
+                        {
                             headers.Add(pair.Key, pair.Value);
+                        }
 
                         cloudMessage.Headers.TryGetValue("X-TWAIN-Cloud-Request-Id", out var requestId);
 
-                        context.Response = new HttpListenerResponseBase(deviceCloudSession);
+                        context.Response = new HttpListenerResponseBase(m_devicesessionCloud);
                         var responseStream = context.Response.OutputStream as ReactiveMemoryStream;
                         responseStream.StreamClosed += async (s, a) =>
                         {
@@ -658,7 +665,7 @@ namespace TwainDirect.Support
                             };
 
                             var responseMessage = JsonConvert.SerializeObject(deviceResponse, CloudManager.SerializationSettings);
-                            await deviceCloudSession.Send(responseMessage);
+                            await m_devicesessionCloud.Send(responseMessage);
                         };
 
                         context.Request = new HttpListenerRequestBase
@@ -673,7 +680,7 @@ namespace TwainDirect.Support
                     });
                 };
 
-                await deviceCloudSession.Connect();
+                await m_devicesessionCloud.Connect();
             }
 
             // All done...
@@ -3743,6 +3750,11 @@ namespace TwainDirect.Support
         /// We've read the file once...
         /// </summary>
         private bool m_blReadImageBlocksDrainedMeta;
+
+        /// <summary>
+        /// Handle TWAIN Cloud...
+        /// </summary>
+        private DeviceSession m_devicesessionCloud;
 
         #endregion
     }
