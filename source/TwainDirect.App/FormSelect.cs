@@ -346,10 +346,11 @@ namespace TwainDirect.App
                         var scanner = (ScannerInformation)item.Tag;
                         var url = CloudManager.GetScannerCloudUrl(scanner);
 
-                        var dnsInfo = new Dnssd.DnssdDeviceInfo();
-                        dnsInfo.SetTxtHttps(true);
-                        dnsInfo.SetLinkLocal(url);
-                        return dnsInfo;
+                        Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
+                        dnssddeviceinfo.SetTxtHttps(true);
+                        dnssddeviceinfo.SetLinkLocal(url);
+                        dnssddeviceinfo.SetCloud(true);
+                        return (dnssddeviceinfo);
                     }
 
                     for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
@@ -366,7 +367,7 @@ namespace TwainDirect.App
                 return (m_dnssddeviceinfoSelected);
             }
 
-        /// <summary>
+            /// <summary>
             /// Select and accept...
             /// </summary>
             /// <param name="sender"></param>

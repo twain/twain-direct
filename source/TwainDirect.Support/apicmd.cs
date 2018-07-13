@@ -838,7 +838,7 @@ namespace TwainDirect.Support
             // Get the response, deal with communication problems...
             try
             {
-                if (IsCloud())
+                if (m_dnssddeviceinfo.IsCloud())
                 {
                     var cloudResponse = await WaitCloudResponse();
 
@@ -2084,16 +2084,6 @@ namespace TwainDirect.Support
         public bool IsLocal()
         {
             return (m_httplistenerdata.httplistenerresponse != null);
-        }
-
-        /// <summary>
-        /// Are we working with TWAIN Cloud?
-        /// </summary>
-        /// <returns>return true if we are</returns>
-        public bool IsCloud()
-        {
-            // TODO: find the way to detect this
-            return true;
         }
 
         /// <summary>
