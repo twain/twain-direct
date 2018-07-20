@@ -21,6 +21,6 @@ To build the project, you usually need to perform the following steps:
  - Install [Wix](http://wixtoolset.org/) to add installer project types in Visual Studio
  - Restore packages by running ```nuget.exe restore TwainDirect.sln```
  
- - Build PDF/raster solution (/source/pdfraster/pdfrasgter.sln)
+ - Build PDF/raster solution (/source/pdfraster/pdfraster.sln)
 
  - Build TWAIN Direct solution (/source/TwainDirect.sln)
