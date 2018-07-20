@@ -383,6 +383,8 @@ namespace TwainDirect.App
             // Init stuff...
             alImageBlocks = null;
             blStopCapturing = true;
+            m_szPassword = null;
+            m_blSecurityChecked = false;
 
             // We want to return the first apicmd that has a problem, to do that we
             // need a bait-and-switch scheme that starts with making an object that
@@ -1022,6 +1024,8 @@ namespace TwainDirect.App
             string szBasename;
             string szPdf;
             string szImageText;
+            bool blResult;
+            PdfRaster.SecurityType securitytype;
             bool blGotImage = false;
             string szFinishedImageBasename;
             byte[] abImage;
@@ -1052,8 +1056,20 @@ namespace TwainDirect.App
             // Just for now...
             blGotImage = true;
 
+            // Do we need a password?
+            if (!m_blSecurityChecked)
+            {
+                m_szPassword = null;
+                m_blSecurityChecked = true;
+                blResult = PdfRaster.GetSecurityType(szPdf, out securitytype);
+                if (blResult && (securitytype == PdfRaster.SecurityType.Password))
+                {
+                    m_szPassword = "open";
+                }
+            }
+
             // Convert the beastie...
-            abImage = PdfRaster.ConvertPdfToTiffOrJpeg(szPdf);
+            abImage = PdfRaster.ConvertPdfToTiffOrJpeg(szPdf, m_szPassword);
             if (abImage == null)
             {
                 Log.Error("failed to convert the image...");
@@ -2080,6 +2096,8 @@ namespace TwainDirect.App
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
         private TwainCloudTokens _cloudTokens;
+        private bool m_blSecurityChecked;
+        private string m_szPassword;
 
         // Where we get our localized strings...
         ResourceManager m_resourcemanager;

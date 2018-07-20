@@ -8,9 +8,9 @@ To build the project, you usually need to perform the following steps:
 
  - Clone TWAIN Direct repository
    ```
-   git clone https://github.com/twain/twain-direct.git
+   git clone --recurse-submodules https://github.com/twain/twain-direct.git
    ```
- - Get latest PDF Raster sources
+ - Get latest PDF Raster sources (use this for updates only)
    ```
    git submodule update --init --recursive
    git submodule foreach git pull origin master     
@@ -21,4 +21,6 @@ To build the project, you usually need to perform the following steps:
  - Install [Wix](http://wixtoolset.org/) to add installer project types in Visual Studio
  - Restore packages by running ```nuget.exe restore TwainDirect.sln```
  
+ - Build PDF/raster solution (/source/pdfraster/pdfrasgter.sln)
+
  - Build TWAIN Direct solution (/source/TwainDirect.sln)
