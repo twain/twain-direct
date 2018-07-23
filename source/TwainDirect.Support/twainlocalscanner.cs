@@ -227,7 +227,9 @@ namespace TwainDirect.Support
             ref HttpListenerContext a_httplistenercontext
         )
         {
-            DeviceDispatchCommandInternal(a_szJsonCommand, new HttpListenerContextBase(a_httplistenercontext));
+            HttpListenerContextBase httplistenercontextbase = new HttpListenerContextBase();
+            httplistenercontextbase.Initialize(a_httplistenercontext);
+            DeviceDispatchCommandInternal(a_szJsonCommand, httplistenercontextbase);
         }
 
         public void DeviceDispatchCommandInternal
@@ -638,8 +640,9 @@ namespace TwainDirect.Support
                 {
                     Debug.WriteLine(message);
 
-                    Task.Run(async () =>
-                    {
+                    // TBD: not sure why this is async, since without an await it runs synchronously...
+                    //Task.Run(async () =>
+                    //{
                         var cloudMessage = JsonConvert.DeserializeObject<CloudMessage>(message, CloudManager.SerializationSettings);
 
                         var context = new HttpListenerContextBase();
@@ -685,7 +688,7 @@ namespace TwainDirect.Support
                         };
 
                         DeviceDispatchCommandInternal(cloudMessage.Body, context);
-                    });
+                    //});
                 };
 
                 await m_devicesessionCloud.Connect();

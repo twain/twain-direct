@@ -328,6 +328,14 @@ namespace TwainDirect.Support
             return (64);
         }
 
+        /// <summary>
+        /// Put a UAC shield on a button...
+        /// </summary>
+        public static void ElevateButton(IntPtr a_intptrHandle)
+        {
+            NativeMethods.SendMessage(a_intptrHandle, NativeMethods.BCM_SETSHIELD, IntPtr.Zero, IntPtr.Zero - 1);
+        }
+
         #endregion
 
 

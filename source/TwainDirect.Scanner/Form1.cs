@@ -33,16 +33,14 @@
 
 // Helpers...
 using System;
-using System.Data.Entity.Migrations;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
-using HazyBits.Twain.Cloud.Client;
-using HazyBits.Twain.Cloud.Forms;
-using HazyBits.Twain.Cloud.Registration;
-using TwainDirect.Scanner.Storage;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -92,9 +90,11 @@ namespace TwainDirect.Scanner
 
             // Init our form...
             InitializeComponent();
+            Config.ElevateButton(m_buttonManageTwainLocal.Handle);
 
             // Localize...
             this.Text = Config.GetResource(m_resourcemanager, "strFormMainTitle"); // TWAIN Direct: TWAIN Bridge
+            m_buttonManageTwainLocal.Text = Config.GetResource(m_resourcemanager, "strButtonTwainLocalManagerEllipsis"); // Register...
             m_buttonRegister.Text = Config.GetResource(m_resourcemanager, "strButtonRegisterEllipsis"); // Register...
             m_buttonStart.Text = Config.GetResource(m_resourcemanager, "strButtonStart"); // Start
             m_buttonStop.Text = Config.GetResource(m_resourcemanager, "strButtonStop"); // Stop
@@ -286,6 +286,8 @@ namespace TwainDirect.Scanner
                 // When we first start up, use this...
                 default:
                 case ButtonState.Undefined:
+                    m_CloudRegisterButton.Enabled = false;
+                    m_buttonManageTwainLocal.Enabled = false;
                     m_buttonRegister.Enabled = false;
                     m_buttonStart.Enabled = false;
                     m_buttonStop.Enabled = false;
@@ -293,6 +295,8 @@ namespace TwainDirect.Scanner
 
                 // We have no devices, they need to register...
                 case ButtonState.NoDevices:
+                    m_CloudRegisterButton.Enabled = true;
+                    m_buttonManageTwainLocal.Enabled = true;
                     m_buttonRegister.Enabled = true;
                     m_buttonStart.Enabled = false;
                     m_buttonStop.Enabled = false;
@@ -300,6 +304,8 @@ namespace TwainDirect.Scanner
 
                 // We have devices, they can register or start...
                 case ButtonState.WaitingForStart:
+                    m_CloudRegisterButton.Enabled = true;
+                    m_buttonManageTwainLocal.Enabled = true;
                     m_buttonRegister.Enabled = true;
                     m_buttonStart.Enabled = true;
                     m_buttonStop.Enabled = false;
@@ -307,6 +313,8 @@ namespace TwainDirect.Scanner
 
                 // We're waiting for a command, they can stop...
                 case ButtonState.Started:
+                    m_CloudRegisterButton.Enabled = false;
+                    m_buttonManageTwainLocal.Enabled = false;
                     m_buttonRegister.Enabled = false;
                     m_buttonStart.Enabled = false;
                     m_buttonStop.Enabled = true;
@@ -460,6 +468,58 @@ namespace TwainDirect.Scanner
             {
                 m_scanner.MonitorTasksStop(e.CloseReason == CloseReason.UserClosing);
             }
+        }
+
+        /// <summary>
+        /// Launch the TWAIN Local Manager...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonManageTwainLocal_Click(object sender, EventArgs e)
+        {
+            string szTwainLocalManager;
+            Process process;
+            bool blDevicesFound = m_buttonStart.Enabled;
+
+            // Get the path to the manager...
+            szTwainLocalManager = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "TwainDirect.Scanner.TwainLocalManager.exe");
+            if (!File.Exists(szTwainLocalManager))
+            {
+                MessageBox.Show("TWAIN Local Manager is not installed on this system.", "Error");
+                return;
+            }
+
+            // We're busy...
+            Cursor.Current = Cursors.WaitCursor;
+            SetButtons(ButtonState.Undefined);
+            this.Refresh();
+
+            // Launch it as admin...
+            process = new Process();
+            process.StartInfo.FileName = szTwainLocalManager;
+            process.StartInfo.UseShellExecute = true;
+            if (System.Environment.OSVersion.Version.Major >= 6)
+            {
+                process.StartInfo.Verb = "runas";
+            }
+            try
+            {
+                process.Start();
+            }
+            catch
+            {
+                Log.Error("User chose not to run TwainLocalManager in elevated mode...");
+                SetButtons(blDevicesFound ? ButtonState.WaitingForStart : ButtonState.NoDevices);
+                Cursor.Current = Cursors.Default;
+                return;
+            }
+
+            // Wait for it to finish...
+            process.WaitForInputIdle();
+            this.Refresh();
+            process.WaitForExit();
+            SetButtons(blDevicesFound ? ButtonState.WaitingForStart : ButtonState.NoDevices);
+            Cursor.Current = Cursors.Default;
         }
 
         /// <summary>

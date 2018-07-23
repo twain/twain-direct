@@ -14,7 +14,11 @@ namespace TwainDirect.Support
         public HttpListenerContextBase()
         { }
 
-        public HttpListenerContextBase(HttpListenerContext context)
+        /// <summary>
+        /// We need this to avoid a CA2214 error on the constructor...
+        /// </summary>
+        /// <param name="context"></param>
+        public void Initialize(HttpListenerContext context)
         {
             Request = new HttpListenerRequestBase(context.Request);
             Response = new HttpListenerResponseBase(context.Response);
@@ -40,7 +44,7 @@ namespace TwainDirect.Support
         public event EventHandler StreamClosed;
     }
 
-    public class HttpListenerResponseBase
+    public class HttpListenerResponseBase : IDisposable
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...
@@ -82,6 +86,23 @@ namespace TwainDirect.Support
             m_iStatusCode = 0;
             m_streamOutput = null;
             m_lContentLength64 = 0;
+        }
+
+        /// <summary>
+        /// Destructor...
+        /// </summary>
+        ~HttpListenerResponseBase()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -315,6 +336,23 @@ namespace TwainDirect.Support
                 else
                 {
                     Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        protected virtual void Dispose(bool a_blDisposing)
+        {
+            // Free managed resources...
+            if (a_blDisposing)
+            {
+                if (m_streamOutput != null)
+                {
+                    m_streamOutput.Dispose();
+                    m_streamOutput = null;
                 }
             }
         }
@@ -722,7 +760,7 @@ namespace TwainDirect.Support
         public NameValueCollection Headers { get; set; }
     }
 
-    public class HttpWebResponseBase
+    public class HttpWebResponseBase : IDisposable
     {
         private readonly HttpWebResponse _response;
         private readonly Stream _responseStream;
@@ -745,6 +783,23 @@ namespace TwainDirect.Support
             ContentType = response.ContentType;
         }
 
+        /// <summary>
+        /// Destructor...
+        /// </summary>
+        ~HttpWebResponseBase()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
         public string ContentType { get; set; }
 
         public long ContentLength { get; set; }
@@ -761,6 +816,22 @@ namespace TwainDirect.Support
         public Stream GetResponseStream()
         {
             return _response != null ? _response?.GetResponseStream() : _responseStream;
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        protected virtual void Dispose(bool a_blDisposing)
+        {
+            // Free managed resources...
+            if (a_blDisposing)
+            {
+                if (_responseStream != null)
+                {
+                    _responseStream.Dispose();
+                }
+            }
         }
     }
 }

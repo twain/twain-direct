@@ -88,7 +88,7 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES..
+        ///   Looks up a localized string similar to Do you want to select a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES..
         /// </summary>
         public static string errRegisterTwainDriver {
             get {
@@ -106,7 +106,7 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Enregister....
+        ///   Looks up a localized string similar to Sélectionnez le scanner....
         /// </summary>
         public static string strButtonRegisterEllipsis {
             get {
@@ -129,6 +129,15 @@ namespace TwainDirect.Scanner {
         public static string strButtonStop {
             get {
                 return ResourceManager.GetString("strButtonStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Manage Local....
+        /// </summary>
+        public static string strButtonTwainLocalManagerEllipsis {
+            get {
+                return ResourceManager.GetString("strButtonTwainLocalManagerEllipsis", resourceCulture);
             }
         }
         

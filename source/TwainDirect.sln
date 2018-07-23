@@ -15,6 +15,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.OnTwain", "Twai
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.Scanner", "TwainDirect.Scanner\TwainDirect.Scanner.csproj", "{F8463B8B-C0F9-46D2-86C5-053F3301DF2F}"
 	ProjectSection(ProjectDependencies) = postProject
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708} = {BDD70370-60CC-40CA-B5DF-91B2604E5708}
 		{50D52482-9C72-45B3-9BCF-1E4B49976E48} = {50D52482-9C72-45B3-9BCF-1E4B49976E48}
 	EndProjectSection
 EndProject

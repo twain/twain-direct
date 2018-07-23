@@ -95,6 +95,11 @@ namespace TwainDirect.Support
             int wMsgFilterMax
         );
 
+        [DllImport("user32")]
+        public static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
+        internal const int BCM_FIRST = 0x1600; //Normal button
+        internal const int BCM_SETSHIELD = (BCM_FIRST + 0x000C); //Elevated button
+
         [DllImport("user32.dll")]
         public static extern int TranslateMessage([In] ref MSG lpMsg);
 

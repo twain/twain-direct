@@ -144,6 +144,7 @@
     <EmbeddedResource Include="lang_en_US.resx">
       <LastGenOutput>lang_en_US.Designer.cs</LastGenOutput>
       <Generator>PublicResXFileCodeGenerator</Generator>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <None Include="app.config">
       <SubType>Designer</SubType>
@@ -182,6 +183,8 @@
   <PropertyGroup>
     <PostBuildEvent>echo Post-build actions...
 XCOPY "$(ProjectDir)data" "$(TargetDir)data" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\data" "$(TargetDir)data" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\TwainDirect.Scanner.TwainLocalManager.exe" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1.dll" "$(TargetDir)" /i /e /y /q
