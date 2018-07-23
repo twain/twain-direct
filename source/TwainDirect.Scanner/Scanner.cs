@@ -224,7 +224,9 @@ namespace TwainDirect.Scanner
                 cloudScanner = context.Scanners.First();
             }
 
-            var cloudClient = new TwainCloudClient(CloudManager.GetCloudApiRoot(), new TwainCloudTokens(cloudScanner.AuthorizationToken, cloudScanner.RefreshToken));
+            string szCloudApiRoot = CloudManager.GetCloudApiRoot();
+            TwainCloudTokens twaincloudtokens = new TwainCloudTokens(cloudScanner.AuthorizationToken, cloudScanner.RefreshToken);
+            var cloudClient = new TwainCloudClient(szCloudApiRoot, twaincloudtokens);
             cloudClient.TokensRefreshed += (sender, args) =>
             {
                 cloudScanner.AuthorizationToken = args.Tokens.AuthorizationToken;
@@ -233,7 +235,12 @@ namespace TwainDirect.Scanner
             };
 
             // Start monitoring for commands...
-            blSuccess = await m_twainlocalscannerdevice.DeviceHttpServerStart(new DeviceSession(cloudClient, cloudScanner.Id));
+            blSuccess = await m_twainlocalscannerdevice.DeviceHttpServerStart
+            (
+                new DeviceSession(cloudClient, cloudScanner.Id),
+                szCloudApiRoot,
+                cloudScanner.Id
+            );
             if (!blSuccess)
             {
                 Log.Error("DeviceHttpServerStart failed...");

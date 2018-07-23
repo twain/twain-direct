@@ -565,7 +565,12 @@ namespace TwainDirect.Support
         /// Start monitoring for HTTP commands...
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> DeviceHttpServerStart(DeviceSession a_devicesessionCloud = null)
+        public async Task<bool> DeviceHttpServerStart
+        (
+            DeviceSession a_devicesessionCloud,
+            string a_szCloudApiRoot,
+            string a_szCloudScannerId
+        )
         {
             int iPort;
             bool blSuccess;
@@ -626,6 +631,9 @@ namespace TwainDirect.Support
             // Handle TWAIN Cloud monitoring...
             if (m_devicesessionCloud != null)
             {
+                // TBD: We only need these because we can't get them from DeviceSesson right now...
+                m_szCloudApiRoot = a_szCloudApiRoot;
+                m_szCloudScannerId = a_szCloudScannerId;
                 m_devicesessionCloud.Received += (sender, message) =>
                 {
                     Debug.WriteLine(message);
@@ -1445,10 +1453,9 @@ namespace TwainDirect.Support
                 sessionstateOnEntry = m_twainlocalsession.GetSessionState();
             }
 
-            //////////////////////////////////////////////////
-            // We're responding to the /privet/info or the
-            // /privet/infoex command...
-            #region We're responding to the /privet/info command...
+            /////////////////////////////////////////////////////////////////////
+            // We're responding to the /privet/info or /privet/infoex command...
+            #region We're responding to the /privet/info or /privet/infoex command...
             if ((a_apicmd != null) && ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex")))
             {
                 string szDeviceState;
@@ -1511,10 +1518,28 @@ namespace TwainDirect.Support
                 string szInfoex = "";
                 if (a_apicmd.GetUri() == "/privet/infoex")
                 {
-                    szInfoex =
-                        "," +
-                        "\"clouds\":[" +
-                        "]";
+                    if ((m_devicesessionCloud == null))
+                    {
+                        szInfoex =
+                            "," +
+                            "\"clouds\":[" +
+                            "]";
+                    }
+                    else
+                    {
+                        szInfoex =
+                            "," +
+                            "\"clouds\":[" +
+                            "{" +
+                            "\"url\":\"" + m_szCloudApiRoot + "\"," +
+                            "\"id\":\"" + m_szCloudScannerId + "\"," +
+                            "\"connection_state\":\"" + "online" + "\"," +
+                            "\"setup_url\":\"" + "" + "\"," +
+                            "\"support_url\":\"" + "" + "\"," +
+                            "\"update_url\":\"" + "" + "\"" +
+                            "}" +
+                            "]";
+                    }
                 }
 
                 // Construct a response, always make a new X-Privet-Token...
@@ -3755,6 +3780,8 @@ namespace TwainDirect.Support
         /// Handle TWAIN Cloud...
         /// </summary>
         private DeviceSession m_devicesessionCloud;
+        private string m_szCloudApiRoot;
+        private string m_szCloudScannerId;
 
         #endregion
     }
