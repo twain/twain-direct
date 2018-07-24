@@ -12,9 +12,10 @@
       </xsl:copy>
    </xsl:template>
 
+   <!-- Add the path to details -->
    <xsl:template match="wix:Wix">
      <xsl:copy>
-       <xsl:text disable-output-escaping="yes">&lt;?include Details.wxi ?&gt;</xsl:text>
+       <xsl:text disable-output-escaping="yes">&lt;?include ..\..\Details.wxi ?&gt;</xsl:text>
        <xsl:apply-templates/>
      </xsl:copy>
    </xsl:template>

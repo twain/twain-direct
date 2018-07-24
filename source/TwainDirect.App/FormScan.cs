@@ -163,46 +163,6 @@ namespace TwainDirect.App
 
             // Get our TWAIN Local interface.
             m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
-
-            // If we don't have any tasks in the user's folder, bring
-            // over the ones that we installed with the binary...
-            string szTasksSrc = Path.Combine(Config.Get("readFolder", ""), "tasks");
-            if (!Directory.Exists(szTasksSrc))
-            {
-                szTasksSrc = Path.Combine(Config.Get("readFolder", ""), "data", "tasks");
-            }
-            string szTasksDst = Path.Combine(Config.Get("writeFolder", ""), "tasks");
-            if (!Directory.Exists(szTasksDst))
-            {
-                try
-                {
-                    Directory.CreateDirectory(szTasksDst);
-                }
-                catch
-                {
-                    // Oh well...
-                }
-            }
-            if (Directory.Exists(szTasksSrc) && Directory.Exists(szTasksDst))
-            {
-                // .tdt is TWAIN Direct Task...
-                string[] aszFiles = Directory.GetFiles(szTasksDst, "*.tdt");
-                if ((aszFiles == null) || (aszFiles.Length == 0))
-                {
-                    aszFiles = Directory.GetFiles(szTasksSrc);
-                    foreach (string szFile in aszFiles)
-                    {
-                        try
-                        {
-                            File.Copy(szFile, Path.Combine(szTasksDst, Path.GetFileName(szFile)), true);
-                        }
-                        catch
-                        {
-                            // Just keep going...
-                        }
-                    }
-                }
-            }
         }
 
         /// <summary>

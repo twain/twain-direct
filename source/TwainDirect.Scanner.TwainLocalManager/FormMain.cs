@@ -209,10 +209,23 @@ namespace TwainDirect.Scanner.TwainLocalManager
             // If yes, then do the refresh...
             if (dialogresult == DialogResult.Yes)
             {
+                string szTwainDirectCertificates;
                 SuspendLayout();
-                m_managecertificates.CreateSelfSignedCertificates(out blSuccess);
+                m_managecertificates.CreateSelfSignedCertificates(out blSuccess, out szTwainDirectCertificates);
                 UpdateCertificateInfoOnForm();
                 ResumeLayout();
+                if (blSuccess)
+                {
+                    MessageBox.Show
+                    (
+                        "A copy of the self-signed root certificate has been placed in this folder: " + Environment.NewLine +
+                        szTwainDirectCertificates + Environment.NewLine +
+                        Environment.NewLine +
+                        "This certificate must be installed into the 'Trusted Root Certification Authorities' store, " +
+                        "in the 'Local Computer' location for each PC that needs access to this scanner.",
+                        "Create Certificates"
+                    );
+                }
             }
         }
 
@@ -597,21 +610,20 @@ namespace TwainDirect.Scanner.TwainLocalManager
         /// exchange certificate using that CA.  We delete any certificates with
         /// the same name and issuer, so we don't spam their store...
         /// </summary>
-        public void CreateSelfSignedCertificates(out bool a_blSuccess)
+        public void CreateSelfSignedCertificates(out bool a_blSuccess, out string a_szTwainDirectCertificates)
         {
             AsymmetricKeyParameter caPrivateKey = null;
             string szPasswordRootCa = "1234";
-            string szTwainDirectCertificates;
             string szRootCN = "TWAIN Direct Self-Signed Root Authority for " + Environment.MachineName;
             a_blSuccess = true;
 
             // Make sure we have a place for the certificates...
-            szTwainDirectCertificates = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TWAIN Direct Certificates");
-            if (!Directory.Exists(szTwainDirectCertificates))
+            a_szTwainDirectCertificates = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TWAIN Direct Certificates");
+            if (!Directory.Exists(a_szTwainDirectCertificates))
             {
                 try
                 {
-                    Directory.CreateDirectory(szTwainDirectCertificates);
+                    Directory.CreateDirectory(a_szTwainDirectCertificates);
                 }
                 catch
                 {
@@ -623,7 +635,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
             // Create the self-signed root certificate...
             X509Certificate2 caCert = CreateCertificateAuthorityCertificate(szRootCN, out caPrivateKey);
             addCertToStore(caCert, StoreName.Root, StoreLocation.LocalMachine);
-            File.WriteAllBytes(Path.Combine(szTwainDirectCertificates, szRootCN + ".cer"), caCert.Export(X509ContentType.Cert, szPasswordRootCa));
+            File.WriteAllBytes(Path.Combine(a_szTwainDirectCertificates, szRootCN + ".cer"), caCert.Export(X509ContentType.Cert, szPasswordRootCa));
 
             // Create the self-signed exchange certificate...
             X509Certificate2 clientCert = CreateSelfSignedCertificateBasedOnCertificateAuthorityPrivateKey(Environment.MachineName + ".local", szRootCN, caPrivateKey);

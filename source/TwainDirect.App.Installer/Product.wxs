@@ -24,7 +24,6 @@
 
       <ComponentRef Id="TwainDirect.App.exe"/>
       <ComponentRef Id="TwainDirect.App.exe.config"/>
-      <ComponentRef Id="TwainDirect.App.appdata.installed.txt"/>
 
       <ComponentRef Id="TwainDirect.Support.dll"/>
       <ComponentRef Id="pdfras_reader_managed.dll"/>
@@ -37,7 +36,7 @@
       <ComponentRef Id="vcruntime140.dll"/>
 
       <!-- Resource files -->
-      <ComponentGroupRef Id="TwainDirect.Tasks"/>
+      <ComponentGroupRef Id="DataFolder"/>
 
     </Feature>
 

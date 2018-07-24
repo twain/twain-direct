@@ -515,9 +515,17 @@ namespace TwainDirect.Scanner
             }
 
             // Wait for it to finish...
-            process.WaitForInputIdle();
-            this.Refresh();
-            process.WaitForExit();
+            Thread.Sleep(1000);
+            try
+            {
+                process.WaitForInputIdle();
+                this.Refresh();
+                process.WaitForExit();
+            }
+            catch (Exception exception)
+            {
+                Log.Error("Error waiting for TwainLocalManager - " + exception.Message);
+            }
             SetButtons(blDevicesFound ? ButtonState.WaitingForStart : ButtonState.NoDevices);
             Cursor.Current = Cursors.Default;
         }

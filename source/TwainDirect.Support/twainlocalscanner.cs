@@ -640,9 +640,8 @@ namespace TwainDirect.Support
                 {
                     Debug.WriteLine(message);
 
-                    // TBD: not sure why this is async, since without an await it runs synchronously...
-                    //Task.Run(async () =>
-                    //{
+                    Task.Run(async () =>
+                    {
                         var cloudMessage = JsonConvert.DeserializeObject<CloudMessage>(message, CloudManager.SerializationSettings);
 
                         var context = new HttpListenerContextBase();
@@ -688,10 +687,17 @@ namespace TwainDirect.Support
                         };
 
                         DeviceDispatchCommandInternal(cloudMessage.Body, context);
-                    //});
+                    });
                 };
 
-                await m_devicesessionCloud.Connect();
+                try
+                {
+                    await m_devicesessionCloud.Connect();
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("DeviceHttpServerStart: connect failed - " + exception.Message);
+                }
             }
 
             // All done...
