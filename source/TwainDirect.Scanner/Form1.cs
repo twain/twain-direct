@@ -802,7 +802,14 @@ namespace TwainDirect.Scanner
                 Log.Error("MonitorTasksStart failed...");
                 MessageBox.Show("Failed to start the cloud monitoring, check the logs for more information." + Environment.NewLine + "Error: " + exception.Message, Config.GetResource(m_resourcemanager, "strFormMainTitle"));
             }
-            Display("Ready for use...");
+            if (m_scanner.IsTwainLocalStarted())
+            {
+                Display("TWAIN Local is ready for use...");
+            }
+            if (m_scanner.IsTwainCloudStarted())
+            {
+                Display("TWAIN Cloud is ready for use...");
+            }
 
             // Set buttons...
             SetButtons(ButtonState.Started);

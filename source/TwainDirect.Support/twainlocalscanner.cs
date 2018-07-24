@@ -564,8 +564,12 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Start monitoring for HTTP commands...
+        /// Start monitoring for HTTP commands from TWAIN Local and/or
+        /// TWAIN Cloud.  Set flags letting us know what we got...
         /// </summary>
+        /// <param name="a_devicesessionCloud">the session</param>
+        /// <param name="a_szCloudApiRoot">the uri</param>
+        /// <param name="a_szCloudScannerId">the device-id guid</param>
         /// <returns></returns>
         public async Task<bool> DeviceHttpServerStart
         (
@@ -582,6 +586,10 @@ namespace TwainDirect.Support
             {
                 return (true);
             }
+
+            // Assume the worst...
+            m_blTwainLocalStarted = false;
+            m_blTwainCloudStarted = false;
 
             // Squirrel this away, if it's null we're only monitoring for TWAIN Local clients,
             // otherwise it's possible for us to get requests from TWAIN Cloud and TWAIN Local...
@@ -624,10 +632,13 @@ namespace TwainDirect.Support
                 "",
                 m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
             );
-            if (!blSuccess)
+            if (blSuccess)
+            {
+                m_blTwainLocalStarted = true;
+            }
+            else
             {
                 Log.Error("ServerStart failed...");
-                return (false);
             }
 
             // Handle TWAIN Cloud monitoring...
@@ -693,6 +704,7 @@ namespace TwainDirect.Support
                 try
                 {
                     await m_devicesessionCloud.Connect();
+                    m_blTwainCloudStarted = true;
                 }
                 catch (Exception exception)
                 {
@@ -879,6 +891,24 @@ namespace TwainDirect.Support
         public string GetTwainLocalTy()
         {
             return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
+        }
+
+        /// <summary>
+        /// True if TWAIN Local monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainLocalStarted()
+        {
+            return (m_blTwainLocalStarted);
+        }
+
+        /// <summary>
+        /// True if TWAIN Cloud monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainCloudStarted()
+        {
+            return (m_blTwainCloudStarted);
         }
 
         #endregion
@@ -3729,6 +3759,8 @@ namespace TwainDirect.Support
         /// one server...
         /// </summary>
         private HttpServer m_httpserver;
+        private bool m_blTwainLocalStarted;
+        private bool m_blTwainCloudStarted;
 
         // If we're splitting up the TWAIN Bridge images into smaller
         // chunks, then we have to create a new sequence of image

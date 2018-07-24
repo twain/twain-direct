@@ -211,6 +211,32 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
+        /// True if TWAIN Local monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainLocalStarted()
+        {
+            if (m_twainlocalscannerdevice != null)
+            {
+                return (m_twainlocalscannerdevice.IsTwainLocalStarted());
+            }
+            return (false);
+        }
+
+        /// <summary>
+        /// True if TWAIN Cloud monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainCloudStarted()
+        {
+            if (m_twainlocalscannerdevice != null)
+            {
+                return (m_twainlocalscannerdevice.IsTwainCloudStarted());
+            }
+            return (false);
+        }
+
+        /// <summary>
         /// Start polling for tasks...
         /// </summary>
         /// <returns>true on success</returns>
