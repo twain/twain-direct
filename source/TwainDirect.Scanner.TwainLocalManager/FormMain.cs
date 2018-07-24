@@ -76,7 +76,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
                 string szBonjourInstaller = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
                 if (Environment.Is64BitOperatingSystem)
                 {
-                    szBonjourInstaller = Path.Combine(szBonjourInstaller, "Bonjour64.msi");
+                    szBonjourInstaller = Path.Combine(Path.Combine(szBonjourInstaller, "data"), "Bonjour64.msi");
                     if (!File.Exists(szBonjourInstaller))
                     {
                         MessageBox.Show
@@ -90,7 +90,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
                 }
                 else
                 {
-                    szBonjourInstaller = Path.Combine(szBonjourInstaller, "Bonjour.msi");
+                    szBonjourInstaller = Path.Combine(Path.Combine(szBonjourInstaller, "data"), "Bonjour.msi");
                     if (!File.Exists(szBonjourInstaller))
                     {
                         MessageBox.Show
@@ -141,7 +141,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
                 string szBonjourInstaller = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
                 if (Environment.Is64BitOperatingSystem)
                 {
-                    szBonjourInstaller = Path.Combine(szBonjourInstaller, "Bonjour64.msi");
+                    szBonjourInstaller = Path.Combine(Path.Combine(szBonjourInstaller, "data"), "Bonjour64.msi");
                     if (!File.Exists(szBonjourInstaller))
                     {
                         MessageBox.Show
@@ -155,7 +155,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
                 }
                 else
                 {
-                    szBonjourInstaller = Path.Combine(szBonjourInstaller, "Bonjour.msi");
+                    szBonjourInstaller = Path.Combine(Path.Combine(szBonjourInstaller, "data"), "Bonjour.msi");
                     if (!File.Exists(szBonjourInstaller))
                     {
                         MessageBox.Show

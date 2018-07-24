@@ -619,26 +619,34 @@ namespace TwainDirect.Support
                 return (false);
             }
 
-            // Create our server...
-            m_httpserver = new HttpServer();
-
             // Handle TWAIN Local monitoring...
-            blSuccess = m_httpserver.ServerStart
-            (
-                DeviceDispatchCommand,
-                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
-                iPort,
-                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
-                "",
-                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
-            );
-            if (blSuccess)
+            try
             {
-                m_blTwainLocalStarted = true;
+                // Create our TWAIN Local server...
+                m_httpserver = new HttpServer();
+
+                // Start watching the skies...
+                blSuccess = m_httpserver.ServerStart
+                (
+                    DeviceDispatchCommand,
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
+                    iPort,
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
+                    "",
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
+                );
+                if (blSuccess)
+                {
+                    m_blTwainLocalStarted = true;
+                }
+                else
+                {
+                    Log.Error("DeviceHttpServerStart: ServerStart failed...");
+                }
             }
-            else
+            catch (Exception exception)
             {
-                Log.Error("ServerStart failed...");
+                Log.Error("DeviceHttpServerStart: ServerStart failed - " + exception.Message);
             }
 
             // Handle TWAIN Cloud monitoring...
