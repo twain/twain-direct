@@ -24,8 +24,14 @@
 
       <ComponentRef Id="TwainDirect.App.exe"/>
       <ComponentRef Id="TwainDirect.App.exe.config"/>
-
       <ComponentRef Id="TwainDirect.Support.dll"/>
+
+      <ComponentRef Id="HazyBits.Twain.Cloud.dll"/>
+      <ComponentRef Id="HazyBits.Twain.Cloud.Forms.dll"/>
+      <ComponentRef Id="MQTTnet.dll"/>
+      <ComponentRef Id="Newtonsoft.Json.dll"/>
+      <ComponentRef Id="System.Net.Http.Formatting.dll"/>
+
       <ComponentRef Id="pdfras_reader_managed.dll"/>
       <ComponentRef Id="pdfras_writer_managed.dll"/>
       <ComponentRef Id="pdfras_digitalsignature.dll"/>
@@ -48,15 +54,7 @@
     
     <UI>
       <UIRef Id="WixUI_InstallDir" />
-      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="OpenBonjourDownloadPage">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
     </UI>
-    
-    <!-- Post-Install Action -->
-    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.UI.DownloadBonjour.Text)" />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.UI.DownloadBonjour.Label)" />
-
-    <Property Id="WixShellExecTarget" Value="https://support.apple.com/kb/dl999" />
-    <CustomAction Id="OpenBonjourDownloadPage" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
   </Product>
 </Wix>

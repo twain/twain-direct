@@ -49,6 +49,7 @@
   <?define ProductDialogBitmap="$(var.ResourceFolder)\dialog.bmp" ?>
   <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
   <?define ProductLicense="$(var.ResourceFolder)\license.rtf" ?>
+  <?define DataFolder="$(var.ProjectDir)\..\TwainDirect.Scanner\bin\$(var.Platform)\$(var.Configuration)\data" ?>
 
   <!-- Url reservation rights -->
   <!-- D (dacl_flags)

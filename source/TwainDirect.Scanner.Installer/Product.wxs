@@ -26,13 +26,23 @@
       
       <ComponentRef Id="TwainDirect.Scanner.exe"/>
       <ComponentRef Id="TwainDirect.Scanner.exe.config"/>
-      <ComponentRef Id="TwainDirect.Scanner.appdata.installed.txt"/>
-
       <ComponentRef Id="TwainDirect.OnTwain.exe"/>
       <ComponentRef Id="TwainDirect.OnTwain.exe.config"/>
-      <ComponentRef Id="TwainDirect.OnTwain.appdata.installed.txt"/>
-      
       <ComponentRef Id="TwainDirect.Support.dll"/>
+
+      <ComponentRef Id="BouncyCastle.Crypto.dll"/>
+      <ComponentRef Id="EntityFramework.dll"/>
+      <ComponentRef Id="EntityFramework.SqlServer.dll"/>
+      <ComponentRef Id="HazyBits.Twain.Cloud.dll"/>
+      <ComponentRef Id="HazyBits.Twain.Cloud.Forms.dll"/>
+      <ComponentRef Id="MQTTnet.dll"/>
+      <ComponentRef Id="Newtonsoft.Json.dll"/>
+      <ComponentRef Id="SQLite.CodeFirst.dll"/>
+      <ComponentRef Id="System.Data.SQLite.dll"/>
+      <ComponentRef Id="System.Data.SQLite.EF6.dll"/>
+      <ComponentRef Id="System.Data.SQLite.Linq.dll"/>
+      <ComponentRef Id="System.Net.Http.Formatting.dll"/>
+
       <ComponentRef Id="pdfras_reader_managed.dll"/>
       <ComponentRef Id="pdfras_writer_managed.dll"/>
       <ComponentRef Id="pdfras_digitalsignature.dll"/>
@@ -40,10 +50,10 @@
       <ComponentRef Id="libcrypto_1_1.dll"/>
       <ComponentRef Id="libssl_1_1.dll"/>
 
-      <ComponentRef Id="certificate.p12"/>
-      <ComponentRef Id="https.certificates"/>
-
       <ComponentRef Id="vcruntime140.dll"/>
+
+      <!-- Resource files -->
+      <ComponentGroupRef Id="DataFolder"/>
 
     </Feature>
 
@@ -55,48 +65,12 @@
 
     <UI>
       <UIRef Id="WixUI_InstallDir" />
-      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="OpenBonjourDownloadPage">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
     </UI>
     
-	  <util:CloseApplication Id="CloseRunningApp" Target="$(var.TwainDirect.Scanner.TargetFileName)"
+    <util:CloseApplication Id="CloseRunningApp" Target="$(var.TwainDirect.Scanner.TargetFileName)"
 	                         CloseMessage="yes" RebootPrompt="no" Sequence="1" Timeout="10" />
 
-		<CustomAction Id="LaunchApp" Directory="INSTALLFOLDER" Return="asyncNoWait" Execute="commit"  ExeCommand="[INSTALLFOLDER]$(var.TwainDirect.Scanner.TargetFileName)" />
-
-		<InstallExecuteSequence>
-			<Custom Action="WixCloseApplications" Before="InstallValidate" />
-
-			<!-- Install sequence -->
-			<Custom Action="SetCmdAddHttpsReservationVista1" Before="AddHttpsReservationQuietExec1">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>
-			<Custom Action="SetCmdAddHttpsReservationVista2" Before="AddHttpsReservationQuietExec2">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>
-			<Custom Action="SetCmdAddHttpsReservationVista3" Before="AddHttpsReservationQuietExec3">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>			
-			<Custom Action="SetCmdBindHttpsPortWinVista" Before="BindHttpsPortQuietExec">(NOT Installed AND NOT PATCH) AND VersionNT>=600 </Custom>
-
-			<Custom Action="AddHttpsReservationQuietExec1" Before="AddHttpsReservationQuietExec2">(NOT Installed AND NOT PATCH)</Custom>
-			<Custom Action="AddHttpsReservationQuietExec2" Before="AddHttpsReservationQuietExec3">(NOT Installed AND NOT PATCH)</Custom>
-			<Custom Action="AddHttpsReservationQuietExec3" Before="BindHttpsPortQuietExec">(NOT Installed AND NOT PATCH)</Custom>
-			<Custom Action="BindHttpsPortQuietExec" Before="InstallFinalize">(NOT Installed AND NOT PATCH)</Custom>
-
-			<!-- Uninstall sequence -->
-			<Custom Action="SetCmdUnBindHttpsPortWinVista" Before="ReleaseHttpsPortQuietExec">REMOVE~="ALL" AND VersionNT>=600 </Custom>
-			<Custom Action="SetCmdRemoveHttpsReservationVista1" Before="RemoveHttpsReservationQuietExec1">REMOVE~="ALL" AND VersionNT>=600 </Custom>
-			<Custom Action="SetCmdRemoveHttpsReservationVista2" Before="RemoveHttpsReservationQuietExec2">REMOVE~="ALL" AND VersionNT>=600 </Custom>
-			<Custom Action="SetCmdRemoveHttpsReservationVista3" Before="RemoveHttpsReservationQuietExec3">REMOVE~="ALL" AND VersionNT>=600 </Custom>
-
-			<Custom Action="ReleaseHttpsPortQuietExec" Before="RemoveHttpsReservationQuietExec1">REMOVE~="ALL"</Custom>
-			<Custom Action="RemoveHttpsReservationQuietExec1" Before="RemoveHttpsReservationQuietExec2">REMOVE~="ALL"</Custom>
-			<Custom Action="RemoveHttpsReservationQuietExec2" Before="RemoveHttpsReservationQuietExec3">REMOVE~="ALL"</Custom>
-			<Custom Action="RemoveHttpsReservationQuietExec3" Before="InstallFinalize">REMOVE~="ALL"</Custom>
-
-			<Custom Action="LaunchApp" After="BindHttpsPortQuietExec">(NOT REMOVE) AND (NOT INSTALLASSERVICE)</Custom>
-		</InstallExecuteSequence>
-
-    <!-- Post-Install Action -->
-    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.UI.DownloadBonjour.Text)" />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.UI.DownloadBonjour.Label)" />
-
-    <Property Id="WixShellExecTarget" Value="https://support.apple.com/kb/dl999" />
-    <CustomAction Id="OpenBonjourDownloadPage" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+    <CustomAction Id="LaunchApp" Directory="INSTALLFOLDER" Return="asyncNoWait" Execute="commit"  ExeCommand="[INSTALLFOLDER]$(var.TwainDirect.Scanner.TargetFileName)" />
 
   </Product>  
 </Wix>

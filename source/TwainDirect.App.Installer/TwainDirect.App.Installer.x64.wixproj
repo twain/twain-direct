@@ -32,11 +32,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <PreBuildEvent>echo.
-echo =============================================================================================
-echo Merge modules generate warnings (like string overflow), these are known about, ignore them... 
-echo =============================================================================================
-echo.
-$(WixInstallPath)\heat.exe dir $(ProjectDir)..\..\..\TwainDirect.App\data -cg DataFolder -gg -sfrag -template fragment -var var.DataFolder -dr INSTALLFOLDER -t ..\..\Data.Transform.xslt -out DataFolder.wxs</PreBuildEvent>
+$(WixInstallPath)\heat.exe dir $(ProjectDir)..\..\..\TwainDirect.App\bin\$(Platform)\$(Configuration)\data -cg DataFolder -gg -sfrag -template fragment -var var.DataFolder -dr INSTALLFOLDER -t ..\..\Data.Transform.xslt -out DataFolder.wxs</PreBuildEvent>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Files.wxs" />

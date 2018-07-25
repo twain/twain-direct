@@ -24,32 +24,12 @@
       <Directory Id="$(var.PlatformProgramFilesFolder)">
         <Directory Id="INSTALLFOLDER" Name="TWAIN Direct Application">
 
-          <Component Id="TwainDirect.App.exe" Guid="{71DE5FF6-CF53-4D1E-B878-BBAE69545001}">
-            <File Id="TwainDirect.App.exe" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe" KeyPath="yes" />
+          <Component Id="HazyBits.Twain.Cloud.dll" Guid="{5D837709-D27E-419F-AE1E-2C8A2AF8AA11}">
+            <File Id="HazyBits.Twain.Cloud.dll" Source="$(var.TwainDirect.App.TargetDir)\HazyBits.Twain.Cloud.dll" KeyPath="yes" />
           </Component>
 
-          <Component Id="TwainDirect.App.exe.config" Guid="{AA05297A-5DAB-45BA-AF80-FB07D855C6A8}">
-            <File Id="TwainDirect.App.exe.config" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe.config" KeyPath="yes" />
-          </Component>
-
-          <Component Id="TwainDirect.Support.dll" Guid="{3374B2B1-DDF2-4E8C-99FF-2B6C21667077}">
-            <File Id="TwainDirect.Support.dll" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.Support.dll" KeyPath="yes" />
-          </Component>
-
-          <Component Id="pdfras_reader_managed.dll" Guid="{538B1168-62AC-42B1-9EE3-19EE64BF335E}">
-            <File Id="pdfras_reader_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_reader_managed.dll" KeyPath="yes" />
-          </Component>
-
-          <Component Id="pdfras_writer_managed.dll" Guid="{E328D096-8FD2-4B1E-BDA5-A5887160E6E6}">
-            <File Id="pdfras_writer_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_writer_managed.dll" KeyPath="yes" />
-          </Component>
-
-          <Component Id="pdfras_digitalsignature.dll" Guid="{87CE3E81-16E6-4A00-B964-F3541961D2B6}">
-            <File Id="pdfras_digitalsignature.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_digitalsignature.dll" KeyPath="yes" />
-          </Component>
-
-          <Component Id="pdfras_encryption.dll" Guid="{9704E024-D8E0-4551-9BC9-659A7AA3CCE8}">
-            <File Id="pdfras_encryption.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_encryption.dll" KeyPath="yes" />
+          <Component Id="HazyBits.Twain.Cloud.Forms.dll" Guid="{CA5B8B03-EB69-4200-B6D5-4F4F3581DC73}">
+            <File Id="HazyBits.Twain.Cloud.Forms.dll" Source="$(var.TwainDirect.App.TargetDir)\HazyBits.Twain.Cloud.Forms.dll" KeyPath="yes" />
           </Component>
 
           <?if $(var.Platform) = x64 ?>
@@ -71,6 +51,46 @@
             <File Id="libssl_1_1.dll" Source="$(var.TwainDirect.App.TargetDir)\libssl-1_1.dll" KeyPath="yes" />
           </Component>
           <?endif ?>
+
+          <Component Id="MQTTnet.dll" Guid="{187261A1-5D53-497E-8E01-F9CBDF885197}">
+            <File Id="MQTTnet.dll" Source="$(var.TwainDirect.App.TargetDir)\MQTTnet.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="Newtonsoft.Json.dll" Guid="{22073744-9010-4AF9-B3A2-8E11321BFAE8}">
+            <File Id="Newtonsoft.Json.dll" Source="$(var.TwainDirect.App.TargetDir)\Newtonsoft.Json.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_digitalsignature.dll" Guid="{87CE3E81-16E6-4A00-B964-F3541961D2B6}">
+            <File Id="pdfras_digitalsignature.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_digitalsignature.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_encryption.dll" Guid="{9704E024-D8E0-4551-9BC9-659A7AA3CCE8}">
+            <File Id="pdfras_encryption.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_encryption.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_reader_managed.dll" Guid="{538B1168-62AC-42B1-9EE3-19EE64BF335E}">
+            <File Id="pdfras_reader_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_reader_managed.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_writer_managed.dll" Guid="{E328D096-8FD2-4B1E-BDA5-A5887160E6E6}">
+            <File Id="pdfras_writer_managed.dll" Source="$(var.TwainDirect.App.TargetDir)\pdfras_writer_managed.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="System.Net.Http.Formatting.dll" Guid="{04AE3CE1-3EE9-4875-92CF-2D29535E6670}">
+            <File Id="System.Net.Http.Formatting.dll" Source="$(var.TwainDirect.App.TargetDir)\System.Net.Http.Formatting.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.App.exe" Guid="{71DE5FF6-CF53-4D1E-B878-BBAE69545001}">
+            <File Id="TwainDirect.App.exe" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.App.exe.config" Guid="{AA05297A-5DAB-45BA-AF80-FB07D855C6A8}">
+            <File Id="TwainDirect.App.exe.config" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe.config" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Support.dll" Guid="{3374B2B1-DDF2-4E8C-99FF-2B6C21667077}">
+            <File Id="TwainDirect.Support.dll" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.Support.dll" KeyPath="yes" />
+          </Component>
 
           <?if $(var.Platform) = x64 ?>
           <Component Id="vcruntime140.dll" Guid="{C1AEA2BD-E303-46EA-AD84-188743206436}">

@@ -7,7 +7,4 @@
   <String Id="Platform.x86">32 bit</String>
 
   <String Id="Error.DowngradeMessage">A newer version of [ProductName] is already installed.</String>
-
-  <String Id="UI.DownloadBonjour.Text">TWAIN Direct relies on mDNS protocol to advertise and access scanners across network. Apple Bonjour can be used as mDNS implementation on Windows platform. Select the following check box to download Bonjour distribution after completion of the installation process.</String>
-  <String Id="UI.DownloadBonjour.Label">Download Bonjour Package</String>  
 </WixLocalization>
