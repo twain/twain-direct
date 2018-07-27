@@ -163,6 +163,22 @@ namespace TwainDirect.App
 
             // Get our TWAIN Local interface.
             m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
+
+            // Is PDF/raster happy and healthy?
+            PdfRaster pdfraster = new PdfRaster();
+            if (!pdfraster.HealthCheck())
+            {
+                DialogResult dialogresult = MessageBox.Show
+                (
+                    "We need to install the Visual Studio 2017 Redistributables for PDF/raster.  May we continue?",
+                    "Warning",
+                    MessageBoxButtons.YesNo
+                );
+                if (dialogresult == DialogResult.Yes)
+                {
+                    pdfraster.InstallVisualStudioRedistributables();
+                }
+            }
         }
 
         /// <summary>
@@ -1250,6 +1266,7 @@ namespace TwainDirect.App
         private void m_buttonOpen_Click(object sender, EventArgs e)
         {
             bool blUpdated;
+            bool blNoMonitor;
             bool blSuccess;
             long lJsonErrorIndex;
             string szSelected = null;
@@ -1323,7 +1340,7 @@ namespace TwainDirect.App
             }
 
             // Grab a snapshot of what's out there...
-            adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated);
+            adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
             if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
             {
                 MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoTwainScanners"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));

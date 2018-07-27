@@ -125,11 +125,19 @@
           </Component>
 
           <Component Id="TwainDirect.OnTwain.exe" Guid="{7263CF35-D722-4B29-90F4-1D7A9ED3BEA3}">
-            <File Id="TwainDirect.OnTwain.exe" Source="$(var.TwainDirect.OnTwain.TargetDir)\TwainDirect.OnTwain.exe" KeyPath="yes" />
+            <File Id="TwainDirect.OnTwain.exe" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.OnTwain.exe" KeyPath="yes" />
           </Component>
 
           <Component Id="TwainDirect.OnTwain.exe.config" Guid="{C26B2610-C50D-4018-8469-EC9BEE70BE98}">
-            <File Id="TwainDirect.OnTwain.exe.config" Source="$(var.TwainDirect.OnTwain.TargetDir)\TwainDirect.OnTwain.exe.config" KeyPath="yes" />
+            <File Id="TwainDirect.OnTwain.exe.config" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.OnTwain.exe.config" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Scanner.TwainLocalManager.exe" Guid="{4B80CAF3-2945-4A56-9327-40784F954D6E}">
+            <File Id="TwainDirect.Scanner.TwainLocalManager.exe" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.TwainLocalManager.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Scanner.TwainLocalManager.exe.config" Guid="{44A2A17C-E092-4EB2-926A-0A5BB5AD9F4E}">
+            <File Id="TwainDirect.Scanner.TwainLocalManager.exe.config" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.TwainLocalManager.exe.config" KeyPath="yes" />
           </Component>
 
           <Component Id="TwainDirect.Support.dll" Guid="{00E26F5A-F175-45AD-8C81-AAE5F82A6972}">
@@ -145,6 +153,14 @@
               <File Id="vcruntime140.dll.x86" Source="$(var.LibFolder)\Runtime\x86\vcruntime140.dll" KeyPath="yes" />
             </Component>          
           <?endif ?>
+
+          <Component Id="VC_redist.x64.exe" Guid="{70C637FC-47C0-4BDB-89A0-4E151012569F}">
+            <File Id="VC_redist.x64.exe" Source="$(var.LibFolder)\Runtime\x64\VC_redist.x64.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="VC_redist.x86.exe" Guid="{3380B0A0-273F-4B68-B99C-B31220A59290}">
+            <File Id="VC_redist.x86.exe" Source="$(var.LibFolder)\Runtime\x86\VC_redist.x86.exe" KeyPath="yes" />
+          </Component>
           
         </Directory>
       </Directory>

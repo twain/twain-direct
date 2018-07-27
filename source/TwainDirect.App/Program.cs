@@ -47,8 +47,7 @@ namespace TwainDirect.App
         static void Main(string[] a_aszArgs)
         {
 			// TODO: Handle this correctly - this is a temporary workaround.
-
-	        //Trust all certificates
+	        // Trust all certificates
 	        System.Net.ServicePointManager.ServerCertificateValidationCallback =
 		        ((sender, certificate, chain, sslPolicyErrors) => true);
 

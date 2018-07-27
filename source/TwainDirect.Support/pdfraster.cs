@@ -34,6 +34,7 @@
 
 // Helpers...
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -49,6 +50,67 @@ namespace TwainDirect.Support
         // Public Methods: PdfRaster
         ///////////////////////////////////////////////////////////////////////////////
         #region Public Methods: PdfRaster
+
+        /// <summary>
+        /// See if we can load the PDF/raster binaries, use this to determine
+        /// if we need to install the visual studio redistributables...
+        /// </summary>
+        /// <returns></returns>
+        public bool HealthCheck()
+        {
+            try
+            {
+                PdfRasterReader.Reader pdfRasRd = null;
+                pdfRasRd = new PdfRasterReader.Reader();
+                pdfRasRd = null;
+            }
+            catch
+            {
+                return (false);
+            }
+            return (true);
+        }
+
+        /// <summary>
+        /// Install the redistributables for Visual Studio 2017...
+        /// </summary>
+        /// <returns>true if we launched it</returns>
+        public bool InstallVisualStudioRedistributables()
+        {
+            string szVcRedistExe;
+            Process process;
+
+            // Get the path to the manager...
+            szVcRedistExe = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "VC_redist.x86.exe");
+            if (!File.Exists(szVcRedistExe))
+            {
+                return (false);
+            }
+
+            // Launch it as admin...
+            process = new Process();
+            process.StartInfo.FileName = szVcRedistExe;
+            process.StartInfo.UseShellExecute = true;
+            if (System.Environment.OSVersion.Version.Major >= 6)
+            {
+                process.StartInfo.Verb = "runas";
+            }
+            try
+            {
+                process.Start();
+            }
+            catch
+            {
+                return (false);
+            }
+
+            // Wait for it to finish...
+            process.WaitForExit();
+            process.Dispose();
+
+            // Alld done...
+            return (true);
+        }
 
         /// <summary>
         /// Add image header to the image data from a PDF/raster..

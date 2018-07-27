@@ -521,6 +521,7 @@ namespace TwainDirect.Scanner
                 process.WaitForInputIdle();
                 this.Refresh();
                 process.WaitForExit();
+                process.Dispose();
             }
             catch (Exception exception)
             {
@@ -771,6 +772,22 @@ namespace TwainDirect.Scanner
 
             // Turn all the buttons off...
             SetButtons(ButtonState.Undefined);
+
+            // Is PDF/raster happy and healthy?
+            PdfRaster pdfraster = new PdfRaster();
+            if (!pdfraster.HealthCheck())
+            {
+                DialogResult dialogresult = MessageBox.Show
+                (
+                    "We need to install the Visual Studio 2017 Redistributables for PDF/raster.  May we continue?",
+                    "Warning",
+                    MessageBoxButtons.YesNo
+                );
+                if (dialogresult == DialogResult.Yes)
+                {
+                    pdfraster.InstallVisualStudioRedistributables();
+                }
+            }
 
             // Start polling...
             Display("");

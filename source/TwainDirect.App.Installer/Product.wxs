@@ -24,6 +24,8 @@
 
       <ComponentRef Id="TwainDirect.App.exe"/>
       <ComponentRef Id="TwainDirect.App.exe.config"/>
+      <ComponentRef Id="TwainDirect.Scanner.TwainLocalManager.exe"/>
+      <ComponentRef Id="TwainDirect.Scanner.TwainLocalManager.exe.config"/>
       <ComponentRef Id="TwainDirect.Support.dll"/>
 
       <ComponentRef Id="HazyBits.Twain.Cloud.dll"/>
@@ -40,6 +42,8 @@
       <ComponentRef Id="libssl_1_1.dll"/>
 
       <ComponentRef Id="vcruntime140.dll"/>
+      <ComponentRef Id="VC_redist.x86.exe"/>
+      <ComponentRef Id="VC_redist.x64.exe"/>
 
       <!-- Resource files -->
       <ComponentGroupRef Id="DataFolder"/>

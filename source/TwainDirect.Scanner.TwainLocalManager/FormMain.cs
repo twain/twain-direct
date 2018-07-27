@@ -30,6 +30,28 @@ namespace TwainDirect.Scanner.TwainLocalManager
             // Init the form...
             InitializeComponent();
 
+            // Are we running in reduced mode?
+            string szTwainDirectApp = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            szTwainDirectApp = Path.Combine(szTwainDirectApp, "TwainDirect.App.exe");
+            if (File.Exists(szTwainDirectApp))
+            {
+                m_groupboxSelfSignedCertificates.Enabled = false;
+                m_labelRoot.Enabled = false;
+                m_labelExchange.Enabled = false;
+                m_labelUrlAcl.Enabled = false;
+                m_richtextboxRoot.Enabled = false;
+                m_richtextboxExchange.Enabled = false;
+                m_richtextboxUrlAcl.Enabled = false;
+                m_buttonDeleteCertificates.Enabled = false;
+                m_buttonRefreshCertificates.Enabled = false;
+
+                m_groupboxFirewall.Enabled = false;
+                m_labelFirewall.Enabled = false;
+                m_richtextboxFirewall.Enabled = false;
+                m_buttonDeleteFirewall.Enabled = false;
+                m_buttonCreateFirewall.Enabled = false;
+            }
+
             // Init other stuff...
             m_szRootCertificateName = "TWAIN Direct Self-Signed Root Authority for " + Environment.MachineName; // Our root certificate
             m_szExchangeCertificateName = Environment.MachineName + ".local"; // The exchange name for this PC
@@ -108,13 +130,15 @@ namespace TwainDirect.Scanner.TwainLocalManager
                     Process process = new Process();
                     process.StartInfo.UseShellExecute = true;
                     process.StartInfo.FileName = "msiexec.exe";
-                    process.StartInfo.Arguments = "/i " + szBonjourInstaller;
+                    process.StartInfo.Arguments = "/i \"" + szBonjourInstaller + "\"";
                     process.Start();
                     process.WaitForExit();
+                    process.Dispose();
                 }
                 catch
                 {
                 }
+                UpdateBonjourInfoOnForm();
                 Cursor.Current = Cursors.Default;
             }
         }
@@ -173,9 +197,11 @@ namespace TwainDirect.Scanner.TwainLocalManager
                     Process process = new Process();
                     process.StartInfo.UseShellExecute = true;
                     process.StartInfo.FileName = "msiexec.exe";
-                    process.StartInfo.Arguments = "/x " + szBonjourInstaller;
+                    process.StartInfo.Arguments = "/x \"" + szBonjourInstaller + "\"";
                     process.Start();
                     process.WaitForExit();
+                    process.Dispose();
+                    UpdateBonjourInfoOnForm();
                 }
                 catch
                 {
@@ -927,6 +953,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
             process.Start();
             string szOutput = process.StandardOutput.ReadToEnd();
             process.WaitForExit();
+            process.Dispose();
             return (szOutput);
         }
 

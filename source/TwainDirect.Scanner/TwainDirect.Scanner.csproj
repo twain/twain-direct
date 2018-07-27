@@ -184,7 +184,11 @@
     <PostBuildEvent>echo Post-build actions...
 XCOPY "$(ProjectDir)data" "$(TargetDir)data" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.OnTwain\bin\$(PlatformName)\$(ConfigurationName)\data" "$(TargetDir)data" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.OnTwain\bin\$(PlatformName)\$(ConfigurationName)\TwainDirect.OnTwain.exe" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.OnTwain\bin\$(PlatformName)\$(ConfigurationName)\TwainDirect.OnTwain.exe.config" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\data" "$(TargetDir)data" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\TwainDirect.Scanner.TwainLocalManager.exe" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\TwainDirect.Scanner.TwainLocalManager.exe.config" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\BouncyCastle.Crypto.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
@@ -193,6 +197,10 @@ XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationNa
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\pdfras_digitalsignature.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\pdfras_encryption.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\certificate.p12" "$(TargetDir)data" /i /e /y /q</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>echo Pre-build actions...
+DEL /f /s /q "$(TargetDir)data"</PreBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

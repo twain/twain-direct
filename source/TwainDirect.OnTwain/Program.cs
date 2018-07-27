@@ -229,8 +229,9 @@ namespace TwainDirect.OnTwain
                     for (ii = 0; ii < 60; ii++)
                     {
                         bool blUpdated = false;
+                        bool blNoMonitor = false;
                         Thread.Sleep(1000);
-                        adnssddeviceinfo = dnssd.GetSnapshot(adnssddeviceinfo, out blUpdated);
+                        adnssddeviceinfo = dnssd.GetSnapshot(adnssddeviceinfo, out blUpdated, out blNoMonitor);
                         if (blUpdated)
                         {
                             Console.Out.WriteLine("");

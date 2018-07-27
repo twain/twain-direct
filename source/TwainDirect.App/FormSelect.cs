@@ -31,7 +31,9 @@
 
 // Helpers...
 using System;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Resources;
 using System.Threading;
 using System.Windows.Forms;
@@ -61,6 +63,7 @@ namespace TwainDirect.App
         {
             // Init stuff...
             InitializeComponent();
+            Config.ElevateButton(m_buttonManageTwainLocal.Handle);
             m_listviewSelect.MouseDoubleClick += new MouseEventHandler(m_listviewSelect_MouseDoubleClick);
             m_resourcemanager = a_resourcemanager;
 
@@ -175,6 +178,7 @@ namespace TwainDirect.App
             {
                 int ii;
                 bool blUpdated = false;
+                bool blNoMonitor = false;
                 Dnssd.DnssdDeviceInfo[] adnssddeviceinfo;
 
                 // Make a note of our current selection, if we have one, we expect our
@@ -194,7 +198,7 @@ namespace TwainDirect.App
                 }
 
                 // Take a snapshot...
-                adnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_adnssddeviceinfoCompare : null, out blUpdated);
+                adnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_adnssddeviceinfoCompare : null, out blUpdated, out blNoMonitor);
 
                 // If we've been asked to compare to the previous snapshot,
                 // and if we detect that no change occurred, we can scoot...
@@ -212,9 +216,17 @@ namespace TwainDirect.App
                 // We've no data...
                 if (adnssddeviceinfo == null)
                 {
-                    var item = new ListViewItem("*none*");
-                    item.Group = m_listviewSelect.Groups["localScannersGroup"];
-                    m_listviewSelect.Items.Add(item);
+                    if (blNoMonitor)
+                    {
+                        // Don't display anything, TWAIN Local is disabled...
+                    }
+                    else
+                    {
+                        // TWAIN Local is supported, we just didn't find any scanners...
+                        var item = new ListViewItem("*none*");
+                        item.Group = m_listviewSelect.Groups["localScannersGroup"];
+                        m_listviewSelect.Items.Add(item);
+                    }
                     SetButtons(ButtonState.Nodevices);
                 }
                 else
@@ -302,6 +314,68 @@ namespace TwainDirect.App
                 System.Windows.Forms.Timer timer = (System.Windows.Forms.Timer)a_object;
                 FormSelect formselect = (FormSelect)timer.Tag;
                 formselect.LoadScannerNames(true);
+            }
+
+            /// <summary>
+            /// Launch the TWAIN Local Manager...
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e"></param>
+            private void m_buttonManageTwainLocal_Click(object sender, EventArgs e)
+            {
+                string szTwainLocalManager;
+                Process process;
+                bool blDevicesFound = m_buttonOpen.Enabled;
+
+                // Get the path to the manager...
+                szTwainLocalManager = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "TwainDirect.Scanner.TwainLocalManager.exe");
+                if (!File.Exists(szTwainLocalManager))
+                {
+                    MessageBox.Show("TWAIN Local Manager is not installed on this system.", "Error");
+                    return;
+                }
+
+                // We're busy...
+                Cursor.Current = Cursors.WaitCursor;
+                SetButtons(ButtonState.Undefined);
+                this.Refresh();
+
+                // Launch it as admin...
+                process = new Process();
+                process.StartInfo.FileName = szTwainLocalManager;
+                process.StartInfo.UseShellExecute = true;
+                if (System.Environment.OSVersion.Version.Major >= 6)
+                {
+                    process.StartInfo.Verb = "runas";
+                }
+                try
+                {
+                    process.Start();
+                }
+                catch
+                {
+                    Log.Error("User chose not to run TwainLocalManager in elevated mode...");
+                    SetButtons(blDevicesFound ? ButtonState.Devices : ButtonState.Nodevices);
+                    Cursor.Current = Cursors.Default;
+                    return;
+                }
+
+                // Wait for it to finish...
+                Thread.Sleep(1000);
+                try
+                {
+                    process.WaitForInputIdle();
+                    this.Refresh();
+                    process.WaitForExit();
+                    process.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("Error waiting for TwainLocalManager - " + exception.Message);
+                }
+                SetButtons(blDevicesFound ? ButtonState.Devices : ButtonState.Nodevices);
+                MessageBox.Show("Please exit from the Twain Direct Application, and restart it.", "Installation Complete");
+                Cursor.Current = Cursors.Default;
             }
 
             /// <summary>
@@ -401,14 +475,17 @@ namespace TwainDirect.App
                     {
                         default:
                         case ButtonState.Undefined:
+                            m_buttonManageTwainLocal.Enabled = false;
                             m_buttonOpen.Enabled = false;
                             break;
 
                         case ButtonState.Nodevices:
+                            m_buttonManageTwainLocal.Enabled = true;
                             m_buttonOpen.Enabled = false;
                             break;
 
                         case ButtonState.Devices:
+                            m_buttonManageTwainLocal.Enabled = true;
                             m_buttonOpen.Enabled = true;
                             break;
                     }

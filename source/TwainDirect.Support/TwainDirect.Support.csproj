@@ -70,11 +70,11 @@
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="pdfras_reader_managed, Version=1.0.6368.26161, Culture=neutral">
+    <Reference Include="pdfras_reader_managed, Culture=neutral">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_reader_managed.dll</HintPath>
     </Reference>
-    <Reference Include="pdfras_writer_managed, Version=0.14.6368.26165, Culture=neutral">
+    <Reference Include="pdfras_writer_managed, Culture=neutral">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\pdfraster\bin\$(Platform)\$(Configuration)\pdfras_writer_managed.dll</HintPath>
     </Reference>

@@ -8,7 +8,7 @@
 // it'll have to come later...
 //
 // As for the mDNS / DNS-SD advertising, we're complying with the TWAIN Local
-// Specification:  http://twaindirect.org
+// Specification:  https://twaindirect.org
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
@@ -119,19 +119,28 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_adnssddeviceinfoCompare">array to compare against</param>
         /// <param name="a_blUpdated">true if updated</param>
+        /// <param name="a_blNoMonitor">true if we don't have a monitor</param>
         /// <returns>a list of devices or null</returns>
-        public DnssdDeviceInfo[] GetSnapshot(DnssdDeviceInfo[] a_adnssddeviceinfoCompare, out bool a_blUpdated)
+        public DnssdDeviceInfo[] GetSnapshot(DnssdDeviceInfo[] a_adnssddeviceinfoCompare, out bool a_blUpdated, out bool a_blNoMonitor)
         {
             long ii;
             DnssdDeviceInfo[] dnssddeviceinfoCache = null;
 
             // Init stuff...
             a_blUpdated = false;
+            a_blNoMonitor = false;
 
             // Validate...
-            if (m_reason != Reason.Monitor)
+            if (m_hmoduleDnssd == IntPtr.Zero)
             {
                 Log.Error("This function can't be used at this time...");
+                a_blNoMonitor = true;
+                return (null);
+            }
+            else if (m_reason != Reason.Monitor)
+            {
+                Log.Error("This function can't be used at this time...");
+                a_blNoMonitor = true;
                 return (null);
             }
 

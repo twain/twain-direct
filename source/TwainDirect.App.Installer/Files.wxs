@@ -88,6 +88,14 @@
             <File Id="TwainDirect.App.exe.config" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.App.exe.config" KeyPath="yes" />
           </Component>
 
+          <Component Id="TwainDirect.Scanner.TwainLocalManager.exe" Guid="{59DC4E9C-7E46-41BB-BE91-403653F3F531}">
+            <File Id="TwainDirect.Scanner.TwainLocalManager.exe" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.Scanner.TwainLocalManager.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Scanner.TwainLocalManager.exe.config" Guid="{4BD958B8-2146-465C-8D2C-C0AA9B37D33D}">
+            <File Id="TwainDirect.Scanner.TwainLocalManager.exe.config" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.Scanner.TwainLocalManager.exe.config" KeyPath="yes" />
+          </Component>
+
           <Component Id="TwainDirect.Support.dll" Guid="{3374B2B1-DDF2-4E8C-99FF-2B6C21667077}">
             <File Id="TwainDirect.Support.dll" Source="$(var.TwainDirect.App.TargetDir)\TwainDirect.Support.dll" KeyPath="yes" />
           </Component>
@@ -101,6 +109,14 @@
             <File Id="vcruntime140.dll.x86" Source="$(var.LibFolder)\Runtime\x86\vcruntime140.dll" KeyPath="yes" />
           </Component>
           <?endif ?>
+
+          <Component Id="VC_redist.x64.exe" Guid="{70C637FC-47C0-4BDB-89A0-4E151012569F}">
+            <File Id="VC_redist.x64.exe" Source="$(var.LibFolder)\Runtime\x64\VC_redist.x64.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="VC_redist.x86.exe" Guid="{3380B0A0-273F-4B68-B99C-B31220A59290}">
+            <File Id="VC_redist.x86.exe" Source="$(var.LibFolder)\Runtime\x86\VC_redist.x86.exe" KeyPath="yes" />
+          </Component>
 
         </Directory>
       </Directory>
