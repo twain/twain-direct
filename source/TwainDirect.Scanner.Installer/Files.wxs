@@ -94,6 +94,18 @@
             <File Id="SQLite.CodeFirst.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\SQLite.CodeFirst.dll" KeyPath="yes" />
           </Component>
 
+          <Directory Id="INSTALLFOLDERX86" Name="x86">
+            <Component Id="SQLite.Interop.dll.x86" Guid="{09A46DA7-BC25-467F-B454-9E27FEF9006B}">
+              <File Id="SQLite.Interop.dll.x86" Source="$(var.TwainDirect.Scanner.TargetDir)\x86\SQLite.Interop.dll" KeyPath="yes" />
+            </Component>
+          </Directory>
+
+          <Directory Id="INSTALLFOLDERX64" Name="x64">
+            <Component Id="SQLite.Interop.dll.x64" Guid="{5227FC6B-C286-4D5C-9D45-DA6A4F0207F5}">
+              <File Id="SQLite.Interop.dll.x64" Source="$(var.TwainDirect.Scanner.TargetDir)\x64\SQLite.Interop.dll" KeyPath="yes" />
+            </Component>
+          </Directory>
+
           <Component Id="System.Data.SQLite.dll" Guid="{CD3186D7-EABD-443B-AA1E-B669C20F4E56}">
             <File Id="System.Data.SQLite.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\System.Data.SQLite.dll" KeyPath="yes" />
           </Component>

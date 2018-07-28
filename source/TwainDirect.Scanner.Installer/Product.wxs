@@ -40,6 +40,8 @@
       <ComponentRef Id="MQTTnet.dll"/>
       <ComponentRef Id="Newtonsoft.Json.dll"/>
       <ComponentRef Id="SQLite.CodeFirst.dll"/>
+      <ComponentRef Id="SQLite.Interop.dll.x86"/>
+      <ComponentRef Id="SQLite.Interop.dll.x64"/>
       <ComponentRef Id="System.Data.SQLite.dll"/>
       <ComponentRef Id="System.Data.SQLite.EF6.dll"/>
       <ComponentRef Id="System.Data.SQLite.Linq.dll"/>
