@@ -2088,8 +2088,20 @@ namespace TwainDirect.App
 
         private void cloudButton_Click(object sender, EventArgs e)
         {
+            int menuPosition = cloudButton.Height;
+            Point screenPoint = PointToScreen(new Point(cloudButton.Left, cloudButton.Bottom));
+
+            if (screenPoint.Y + cloudMenuStrip.Size.Height > Screen.PrimaryScreen.WorkingArea.Height)
+                menuPosition = -cloudMenuStrip.Size.Height;
+
+            cloudMenuStrip.Show(cloudButton, new Point(0, menuPosition));
+        }
+
+        private void loginToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var loginProvider = (sender as ToolStripMenuItem).Tag as string;
             var apiRoot = CloudManager.GetCloudApiRoot();
-            var loginUrl = $"{apiRoot}/authentication/signin/facebook";
+            var loginUrl = $"{apiRoot}/authentication/signin/" + loginProvider;
 
             var loginForm = new FacebookLoginForm(loginUrl);
             loginForm.Authorized += async (_, args) =>
