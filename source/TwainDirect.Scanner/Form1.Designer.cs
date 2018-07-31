@@ -45,13 +45,15 @@
             this.m_notifyicon = new System.Windows.Forms.NotifyIcon(this.components);
             this.panel1 = new System.Windows.Forms.Panel();
             this.m_CloudRegisterButton = new System.Windows.Forms.Button();
+            this.m_buttonManageTwainLocal = new System.Windows.Forms.Button();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // m_buttonStart
             // 
-            this.m_buttonStart.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStart.Location = new System.Drawing.Point(263, 8);
+            this.m_buttonStart.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_buttonStart.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            this.m_buttonStart.Location = new System.Drawing.Point(457, 286);
             this.m_buttonStart.Name = "m_buttonStart";
             this.m_buttonStart.Size = new System.Drawing.Size(75, 23);
             this.m_buttonStart.TabIndex = 58;
@@ -61,8 +63,9 @@
             // 
             // m_buttonStop
             // 
-            this.m_buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_buttonStop.Location = new System.Drawing.Point(344, 8);
+            this.m_buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_buttonStop.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            this.m_buttonStop.Location = new System.Drawing.Point(538, 286);
             this.m_buttonStop.Name = "m_buttonStop";
             this.m_buttonStop.Size = new System.Drawing.Size(75, 23);
             this.m_buttonStop.TabIndex = 59;
@@ -78,17 +81,18 @@
             this.m_richtextboxTask.Location = new System.Drawing.Point(0, 0);
             this.m_richtextboxTask.Name = "m_richtextboxTask";
             this.m_richtextboxTask.ReadOnly = true;
-            this.m_richtextboxTask.Size = new System.Drawing.Size(404, 183);
+            this.m_richtextboxTask.Size = new System.Drawing.Size(598, 240);
             this.m_richtextboxTask.TabIndex = 61;
             this.m_richtextboxTask.Text = "";
             // 
             // m_buttonRegister
             // 
-            this.m_buttonRegister.Location = new System.Drawing.Point(11, 8);
+            this.m_buttonRegister.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            this.m_buttonRegister.Location = new System.Drawing.Point(471, 8);
             this.m_buttonRegister.Name = "m_buttonRegister";
-            this.m_buttonRegister.Size = new System.Drawing.Size(75, 23);
+            this.m_buttonRegister.Size = new System.Drawing.Size(142, 23);
             this.m_buttonRegister.TabIndex = 62;
-            this.m_buttonRegister.Text = "Register...";
+            this.m_buttonRegister.Text = "Select Scanner...";
             this.m_buttonRegister.UseVisualStyleBackColor = true;
             this.m_buttonRegister.Click += new System.EventHandler(this.m_buttonRegister_Click);
             // 
@@ -109,24 +113,38 @@
             this.panel1.Controls.Add(this.m_richtextboxTask);
             this.panel1.Location = new System.Drawing.Point(13, 38);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(406, 185);
+            this.panel1.Size = new System.Drawing.Size(600, 242);
             this.panel1.TabIndex = 63;
             // 
             // m_CloudRegisterButton
             // 
-            this.m_CloudRegisterButton.Location = new System.Drawing.Point(92, 8);
+            this.m_CloudRegisterButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_CloudRegisterButton.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            this.m_CloudRegisterButton.Location = new System.Drawing.Point(14, 8);
             this.m_CloudRegisterButton.Name = "m_CloudRegisterButton";
-            this.m_CloudRegisterButton.Size = new System.Drawing.Size(101, 23);
+            this.m_CloudRegisterButton.Size = new System.Drawing.Size(142, 23);
             this.m_CloudRegisterButton.TabIndex = 64;
             this.m_CloudRegisterButton.Text = "Register Cloud...";
             this.m_CloudRegisterButton.UseVisualStyleBackColor = true;
             this.m_CloudRegisterButton.Click += new System.EventHandler(this.m_CloudRegisterButton_Click);
             // 
+            // m_buttonManageTwainLocal
+            // 
+            this.m_buttonManageTwainLocal.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            this.m_buttonManageTwainLocal.Location = new System.Drawing.Point(162, 8);
+            this.m_buttonManageTwainLocal.Name = "m_buttonManageTwainLocal";
+            this.m_buttonManageTwainLocal.Size = new System.Drawing.Size(142, 23);
+            this.m_buttonManageTwainLocal.TabIndex = 65;
+            this.m_buttonManageTwainLocal.Text = "Manage Local...";
+            this.m_buttonManageTwainLocal.UseVisualStyleBackColor = true;
+            this.m_buttonManageTwainLocal.Click += new System.EventHandler(this.m_buttonManageTwainLocal_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(431, 235);
+            this.ClientSize = new System.Drawing.Size(625, 318);
+            this.Controls.Add(this.m_buttonManageTwainLocal);
             this.Controls.Add(this.m_CloudRegisterButton);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.m_buttonRegister);
@@ -150,6 +168,7 @@
         private System.Windows.Forms.NotifyIcon m_notifyicon;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Button m_CloudRegisterButton;
+        private System.Windows.Forms.Button m_buttonManageTwainLocal;
     }
 }
 

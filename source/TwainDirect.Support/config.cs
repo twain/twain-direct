@@ -111,7 +111,7 @@ namespace TwainDirect.Support
             // default...
             if ((a_szKey == "pfxFile") && string.IsNullOrEmpty(a_szDefault))
             {
-                return (Path.Combine(ms_szReadFolder, "certificate.p12"));
+                return (Path.Combine(Path.Combine(ms_szReadFolder, "data"), "certificate.p12"));
             }
 
             // All done...
@@ -253,12 +253,17 @@ namespace TwainDirect.Support
                 ms_aszCommandLine = a_aszCommandLine;
 
                 // Load the config, we'll first look for a name decorated version
-                // of the file (ex: TwainDirect.Scanner.appdata.txt), and if that
-                // fails, then we'll try appdata.txt...
-                string szConfigFile = Path.Combine(ms_szReadFolder, ms_szExecutableName + "." + a_szConfigFile);
+                // of the file (ex: TwainDirect.Scanner.appdata.txt) in the data
+                // folder, and if that fails we'll try the same folder as the .exe,
+                // if that fails we'll do just the name given to us...
+                string szConfigFile = Path.Combine(Path.Combine(ms_szReadFolder, "data"), ms_szExecutableName + "." + a_szConfigFile);
                 if (!File.Exists(szConfigFile))
                 {
-                    szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
+                    szConfigFile = Path.Combine(ms_szReadFolder, ms_szExecutableName + "." + a_szConfigFile);
+                    if (!File.Exists(szConfigFile))
+                    {
+                        szConfigFile = Path.Combine(ms_szReadFolder, a_szConfigFile);
+                    }
                 }
                 if (File.Exists(szConfigFile))
                 {
@@ -326,6 +331,14 @@ namespace TwainDirect.Support
                 return (32);
             }
             return (64);
+        }
+
+        /// <summary>
+        /// Put a UAC shield on a button...
+        /// </summary>
+        public static void ElevateButton(IntPtr a_intptrHandle)
+        {
+            NativeMethods.SendMessage(a_intptrHandle, NativeMethods.BCM_SETSHIELD, IntPtr.Zero, IntPtr.Zero - 1);
         }
 
         #endregion

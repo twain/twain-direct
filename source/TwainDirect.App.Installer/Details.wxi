@@ -49,7 +49,6 @@
   <?define ProductDialogBitmap="$(var.ResourceFolder)\dialog.bmp" ?>
   <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
   <?define ProductLicense="$(var.ResourceFolder)\license.rtf" ?>
-
-  <?define TwainDirect.Tasks="$(var.TwainDirect.App.TargetDir)data\tasks" ?>
+  <?define DataFolder="$(var.ProjectDir)\..\TwainDirect.App\bin\$(var.Platform)\$(var.Configuration)\data" ?>
 
 </Include>

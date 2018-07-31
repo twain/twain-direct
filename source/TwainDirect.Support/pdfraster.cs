@@ -34,6 +34,7 @@
 
 // Helpers...
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -49,6 +50,67 @@ namespace TwainDirect.Support
         // Public Methods: PdfRaster
         ///////////////////////////////////////////////////////////////////////////////
         #region Public Methods: PdfRaster
+
+        /// <summary>
+        /// See if we can load the PDF/raster binaries, use this to determine
+        /// if we need to install the visual studio redistributables...
+        /// </summary>
+        /// <returns></returns>
+        public bool HealthCheck()
+        {
+            try
+            {
+                PdfRasterReader.Reader pdfRasRd = null;
+                pdfRasRd = new PdfRasterReader.Reader();
+                pdfRasRd = null;
+            }
+            catch
+            {
+                return (false);
+            }
+            return (true);
+        }
+
+        /// <summary>
+        /// Install the redistributables for Visual Studio 2017...
+        /// </summary>
+        /// <returns>true if we launched it</returns>
+        public bool InstallVisualStudioRedistributables()
+        {
+            string szVcRedistExe;
+            Process process;
+
+            // Get the path to the manager...
+            szVcRedistExe = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "VC_redist.x86.exe");
+            if (!File.Exists(szVcRedistExe))
+            {
+                return (false);
+            }
+
+            // Launch it as admin...
+            process = new Process();
+            process.StartInfo.FileName = szVcRedistExe;
+            process.StartInfo.UseShellExecute = true;
+            if (System.Environment.OSVersion.Version.Major >= 6)
+            {
+                process.StartInfo.Verb = "runas";
+            }
+            try
+            {
+                process.Start();
+            }
+            catch
+            {
+                return (false);
+            }
+
+            // Wait for it to finish...
+            process.WaitForExit();
+            process.Dispose();
+
+            // Alld done...
+            return (true);
+        }
 
         /// <summary>
         /// Add image header to the image data from a PDF/raster..
@@ -180,12 +242,72 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Get the security infor for a PDF/raster file...
+        /// </summary>
+        /// <param name="a_szImage">a PDF/raster file</param>
+        /// <param name="a_securitytype">security for this file</param>
+        /// <returns>true if we were able to get info</returns>
+        public static bool GetSecurityType(string a_szImage, out SecurityType a_securitytype)
+        {
+            PdfRasterReader.Reader.PdfRasterReaderSecurityType rasterreadersecuritytype;
+            PdfRasterReader.Reader pdfRasRd = null;
+
+            // Check the argument...
+            if (string.IsNullOrEmpty(a_szImage))
+            {
+                Log.Error("GetSecurityType: file not specified...");
+                a_securitytype = SecurityType.Unknown;
+                return (false);
+            }
+            if (!File.Exists(a_szImage))
+            {
+                Log.Error("GetSecurityType: file not found - " + a_szImage);
+                a_securitytype = SecurityType.Unknown;
+                return (false);
+            }
+
+            // Give us a PDF reader object...
+            pdfRasRd = new PdfRasterReader.Reader();
+
+            // Get the security type...
+            try
+            {
+                rasterreadersecuritytype = pdfRasRd.decoder_get_security_type(a_szImage);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("GetSecurityType: decoder_get_security_type for " + a_szImage + " - " + exception.Message);
+                a_securitytype = SecurityType.Unknown;
+                return (false);
+            }
+
+            // Report the result...
+            switch (rasterreadersecuritytype)
+            {
+                default:
+                case PdfRasterReader.Reader.PdfRasterReaderSecurityType.PDFRASREAD_SECURITY_UNKNOWN:
+                    a_securitytype = SecurityType.Unknown;
+                    return (true);
+                case PdfRasterReader.Reader.PdfRasterReaderSecurityType.PDFRASREAD_UNENCRYPTED:
+                    a_securitytype = SecurityType.None;
+                    return (true);
+                case PdfRasterReader.Reader.PdfRasterReaderSecurityType.RASREAD_STANDARD_SECURITY:
+                    a_securitytype = SecurityType.Password;
+                    return (true);
+                case PdfRasterReader.Reader.PdfRasterReaderSecurityType.RASREAD_PUBLIC_KEY_SECURITY:
+                    a_securitytype = SecurityType.Certificate;
+                    return (true);
+            }
+        }
+
+        /// <summary>
         /// Convert a PDF/raster into something we can easily display with
         /// native .NET stuff...
         /// </summary>
         /// <param name="a_szImage">file to convert</param>
+        /// <param name="a_szPassword">an optional password</param>
         /// <returns>a byte array we can turn into a bitmap</returns>
-        public static byte[] ConvertPdfToTiffOrJpeg(string a_szImage)
+        public static byte[] ConvertPdfToTiffOrJpeg(string a_szImage, string a_szPassword = null)
         {
             int decoder = -1;
             long lWidth;
@@ -193,6 +315,7 @@ namespace TwainDirect.Support
             long lResolution;
             byte[] abStripData;
             byte[] abImage = null;
+            PdfRasterReader.Reader.PdfRasterReaderSecurityType rasterreadersecuritytype;
             PdfRasterReader.Reader.PdfRasterReaderPixelFormat rasterreaderpixelformat;
             PdfRasterReader.Reader.PdfRasterReaderCompression rasterreadercompression;
             PdfRasterReader.Reader pdfRasRd = null;
@@ -200,8 +323,35 @@ namespace TwainDirect.Support
             // Do the conversion...
             try
             {
+                // Give us a PDF reader object...
                 pdfRasRd = new PdfRasterReader.Reader();
-                decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
+
+                // We can't handle displaying encrypted images yet...
+                rasterreadersecuritytype = pdfRasRd.decoder_get_security_type(a_szImage);
+                switch (rasterreadersecuritytype)
+                {
+                    default:
+                    case PdfRasterReader.Reader.PdfRasterReaderSecurityType.PDFRASREAD_SECURITY_UNKNOWN:
+                        Log.Error("ConvertPdfToTiffOrJpeg: unrecognized security type - " + rasterreadersecuritytype);
+                        return (null);
+                    case PdfRasterReader.Reader.PdfRasterReaderSecurityType.RASREAD_PUBLIC_KEY_SECURITY:
+                        Log.Error("ConvertPdfToTiffOrJpeg: not supported yet - " + rasterreadersecuritytype);
+                        return (null);
+                    case PdfRasterReader.Reader.PdfRasterReaderSecurityType.PDFRASREAD_UNENCRYPTED:
+                    case PdfRasterReader.Reader.PdfRasterReaderSecurityType.RASREAD_STANDARD_SECURITY:
+                        // We can do these...
+                        break;
+                }
+
+                // Okay, let's do it...
+                if (a_szPassword == null)
+                {
+                    decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
+                }
+                else
+                {
+                    decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage, a_szPassword);
+                }
                 lWidth = pdfRasRd.decoder_get_width(decoder);
                 lHeight = pdfRasRd.decoder_get_height(decoder);
                 lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
@@ -820,6 +970,25 @@ namespace TwainDirect.Support
 
             // Success...
             return (true);
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Definitions...
+
+        /// <summary>
+        /// The kinds of security that can be given to a PDF/raster file...
+        /// </summary>
+        public enum SecurityType
+        {
+            None,
+            Password,
+            Certificate,
+            Unknown
         }
 
         #endregion

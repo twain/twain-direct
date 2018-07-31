@@ -164,43 +164,19 @@ namespace TwainDirect.App
             // Get our TWAIN Local interface.
             m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
 
-            // If we don't have any tasks in the user's folder, bring
-            // over the ones that we installed with the binary...
-            string szTasksSrc = Path.Combine(Config.Get("readFolder", ""), "tasks");
-            if (!Directory.Exists(szTasksSrc))
+            // Is PDF/raster happy and healthy?
+            PdfRaster pdfraster = new PdfRaster();
+            if (!pdfraster.HealthCheck())
             {
-                szTasksSrc = Path.Combine(Config.Get("readFolder", ""), "data", "tasks");
-            }
-            string szTasksDst = Path.Combine(Config.Get("writeFolder", ""), "tasks");
-            if (!Directory.Exists(szTasksDst))
-            {
-                try
+                DialogResult dialogresult = MessageBox.Show
+                (
+                    "We need to install the Visual Studio 2017 Redistributables for PDF/raster.  May we continue?",
+                    "Warning",
+                    MessageBoxButtons.YesNo
+                );
+                if (dialogresult == DialogResult.Yes)
                 {
-                    Directory.CreateDirectory(szTasksDst);
-                }
-                catch
-                {
-                    // Oh well...
-                }
-            }
-            if (Directory.Exists(szTasksSrc) && Directory.Exists(szTasksDst))
-            {
-                // .tdt is TWAIN Direct Task...
-                string[] aszFiles = Directory.GetFiles(szTasksDst, "*.tdt");
-                if ((aszFiles == null) || (aszFiles.Length == 0))
-                {
-                    aszFiles = Directory.GetFiles(szTasksSrc);
-                    foreach (string szFile in aszFiles)
-                    {
-                        try
-                        {
-                            File.Copy(szFile, Path.Combine(szTasksDst, Path.GetFileName(szFile)), true);
-                        }
-                        catch
-                        {
-                            // Just keep going...
-                        }
-                    }
+                    pdfraster.InstallVisualStudioRedistributables();
                 }
             }
         }
@@ -383,6 +359,8 @@ namespace TwainDirect.App
             // Init stuff...
             alImageBlocks = null;
             blStopCapturing = true;
+            m_szPassword = null;
+            m_blSecurityChecked = false;
 
             // We want to return the first apicmd that has a problem, to do that we
             // need a bait-and-switch scheme that starts with making an object that
@@ -1022,6 +1000,8 @@ namespace TwainDirect.App
             string szBasename;
             string szPdf;
             string szImageText;
+            bool blResult;
+            PdfRaster.SecurityType securitytype;
             bool blGotImage = false;
             string szFinishedImageBasename;
             byte[] abImage;
@@ -1052,8 +1032,20 @@ namespace TwainDirect.App
             // Just for now...
             blGotImage = true;
 
+            // Do we need a password?
+            if (!m_blSecurityChecked)
+            {
+                m_szPassword = null;
+                m_blSecurityChecked = true;
+                blResult = PdfRaster.GetSecurityType(szPdf, out securitytype);
+                if (blResult && (securitytype == PdfRaster.SecurityType.Password))
+                {
+                    m_szPassword = "open";
+                }
+            }
+
             // Convert the beastie...
-            abImage = PdfRaster.ConvertPdfToTiffOrJpeg(szPdf);
+            abImage = PdfRaster.ConvertPdfToTiffOrJpeg(szPdf, m_szPassword);
             if (abImage == null)
             {
                 Log.Error("failed to convert the image...");
@@ -1274,6 +1266,7 @@ namespace TwainDirect.App
         private void m_buttonOpen_Click(object sender, EventArgs e)
         {
             bool blUpdated;
+            bool blNoMonitor;
             bool blSuccess;
             long lJsonErrorIndex;
             string szSelected = null;
@@ -1347,7 +1340,7 @@ namespace TwainDirect.App
             }
 
             // Grab a snapshot of what's out there...
-            adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated);
+            adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
             if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
             {
                 MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoTwainScanners"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
@@ -2080,6 +2073,8 @@ namespace TwainDirect.App
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
         private TwainCloudTokens _cloudTokens;
+        private bool m_blSecurityChecked;
+        private string m_szPassword;
 
         // Where we get our localized strings...
         ResourceManager m_resourcemanager;
@@ -2112,7 +2107,7 @@ namespace TwainDirect.App
 
                 var client = new TwainCloudClient(apiRoot, _cloudTokens);
                 await m_twainlocalscannerclient.ConnectToCloud(client);
-                m_twainlocalscannerclient.ExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
+                m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
 
             };
 

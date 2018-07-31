@@ -46,7 +46,7 @@
     
     mimetype: application/x-microsoft.net.object.binary.base64
     value   : The object must be serialized with 
-            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : System.Serialization.Formatters.Binary.BinaryFormatter
             : and then encoded with base64 encoding.
     
     mimetype: application/x-microsoft.net.object.soap.base64
@@ -60,7 +60,6 @@
             : and then encoded with base64 encoding.
     -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
         <xsd:choice maxOccurs="unbounded">
@@ -69,10 +68,9 @@
               <xsd:sequence>
                 <xsd:element name="value" type="xsd:string" minOccurs="0" />
               </xsd:sequence>
-              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
               <xsd:attribute name="type" type="xsd:string" />
               <xsd:attribute name="mimetype" type="xsd:string" />
-              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="assembly">
@@ -87,10 +85,9 @@
                 <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
                 <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
               </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
               <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
               <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
-              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="resheader">
@@ -112,71 +109,9 @@
     <value>2.0</value>
   </resheader>
   <resheader name="reader">
-    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <resheader name="writer">
-    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="errCloseTwainBridge" xml:space="preserve">
-    <value>Do you want to close the 'TWAIN Direct: TWAIN Bridge' program?</value>
-  </data>
-  <data name="errLookingForScanners" xml:space="preserve">
-    <value>Looking for scanners...</value>
-  </data>
-  <data name="errNoScannersFound" xml:space="preserve">
-    <value>No scanners found.</value>
-  </data>
-  <data name="errRegisterTwainDriver" xml:space="preserve">
-    <value>Do you want to select a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.</value>
-  </data>
-  <data name="errUnableToUseScanner" xml:space="preserve">
-    <value>We are unable to use the selected scanner.  Please make sure your scanner is turned on and connected before trying again.</value>
-  </data>
-  <data name="strButtonRegisterEllipsis" xml:space="preserve">
-    <value>Select Scanner...</value>
-    <comment>Pick a new TWAIN Driver...</comment>
-  </data>
-  <data name="strButtonStart" xml:space="preserve">
-    <value>Start</value>
-    <comment>Start server...</comment>
-  </data>
-  <data name="strButtonStop" xml:space="preserve">
-    <value>Stop</value>
-    <comment>Stop server...</comment>
-  </data>
-  <data name="strButtonTwainLocalManagerEllipsis" xml:space="preserve">
-    <value>Manage Local...</value>
-  </data>
-  <data name="strFormMainTitle" xml:space="preserve">
-    <value>TWAIN Direct: TWAIN Bridge</value>
-    <comment>Main Form title...</comment>
-  </data>
-  <data name="strMenuAbout" xml:space="preserve">
-    <value>&amp;About</value>
-    <comment>Information about this program...</comment>
-  </data>
-  <data name="strMenuExit" xml:space="preserve">
-    <value>E&amp;xit...</value>
-    <comment>Exit the program...</comment>
-  </data>
-  <data name="strMenuShowConsole" xml:space="preserve">
-    <value>&amp;Open</value>
-    <comment>Raise the server console window...</comment>
-  </data>
-  <data name="strTextAbout" xml:space="preserve">
-    <value>A program allowing TWAIN Direct applications to communicate with scanners supported by TWAIN drivers.</value>
-    <comment>Information about this program...</comment>
-  </data>
-  <data name="strTextListingScannersBegin" xml:space="preserve">
-    <value>Listing registered scanners...(please wait for the list)</value>
-    <comment>Notice that listing is starting...</comment>
-  </data>
-  <data name="strTextListingScannersEnd" xml:space="preserve">
-    <value>Listing complete...</value>
-    <comment>Notice that listing is done...</comment>
-  </data>
-  <data name="strTextNoScannersRegistered" xml:space="preserve">
-    <value>No scanners registered...</value>
-    <comment>Couldn't find any scanners...</comment>
-  </data>
 </root>

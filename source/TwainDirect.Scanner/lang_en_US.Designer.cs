@@ -19,7 +19,7 @@ namespace TwainDirect.Scanner {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class lang_en_US {
@@ -88,7 +88,7 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES..
+        ///   Looks up a localized string similar to Do you want to select a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES..
         /// </summary>
         public static string errRegisterTwainDriver {
             get {
@@ -106,7 +106,7 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Register....
+        ///   Looks up a localized string similar to Select Scanner....
         /// </summary>
         public static string strButtonRegisterEllipsis {
             get {
@@ -129,6 +129,15 @@ namespace TwainDirect.Scanner {
         public static string strButtonStop {
             get {
                 return ResourceManager.GetString("strButtonStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Manage Local....
+        /// </summary>
+        public static string strButtonTwainLocalManagerEllipsis {
+            get {
+                return ResourceManager.GetString("strButtonTwainLocalManagerEllipsis", resourceCulture);
             }
         }
         

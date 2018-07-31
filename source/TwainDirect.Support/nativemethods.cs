@@ -95,6 +95,11 @@ namespace TwainDirect.Support
             int wMsgFilterMax
         );
 
+        [DllImport("user32")]
+        public static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
+        internal const int BCM_FIRST = 0x1600; //Normal button
+        internal const int BCM_SETSHIELD = (BCM_FIRST + 0x000C); //Elevated button
+
         [DllImport("user32.dll")]
         public static extern int TranslateMessage([In] ref MSG lpMsg);
 
@@ -148,7 +153,7 @@ namespace TwainDirect.Support
         [DllImport("user32.dll", SetLastError = true)]
         public static extern IntPtr CreateWindowExW
         (
-           Int32 dwExStyle,
+           UInt32 dwExStyle,
            [MarshalAs(UnmanagedType.LPWStr)] string lpClassName,
            [MarshalAs(UnmanagedType.LPWStr)] string lpWindowName,
            Int32 dwStyle,
@@ -161,6 +166,9 @@ namespace TwainDirect.Support
            IntPtr hInstance,
            IntPtr lpParam
         );
+
+        [DllImport("user32.dll", EntryPoint = "ShowWindow", SetLastError = true)]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.U2)]

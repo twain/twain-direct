@@ -298,7 +298,14 @@ namespace TwainDirect.Scanner
                 Log.Error("MonitorTasksStart failed...");
                 return;
             }
-            Display("Ready for use...");
+            if (m_scanner.IsTwainLocalStarted())
+            {
+                Display("TWAIN Local is ready for use...");
+            }
+            if (m_scanner.IsTwainCloudStarted())
+            {
+                Display("TWAIN Cloud is ready for use...");
+            }
 
             // Prompt...
             Display("Press the enter key to stop...");

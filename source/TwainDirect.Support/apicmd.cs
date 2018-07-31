@@ -41,7 +41,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Cache;
-using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -795,6 +794,15 @@ namespace TwainDirect.Support
             task.Wait();
         }
 
+        /// <summary>
+        /// Squirrel away the cloud manager object...
+        /// </summary>
+        /// <param name="appManager"></param>
+        public void SetCloudManager(ApplicationManager a_applicationmanager)
+        {
+            m_applicationmanager = a_applicationmanager;
+        }
+
         private static readonly ConcurrentDictionary<string, TaskCompletionSource<CloudDeviceResponse>> OutstandingCloudRequests = 
             new ConcurrentDictionary<string, TaskCompletionSource<CloudDeviceResponse>>();
 
@@ -838,7 +846,7 @@ namespace TwainDirect.Support
             // Get the response, deal with communication problems...
             try
             {
-                if (IsCloud())
+                if (m_dnssddeviceinfo.IsCloud())
                 {
                     var cloudResponse = await WaitCloudResponse();
 
@@ -1130,10 +1138,10 @@ namespace TwainDirect.Support
                         {
                             var blockId = imageBlockIdToken.Value<string>();
 
-                            if (_appManager != null)
+                            if (m_applicationmanager != null)
                             {
                                 var scannerId = GetScannerIdFromRequest(m_httprequestdata.httpwebrequest.RequestUri.AbsolutePath);
-                                var downloadTask = Task.Run(async () => await _appManager.DownloadBlock(scannerId, blockId));
+                                var downloadTask = Task.Run(async () => await m_applicationmanager.DownloadBlock(scannerId, blockId));
                                 downloadTask.Wait();
                                 var bytes = downloadTask.Result;
 
@@ -1916,8 +1924,13 @@ namespace TwainDirect.Support
             // We're async, but we wait here for the response...
             try
             {
+                // Handle TWAIN Cloud...
+                if (m_dnssddeviceinfo.IsCloud())
+                {
+                    StartCloudRequest(m_CloudRequestId);
+                }
+
                 // Start the asynchronous request.
-                StartCloudRequest(m_CloudRequestId);
                 m_httprequestdata.autoreseteventHttpWebRequest = new AutoResetEvent(false);
                 IAsyncResult iasyncresult = (IAsyncResult)m_httprequestdata.httpwebrequest.BeginGetResponse(new AsyncCallback(ResponseCallBackLaunchpad), this);
 
@@ -1928,7 +1941,7 @@ namespace TwainDirect.Support
                 // KEYWORD:RESPONSE
                 // The response came in the allowed time. The work processing will happen in the 
                 // callback function.  The if-statement is the best place to break if all you
-                // want to do it catch the response coming back before it's processed...
+                // want to catch the response coming back before it's processed...
                 m_httprequestdata.autoreseteventHttpWebRequest.WaitOne();
                 if (m_registeredwaithandle != null)
                 {
@@ -2008,14 +2021,7 @@ namespace TwainDirect.Support
         /// <returns></returns>
         public bool HttpRespond(string a_szCode, string a_szResponse)
         {
-            byte[] abBufferJson = null;
-            byte[] abBufferThumbnailHeader = null;
-            byte[] abBufferThumbnail = null;
-            byte[] abBufferImageHeader = null;
             Stream streamResponse = null;
-            FileStream filestreamThumbnail = null;
-            FileStream filestreamImage = null;
-            string szBoundary = "WaFfLeSaReTaStY";
 
             // Handle a bad X-Privet-Token, we must do this before we do
             // anything else...
@@ -2084,16 +2090,6 @@ namespace TwainDirect.Support
         public bool IsLocal()
         {
             return (m_httplistenerdata.httplistenerresponse != null);
-        }
-
-        /// <summary>
-        /// Are we working with TWAIN Cloud?
-        /// </summary>
-        /// <returns>return true if we are</returns>
-        public bool IsCloud()
-        {
-            // TODO: find the way to detect this
-            return true;
         }
 
         /// <summary>
@@ -3126,7 +3122,11 @@ namespace TwainDirect.Support
         private bool m_blAbortClientRequest;
         private bool m_blTimeout;
 
+        /// <summary>
+        /// Cloud stuff...
+        /// </summary>
         private string m_CloudRequestId;
+        private ApplicationManager m_applicationmanager;
 
         #endregion
 
@@ -4135,12 +4135,5 @@ namespace TwainDirect.Support
         }
 
         #endregion
-
-        private ApplicationManager _appManager;
-
-        public void SetCloudManager(ApplicationManager appManager)
-        {
-            _appManager = appManager;
-        }
     }
 }

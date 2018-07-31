@@ -14,11 +14,14 @@ namespace TwainDirect.Support
         public HttpListenerContextBase()
         { }
 
-        public HttpListenerContextBase(HttpListenerContext context)
+        /// <summary>
+        /// We need this to avoid a CA2214 error on the constructor...
+        /// </summary>
+        /// <param name="context"></param>
+        public void Initialize(HttpListenerContext context)
         {
             Request = new HttpListenerRequestBase(context.Request);
             Response = new HttpListenerResponseBase(context.Response);
-
         }
 
         public virtual HttpListenerRequestBase Request { get; set; }
@@ -33,57 +36,359 @@ namespace TwainDirect.Support
             OnStreamClosed();
         }
 
-        public event EventHandler StreamClosed;
-
         protected virtual void OnStreamClosed()
         {
             StreamClosed?.Invoke(this, EventArgs.Empty);
         }
+
+        public event EventHandler StreamClosed;
     }
 
-    public class HttpListenerResponseBase
+    public class HttpListenerResponseBase : IDisposable
     {
-        private DeviceSession _deviceCloudSession;
+        ///////////////////////////////////////////////////////////////////////////////
+        // Public Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Public Methods...
 
-        public HttpListenerResponseBase(DeviceSession deviceCloudSession)
+        /// <summary>
+        /// Handle TWAIN Cloud...
+        /// </summary>
+        /// <param name="a_devicesessionCloud"></param>
+        public HttpListenerResponseBase(DeviceSession a_devicesessionCloud)
         {
-            _deviceCloudSession = deviceCloudSession;
+            // This is how we know we're a TWAIN Cloud response...
+            m_devicesessionCloud = a_devicesessionCloud;
+            m_httplistenerresponseLocal = null;
 
-            StatusCode = 200;
-            Headers = new WebHeaderCollection();
-            OutputStream = new ReactiveMemoryStream();
-
-            Headers.Add(HttpResponseHeader.ContentType, "application/json; charset=UTF-8");
+            // Init all the other stuff...
+            m_webheadercollection = new WebHeaderCollection();
+            m_szStastusDescription = null;
+            m_iStatusCode = 200;
+            m_streamOutput = new ReactiveMemoryStream();
+            m_lContentLength64 = 0;
+            m_webheadercollection.Add(HttpResponseHeader.ContentType, "application/json; charset=UTF-8");
         }
 
-        public HttpListenerResponseBase(HttpListenerResponse response)
+        /// <summary>
+        /// Handle TWAIN Local...
+        /// </summary>
+        /// <param name="a_httplistenerresponse"></param>
+        public HttpListenerResponseBase(HttpListenerResponse a_httplistenerresponseLocal)
         {
-            Headers = response.Headers;
-            StatusDescription = response.StatusDescription;
-            StatusCode = response.StatusCode;
-            OutputStream = response.OutputStream;
-            ContentLength64 = response.ContentLength64;
+            // This is how we know we're a TWAIN Local response...
+            m_httplistenerresponseLocal = a_httplistenerresponseLocal;
+            m_devicesessionCloud = null;
+
+            // Init all the other stuff...
+            m_webheadercollection = null;
+            m_szStastusDescription = null;
+            m_iStatusCode = 0;
+            m_streamOutput = null;
+            m_lContentLength64 = 0;
         }
 
+        /// <summary>
+        /// Destructor...
+        /// </summary>
+        ~HttpListenerResponseBase()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Get the body as a string...
+        /// </summary>
+        /// <returns></returns>
+        public string GetBodyString()
+        {
+            if (OutputStream is MemoryStream stream)
+            {
+                return (Encoding.UTF8.GetString(stream.ToArray()));
+            }
+
+            return (null);
+        }
+
+        /// <summary>
+        /// Dispatch an image block to TWAIN Cloud or TWAIN Local...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
         public bool WriteImageBlockResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
-            return _deviceCloudSession != null
-                ? WriteCloudResponse(a_szResponse, m_szThumbnailFile, m_szImageFile)
-                : WriteMultipartResponse(a_szResponse, m_szThumbnailFile, m_szImageFile);
+            // Handle TWAIN Cloud...
+            if (m_devicesessionCloud != null)
+            {
+                return (WriteCloudResponse(a_szResponse, m_szThumbnailFile, m_szImageFile));
+            }
+
+            // Handle TWAIN Local...
+            return (WriteMultipartResponse(a_szResponse, m_szThumbnailFile, m_szImageFile));
         }
 
+        /// <summary>
+        /// TWAIN Cloud and TWAIN Local have to do different things for Headers...
+        /// </summary>
+        public WebHeaderCollection Headers
+        {
+            get
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    return (m_webheadercollection);
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    return (m_httplistenerresponseLocal.Headers);
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    return (null);
+                }
+            }
+            set
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    m_webheadercollection = value;
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    m_httplistenerresponseLocal.Headers = value;
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                }
+            }
+        }
+
+        /// <summary>
+        /// TWAIN Cloud and TWAIN Local have to do different things for the StatusDescription...
+        /// </summary>
+        public string StatusDescription
+        {
+            get
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    return (m_szStastusDescription);
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    return (m_httplistenerresponseLocal.StatusDescription);
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    return (null);
+                }
+            }
+            set
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    m_szStastusDescription = value;
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    m_httplistenerresponseLocal.StatusDescription = value;
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                }
+            }
+        }
+
+        /// <summary>
+        /// TWAIN Cloud and TWAIN Local have to do different things for the StatusCode...
+        /// </summary>
+        public int StatusCode
+        {
+            get
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    return (m_iStatusCode);
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    return (m_httplistenerresponseLocal.StatusCode);
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    return (404);
+                }
+            }
+            set
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    m_iStatusCode = value;
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    m_httplistenerresponseLocal.StatusCode = value;
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                }
+            }
+        }
+
+        /// <summary>
+        /// TWAIN Cloud and TWAIN Local have to do different things for the OutputStream...
+        /// </summary>
+        public Stream OutputStream
+        {
+            get
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    return (m_streamOutput);
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    return (m_httplistenerresponseLocal.OutputStream);
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    return (null);
+                }
+            }
+        }
+
+        /// <summary>
+        /// TWAIN Cloud and TWAIN Local have to do different things for the ContentLength64...
+        /// </summary>
+        public long ContentLength64
+        {
+            get
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    return (m_lContentLength64);
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    return (m_httplistenerresponseLocal.ContentLength64);
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    return (-1);
+                }
+            }
+            set
+            {
+                // Handle TWAIN Cloud...
+                if (m_devicesessionCloud != null)
+                {
+                    m_lContentLength64 = value;
+                }
+                // Handle TWAIN Local...
+                else if (m_httplistenerresponseLocal != null)
+                {
+                    m_httplistenerresponseLocal.ContentLength64 = value;
+                }
+                // Ruh-roh...
+                else
+                {
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        protected virtual void Dispose(bool a_blDisposing)
+        {
+            // Free managed resources...
+            if (a_blDisposing)
+            {
+                if (m_streamOutput != null)
+                {
+                    m_streamOutput.Dispose();
+                    m_streamOutput = null;
+                }
+            }
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Methods...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Methods...
+
+        /// <summary>
+        /// Upload a block to the cloud...
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <returns></returns>
         private async Task<string> UploadBlock(string fileName)
         {
             if (!string.IsNullOrEmpty(fileName) && File.Exists(fileName))
             {
                 var bytes = File.ReadAllBytes(fileName);
-                return await _deviceCloudSession.UploadBlock(bytes);
+                return await m_devicesessionCloud.UploadBlock(bytes);
             }
 
             return null;
         }
 
-        public bool WriteCloudResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        /// <summary>
+        /// Handle TWAIN Cloud response...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
+        private bool WriteCloudResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
             var task = Task.Run(async () => await WriteCloudResponseAsync(a_szResponse, m_szThumbnailFile, m_szImageFile));
             task.Wait();
@@ -91,7 +396,14 @@ namespace TwainDirect.Support
             return task.Result;
         }
 
-        public async Task<bool> WriteCloudResponseAsync(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        /// <summary>
+        /// Handle TWAIN Cloud async portion of response...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
+        private async Task<bool> WriteCloudResponseAsync(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
             var thumbnailBlockId = await UploadBlock(m_szThumbnailFile);
             var imageBlockId = await UploadBlock(m_szImageFile);
@@ -107,7 +419,14 @@ namespace TwainDirect.Support
             return WriteJsonResponse(a_szResponse);
         }
 
-        public bool WriteMultipartResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        /// <summary>
+        /// Handle TWAIN Local response...
+        /// </summary>
+        /// <param name="a_szResponse"></param>
+        /// <param name="m_szThumbnailFile"></param>
+        /// <param name="m_szImageFile"></param>
+        /// <returns></returns>
+        private bool WriteMultipartResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
         {
             byte[] abBufferJson = null;
             byte[] abBufferThumbnailHeader = null;
@@ -356,91 +675,35 @@ namespace TwainDirect.Support
             return (true);
         }
 
-        //
-        // Summary:
-        //     Gets or sets the collection of header name/value pairs returned by the server.
-        //
-        // Returns:
-        //     A System.Net.WebHeaderCollection instance that contains all the explicitly set
-        //     HTTP headers to be included in the response.
-        //
-        // Exceptions:
-        //   T:System.InvalidOperationException:
-        //     The System.Net.WebHeaderCollection instance specified for a set operation is
-        //     not valid for a response.
-        public WebHeaderCollection Headers { get; set; }
-        //
-        // Summary:
-        //     Gets or sets a text description of the HTTP status code returned to the client.
-        //
-        // Returns:
-        //     The text description of the HTTP status code returned to the client. The default
-        //     is the RFC 2616 description for the System.Net.HttpListenerResponse.StatusCode
-        //     property value, or an empty string ("") if an RFC 2616 description does not exist.
-        //
-        // Exceptions:
-        //   T:System.ArgumentNullException:
-        //     The value specified for a set operation is null.
-        //
-        //   T:System.ArgumentException:
-        //     The value specified for a set operation contains non-printable characters.
-        public string StatusDescription { get; set; }
-        //
-        // Summary:
-        //     Gets or sets the HTTP status code to be returned to the client.
-        //
-        // Returns:
-        //     An System.Int32 value that specifies the HTTP status code for the requested resource.
-        //     The default is System.Net.HttpStatusCode.OK, indicating that the server successfully
-        //     processed the client's request and included the requested resource in the response
-        //     body.
-        //
-        // Exceptions:
-        //   T:System.ObjectDisposedException:
-        //     This object is closed.
-        //
-        //   T:System.Net.ProtocolViolationException:
-        //     The value specified for a set operation is not valid. Valid values are between
-        //     100 and 999 inclusive.
-        public int StatusCode { get; set; }
-        //
-        // Summary:
-        //     Gets a System.IO.Stream object to which a response can be written.
-        //
-        // Returns:
-        //     A System.IO.Stream object to which a response can be written.
-        //
-        // Exceptions:
-        //   T:System.ObjectDisposedException:
-        //     This object is closed.
-        public Stream OutputStream { get; set; }
-        //
-        // Summary:
-        //     Gets or sets the number of bytes in the body data included in the response.
-        //
-        // Returns:
-        //     The value of the response's Content-Length header.
-        //
-        // Exceptions:
-        //   T:System.ArgumentOutOfRangeException:
-        //     The value specified for a set operation is less than zero.
-        //
-        //   T:System.InvalidOperationException:
-        //     The response is already being sent.
-        //
-        //   T:System.ObjectDisposedException:
-        //     This object is closed.
-        public long ContentLength64 { get; set; }
+        #endregion
 
-        public string GetBodyString()
-        {
-            if (OutputStream is MemoryStream stream)
-            {
-                return Encoding.UTF8.GetString(stream.ToArray());
-            }
 
-            return null;
-        }
+        ///////////////////////////////////////////////////////////////////////////////
+        // Private Definitions...
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Definitions...
+
+        /// <summary>
+        /// Handle TWAIN Cloud...
+        /// </summary>
+        private DeviceSession m_devicesessionCloud;
+
+        /// <summary>
+        /// Handle TWAIN Local, we have to use this object directly, otherwise
+        /// we won't properly update items like ContentLength64...
+        /// </summary>
+        private HttpListenerResponse m_httplistenerresponseLocal;
+
+        /// <summary>
+        /// Local items for the Cloud...
+        /// </summary>
+        private WebHeaderCollection m_webheadercollection;
+        private string m_szStastusDescription;
+        private int m_iStatusCode;
+        private Stream m_streamOutput;
+        private long m_lContentLength64;
+
+        #endregion
     }
 
     public class HttpListenerRequestBase
@@ -497,7 +760,7 @@ namespace TwainDirect.Support
         public NameValueCollection Headers { get; set; }
     }
 
-    public class HttpWebResponseBase
+    public class HttpWebResponseBase : IDisposable
     {
         private readonly HttpWebResponse _response;
         private readonly Stream _responseStream;
@@ -520,6 +783,23 @@ namespace TwainDirect.Support
             ContentType = response.ContentType;
         }
 
+        /// <summary>
+        /// Destructor...
+        /// </summary>
+        ~HttpWebResponseBase()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
         public string ContentType { get; set; }
 
         public long ContentLength { get; set; }
@@ -536,6 +816,22 @@ namespace TwainDirect.Support
         public Stream GetResponseStream()
         {
             return _response != null ? _response?.GetResponseStream() : _responseStream;
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        protected virtual void Dispose(bool a_blDisposing)
+        {
+            // Free managed resources...
+            if (a_blDisposing)
+            {
+                if (_responseStream != null)
+                {
+                    _responseStream.Dispose();
+                }
+            }
         }
     }
 }

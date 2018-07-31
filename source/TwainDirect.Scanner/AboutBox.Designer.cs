@@ -134,7 +134,7 @@
             this.linkLabel1.Size = new System.Drawing.Size(411, 20);
             this.linkLabel1.TabIndex = 26;
             this.linkLabel1.TabStop = true;
-            this.linkLabel1.Text = "http://www.twaindirect.org";
+            this.linkLabel1.Text = "https://www.twaindirect.org";
             this.linkLabel1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.linkLabel1.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel1_LinkClicked);
             // 

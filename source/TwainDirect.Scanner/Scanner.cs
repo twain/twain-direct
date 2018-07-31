@@ -211,32 +211,76 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
+        /// True if TWAIN Local monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainLocalStarted()
+        {
+            if (m_twainlocalscannerdevice != null)
+            {
+                return (m_twainlocalscannerdevice.IsTwainLocalStarted());
+            }
+            return (false);
+        }
+
+        /// <summary>
+        /// True if TWAIN Cloud monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainCloudStarted()
+        {
+            if (m_twainlocalscannerdevice != null)
+            {
+                return (m_twainlocalscannerdevice.IsTwainCloudStarted());
+            }
+            return (false);
+        }
+
+        /// <summary>
         /// Start polling for tasks...
         /// </summary>
         /// <returns>true on success</returns>
         public async Task<bool> MonitorTasksStart()
         {
             bool blSuccess;
-
             CloudScanner cloudScanner = null;
-            using (var context = new CloudContext())
+            DeviceSession devicesession = null;
+            string szCloudApiRoot = "";
+            string szCloudScannerId = "";
+            TwainCloudClient twaincloudclient = null;
+
+            // If cloud fails, we should keep going so that the
+            // user can still run TWAIN Local...
+            try
             {
-                cloudScanner = context.Scanners.First();
+                using (var context = new CloudContext())
+                {
+                    cloudScanner = context.Scanners.First();
+                }
+
+                szCloudApiRoot = CloudManager.GetCloudApiRoot();
+                TwainCloudTokens twaincloudtokens = new TwainCloudTokens(cloudScanner.AuthorizationToken, cloudScanner.RefreshToken);
+                twaincloudclient = new TwainCloudClient(szCloudApiRoot, twaincloudtokens);
+                twaincloudclient.TokensRefreshed += (sender, args) =>
+                {
+                    cloudScanner.AuthorizationToken = args.Tokens.AuthorizationToken;
+                    cloudScanner.RefreshToken = args.Tokens.RefreshToken;
+                    SaveScannerRegistration(cloudScanner);
+                };
+                devicesession = new DeviceSession(twaincloudclient, cloudScanner.Id);
+                szCloudScannerId = cloudScanner.Id;
+            }
+            catch (Exception exception)
+            {
+                Log.Error("MonitorTasksStart: failed to initialize cloud, has it been registered? - " + exception.Message);
+                devicesession = null;
             }
 
-            var cloudClient = new TwainCloudClient(CloudManager.GetCloudApiRoot(), new TwainCloudTokens(cloudScanner.AuthorizationToken, cloudScanner.RefreshToken));
-            cloudClient.TokensRefreshed += (sender, args) =>
-            {
-                cloudScanner.AuthorizationToken = args.Tokens.AuthorizationToken;
-                cloudScanner.RefreshToken = args.Tokens.RefreshToken;
-                SaveScannerRegistration(cloudScanner);
-            };
-
             // Start monitoring for commands...
-            blSuccess = await m_twainlocalscannerdevice.DeviceHttpServerStart(new DeviceSession(cloudClient, cloudScanner.Id));
+            blSuccess = await m_twainlocalscannerdevice.DeviceHttpServerStart(devicesession, szCloudApiRoot, szCloudScannerId);
             if (!blSuccess)
             {
-                Log.Error("DeviceHttpServerStart failed...");
+                Log.Error("MonitorTasksStart: DeviceHttpServerStart failed...");
                 return (false);
             }
 

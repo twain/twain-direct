@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2026
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.App", "TwainDirect.App\TwainDirect.App.csproj", "{DE8AC167-CFF1-446D-9145-29179CA1B472}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -15,7 +15,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.OnTwain", "Twai
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.Scanner", "TwainDirect.Scanner\TwainDirect.Scanner.csproj", "{F8463B8B-C0F9-46D2-86C5-053F3301DF2F}"
 	ProjectSection(ProjectDependencies) = postProject
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708} = {BDD70370-60CC-40CA-B5DF-91B2604E5708}
 		{50D52482-9C72-45B3-9BCF-1E4B49976E48} = {50D52482-9C72-45B3-9BCF-1E4B49976E48}
+		{8AB4EAB2-F716-4578-827A-104BAD246488} = {8AB4EAB2-F716-4578-827A-104BAD246488}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.Support", "TwainDirect.Support\TwainDirect.Support.csproj", "{50D52482-9C72-45B3-9BCF-1E4B49976E48}"
@@ -44,6 +46,8 @@ EndProject
 Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "TwainDirect.Scanner.Installer.x64", "TwainDirect.Scanner.Installer\TwainDirect.Scanner.Installer.x64.wixproj", "{C7AE186F-0B8A-49B0-89DF-7E057876CA93}"
 EndProject
 Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "TwainDirect.Scanner.Installer.x86", "TwainDirect.Scanner.Installer\TwainDirect.Scanner.Installer.x86.wixproj", "{4F59193D-E8D0-4674-A393-06FFC60CEAA4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwainDirect.Scanner.TwainLocalManager", "TwainDirect.Scanner.TwainLocalManager\TwainDirect.Scanner.TwainLocalManager.csproj", "{BDD70370-60CC-40CA-B5DF-91B2604E5708}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -159,6 +163,18 @@ Global
 		{4F59193D-E8D0-4674-A393-06FFC60CEAA4}.Release|x64.ActiveCfg = Release|x86
 		{4F59193D-E8D0-4674-A393-06FFC60CEAA4}.Release|x86.ActiveCfg = Release|x86
 		{4F59193D-E8D0-4674-A393-06FFC60CEAA4}.Release|x86.Build.0 = Release|x86
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Debug|x64.ActiveCfg = Debug|x64
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Debug|x64.Build.0 = Debug|x64
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Debug|x86.ActiveCfg = Debug|x86
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Debug|x86.Build.0 = Debug|x86
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Release|x64.ActiveCfg = Release|x64
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Release|x64.Build.0 = Release|x64
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Release|x86.ActiveCfg = Release|x86
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -174,5 +190,9 @@ Global
 		{72610619-4943-40D6-BBCC-C8C5D45C5A9A} = {CFC5E49A-C970-43A7-8D9B-6AF5CAD9E165}
 		{C7AE186F-0B8A-49B0-89DF-7E057876CA93} = {70412968-24B4-4588-AE04-FC1B4003D794}
 		{4F59193D-E8D0-4674-A393-06FFC60CEAA4} = {70412968-24B4-4588-AE04-FC1B4003D794}
+		{BDD70370-60CC-40CA-B5DF-91B2604E5708} = {70412968-24B4-4588-AE04-FC1B4003D794}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {616FC2A9-86E2-4F42-8D07-DE670228EC5B}
 	EndGlobalSection
 EndGlobal

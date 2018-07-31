@@ -100,7 +100,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http.Formatting;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -109,7 +108,6 @@ using HazyBits.Twain.Cloud.Application;
 using HazyBits.Twain.Cloud.Client;
 using HazyBits.Twain.Cloud.Device;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 [assembly: CLSCompliant(true)]
 
@@ -229,7 +227,9 @@ namespace TwainDirect.Support
             ref HttpListenerContext a_httplistenercontext
         )
         {
-            DeviceDispatchCommandInternal(a_szJsonCommand, new HttpListenerContextBase(a_httplistenercontext));
+            HttpListenerContextBase httplistenercontextbase = new HttpListenerContextBase();
+            httplistenercontextbase.Initialize(a_httplistenercontext);
+            DeviceDispatchCommandInternal(a_szJsonCommand, httplistenercontextbase);
         }
 
         public void DeviceDispatchCommandInternal
@@ -249,7 +249,7 @@ namespace TwainDirect.Support
             // Confirm that this command is coming in on a good URI, if it's not
             // then ignore it...
             szUri = a_httplistenercontext.Request.RawUrl.ToString();
-            if ((szUri != "/privet/info")
+            if (    (szUri != "/privet/info")
                 &&  (szUri != "/privet/infoex")
                 &&  (szUri != "/privet/twaindirect/session"))
             {
@@ -257,8 +257,8 @@ namespace TwainDirect.Support
             }
 
             // Handle the /privet/info and /privet/infoex commands...
-            if ((szUri == "/privet/info")
-                || (szUri == "/privet/infoex"))
+            if (    (szUri == "/privet/info")
+                ||  (szUri == "/privet/infoex"))
             {
                 // Log it...
                 Log.Info("");
@@ -564,10 +564,19 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Start monitoring for HTTP commands...
+        /// Start monitoring for HTTP commands from TWAIN Local and/or
+        /// TWAIN Cloud.  Set flags letting us know what we got...
         /// </summary>
+        /// <param name="a_devicesessionCloud">the session</param>
+        /// <param name="a_szCloudApiRoot">the uri</param>
+        /// <param name="a_szCloudScannerId">the device-id guid</param>
         /// <returns></returns>
-        public async Task<bool> DeviceHttpServerStart(DeviceSession deviceCloudSession = null)
+        public async Task<bool> DeviceHttpServerStart
+        (
+            DeviceSession a_devicesessionCloud,
+            string a_szCloudApiRoot,
+            string a_szCloudScannerId
+        )
         {
             int iPort;
             bool blSuccess;
@@ -577,6 +586,14 @@ namespace TwainDirect.Support
             {
                 return (true);
             }
+
+            // Assume the worst...
+            m_blTwainLocalStarted = false;
+            m_blTwainCloudStarted = false;
+
+            // Squirrel this away, if it's null we're only monitoring for TWAIN Local clients,
+            // otherwise it's possible for us to get requests from TWAIN Cloud and TWAIN Local...
+            m_devicesessionCloud = a_devicesessionCloud;
 
             // Get our port...
             if (!int.TryParse(Config.Get("usePort", "34034"), out iPort))
@@ -602,30 +619,43 @@ namespace TwainDirect.Support
                 return (false);
             }
 
-            // Create our server...
-            m_httpserver = new HttpServer();
-
-            // Start us up...
-            blSuccess = m_httpserver.ServerStart
-            (
-                DeviceDispatchCommand,
-                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
-                iPort,
-                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
-                "",
-                m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
-            );
-            if (!blSuccess)
+            // Handle TWAIN Local monitoring...
+            try
             {
-                Log.Error("ServerStart failed...");
-                return (false);
+                // Create our TWAIN Local server...
+                m_httpserver = new HttpServer();
+
+                // Start watching the skies...
+                blSuccess = m_httpserver.ServerStart
+                (
+                    DeviceDispatchCommand,
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
+                    iPort,
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
+                    "",
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
+                );
+                if (blSuccess)
+                {
+                    m_blTwainLocalStarted = true;
+                }
+                else
+                {
+                    Log.Error("DeviceHttpServerStart: ServerStart failed...");
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("DeviceHttpServerStart: ServerStart failed - " + exception.Message);
             }
 
-            if (deviceCloudSession != null)
+            // Handle TWAIN Cloud monitoring...
+            if (m_devicesessionCloud != null)
             {
-
-
-                deviceCloudSession.Received += (sender, message) =>
+                // TBD: We only need these because we can't get them from DeviceSesson right now...
+                m_szCloudApiRoot = a_szCloudApiRoot;
+                m_szCloudScannerId = a_szCloudScannerId;
+                m_devicesessionCloud.Received += (sender, message) =>
                 {
                     Debug.WriteLine(message);
 
@@ -638,15 +668,19 @@ namespace TwainDirect.Support
                         var resource = cloudMessage.Url;
                         var startIndex = resource.IndexOf("/privet");
                         if (startIndex > 0)
+                        {
                             resource = resource.Substring(startIndex);
+                        }
 
                         var headers = new NameValueCollection();
                         foreach (var pair in cloudMessage.Headers)
+                        {
                             headers.Add(pair.Key, pair.Value);
+                        }
 
                         cloudMessage.Headers.TryGetValue("X-TWAIN-Cloud-Request-Id", out var requestId);
 
-                        context.Response = new HttpListenerResponseBase(deviceCloudSession);
+                        context.Response = new HttpListenerResponseBase(m_devicesessionCloud);
                         var responseStream = context.Response.OutputStream as ReactiveMemoryStream;
                         responseStream.StreamClosed += async (s, a) =>
                         {
@@ -660,7 +694,7 @@ namespace TwainDirect.Support
                             };
 
                             var responseMessage = JsonConvert.SerializeObject(deviceResponse, CloudManager.SerializationSettings);
-                            await deviceCloudSession.Send(responseMessage);
+                            await m_devicesessionCloud.Send(responseMessage);
                         };
 
                         context.Request = new HttpListenerRequestBase
@@ -675,7 +709,15 @@ namespace TwainDirect.Support
                     });
                 };
 
-                await deviceCloudSession.Connect();
+                try
+                {
+                    await m_devicesessionCloud.Connect();
+                    m_blTwainCloudStarted = true;
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("DeviceHttpServerStart: connect failed - " + exception.Message);
+                }
             }
 
             // All done...
@@ -857,6 +899,24 @@ namespace TwainDirect.Support
         public string GetTwainLocalTy()
         {
             return (m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy());
+        }
+
+        /// <summary>
+        /// True if TWAIN Local monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainLocalStarted()
+        {
+            return (m_blTwainLocalStarted);
+        }
+
+        /// <summary>
+        /// True if TWAIN Cloud monitoring started successfully...
+        /// </summary>
+        /// <returns></returns>
+        public bool IsTwainCloudStarted()
+        {
+            return (m_blTwainCloudStarted);
         }
 
         #endregion
@@ -1440,10 +1500,9 @@ namespace TwainDirect.Support
                 sessionstateOnEntry = m_twainlocalsession.GetSessionState();
             }
 
-            //////////////////////////////////////////////////
-            // We're responding to the /privet/info or the
-            // /privet/infoex command...
-            #region We're responding to the /privet/info command...
+            /////////////////////////////////////////////////////////////////////
+            // We're responding to the /privet/info or /privet/infoex command...
+            #region We're responding to the /privet/info or /privet/infoex command...
             if ((a_apicmd != null) && ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex")))
             {
                 string szDeviceState;
@@ -1506,10 +1565,28 @@ namespace TwainDirect.Support
                 string szInfoex = "";
                 if (a_apicmd.GetUri() == "/privet/infoex")
                 {
-                    szInfoex =
-                        "," +
-                        "\"clouds\":[" +
-                        "]";
+                    if ((m_devicesessionCloud == null))
+                    {
+                        szInfoex =
+                            "," +
+                            "\"clouds\":[" +
+                            "]";
+                    }
+                    else
+                    {
+                        szInfoex =
+                            "," +
+                            "\"clouds\":[" +
+                            "{" +
+                            "\"url\":\"" + m_szCloudApiRoot + "\"," +
+                            "\"id\":\"" + m_szCloudScannerId + "\"," +
+                            "\"connection_state\":\"" + "online" + "\"," +
+                            "\"setup_url\":\"" + "" + "\"," +
+                            "\"support_url\":\"" + "" + "\"," +
+                            "\"update_url\":\"" + "" + "\"" +
+                            "}" +
+                            "]";
+                    }
                 }
 
                 // Construct a response, always make a new X-Privet-Token...
@@ -3690,6 +3767,8 @@ namespace TwainDirect.Support
         /// one server...
         /// </summary>
         private HttpServer m_httpserver;
+        private bool m_blTwainLocalStarted;
+        private bool m_blTwainCloudStarted;
 
         // If we're splitting up the TWAIN Bridge images into smaller
         // chunks, then we have to create a new sequence of image
@@ -3745,6 +3824,13 @@ namespace TwainDirect.Support
         /// We've read the file once...
         /// </summary>
         private bool m_blReadImageBlocksDrainedMeta;
+
+        /// <summary>
+        /// Handle TWAIN Cloud...
+        /// </summary>
+        private DeviceSession m_devicesessionCloud;
+        private string m_szCloudApiRoot;
+        private string m_szCloudScannerId;
 
         #endregion
     }
@@ -3831,19 +3917,16 @@ namespace TwainDirect.Support
             m_llPendingImageBlocks = new List<long>();
         }
 
-        public Dictionary<string, string> ExtraHeaders = new Dictionary<string, string>();
-        private ApplicationManager _appManager;
-
         public async Task ConnectToCloud(TwainCloudClient client)
         {
-            _appManager = new ApplicationManager(client);
-            _appManager.Received += (sender, e) =>
+            m_applicationmanager = new ApplicationManager(client);
+            m_applicationmanager.Received += (sender, e) =>
             {
                 Debug.WriteLine(e);
                 ApiCmd.CompleteCloudResponse(e);
             };
 
-            await _appManager.Connect();
+            await m_applicationmanager.Connect();
         }
 
         /// <summary>
@@ -5495,7 +5578,7 @@ namespace TwainDirect.Support
                 // Apps do this: send a privet token, the recommendation
                 // for info/infoex is an empty string, indicated with two
                 // double-quotes "".
-                var headers = new Dictionary<string, string>(ExtraHeaders);
+                var headers = new Dictionary<string, string>(m_dictionaryExtraHeaders);
                 headers["X-Privet-Token"] = "";
                 aszHeader = headers.Select(item => $"{item.Key}: {item.Value}").ToArray();
 
@@ -5510,7 +5593,7 @@ namespace TwainDirect.Support
             // an X-Privet-Token...
             if (szXPrivetToken == null)
             {
-                aszHeader = ExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
+                aszHeader = m_dictionaryExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
                 {
                     szContentType
                 }).ToArray();
@@ -5519,7 +5602,7 @@ namespace TwainDirect.Support
             }
 
             // Apps do this: for any POST commands...
-            aszHeader = ExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
+            aszHeader = m_dictionaryExtraHeaders.Select(item => $"{item.Key}: {item.Value}").ToList().Concat(new string[]
             {
                 szContentType,
                 "X-Privet-Token: " + szXPrivetToken
@@ -5561,7 +5644,7 @@ namespace TwainDirect.Support
             // Our normal path...
             if (a_httpreplystyle != ApiCmd.HttpReplyStyle.Event)
             {
-                a_apicmd.SetCloudManager(this._appManager);
+                a_apicmd.SetCloudManager(this.m_applicationmanager);
 
                 // Send the RESTful API command...
                 blSuccess = a_apicmd.HttpRequest
@@ -6438,6 +6521,12 @@ namespace TwainDirect.Support
         /// </summary>
         private AutoResetEvent m_autoreseteventWaitForEventsProcessing;
         private bool m_blCancelWaitForEventsProcessing;
+
+        /// <summary>
+        /// Cloud stuff...
+        /// </summary>
+        public Dictionary<string, string> m_dictionaryExtraHeaders = new Dictionary<string, string>();
+        private ApplicationManager m_applicationmanager;
 
         #endregion
 

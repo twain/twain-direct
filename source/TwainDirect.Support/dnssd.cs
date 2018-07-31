@@ -8,7 +8,7 @@
 // it'll have to come later...
 //
 // As for the mDNS / DNS-SD advertising, we're complying with the TWAIN Local
-// Specification:  http://twaindirect.org
+// Specification:  https://twaindirect.org
 //
 ///////////////////////////////////////////////////////////////////////////////////////
 //  Author          Date            Comment
@@ -119,19 +119,28 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="a_adnssddeviceinfoCompare">array to compare against</param>
         /// <param name="a_blUpdated">true if updated</param>
+        /// <param name="a_blNoMonitor">true if we don't have a monitor</param>
         /// <returns>a list of devices or null</returns>
-        public DnssdDeviceInfo[] GetSnapshot(DnssdDeviceInfo[] a_adnssddeviceinfoCompare, out bool a_blUpdated)
+        public DnssdDeviceInfo[] GetSnapshot(DnssdDeviceInfo[] a_adnssddeviceinfoCompare, out bool a_blUpdated, out bool a_blNoMonitor)
         {
             long ii;
             DnssdDeviceInfo[] dnssddeviceinfoCache = null;
 
             // Init stuff...
             a_blUpdated = false;
+            a_blNoMonitor = false;
 
             // Validate...
-            if (m_reason != Reason.Monitor)
+            if (m_hmoduleDnssd == IntPtr.Zero)
             {
                 Log.Error("This function can't be used at this time...");
+                a_blNoMonitor = true;
+                return (null);
+            }
+            else if (m_reason != Reason.Monitor)
+            {
+                Log.Error("This function can't be used at this time...");
+                a_blNoMonitor = true;
                 return (null);
             }
 
@@ -212,7 +221,7 @@ namespace TwainDirect.Support
             // Create our window...
             m_hwnd = NativeMethods.CreateWindowExW
             (
-                0x300 /*WS_EX_OVERLAPPEDWINDOW*/,
+                0x00000080, //0x300 /*WS_EX_OVERLAPPEDWINDOW*/,
                 wcex.lpszClassName,
                 wcex.lpszClassName,
                 -1000,  //0,
@@ -241,6 +250,10 @@ namespace TwainDirect.Support
             {
                 NativeMethods.SetWindowLongPtr(m_hwnd, -21, GCHandle.ToIntPtr(m_gchandleThis)); // GWL_USERDATA
             }
+
+            // Make sure we're hidden, otherwise you'll get this annoying little toolbar window...
+            NativeMethods.ShowWindow(m_hwnd, 6 /*SW_MINIMIZE*/);
+            NativeMethods.ShowWindow(m_hwnd, 0 /*SW_HIDE*/);
 
             // Start browsing for services and associate the Bonjour browser with our window using the 
             // WSAAsyncSelect mechanism. Whenever something related to the Bonjour browser occurs, our 
@@ -547,6 +560,7 @@ namespace TwainDirect.Support
                 m_szTxtNote = "";
                 m_blTxtHttps = false;
                 m_aszTxt = null;
+                m_blIsCloud = false;
             }
 
             /// <summary>
@@ -571,6 +585,7 @@ namespace TwainDirect.Support
                 m_szTxtCs = a_dnssddeviceinfo.m_szTxtCs;
                 m_szTxtNote = a_dnssddeviceinfo.m_szTxtNote;
                 m_blTxtHttps = a_dnssddeviceinfo.m_blTxtHttps;
+                m_blIsCloud = a_dnssddeviceinfo.m_blIsCloud;
 
                 // Handle the weird one...
                 if ((a_dnssddeviceinfo.m_aszTxt == null) || (a_dnssddeviceinfo.m_aszTxt.Length == 0))
@@ -805,6 +820,24 @@ namespace TwainDirect.Support
             }
 
             /// <summary>
+            /// True if the selected item is cloud-based, else local...
+            /// </summary>
+            /// <returns>true if cloud</returns>
+            public bool IsCloud()
+            {
+                return (m_blIsCloud);
+            }
+
+            /// <summary>
+            /// Set true if this is a cloud connection...
+            /// </summary>
+            /// <param name="a_blIsCloud">true if a cloud connection</param>
+            public void SetCloud(bool a_blIsCloud)
+            {
+                m_blIsCloud = a_blIsCloud;
+            }
+
+            /// <summary>
             /// Set the flags reported with it...
             /// </summary>
             /// <param name="a_lFlags">flags reported with it</param>
@@ -987,6 +1020,11 @@ namespace TwainDirect.Support
             /// The IPv6 address (if any)...
             /// </summary>
             private string m_szIpv6;
+
+            /// <summary>
+            /// True if this is a cloud connection...
+            /// </summary>
+            private bool m_blIsCloud;
 
             /// <summary>
             /// The link local name for where the service is running...

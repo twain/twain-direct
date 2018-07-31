@@ -2219,9 +2219,10 @@ namespace TwainDirect.Certification
         private bool CmdList(ref Interpreter.FunctionArguments a_functionarguments)
         {
             bool blUpdated;
+            bool blNoMonitor;
 
             // Get a snapshot of the TWAIN Local scanners...
-            m_adnssddeviceinfoSnapshot = m_dnssd.GetSnapshot(null, out blUpdated);
+            m_adnssddeviceinfoSnapshot = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
 
             // Display TWAIN Local...
             if (!m_blSilent)
