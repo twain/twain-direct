@@ -46,6 +46,7 @@
             this.panel1 = new System.Windows.Forms.Panel();
             this.m_CloudRegisterButton = new System.Windows.Forms.Button();
             this.m_buttonManageTwainLocal = new System.Windows.Forms.Button();
+            this.m_checkboxRunOnLogin = new System.Windows.Forms.CheckBox();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -139,11 +140,23 @@
             this.m_buttonManageTwainLocal.UseVisualStyleBackColor = true;
             this.m_buttonManageTwainLocal.Click += new System.EventHandler(this.m_buttonManageTwainLocal_Click);
             // 
+            // m_checkboxRunOnLogin
+            // 
+            this.m_checkboxRunOnLogin.AutoSize = true;
+            this.m_checkboxRunOnLogin.Location = new System.Drawing.Point(13, 291);
+            this.m_checkboxRunOnLogin.Name = "m_checkboxRunOnLogin";
+            this.m_checkboxRunOnLogin.Size = new System.Drawing.Size(187, 17);
+            this.m_checkboxRunOnLogin.TabIndex = 66;
+            this.m_checkboxRunOnLogin.Text = "Run this program when you log on";
+            this.m_checkboxRunOnLogin.UseVisualStyleBackColor = true;
+            this.m_checkboxRunOnLogin.CheckedChanged += new System.EventHandler(this.m_checkboxRunOnLogin_CheckedChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(625, 318);
+            this.Controls.Add(this.m_checkboxRunOnLogin);
             this.Controls.Add(this.m_buttonManageTwainLocal);
             this.Controls.Add(this.m_CloudRegisterButton);
             this.Controls.Add(this.panel1);
@@ -156,6 +169,7 @@
             this.Text = "TWAIN Direct: Scanner";
             this.panel1.ResumeLayout(false);
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -169,6 +183,7 @@
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Button m_CloudRegisterButton;
         private System.Windows.Forms.Button m_buttonManageTwainLocal;
+        private System.Windows.Forms.CheckBox m_checkboxRunOnLogin;
     }
 }
 

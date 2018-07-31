@@ -122,14 +122,8 @@
             <File Id="System.Net.Http.Formatting.dll" Source="$(var.TwainDirect.Scanner.TargetDir)\System.Net.Http.Formatting.dll" KeyPath="yes" />
           </Component>
 
-	  <Component Id="TwainDirect.Scanner.exe" Guid="{8BA908AD-DFB4-4BC6-9132-5028E90CC6D5}">
+	        <Component Id="TwainDirect.Scanner.exe" Guid="{8BA908AD-DFB4-4BC6-9132-5028E90CC6D5}">
             <File Id="TwainDirect.Scanner.exe" Source="$(var.TwainDirect.Scanner.TargetDir)\TwainDirect.Scanner.exe" KeyPath="yes" />
-						<!-- Register for autorun -->
-						<RegistryValue Id="TwainDirect.Scanner.Reg.startup" Root="HKLM" Action="write"
-						               Key="Software\Microsoft\Windows\CurrentVersion\Run"
-						               Name="$(var.ProductName)"
-						               Value="[!TwainDirect.Scanner.exe]"
-						               Type="string" />
           </Component>
 
           <Component Id="TwainDirect.Scanner.exe.config" Guid="{B0CD6476-8A29-4B01-A611-60F798604876}">

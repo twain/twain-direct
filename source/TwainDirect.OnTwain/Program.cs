@@ -222,44 +222,54 @@ namespace TwainDirect.OnTwain
                     int ii;
                     int jj;
                     Dnssd dnssd;
+                    bool blServiceIsAvailable;
                     Interpreter.CreateConsole();
                     Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
-                    dnssd = new Dnssd(Dnssd.Reason.Monitor);
-                    dnssd.MonitorStart(null, IntPtr.Zero);
-                    for (ii = 0; ii < 60; ii++)
+                    dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+                    if (blServiceIsAvailable)
                     {
-                        bool blUpdated = false;
-                        bool blNoMonitor = false;
-                        Thread.Sleep(1000);
-                        adnssddeviceinfo = dnssd.GetSnapshot(adnssddeviceinfo, out blUpdated, out blNoMonitor);
-                        if (blUpdated)
+                        dnssd.MonitorStart(null, IntPtr.Zero);
+                        for (ii = 0; ii < 60; ii++)
                         {
-                            Console.Out.WriteLine("");
-                            if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
+                            bool blUpdated = false;
+                            bool blNoMonitor = false;
+                            Thread.Sleep(1000);
+                            adnssddeviceinfo = dnssd.GetSnapshot(adnssddeviceinfo, out blUpdated, out blNoMonitor);
+                            if (blUpdated)
                             {
-                                Console.Out.WriteLine("***empty***");
-                            }
-                            else
-                            {
-                                for (jj = 0; jj < adnssddeviceinfo.Length; jj++)
+                                Console.Out.WriteLine("");
+                                if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
                                 {
-                                    Console.Out.WriteLine(adnssddeviceinfo[jj].GetInterface() + " " + adnssddeviceinfo[jj].GetServiceName());
+                                    Console.Out.WriteLine("***empty***");
+                                }
+                                else
+                                {
+                                    for (jj = 0; jj < adnssddeviceinfo.Length; jj++)
+                                    {
+                                        Console.Out.WriteLine(adnssddeviceinfo[jj].GetInterface() + " " + adnssddeviceinfo[jj].GetServiceName());
+                                    }
                                 }
                             }
                         }
+                        dnssd.MonitorStop();
                     }
-                    dnssd.MonitorStop();
                     dnssd.Dispose();
+                    dnssd = null;
                 }
                 else if (szTestDnssd == "register")
                 {
                     Dnssd dnssd;
+                    bool blServiceIsAvailable;
                     Interpreter.CreateConsole();
-                    dnssd = new Dnssd(Dnssd.Reason.Register);
-                    dnssd.RegisterStart("Instance", 55556, "Ty", "", "Note");
-                    Thread.Sleep(60000);
-                    dnssd.RegisterStop();
+                    dnssd = new Dnssd(Dnssd.Reason.Register, out blServiceIsAvailable);
+                    if (blServiceIsAvailable)
+                    {
+                        dnssd.RegisterStart("Instance", 55556, "Ty", "", "Note");
+                        Thread.Sleep(60000);
+                        dnssd.RegisterStop();
+                    }
                     dnssd.Dispose();
+                    dnssd = null;
                 }
 
                 // All done...

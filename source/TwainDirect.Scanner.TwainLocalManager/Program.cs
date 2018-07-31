@@ -15,10 +15,10 @@ namespace TwainDirect.Scanner.TwainLocalManager
         [STAThread]
         static void Main()
         {
-            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+            using (WindowsIdentity windowsidentity = WindowsIdentity.GetCurrent())
             {
-                WindowsPrincipal principal = new WindowsPrincipal(identity);
-                if (!principal.IsInRole(WindowsBuiltInRole.Administrator))
+                WindowsPrincipal windowsprincipal = new WindowsPrincipal(windowsidentity);
+                if (!windowsprincipal.IsInRole(WindowsBuiltInRole.Administrator))
                 {
                     MessageBox.Show("Please right-click on this program, and select 'Run as administrator'.", "TWAIN Local Manager");
                 }

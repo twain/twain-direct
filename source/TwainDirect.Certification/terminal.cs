@@ -54,6 +54,8 @@ namespace TwainDirect.Certification
         /// </summary>
         public Terminal()
         {
+            bool blServiceIsAvailable;
+
             // Make sure we have a console...
             m_streamreaderConsole = Interpreter.CreateConsole();
 
@@ -76,8 +78,17 @@ namespace TwainDirect.Certification
             m_lcallstack.Add(callstack);
 
             // Create the mdns monitor, and start it...
-            m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
-            m_dnssd.MonitorStart(null, IntPtr.Zero);
+            m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+            if (blServiceIsAvailable)
+            {
+                m_dnssd.MonitorStart(null, IntPtr.Zero);
+            }
+            else
+            {
+                Log.Error("Bonjour is not available, has it been installed?");
+                m_dnssd.Dispose();
+                m_dnssd = null;
+            }
 
             // Build our command table...
             m_ldispatchtable = new List<Interpreter.DispatchTable>();

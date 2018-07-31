@@ -96,6 +96,17 @@ namespace TwainDirect.Support
         )
         {
             string szUri;
+            bool blServiceIsAvailable;
+
+            // Sanity check...
+            m_dnssd = new Dnssd(Dnssd.Reason.Register, out blServiceIsAvailable);
+            if (!blServiceIsAvailable)
+            {
+                Log.Error("Bonjour is not available, has it been installed?");
+                m_dnssd.Dispose();
+                m_dnssd = null;
+                return (false);
+            }
 
             // Make a note of our callback...
             m_dispatchcommand = a_dispatchcommand;
@@ -160,7 +171,6 @@ namespace TwainDirect.Support
             m_iasyncresult = m_httplistener.BeginGetContext(new AsyncCallback(ListenerCallback), m_httplistener);
 
             // Register our new device...
-            m_dnssd = new Dnssd(Dnssd.Reason.Register);
             m_dnssd.RegisterStart(a_szInstanceName, m_iPort, a_szTy, a_szUrl, a_szNote);
 
             // All done...

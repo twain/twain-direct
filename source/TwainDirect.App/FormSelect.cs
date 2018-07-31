@@ -57,9 +57,9 @@ namespace TwainDirect.App
         /// <param name="a_dnssd">The mDNS info</param>
         /// <param name="a_fScale">change the scale of the form</param>
         /// <param name="cloudTokens">TWAIN Cloud access tokens</param>
-        /// <param name="a_blResult">return how we did</param>
+        /// <param name="a_blFoundOne">return how we did</param>
         /// <param name="a_resourcemanager">localization</param>
-        public FormSelect(Dnssd a_dnssd, float a_fScale, TwainCloudTokens cloudTokens, out bool a_blResult, ResourceManager a_resourcemanager)
+        public FormSelect(Dnssd a_dnssd, float a_fScale, TwainCloudTokens cloudTokens, out bool a_blFoundOne, ResourceManager a_resourcemanager)
         {
             // Init stuff...
             InitializeComponent();
@@ -90,7 +90,7 @@ namespace TwainDirect.App
 
             // Load the list box...
             Thread.Sleep(1000);
-            a_blResult = LoadScannerNames(false);
+            a_blFoundOne = LoadScannerNames(false);
 
             // Put the focus on the select box...
             ActiveControl = m_listviewSelect;
@@ -102,11 +102,17 @@ namespace TwainDirect.App
             m_timerLoadScannerNames.Tag = this;
             m_timerLoadScannerNames.Start();
 
-            LoadCloudScanners(cloudTokens);
+            a_blFoundOne |= LoadCloudScanners(cloudTokens);
         }
 
-        private void LoadCloudScanners(TwainCloudTokens cloudTokens)
+        private bool LoadCloudScanners(TwainCloudTokens cloudTokens)
         {
+            // The user hasn't identified themselves...
+            if (cloudTokens == null)
+            {
+                return (false);
+            }
+
             var apiRoot = CloudManager.GetCloudApiRoot();
             var client = new TwainCloudClient(apiRoot, cloudTokens);
             var applicationManager = new ApplicationManager(client);
@@ -134,6 +140,11 @@ namespace TwainDirect.App
                     SetButtons(ButtonState.Devices);
                 }
             });
+
+            // All done, there's no guarantee that we have any
+            // cloud scanners, but since the user identified
+            // themself, we can proceed...
+            return (true);
         }
 
         private void AddCloudScanner(ListViewItem item)
@@ -180,6 +191,12 @@ namespace TwainDirect.App
                 bool blUpdated = false;
                 bool blNoMonitor = false;
                 Dnssd.DnssdDeviceInfo[] adnssddeviceinfo;
+
+                // TWAIN Local isn't running...
+                if (m_dnssd == null)
+                {
+                    return (false);
+                }
 
                 // Make a note of our current selection, if we have one, we expect our
                 // snapshot to exactly match what we have in the list, including the
@@ -408,30 +425,30 @@ namespace TwainDirect.App
             {
                 int ii;
 
+                // Handle TWAIN Cloud...
+                if (m_listviewSelect.SelectedIndices.Count > 0)
+                {
+                    var item = m_listviewSelect.SelectedItems[0];
+                    var scanner = (ScannerInformation)item.Tag;
+                    if (scanner != null)
+                    {
+                        string szUrl = CloudManager.GetScannerCloudUrl(scanner);
+
+                        Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
+                        dnssddeviceinfo.SetTxtHttps(true);
+                        dnssddeviceinfo.SetLinkLocal(szUrl);
+                        dnssddeviceinfo.SetCloud(true);
+                        return (dnssddeviceinfo);
+                    }
+                }
+
+                // Handle TWAIN Local...
                 // Make a note of our current selection, if we have one, we expect our
                 // snapshot to exactly match what we have in the list, including the
                 // order of the data...
                 m_dnssddeviceinfoSelected = null;
                 if (m_adnssddeviceinfoCompare != null)
                 {
-                    // Handle TWAIN Cloud...
-                    if (m_listviewSelect.SelectedIndices.Count > 0)
-                    {
-                        var item = m_listviewSelect.SelectedItems[0];
-                        var scanner = (ScannerInformation)item.Tag;
-                        if (scanner != null)
-                        {
-                            var url = CloudManager.GetScannerCloudUrl(scanner);
-
-                            Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
-                            dnssddeviceinfo.SetTxtHttps(true);
-                            dnssddeviceinfo.SetLinkLocal(url);
-                            dnssddeviceinfo.SetCloud(true);
-                            return (dnssddeviceinfo);
-                        }
-                    }
-
-                    // Handle TWAIN Local...
                     for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
                     {
                         if (m_listviewSelect.Items[ii].Selected)

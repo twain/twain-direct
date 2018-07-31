@@ -58,10 +58,12 @@ namespace TwainDirect.Support
         /// <summary>
         /// Initialize stuff...
         /// </summary>
-        /// <param name="a_reason">the reason were using the class</param>
-        public Dnssd(Reason a_reason)
+        /// <param name="a_reason">the reason we are using the class</param>
+        /// <param name="a_blServiceIsAvailable">true if we think we're healthy</param>
+        public Dnssd(Reason a_reason, out bool a_blServiceIsAvailable)
         {
             m_reason = a_reason;
+            a_blServiceIsAvailable = false;
             m_objectLockCache = new Object();
 
             // Load the library...
@@ -95,6 +97,10 @@ namespace TwainDirect.Support
                 m_hmoduleDnssd = IntPtr.Zero;
                 return;
             }
+
+            // Life is good...
+            a_blServiceIsAvailable = true;
+            return;
         }
 
         /// <summary>

@@ -142,6 +142,15 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Run this program when you log on.
+        /// </summary>
+        public static string strCheckboxRunOnLogin {
+            get {
+                return ResourceManager.GetString("strCheckboxRunOnLogin", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to TWAIN Direct on TWAIN Bridge.
         /// </summary>
         public static string strFormMainTitle {
@@ -210,6 +219,15 @@ namespace TwainDirect.Scanner {
         public static string strTextNoScannersRegistered {
             get {
                 return ResourceManager.GetString("strTextNoScannersRegistered", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The program is being minimized to the system tray.  Please right-click on its icon there to close it..
+        /// </summary>
+        public static string strTextNotClosing {
+            get {
+                return ResourceManager.GetString("strTextNotClosing", resourceCulture);
             }
         }
     }

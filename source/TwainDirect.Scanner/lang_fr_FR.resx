@@ -147,6 +147,9 @@
   <data name="strButtonTwainLocalManagerEllipsis" xml:space="preserve">
     <value>Manage Local...</value>
   </data>
+  <data name="strCheckboxRunOnLogin" xml:space="preserve">
+    <value>Run this program when you log on</value>
+  </data>
   <data name="strFormMainTitle" xml:space="preserve">
     <value>TWAIN Direct on TWAIN Bridge</value>
     <comment>Main Form title...</comment>
@@ -178,5 +181,8 @@
   <data name="strTextNoScannersRegistered" xml:space="preserve">
     <value>Aucun scanners enregistré...</value>
     <comment>Couldn't find any scanners...</comment>
+  </data>
+  <data name="strTextNotClosing" xml:space="preserve">
+    <value>The program is being minimized to the system tray.  Please right-click on its icon there to close it.</value>
   </data>
 </root>

@@ -32,13 +32,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 // Helpers...
+using Microsoft.Win32;
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Resources;
+using System.Security.Principal;
 using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
@@ -98,6 +99,7 @@ namespace TwainDirect.Scanner
             m_buttonRegister.Text = Config.GetResource(m_resourcemanager, "strButtonRegisterEllipsis"); // Register...
             m_buttonStart.Text = Config.GetResource(m_resourcemanager, "strButtonStart"); // Start
             m_buttonStop.Text = Config.GetResource(m_resourcemanager, "strButtonStop"); // Stop
+            m_checkboxRunOnLogin.Text = Config.GetResource(m_resourcemanager, "strCheckboxRunOnLogin"); // Run on login
 
             // Context memory for the system tray...
             MenuItem menuitemOpen = new MenuItem(Config.GetResource(m_resourcemanager, "strMenuShowConsole")); // Open...
@@ -114,6 +116,45 @@ namespace TwainDirect.Scanner
             m_notifyicon.ContextMenu.MenuItems.Add(menuitemExit);
             m_notifyicon.DoubleClick += m_notifyicon_DoubleClick;
 
+            // Are we registered for autorun?
+            m_checkboxRunOnLogin.Checked = false;
+            try
+            {
+                RegistryKey registrykeyRun;
+
+                // Check the local machine (needed for legacy)...
+                registrykeyRun = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+                foreach (string szValueName in registrykeyRun.GetValueNames())
+                {
+                    string szValue = Convert.ToString(registrykeyRun.GetValue(szValueName));
+                    if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                    {
+                        m_checkboxRunOnLogin.Checked = true;
+                        break;
+                    }
+                }
+
+                // Check the local user...
+                if (!m_checkboxRunOnLogin.Checked)
+                {
+                    registrykeyRun = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+                    foreach (string szValueName in registrykeyRun.GetValueNames())
+                    {
+                        string szValue = Convert.ToString(registrykeyRun.GetValue(szValueName));
+                        if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                        {
+                            m_checkboxRunOnLogin.Checked = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("Trouble checking the registry for \\HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run - " + exception.Message);
+            }
+
+            // Handle resizing...
             this.Resize += Form1_Resize;
 
             // Handle scaling...
@@ -159,6 +200,13 @@ namespace TwainDirect.Scanner
             else
             {
                 SetButtons(ButtonState.WaitingForStart);
+            }
+
+            // Have we been asked to run in the background?
+            if (Config.Get("background", "false") == "true")
+            {
+                WindowState = FormWindowState.Minimized;
+                this.Hide();
             }
         }
 
@@ -295,7 +343,7 @@ namespace TwainDirect.Scanner
 
                 // We have no devices, they need to register...
                 case ButtonState.NoDevices:
-                    m_CloudRegisterButton.Enabled = true;
+                    m_CloudRegisterButton.Enabled = false;
                     m_buttonManageTwainLocal.Enabled = true;
                     m_buttonRegister.Enabled = true;
                     m_buttonStart.Enabled = false;
@@ -458,6 +506,7 @@ namespace TwainDirect.Scanner
             // Reeeeeeeeejected!
             if (!m_blAllowFormToClose && (e.CloseReason == CloseReason.UserClosing))
             {
+                MessageBox.Show(Config.GetResource(m_resourcemanager, "strTextNotClosing"), Config.GetResource(m_resourcemanager, "strFormMainTitle"));
                 e.Cancel = true;
                 WindowState = FormWindowState.Minimized;
                 this.Hide();
@@ -848,6 +897,121 @@ namespace TwainDirect.Scanner
 
             // Set buttons...
             SetButtons(ButtonState.WaitingForStart);
+        }
+
+        /// <summary>
+        /// Control autorun...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_checkboxRunOnLogin_CheckedChanged(object sender, EventArgs e)
+        {
+            CheckBox checkbox = (CheckBox)sender;
+
+            // If we're checked, add us...
+            if (checkbox.Checked)
+            {
+                string szValueName = null;
+                RegistryKey registrykeyRun;
+
+                // Check the local machine (needed for legacy)...
+                registrykeyRun = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+                foreach (string sz in registrykeyRun.GetValueNames())
+                {
+                    string szValue = Convert.ToString(registrykeyRun.GetValue(sz));
+                    if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                    {
+                        szValueName = sz;
+                        break;
+                    }
+                }
+
+                // Check the local user...
+                if (string.IsNullOrEmpty(szValueName))
+                {
+                    registrykeyRun = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+                    foreach (string sz in registrykeyRun.GetValueNames())
+                    {
+                        string szValue = Convert.ToString(registrykeyRun.GetValue(sz));
+                        if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                        {
+                            szValueName = sz;
+                            break;
+                        }
+                    }
+                }
+
+                // We don't exist, so add us...
+                if (string.IsNullOrEmpty(szValueName))
+                {
+                    Registry.SetValue
+                    (
+                        "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                        "TWAIN Direct: TWAIN Bridge",
+                        "\"" + System.Reflection.Assembly.GetEntryAssembly().Location + "\" background=true" 
+                    );
+                }
+            }
+
+            // Otherwise, remove us...
+            else
+            {
+                bool blAdmin = false;
+                string szValueName = null;
+                RegistryKey registrykeyRun;
+
+                // Are we running as admin?
+                using (WindowsIdentity windowsidentity = WindowsIdentity.GetCurrent())
+                {
+                    WindowsPrincipal windowsprincipal = new WindowsPrincipal(windowsidentity);
+                    if (windowsprincipal.IsInRole(WindowsBuiltInRole.Administrator))
+                    {
+                        blAdmin = true;
+                    }
+                }
+
+                // Check the local machine (needed for legacy)...
+                registrykeyRun = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", blAdmin);
+                foreach (string sz in registrykeyRun.GetValueNames())
+                {
+                    string szValue = Convert.ToString(registrykeyRun.GetValue(sz));
+                    if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                    {
+                        szValueName = sz;
+                        break;
+                    }
+                }
+
+                // Check the local user...
+                if (string.IsNullOrEmpty(szValueName))
+                {
+                    registrykeyRun = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+                    foreach (string sz in registrykeyRun.GetValueNames())
+                    {
+                        string szValue = Convert.ToString(registrykeyRun.GetValue(sz));
+                        if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                        {
+                            szValueName = sz;
+                            break;
+                        }
+                    }
+                }
+
+                // Remove it...
+                if (!string.IsNullOrEmpty(szValueName))
+                {
+                    try
+                    {
+                        registrykeyRun.DeleteValue(szValueName);
+                    }
+                    catch (Exception exception)
+                    {
+                        MessageBox.Show("Sorry, we couldn't turn off autostart.  Run this program as admin, and try again.", "Error");
+                        Log.Error("Failed to delete registry value - " + exception.Message);
+                        checkbox.Checked = true;
+                    }
+                }
+            }
         }
 
         #endregion

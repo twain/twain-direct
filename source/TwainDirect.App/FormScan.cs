@@ -63,6 +63,8 @@ namespace TwainDirect.App
         /// <param name="a_fScale">scale factor for our form</param>
         public FormScan()
         {
+            bool blServiceIsAvailable;
+
             // Set up a data folder, in this instance we're assuming the project
             // name matches the binary, so we can quickly locate it...
             string szExecutableName = Config.Get("executableName", "");
@@ -158,8 +160,17 @@ namespace TwainDirect.App
             LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null, "");
 
             // Create the mdns monitor, and start it...
-            m_dnssd = new Dnssd(Dnssd.Reason.Monitor);
-            m_dnssd.MonitorStart(null, IntPtr.Zero);
+            m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+            if (blServiceIsAvailable)
+            {
+                m_dnssd.MonitorStart(null, IntPtr.Zero);
+            }
+            else
+            {
+                Log.Error("Bonjour is not available, has it been installed?");
+                m_dnssd.Dispose();
+                m_dnssd = null;
+            }
 
             // Get our TWAIN Local interface.
             m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
