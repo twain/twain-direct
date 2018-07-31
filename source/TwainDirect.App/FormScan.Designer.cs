@@ -25,6 +25,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.m_pictureboxImage1 = new System.Windows.Forms.PictureBox();
             this.m_buttonScan = new System.Windows.Forms.Button();
             this.m_buttonSetup = new System.Windows.Forms.Button();
@@ -38,8 +39,12 @@
             this.m_textbox2 = new System.Windows.Forms.TextBox();
             this.m_textboxSummary = new System.Windows.Forms.TextBox();
             this.cloudButton = new System.Windows.Forms.Button();
+            this.cloudMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.loginWithGoogleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.loginWithFacebookToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage2)).BeginInit();
+            this.cloudMenuStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // m_pictureboxImage1
@@ -185,6 +190,30 @@
             this.cloudButton.UseVisualStyleBackColor = true;
             this.cloudButton.Click += new System.EventHandler(this.cloudButton_Click);
             // 
+            // cloudMenuStrip
+            // 
+            this.cloudMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.loginWithGoogleToolStripMenuItem,
+            this.loginWithFacebookToolStripMenuItem});
+            this.cloudMenuStrip.Name = "cloudMenuStrip";
+            this.cloudMenuStrip.Size = new System.Drawing.Size(194, 48);
+            // 
+            // loginWithGoogleToolStripMenuItem
+            // 
+            this.loginWithGoogleToolStripMenuItem.Name = "loginWithGoogleToolStripMenuItem";
+            this.loginWithGoogleToolStripMenuItem.Size = new System.Drawing.Size(193, 22);
+            this.loginWithGoogleToolStripMenuItem.Tag = "google";
+            this.loginWithGoogleToolStripMenuItem.Text = "Login with Google...";
+            this.loginWithGoogleToolStripMenuItem.Click += new System.EventHandler(this.loginToolStripMenuItem_Click);
+            // 
+            // loginWithFacebookToolStripMenuItem
+            // 
+            this.loginWithFacebookToolStripMenuItem.Name = "loginWithFacebookToolStripMenuItem";
+            this.loginWithFacebookToolStripMenuItem.Size = new System.Drawing.Size(193, 22);
+            this.loginWithFacebookToolStripMenuItem.Tag = "facebook";
+            this.loginWithFacebookToolStripMenuItem.Text = "Login with Facebook...";
+            this.loginWithFacebookToolStripMenuItem.Click += new System.EventHandler(this.loginToolStripMenuItem_Click);
+            // 
             // FormScan
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -207,6 +236,7 @@
             this.Text = "twain direct: application";
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.m_pictureboxImage2)).EndInit();
+            this.cloudMenuStrip.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -227,5 +257,9 @@
         private System.Windows.Forms.TextBox m_textbox2;
         private System.Windows.Forms.TextBox m_textboxSummary;
         private System.Windows.Forms.Button cloudButton;
+        private System.Windows.Forms.ContextMenuStrip cloudMenuStrip;
+        private System.ComponentModel.IContainer components;
+        private System.Windows.Forms.ToolStripMenuItem loginWithGoogleToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem loginWithFacebookToolStripMenuItem;
     }
 }
