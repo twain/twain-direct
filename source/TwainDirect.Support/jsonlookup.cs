@@ -1103,7 +1103,16 @@ namespace TwainDirect.Support
                 // Handle regular quotes...
                 else
                 {
-                    a_szValue = m_szJson.Substring((int)(a_property.u32ValueOffset + 1), (int)(a_property.u32ValueLength - 2));
+                    // All we have is "" (an empty string)...
+                    if (a_property.u32ValueLength == 2)
+                    {
+                        a_szValue = "";
+                    }
+                    // We have data in our quotes...
+                    else
+                    {
+                        a_szValue = m_szJson.Substring((int)(a_property.u32ValueOffset + 1), (int)(a_property.u32ValueLength - 2));
+                    }
                 }
 	        }
 

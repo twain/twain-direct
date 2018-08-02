@@ -646,7 +646,23 @@ namespace TwainDirect.Support
         /// <returns>the hostname</returns>
         public string HttpGetCallersHostName()
         {
-            return (m_httplistenerdata.httplistenercontext.Request.UserHostName);
+            string szUrlHost;
+
+            // Handle TWAIN Local...
+            if (!string.IsNullOrEmpty(m_httplistenerdata.httplistenercontext.Request.UserHostName))
+            {
+                return (m_httplistenerdata.httplistenercontext.Request.UserHostName);
+            }
+
+            // Handle TWAIN Cloud...
+            szUrlHost = m_httplistenerdata.httplistenercontext.Request.Url.Host;
+            if (string.IsNullOrEmpty(szUrlHost))
+            {
+                return ("cloud");
+            }
+
+            // All done...
+            return (szUrlHost);
         }
 
         /// <summary>

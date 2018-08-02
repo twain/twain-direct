@@ -1580,7 +1580,7 @@ namespace TwainDirect.Support
                             "{" +
                             "\"url\":\"" + m_szCloudApiRoot + "\"," +
                             "\"id\":\"" + m_szCloudScannerId + "\"," +
-                            "\"connection_state\":\"" + "online" + "\"," +
+                            "\"connection_state\":\"" + (m_blTwainCloudStarted ? "online" : "offline") + "\"," +
                             "\"setup_url\":\"" + "" + "\"," +
                             "\"support_url\":\"" + "" + "\"," +
                             "\"update_url\":\"" + "" + "\"" +
@@ -1595,11 +1595,11 @@ namespace TwainDirect.Support
                     "\"version\":\"1.0\"," +
                     "\"name\":\"" + dnssddeviceinfo.GetTxtTy() + "\"," +
                     "\"description\":\"" + dnssddeviceinfo.GetTxtNote() + "\"," +
-                    "\"url\":\"\"," +
+                    "\"url\":\"" + m_szCloudApiRoot + "\"," +
                     "\"type\":\"" + dnssddeviceinfo.GetTxtType() + "\"," +
-                    "\"id\":\"\"," +
+                    "\"id\":\"" + m_szCloudScannerId + "\"," +
                     "\"device_state\":\"" + szDeviceState + "\"," +
-                    "\"connection_state\":\"offline\"," +
+                    "\"connection_state\":\"" + (m_blTwainCloudStarted ? "online" : "offline") + "\"," +
                     "\"manufacturer\":\"" + szManufacturer + "\"," +
                     "\"model\":\"" + szModel + "\"," +
                     "\"serial_number\":\"" + szSerialNumber + "\"," +
