@@ -3327,29 +3327,31 @@ namespace TwainDirect.OnTwain
                     // pare the range down to a set of commonly used resolutions...
                     case "TWON_RANGE":
                         // Get the min and the max, and add items in that range...
-                        int iMin;
-                        int iMax;
-                        if (!int.TryParse(aszContainer[3], out iMin))
+                        double dfMin;
+                        double dfMax;
+                        if (!double.TryParse(aszContainer[3], out dfMin))
                         {
-                            TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION error - " + a_szTwidentity);
+                            TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION min error - " + a_szTwidentity);
+                            TWAINWorkingGroup.Log.Info(szCapability);
                             m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
                             return (m_twaininquirydata);
                         }
-                        if (!int.TryParse(aszContainer[4], out iMax))
+                        if (!double.TryParse(aszContainer[4], out dfMax))
                         {
-                            TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION error - " + a_szTwidentity);
+                            TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION max error - " + a_szTwidentity);
+                            TWAINWorkingGroup.Log.Info(szCapability);
                             m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
                             return (m_twaininquirydata);
                         }
-                        szValues += iMin;
-                        foreach (int iRes in new int[] { 75, 100, 150, 200, 240, 250, 300, 400, 500, 600, 1200, 2400, 4800, 9600, 19200 })
+                        szValues += Convert.ToDecimal(dfMin);
+                        foreach (double dfRes in new double[] { 75, 100, 150, 200, 240, 250, 300, 400, 500, 600, 1200, 2400, 4800, 9600, 19200 })
                         {
-                            if ((iMin < iRes) && (iRes < iMax))
+                            if ((dfMin < dfRes) && (dfRes < dfMax))
                             {
-                                szValues += "," + iRes;
+                                szValues += "," + Convert.ToDecimal(dfRes);
                             }
                         }
-                        szValues += "," + iMax;
+                        szValues += "," + Convert.ToDecimal(dfMax);
                         break;
                 }
 

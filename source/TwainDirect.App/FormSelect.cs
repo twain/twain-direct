@@ -230,7 +230,7 @@ namespace TwainDirect.App
                 // Start with a clean slate...
                 m_listviewSelect.Items.Clear();
 
-                // We've no data...
+                // Handle TWAIN Local: we've no data...
                 if (adnssddeviceinfo == null)
                 {
                     if (blNoMonitor)
@@ -246,6 +246,7 @@ namespace TwainDirect.App
                     }
                     SetButtons(ButtonState.Nodevices);
                 }
+                // Handle TWAIN Local: show what we have...
                 else
                 {
                     // Populate our driver list...

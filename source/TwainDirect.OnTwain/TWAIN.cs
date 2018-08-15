@@ -927,6 +927,7 @@ namespace TWAINWorkingGroup
             IntPtr intptrLocked;
             TWTY ItemType;
             uint NumItems;
+            string szTmp;
 
             // Handle the container...
             switch (a_twcapability.ConType)
@@ -1116,7 +1117,7 @@ namespace TWAINWorkingGroup
                             twrangefix32.CurrentValue = twrangefix32macosx.CurrentValue;
                         }
                         // Windows or the 2.4+ Linux DSM...
-                        else if ((m_linuxdsm == LinuxDsm.IsLatestDsm) || (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
+                        else if ((ms_platform == Platform.WINDOWS) || (m_linuxdsm == LinuxDsm.IsLatestDsm) || (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
                         {
                             intptrLocked = DsmMemLock(a_twcapability.hContainer);
                             twrange = (TW_RANGE)Marshal.PtrToStructure(intptrLocked, typeof(TW_RANGE));
@@ -1208,11 +1209,16 @@ namespace TWAINWorkingGroup
                                 return (csvRange.Get());
 
                             case TWTY.FIX32:
-                                csvRange.Add(((double)twrangefix32.MinValue.Whole + ((double)twrangefix32.MinValue.Frac / 65536.0)).ToString());
-                                csvRange.Add(((double)twrangefix32.MaxValue.Whole + ((double)twrangefix32.MaxValue.Frac / 65536.0)).ToString());
-                                csvRange.Add(((double)twrangefix32.StepSize.Whole + ((double)twrangefix32.StepSize.Frac / 65536.0)).ToString());
-                                csvRange.Add(((double)twrangefix32.DefaultValue.Whole + ((double)twrangefix32.DefaultValue.Frac / 65536.0)).ToString());
-                                csvRange.Add(((double)twrangefix32.CurrentValue.Whole + ((double)twrangefix32.CurrentValue.Frac / 65536.0)).ToString());
+                                szTmp = ((double)twrangefix32.MinValue.Whole + ((double)twrangefix32.MinValue.Frac / 65536.0)).ToString("0." + new string('#', 339));
+                                csvRange.Add(szTmp);
+                                szTmp = ((double)twrangefix32.MaxValue.Whole + ((double)twrangefix32.MaxValue.Frac / 65536.0)).ToString("0." + new string('#', 339));
+                                csvRange.Add(szTmp);
+                                szTmp = ((double)twrangefix32.StepSize.Whole + ((double)twrangefix32.StepSize.Frac / 65536.0)).ToString("0." + new string('#', 339));
+                                csvRange.Add(szTmp);
+                                szTmp = ((double)twrangefix32.DefaultValue.Whole + ((double)twrangefix32.DefaultValue.Frac / 65536.0)).ToString("0." + new string('#', 339));
+                                csvRange.Add(szTmp);
+                                szTmp = ((double)twrangefix32.CurrentValue.Whole + ((double)twrangefix32.CurrentValue.Frac / 65536.0)).ToString("0." + new string('#', 339));
+                                csvRange.Add(szTmp);
                                 DsmMemUnlock(a_twcapability.hContainer);
                                 return (csvRange.Get());
                         }

@@ -835,7 +835,13 @@ namespace TwainDirect.Support
             if (OutstandingCloudRequests.TryGetValue(requestId, out var completionSource))
             {
                 Debug.WriteLine($"Completing cloud request: {requestId}");
-                completionSource.SetResult(cloudMessage);
+                try
+                {
+                    completionSource.SetResult(cloudMessage);
+                }
+                catch
+                {
+                }
             }
         }
 

@@ -225,6 +225,7 @@ namespace TwainDirect.Support
             Int16 i16 = NativeMethods.RegisterClassW(ref wcex);
 
             // Create our window...
+            m_vblQuitWindow = false;
             m_hwnd = NativeMethods.CreateWindowExW
             (
                 0x00000080, //0x300 /*WS_EX_OVERLAPPEDWINDOW*/,
@@ -310,9 +311,38 @@ namespace TwainDirect.Support
                 // Handle an error...
             }
 
+            // KEYWORD:BARF
             // Main event loop for the application. All Bonjour events are dispatched while in this loop.
-            while (NativeMethods.GetMessage(out msg, IntPtr.Zero, 0, 0) != 0)
+            //
+            // So this look goes kablooie if I let it process anything, but only
+            // in release mode, and only if something like Windows Explorer starts
+            // up.  Presumably a message is coming in that's sending us to heck,
+            // but I haven't been able to find it so far.
+            //
+            // Plan B was to limit the collateral damage by only looking at the
+            // handle and message we care about.  Sadly, you can't properly exit
+            // this window, cleaning up all resources, so I've come up with an
+            // icky alternatively.  We set a volatile state flag, send a fake
+            // bonjour message, and then switch to processing anything.  It's
+            // vile, but it works.
+            while (true)
             {
+                // Get the message...
+                int iResult;
+                if (!m_vblQuitWindow)
+                {
+                    iResult = NativeMethods.GetMessage(out msg, m_hwnd, NativeMethods.BONJOUR_EVENT, NativeMethods.BONJOUR_EVENT);
+                }
+                else
+                {
+                    iResult = NativeMethods.GetMessage(out msg, IntPtr.Zero, 0, 0);
+                }
+                if (iResult == 0)
+                {
+                    break;
+                }
+
+                // Dispatch...
                 NativeMethods.TranslateMessage(ref msg);
                 NativeMethods.DispatchMessage(ref msg);
             }
@@ -1123,7 +1153,18 @@ namespace TwainDirect.Support
                         m_pfndnsservicerefdeallocate(m_dnsservicerefClient);
                         m_dnsservicerefClient = IntPtr.Zero;
                     }
-                    NativeMethods.PostMessage(m_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+
+                    // KEYWORD:BARF
+                    // Look for this keyword to find the full explanation...
+                    m_vblQuitWindow = true;
+                    NativeMethods.PostMessage(m_hwnd, NativeMethods.BONJOUR_EVENT, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                    for (int iLoop = 0; iLoop < 5; iLoop++)
+                    {
+                        NativeMethods.PostMessage(m_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                        Thread.Sleep(10);
+                    }
+
+                    // See if our thread is dead (paws crossed)...
                     if (!m_threadMonitor.Join(5000))
                     {
                         m_threadMonitor.Abort();
@@ -1190,11 +1231,12 @@ namespace TwainDirect.Support
         )
         {
             Dnssd dnssd;
+            IntPtr intptrResult;
             GCHandle gchandle;
             IntPtr intptrGchandle;
 
             // Get our user defined data...
-            if (Config.GetMachineWordSize() == 32)
+            if (IntPtr.Size == 4)
             {
                 intptrGchandle = (IntPtr)NativeMethods.GetWindowLong(a_hwnd, -21); // GWL_USERDATA
             }
@@ -1206,15 +1248,27 @@ namespace TwainDirect.Support
             // If we don't have our object, then scoot...
             if (intptrGchandle == IntPtr.Zero)
             {
-                return (NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam));
+                intptrResult = NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam);
+                return (intptrResult);
             }
 
             // Otherwise we can pass this to our handler...
             gchandle = GCHandle.FromIntPtr(intptrGchandle);
+            if (gchandle == null)
+            {
+                intptrResult = NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam);
+                return (intptrResult);
+            }
             dnssd = (gchandle.Target as Dnssd);
+            if (dnssd == null)
+            {
+                intptrResult = NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam);
+                return (intptrResult);
+            }
 
             // Dispatch it...
-            return (dnssd.WndProc(a_hwnd, a_iMsg, a_wparam, a_lparam));
+            intptrResult = dnssd.WndProc(a_hwnd, a_iMsg, a_wparam, a_lparam);
+            return (intptrResult);
         }
 
         /// <summary>
@@ -1251,6 +1305,13 @@ namespace TwainDirect.Support
                     return (NativeMethods.DefWindowProc(a_hwnd, a_iMsg, a_wparam, a_lparam));
 
                 case NativeMethods.BONJOUR_EVENT:
+                    // KEYWORD:BARF
+                    // Nope...
+                    if (m_vblQuitWindow)
+                    {
+                        return (IntPtr.Zero);
+                    }
+
                     // Process the Bonjour event. All Bonjour callbacks occur from within this function.
                     // If an error occurs while trying to process the result, it most likely means that
                     // something serious has gone wrong with Bonjour, such as it being terminated. This 
@@ -1903,6 +1964,7 @@ namespace TwainDirect.Support
 	    IntPtr m_dnsservicerefClient;
         IntPtr m_dnsservicerefRegister;
         IntPtr m_hwnd;
+        volatile bool m_vblQuitWindow;
         GCHandle m_gchandleThis;
 
         // Linux stuff...
