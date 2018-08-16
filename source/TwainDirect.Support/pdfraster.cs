@@ -350,7 +350,10 @@ namespace TwainDirect.Support
                 }
                 else
                 {
-                    decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage, a_szPassword);
+                    // tbd:mlm clean this up when PDF/raster is fixed...
+                    Log.Error("ConvertPdfToTiffOrJpeg: we can't decrypt yet...");
+                    return (null);
+                    //decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage, a_szPassword);
                 }
                 lWidth = pdfRasRd.decoder_get_width(decoder);
                 lHeight = pdfRasRd.decoder_get_height(decoder);
