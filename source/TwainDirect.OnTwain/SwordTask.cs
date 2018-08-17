@@ -1723,7 +1723,7 @@ namespace TwainDirect.OnTwain
             if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
             {
                 szStatus = "";
-                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
+                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "2"); // TWSX_MEMORY
                 sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {

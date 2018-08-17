@@ -1,24 +1,77 @@
 {
-    "comment": "copy this file to TwainDirect.App.appdata.txt, and remove the X from any lines you'd like to use",
+    "comment": [
+        "******************************************************************************",
+        "copy or rename this file to TwainDirect.App.appdata.txt in the same folder",
+        "as the TwainDirect.App.exe, and remove the leading X from any lines you want",
+        "to use."
+    ],
 
-    "comment": "0-off, +1-on, +2-verbose, +4-flush (so 3 for on and verbose)",
+    "commentLogLevel": [
+        "******************************************************************************",
+        "default: 0",
+        "0 - only errors are reported",
+        "these values are bits, add them together as needed, for instance, to get",
+        "all logging data flushed to disk, use a value of 7",
+        "1 - log informational messages",
+        "2 - log verbose stuff, like HTML headers",
+        "4 - flush to disk, use to help diagnose crashes"
+    ],
     "XlogLevel": 0,
 
-    "comment": "en-US, fr-FR",
+
+
+    "commentLanguage": [
+        "******************************************************************************",
+        "default: en-US",
+        "valid values are language-country, if not supported the code uses en-US"
+    ],
     "Xlanguage": "en-US",
 
-    "comment": "milliseconds that scanner has to respond to a command",
+
+
+    "commentHttpTimeoutCommand": [
+        "******************************************************************************",
+        "default: 30000",
+        "milliseconds that scanner has to respond to a command"
+    ],
     "XhttpTimeoutCommand": 30000,
 
-    "comment": "milliseconds that scanner has to deliver data to the app",
+
+
+    "commentHttpTimeoutData": [
+        "******************************************************************************",
+        "default: 30000",
+        "milliseconds that scanner has to deliver data to the app"
+    ],
     "XhttpTimeoutData": 30000,
 
-    "comment": "milliseconds that events wait for data",
+
+
+    "commentHttpTimeoutEvent": [
+        "******************************************************************************",
+        "default: 60000",
+        "milliseconds that waitForEvents waits for data before issuing a new command."
+    ],
     "XhttpTimeoutEvent": 60000,
 
-    "comment": "auto:allow http or https, no:http only, yes:https only",
+
+
+    "commentUseHttps": [
+        "******************************************************************************",
+        "default: auto",
+        "auto - talk to scanners using either http or https",
+        "no - use http only",
+        "yes - use https only"
+    ],
     "XuseHttps": "auto",
 
-    "comment": "yes:use TWAIN Direct infoex instead of info",
+
+
+    "commentUseInfoex": [
+        "******************************************************************************",
+        "default: yes",
+        "yes - use the infoex command to get extra data",
+        "no - use the original info command"
+    ],
     "XuseInfoex": "yes"
 }

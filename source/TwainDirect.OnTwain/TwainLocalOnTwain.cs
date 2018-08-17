@@ -1518,13 +1518,39 @@ namespace TwainDirect.OnTwain
                     // Memory transfer (extended only)...
                     if (m_deviceregisterSession.GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
                     {
+                        string szIcapXfermach = Config.Get("icapXfermech", "2"); // TWSX_MEMORY
+
+                        // Request the transfer type...
                         szStatus = "";
-                        szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,2";
+                        szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + szIcapXfermach;
                         sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
                             return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        }
+
+                        // If we're doing file transfers, pick the file...
+                        if (szIcapXfermach == "1") // TWSX_FILE
+                        {
+                            // Pick the file...
+                            szStatus = "";
+                            string szPlaceholder = Path.Combine(Path.GetDirectoryName(m_szImagesFolder), "imagefilexfer");
+                            if (Directory.Exists(szPlaceholder))
+                            {
+                                Directory.Delete(szPlaceholder, true);
+                            }
+                            Directory.CreateDirectory(szPlaceholder);
+                            szCapability = szPlaceholder + ",TWFF_TIFF,0";
+                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szCapability, ref szStatus);
+                            if (sts != TWAIN.STS.SUCCESS)
+                            {
+                                TWAINWorkingGroup.Log.Warn("Action: we can't set DAT_SETUPFILEXFER to TWFF_TIFF");
+                                return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                            }
+
+                            // And ask for this, because TIFF JPEG is ugly...
+                            m_twaincstoolkit.SetAutomaticJpegOrTiff(true);
                         }
                     }
                     // Native transfer (basic)...

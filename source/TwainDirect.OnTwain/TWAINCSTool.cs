@@ -1943,12 +1943,28 @@ namespace TWAINWorkingGroupToolkit
                 {
                     try
                     {
+                        byte[] abImage;
                         szFilename = twsetupfilexfer.FileName.Get();
                         Image image = Image.FromFile(szFilename);
                         bitmap = new Bitmap(image);
+                        switch (twimageinfo.Compression)
+                        {
+                            default:
+                            case (ushort)TWAIN.TWCP.GROUP4:
+                                //tbd:mlm need just the G4 data!!! not sure how to do
+                                //that yet, so this decompresses it...
+                                abImage = null; // send all the data
+                                break;
+                            case (ushort)TWAIN.TWCP.JPEG:
+                                abImage = File.ReadAllBytes(szFilename); // send all the data
+                                break;
+                            case (ushort)TWAIN.TWCP.NONE:
+                                abImage = null; // taken care of inside of ReportImage
+                                break;
+                        }
                         image.Dispose();
                         image = null;
-                        twainmsg = ReportImage("ScanCallback: 010", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, szFilename, m_twain.ImageinfoToCsv(twimageinfo), null, 0);
+                        twainmsg = ReportImage("ScanCallback: 010", TWAIN.DG.IMAGE.ToString(), TWAIN.DAT.IMAGEFILEXFER.ToString(), TWAIN.MSG.GET.ToString(), sts, bitmap, szFilename, m_twain.ImageinfoToCsv(twimageinfo), abImage, 0);
                         if (twainmsg == MSG.STOPFEEDER)
                         {
                             m_twainmsgPendingXfers = MSG.STOPFEEDER;
