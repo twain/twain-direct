@@ -330,7 +330,15 @@ namespace TwainDirect.Support
                 // Handle TWAIN Local...
                 else if (m_httplistenerresponseLocal != null)
                 {
-                    m_httplistenerresponseLocal.ContentLength64 = value;
+                    try
+                    {
+                        m_httplistenerresponseLocal.ContentLength64 = value;
+                    }
+                    catch (Exception exception)
+                    {
+                        //tbd:mlm why does this happen?
+                        Log.Error("Look into this sometimes - " + exception.Message);
+                    }
                 }
                 // Ruh-roh...
                 else

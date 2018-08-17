@@ -342,7 +342,8 @@ namespace TwainDirect.Support
         {
             if (m_jsonlookupReceived == null)
             {
-                return ("");
+                // This will be an empty string, unless overridden...
+                return (m_szClientCommandId);
             }
             return (m_jsonlookupReceived.Get("commandId",false));
         }
@@ -745,7 +746,7 @@ namespace TwainDirect.Support
             {
                 Log.VerboseData
                 (
-                    "http>>> " + a_szFunction + ":" +
+                    "http" + GetCommandId() + ">>> " + a_szFunction + ":" +
                     " xfr=" + a_iXfer.ToString("D7") +
                     " mpx=*******" +
                     " mpt=*******" +
@@ -757,7 +758,7 @@ namespace TwainDirect.Support
             {
                 Log.VerboseData
                 (
-                    "http>>> " + a_szFunction + ":" +
+                    "http" + GetCommandId() + ">>> " + a_szFunction + ":" +
                     " xfr=" + a_iXfer.ToString("D7") +
                     " mpx=" + m_xfertally.MultipartGetHttpPayloadProcessed(m_xfertally.MultipartGetCount() - 1).ToString("D7") +
                     " mpt=" + m_xfertally.MultipartGetContentLength(m_xfertally.MultipartGetCount() - 1).ToString("D7") +
@@ -776,7 +777,7 @@ namespace TwainDirect.Support
         {
             Log.VerboseData
             (
-                "http>>> " + a_szFunction + ":" +
+                "http" + GetCommandId() + ">>> " + a_szFunction + ":" +
                 " off=" + a_lOffset.ToString("D7") +
                 " xfr=" + a_lXfer.ToString("D7") +
                 " mpx=" + m_xfertally.MultipartGetHttpPayloadProcessed(m_xfertally.MultipartGetCount() - 1).ToString("D7") +
@@ -808,6 +809,10 @@ namespace TwainDirect.Support
 
             var task = Task.Run(async () => { await apicmd.ResponseCallBack(a_iasyncresult); });
             task.Wait();
+        }
+        public void SetClientCommandId(string a_szClientCommandid)
+        {
+            m_szClientCommandId = a_szClientCommandid;
         }
 
         /// <summary>
@@ -909,12 +914,12 @@ namespace TwainDirect.Support
             if (m_httpreplystyle == HttpReplyStyle.Event)
             {
                 Log.Info(" ");
-                Log.Info("http>>> " + m_szReason + " (response)");
+                Log.Info("http" + GetCommandId() + ">>> " + m_szReason + " (response)");
             }
 
             // Dump the status...
             m_httpresponsedata.iResponseHttpStatus = (int)(HttpStatusCode)m_httpresponsedata.httpwebresponse.StatusCode;
-            Log.Info("http>>> recvstatus " + m_httpresponsedata.iResponseHttpStatus + " (" + m_httpresponsedata.httpwebresponse.StatusCode + ")");
+            Log.Info("http" + GetCommandId() + ">>> recvstatus " + m_httpresponsedata.iResponseHttpStatus + " (" + m_httpresponsedata.httpwebresponse.StatusCode + ")");
 
             // Get the response headers, if any...
             m_httpresponsedata.aszResponseHeaders = null;
@@ -944,13 +949,13 @@ namespace TwainDirect.Support
                     string[] aszValues = namevaluecollectionHeaders.GetValues(szKey);
                     if (aszValues.Length == 0)
                     {
-                        Log.Verbose("http>>> recvheader " + szKey + ": n/a");
+                        Log.Verbose("http" + GetCommandId() + ">>> recvheader " + szKey + ": n/a");
                     }
                     else
                     {
                         foreach (string szValue in aszValues)
                         {
-                            Log.Verbose("http>>> recvheader " + szKey + ": " + szValue);
+                            Log.Verbose("http" + GetCommandId() + ">>> recvheader " + szKey + ": " + szValue);
                         }
                     }
                 }
@@ -1061,7 +1066,7 @@ namespace TwainDirect.Support
                     }
 
                     // Create an object to help process multipart header data...
-                    m_xfermultipartheader = new XferMultipartHeader(m_szMultipartBoundary);
+                    m_xfermultipartheader = new XferMultipartHeader(this, m_szMultipartBoundary);
 
                     // Start the read...
                     IAsyncResult iasyncresult = m_httpresponsedata.streamHttpWebResponse.BeginRead
@@ -1290,7 +1295,7 @@ namespace TwainDirect.Support
             }
             catch (Exception exception)
             {
-                Log.Error("http>>> hdr: EndRead failed - " + exception.Message);
+                Log.Error("http" + GetCommandId() + ">>> hdr: EndRead failed - " + exception.Message);
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1300,7 +1305,7 @@ namespace TwainDirect.Support
             // This isn't a good thing...
             if (m_xfermultipartheader.GetBytes() == 0)
             {
-                Log.Verbose("http>>> hdr: recvdone (read 0)...");
+                Log.Verbose("http" + GetCommandId() + ">>> hdr: recvdone (read 0)...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1309,7 +1314,7 @@ namespace TwainDirect.Support
             // this is the best way to finish up...
             if (m_xfermultipartheader.IsTerminator())
             {
-                Log.Verbose("http>>> hdr: recvdone (terminator seen)...");
+                Log.Verbose("http" + GetCommandId() + ">>> hdr: recvdone (terminator seen)...");
                 m_xfertally.AddHttpPayloadProcessed(m_abBoundaryTerminator.Length);
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
@@ -1320,7 +1325,7 @@ namespace TwainDirect.Support
             // something isn't right, and we need to scoot...
             if (m_xfertally.GetHttpPayloadProcessed() >= m_xfertally.GetContentLength())
             {
-                Log.Verbose("http>>> hdr: recvdone (data overflow)...");
+                Log.Verbose("http" + GetCommandId() + ">>> hdr: recvdone (data overflow)...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1332,7 +1337,7 @@ namespace TwainDirect.Support
                 // If we filled the buffer, we're a sad panda...
                 if (m_xfermultipartheader.GetAvailableBytes() == 0)
                 {
-                    Log.Error("http>>> hdr: filled our buffer without finding CRLF/CRLF, that's not right...");
+                    Log.Error("http" + GetCommandId() + ">>> hdr: filled our buffer without finding CRLF/CRLF, that's not right...");
                     m_httprequestdata.autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -1357,7 +1362,7 @@ namespace TwainDirect.Support
             // of bytes we processed to our tally...
             if (!m_xfermultipartheader.Process())
             {
-                Log.Error("http>>> hdr: processing the multipart header failed...");
+                Log.Error("http" + GetCommandId() + ">>> hdr: processing the multipart header failed...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1380,7 +1385,7 @@ namespace TwainDirect.Support
                 m_blApplicationJsonSeen = true;
 
                 // Move the data from our header buffer to our JSON buffer...
-                m_xfermultipartjson = new XferMultipartJson(m_xfermultipartheader.GetMultipartContentLength(), m_szMultipartBoundary);
+                m_xfermultipartjson = new XferMultipartJson(this, m_xfermultipartheader.GetMultipartContentLength(), m_szMultipartBoundary);
                 Buffer.BlockCopy(m_xfermultipartheader.GetBuffer(), 0, m_xfermultipartjson.GetBuffer(), 0, (int)m_xfermultipartheader.GetBytes());
                 m_xfermultipartjson.AddBytes(m_xfermultipartheader.GetBytes());
 
@@ -1433,7 +1438,7 @@ namespace TwainDirect.Support
             // skip over this, but I'll add that later...
             else
             {
-                Log.Error("http>>> hdr: unrecognized data block in multipart/mixed, it wasn't application/json or application/pdf...");
+                Log.Error("http" + GetCommandId() + ">>> hdr: unrecognized data block in multipart/mixed, it wasn't application/json or application/pdf...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1470,7 +1475,7 @@ namespace TwainDirect.Support
             // This isn't a good thing...
             if (m_xfermultipartheader.GetBytes() == 0)
             {
-                Log.Verbose("http>>> jsn: recvdone (read 0)...");
+                Log.Verbose("http" + GetCommandId() + ">>> jsn: recvdone (read 0)...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1480,7 +1485,7 @@ namespace TwainDirect.Support
             // something isn't right, and we need to scoot...
             if (m_xfertally.GetHttpPayloadProcessed() >= m_xfertally.GetContentLength())
             {
-                Log.Verbose("http>>> jsn: recvdone (data overflow)...");
+                Log.Verbose("http" + GetCommandId() + ">>> jsn: recvdone (data overflow)...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1495,7 +1500,7 @@ namespace TwainDirect.Support
                 // If we filled the buffer, we're a sad panda...
                 if (m_xfermultipartjson.GetAvailableBytes() == 0)
                 {
-                    Log.Error("http>>> jsn: filled our buffer without finding CRLF/CRLF, that's not right...");
+                    Log.Error("http" + GetCommandId() + ">>> jsn: filled our buffer without finding CRLF/CRLF, that's not right...");
                     m_httprequestdata.autoreseteventHttpWebRequest.Set();
                     return;
                 }
@@ -1520,7 +1525,7 @@ namespace TwainDirect.Support
             blSuccess = m_xfermultipartjson.Process();
             if (!blSuccess)
             {
-                Log.Error("http>>> jsn: processing the multipart/mixed JSON failed...");
+                Log.Error("http" + GetCommandId() + ">>> jsn: processing the multipart/mixed JSON failed...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1547,7 +1552,7 @@ namespace TwainDirect.Support
             // All done, note that we're not setting the event here, because
             // we're not done!  Only returns that are happening because there
             // is no more data or errors set the event...
-            Log.Info("http>>> jsn: " + m_httpresponsedata.szResponseData);
+            Log.Info("http" + GetCommandId() + ">>> jsn: " + m_httpresponsedata.szResponseData);
             return;
         }
 
@@ -1690,7 +1695,7 @@ namespace TwainDirect.Support
             blSuccess = m_xfermultipartpdf.Process();
             if (!blSuccess)
             {
-                Log.Error("http>>> pdf: failed to process...");
+                Log.Error("http" + GetCommandId() + ">>> pdf: failed to process...");
                 m_httprequestdata.autoreseteventHttpWebRequest.Set();
                 return;
             }
@@ -1758,7 +1763,7 @@ namespace TwainDirect.Support
 
             // Log a reason for being here...
             Log.Info("");
-            Log.Info("http>>> " + a_szReason);
+            Log.Info("http" + GetCommandId() + ">>> " + a_szReason);
 
             // Squirrel these away...
             m_httplistenerdata.szUri = a_szUri;
@@ -1820,7 +1825,7 @@ namespace TwainDirect.Support
             }
 
             // Log what we're doing and start building the request...
-            Log.Info("http>>> " + m_httplistenerdata.szMethod + " " + m_httplistenerdata.szUriFull);
+            Log.Info("http" + GetCommandId() + ">>> " + m_httplistenerdata.szMethod + " " + m_httplistenerdata.szUriFull);
             m_httprequestdata.httpwebrequest = (HttpWebRequest)WebRequest.Create(szUri);
             m_httprequestdata.httpwebrequest.AllowWriteStreamBuffering = true;
             m_httprequestdata.httpwebrequest.KeepAlive = true;
@@ -1844,7 +1849,7 @@ namespace TwainDirect.Support
                 m_httprequestdata.httpwebrequest.Headers = new WebHeaderCollection();
                 foreach (string szHeader in a_aszHeader)
                 {
-                    Log.Verbose("http>>> sendheader " + szHeader);
+                    Log.Verbose("http" + GetCommandId() + ">>> sendheader " + szHeader);
                     if (szHeader.ToLower().StartsWith("content-type: "))
                     {
                         m_httprequestdata.httpwebrequest.ContentType = szHeader.Remove(0, 14);
@@ -1892,7 +1897,7 @@ namespace TwainDirect.Support
             // Data we're sending...
             if (abData != null)
             {
-                Log.Info("http>>> senddata " + a_szData);
+                Log.Info("http" + GetCommandId() + ">>> senddata " + a_szData);
                 if (m_httprequestdata.httpwebrequest.ContentType == null)
                 {
                     // We shouldn't be getting here...
@@ -1918,7 +1923,7 @@ namespace TwainDirect.Support
             // We're sending a file...
             if (a_szUploadFile != null)
             {
-                Log.Info("http>>> sendfile " + a_szUploadFile);
+                Log.Info("http" + GetCommandId() + ">>> sendfile " + a_szUploadFile);
                 byte[] abFile = File.ReadAllBytes(a_szUploadFile);
                 m_httprequestdata.httpwebrequest.ContentLength = abFile.Length;
                 try
@@ -1973,10 +1978,10 @@ namespace TwainDirect.Support
                 // Final tally...
                 if (m_xfertally != null)
                 {
-                    Log.Verbose("http>>> tally content-length=" + m_xfertally.GetContentLength() + " read=" + m_xfertally.GetHttpPayloadRead() + " processed=" + m_xfertally.GetHttpPayloadProcessed());
+                    Log.Verbose("http" + GetCommandId() + ">>> tally content-length=" + m_xfertally.GetContentLength() + " read=" + m_xfertally.GetHttpPayloadRead() + " processed=" + m_xfertally.GetHttpPayloadProcessed());
                     for (long lIndex = 0; lIndex < m_xfertally.MultipartGetCount(); lIndex++)
                     {
-                        Log.Verbose("http>>> tally[" + lIndex + "] content-length=" + m_xfertally.MultipartGetContentLength(lIndex) + " processed=" + m_xfertally.MultipartGetHttpPayloadProcessed(lIndex));
+                        Log.Verbose("http" + GetCommandId() + ">>> tally[" + lIndex + "] content-length=" + m_xfertally.MultipartGetContentLength(lIndex) + " processed=" + m_xfertally.MultipartGetHttpPayloadProcessed(lIndex));
                     }
                 }
 
@@ -2016,7 +2021,7 @@ namespace TwainDirect.Support
             }
 
             // Log what we got back......
-            Log.Info("http>>> recvdata  " + m_httpresponsedata.szResponseData);
+            Log.Info("http" + GetCommandId() + ">>> recvdata  " + m_httpresponsedata.szResponseData);
 
             // All done, cleanup and final check...
             if (m_httpresponsedata.httpwebresponse != null)
@@ -2026,8 +2031,8 @@ namespace TwainDirect.Support
             if (m_httpresponsedata.iResponseHttpStatus >= 300)
             {
                 Log.Error(a_szReason + " failed...");
-                Log.Error("http>>> sts " + m_httpresponsedata.iResponseHttpStatus);
-                Log.Error("http>>> stsreason " + a_szReason + " (" + m_httpresponsedata.szResponseData + ")");
+                Log.Error("http" + GetCommandId() + ">>> sts " + m_httpresponsedata.iResponseHttpStatus);
+                Log.Error("http" + GetCommandId() + ">>> stsreason " + a_szReason + " (" + m_httpresponsedata.szResponseData + ")");
                 return (false);
             }
             return (true);
@@ -2050,7 +2055,7 @@ namespace TwainDirect.Support
             if (a_szCode == "invalid_x_privet_token")
             {
                 // Log it...
-                Log.Error("http>>> invalid_x_privet_token (error 400)");
+                Log.Error("http" + GetCommandId() + ">>> invalid_x_privet_token (error 400)");
 
                 // Build the error...
                 string szError =
@@ -2082,14 +2087,14 @@ namespace TwainDirect.Support
             }
 
             // Log it...
-            Log.Info("http>>> senddata " + a_szResponse);
+            Log.Info("http" + GetCommandId() + ">>> senddata " + a_szResponse);
             if (!string.IsNullOrEmpty(m_szThumbnailFile))
             {
-                Log.Info("http>>> sendthumbnailfile " + m_szThumbnailFile);
+                Log.Info("http" + GetCommandId() + ">>> sendthumbnailfile " + m_szThumbnailFile);
             }
             if (!string.IsNullOrEmpty(m_szImageFile))
             {
-                Log.Info("http>>> sendimagefile " + m_szImageFile);
+                Log.Info("http" + GetCommandId() + ">>> sendimagefile " + m_szImageFile);
             }
 
             // Protect ourselves from weirdness, we'll only get here if HttpRespond
@@ -2577,7 +2582,7 @@ namespace TwainDirect.Support
             object a_objectWaitforeventprocessingcallback
         )
         {
-            // Should we use HTTP or HTTPS?  Our default behavior is to
+             // Should we use HTTP or HTTPS?  Our default behavior is to
             // require HTTPS...
             switch (Config.Get("useHttps", "yes"))
             {
@@ -2619,6 +2624,7 @@ namespace TwainDirect.Support
             m_httplistenerdata.httplistenerresponse = null;
             m_sessiondata.blSessionStatusSuccess = true;
             m_sessiondata.szSessionStatusDetected = "nominal";
+            m_szClientCommandId = "";
 
             // If this is null, we're the initiator, meaning that we're running
             // inside of the application (like TwainDirect.App), so we're
@@ -2663,8 +2669,8 @@ namespace TwainDirect.Support
                 ||  (System.Runtime.InteropServices.Marshal.GetHRForException(a_exception) != -2146233040))
             {
                 Log.Error(a_szReason + " failed...");
-                Log.Error("http>>> sts -1");
-                Log.Error("http>>> stsreason " + a_szReason + " (" + a_exception.Message + ")");
+                Log.Error("http" + GetCommandId() + ">>> sts -1");
+                Log.Error("http" + GetCommandId() + ">>> stsreason " + a_szReason + " (" + a_exception.Message + ")");
             }
 
             // Data to return...
@@ -2710,22 +2716,22 @@ namespace TwainDirect.Support
                 if (    (m_httpreplystyle != HttpReplyStyle.Event)
                     ||  (System.Runtime.InteropServices.Marshal.GetHRForException(a_webexception) != -2146233079))
                 {
-                    Log.Error("http>>> sts web exception (null exception data)");
-                    Log.Error("http>>> stsreason " + a_szReason);
+                    Log.Error("http" + GetCommandId() + ">>> sts web exception (null exception data)");
+                    Log.Error("http" + GetCommandId() + ">>> stsreason " + a_szReason);
                     if (a_webexception == null)
                     {
-                        Log.Error("http>>> null web exception data, best guess (if Windows, and HTTPS) is the URL ACL isn't right.  Read up on 'netsh http add/delete urlacl' for more info.");
+                        Log.Error("http" + GetCommandId() + ">>> null web exception data, best guess (if Windows, and HTTPS) is the URL ACL isn't right.  Read up on 'netsh http add/delete urlacl' for more info.");
                     }
                     else
                     {
-                        Log.Error("http>>> we have web exception data, let's see what we can dump...");
+                        Log.Error("http" + GetCommandId() + ">>> we have web exception data, let's see what we can dump...");
                         if (!string.IsNullOrEmpty(a_webexception.Message))
                         {
-                            Log.Error("http>>> message: " + a_webexception.Message);
+                            Log.Error("http" + GetCommandId() + ">>> message: " + a_webexception.Message);
                         }
                         if ((a_webexception.GetBaseException() != null) && !string.IsNullOrEmpty(a_webexception.GetBaseException().Message))
                         {
-                            Log.Error("http>>> message: " + a_webexception.GetBaseException().Message);
+                            Log.Error("http" + GetCommandId() + ">>> message: " + a_webexception.GetBaseException().Message);
                         }
                     }
                 }
@@ -2771,9 +2777,9 @@ namespace TwainDirect.Support
             }
 
             // Log it...
-            Log.Error("http>>> sts " + m_httpresponsedata.iResponseHttpStatus + " (" + szHttpStatusDescription + ")");
-            Log.Error("http>>> stsreason " + a_szReason + " (" + a_webexception.Message + ")");
-            Log.Error("http>>> stsdata " + szStatusData);
+            Log.Error("http" + GetCommandId() + ">>> sts " + m_httpresponsedata.iResponseHttpStatus + " (" + szHttpStatusDescription + ")");
+            Log.Error("http" + GetCommandId() + ">>> stsreason " + a_szReason + " (" + a_webexception.Message + ")");
+            Log.Error("http" + GetCommandId() + ">>> stsdata " + szStatusData);
 
             // Data to return...
             m_webexceptionstatus = a_webexception.Status;
@@ -3042,6 +3048,11 @@ namespace TwainDirect.Support
         private JsonLookup m_jsonlookupReceived;
 
         /// <summary>
+        /// Used for logging...
+        /// </summary>
+        private string m_szClientCommandId;
+
+        /// <summary>
         /// The facility in the communication that generated an error,
         /// such as http, or the TWAIN Direct language.  There can only
         /// be one of these.
@@ -3167,9 +3178,10 @@ namespace TwainDirect.Support
             /// Our constructor...
             /// </summary>
             /// <param name="a_szBoundary">the boundary for this call</param>
-            public XferMultipartHeader(string a_szMultipartBoundary)
+            public XferMultipartHeader(ApiCmd a_apicmd, string a_szMultipartBoundary)
             {
                 // Our buffer and initial number of bytes...
+                m_apicmd = a_apicmd;
                 m_abBuffer = new byte[65536];
                 m_lBytes = 0;
                 m_lHeaderBytes = 0;
@@ -3455,12 +3467,17 @@ namespace TwainDirect.Support
                 // Log what we got...
                 foreach (string szTmp in m_lszHeaders)
                 {
-                    Log.Verbose("http>>> recvheader (" + szContentType + ") " + szTmp);
+                    Log.Verbose("http" + m_apicmd.GetCommandId() + ">>> recvheader (" + szContentType + ") " + szTmp);
                 }
 
                 // All done...
                 return (true);
             }
+
+            /// <summary>
+            /// Just to help with logging...
+            /// </summary>
+            private ApiCmd m_apicmd;
 
             /// <summary>
             /// A place to store the data we're reading...
@@ -3515,9 +3532,10 @@ namespace TwainDirect.Support
             /// Our constructor...
             /// </summary>
             /// <param name="a_szBoundary">the boundary for this call</param>
-            public XferMultipartJson(long a_lMultipartContentLength, string a_szMultipartBoundary)
+            public XferMultipartJson(ApiCmd a_apicmd, long a_lMultipartContentLength, string a_szMultipartBoundary)
             {
                 // Our buffer and initial number of bytes...
+                m_apicmd = a_apicmd;
                 m_abBuffer = new byte[65536];
                 m_lBytes = 0;
                 m_lJsonBytes = 0;
@@ -3639,13 +3657,13 @@ namespace TwainDirect.Support
                 lIndex = IndexOf(m_abBuffer, m_abBoundarySeparator, 0);
                 if ((lIndex > 0) && (lIndex < m_lMultipartContentLength))
                 {
-                    Log.Error("http>>> boundary separator detected in the body of the JSON data...");
+                    Log.Error("http" + m_apicmd.GetCommandId() + ">>> boundary separator detected in the body of the JSON data...");
                     return (false);
                 }
                 lIndex = IndexOf(m_abBuffer, m_abBoundaryTerminator, 0);
                 if ((lIndex > 0) && (lIndex < m_lMultipartContentLength))
                 {
-                    Log.Error("http>>> boundary terminator detected in the body of the JSON data...");
+                    Log.Error("http" + m_apicmd.GetCommandId() + ">>> boundary terminator detected in the body of the JSON data...");
                     return (false);
                 }
 
@@ -3653,7 +3671,7 @@ namespace TwainDirect.Support
                 m_szJson = Encoding.UTF8.GetString(m_abBuffer, 0, (int)m_lMultipartContentLength);
                 if (string.IsNullOrEmpty(m_szJson))
                 {
-                    Log.Error("http>>> emptu JSON data...");
+                    Log.Error("http" + m_apicmd.GetCommandId() + ">>> empty JSON data...");
                     return (false);
                 }
 
@@ -3662,7 +3680,7 @@ namespace TwainDirect.Support
                 blSuccess = m_jsonlookup.Load(m_szJson, out lJsonErrorIndex);
                 if (!blSuccess)
                 {
-                    Log.Error("http>>> failed to parse the JSON data...");
+                    Log.Error("http" + m_apicmd.GetCommandId() + ">>> failed to parse the JSON data...");
                     return (false);
                 }
 
@@ -3673,7 +3691,7 @@ namespace TwainDirect.Support
                 lIndex = IndexOf(m_abBuffer, m_abCRLFCRLF, m_lJsonBytes);
                 if (lIndex != m_lJsonBytes)
                 {
-                    Log.Error("http>>> failed to find the closing CRLF/CRLF in the multipart JSON...");
+                    Log.Error("http" + m_apicmd.GetCommandId() + " >>> failed to find the closing CRLF/CRLF in the multipart JSON...");
                     return (false);
                 }
 
@@ -3687,6 +3705,11 @@ namespace TwainDirect.Support
                 // All done...
                 return (true);
             }
+
+            /// <summary>
+            /// Just to help with logging...
+            /// </summary>
+            private ApiCmd m_apicmd;
 
             /// <summary>
             /// A place to store the data we're reading...

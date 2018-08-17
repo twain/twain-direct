@@ -224,7 +224,7 @@ namespace TwainDirect.App
             // This does all the interesting bits.  The next change
             // to the buttons will occur in this function, if we
             // successfully transition to the capturing state...
-            blSuccess = ClientScan
+            blSuccess = ClientScanSerial
             (
                 m_formsetup.GetThumbnails(),
                 m_formsetup.GetMetadataWithImage(),
@@ -275,8 +275,8 @@ namespace TwainDirect.App
                         break;
 
                     // We have an error in the TWAIN Local procotol, it's up
-                    // to the ClientScan function to make sure we got back to
-                    // a ready state...
+                    // to the ClientScanSerial or ClientScanParallel function
+                    // to make sure we got back to a ready state...
                     case ApiCmd.ApiErrorFacility.protocol:
                         Log.Error(aszDescriptions[0]);
                         MessageBox.Show(aszDescriptions[0], Config.GetResource(m_resourcemanager, "strFormScanTitle"));
@@ -354,7 +354,7 @@ namespace TwainDirect.App
         /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
         /// <param name="a_apicmd">if errors occur, this has information</param>
         /// <returns>true on success</returns>
-        private bool ClientScan
+        private bool ClientScanSerial
         (
             bool a_blGetThumbnails,
             bool a_blGetMetadataWithImage,
@@ -426,7 +426,7 @@ namespace TwainDirect.App
                 // we've received a failure status...
                 if (m_blAbortCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
                 {
-                    Log.Info("ClientScan: break on abort, not success, or drained...");
+                    Log.Info("ClientScanSerial: break on abort, not success, or drained...");
                     break;
                 }
 
@@ -441,7 +441,7 @@ namespace TwainDirect.App
                     blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue);
                     if (m_blAbortCapturing)
                     {
-                        Log.Info("ClientScan: break on abort...");
+                        Log.Info("ClientScanSerial: break on abort...");
                         break;
                     }
                     else if (m_blStopCapturing)
@@ -473,7 +473,7 @@ namespace TwainDirect.App
                             apicmd = new ApiCmd(m_dnssddeviceinfo);
                         }
                         blSuccessClientScan = false;
-                        Log.Info("ClientScan: break not success...");
+                        Log.Info("ClientScanSerial: break not success...");
                         break;
                     }
 
@@ -653,6 +653,312 @@ namespace TwainDirect.App
             // As long as we're in the capturing or draining states, we need to
             // keep releasing images.
             while (   (m_twainlocalscannerclient.ClientGetSessionState() == "capturing")
+                   || (m_twainlocalscannerclient.ClientGetSessionState() == "draining"))
+            {
+                // If we're drained, we can scoot, this handles stopCapturing,
+                // which isn't going to close the session...
+                if (m_twainlocalscannerclient.ClientGetImageBlocksDrained())
+                {
+                    break;
+                }
+
+                // Do we have anything to release?
+                alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
+                if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
+                {
+                    Thread.Sleep(100);
+                    m_twainlocalscannerclient.ClientScannerGetSession(ref apicmd);
+                    continue;
+                }
+
+                // Release them...
+                m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[alImageBlocks.Length - 1], ref apicmd);
+                blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
+                if (!blSuccess)
+                {
+                    if (blSuccessClientScan)
+                    {
+                        a_apicmd = apicmd;
+                        apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    }
+                    blSuccessClientScan = false;
+                    break;
+                }
+            }
+
+            // Ideally, this is the point where we want to always be setting this...
+            if (blSuccessClientScan)
+            {
+                a_apicmd = apicmd;
+            }
+
+            // All done...
+            return (blSuccessClientScan);
+        }
+
+        /// <summary>
+        /// This is the parallel version of the scan loop.  The idea is to push
+        /// transfers to their maximum potential, by asking for multiple imageBlocks.
+        /// 
+        /// Since we're performance based, we're not getting metadata seperate
+        /// from the image data.
+        /// 
+        /// If bad things happen, a_apicmd will return information on the first
+        /// command that ran into issues.
+        /// </summary>
+        /// <param name="a_blStopCapturing">a flag if capturing has been stopped</param>
+        /// <param name="a_blGetThumbnails">the caller would like thumbnails</param>
+        /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
+        /// <param name="a_apicmd">if errors occur, this has information</param>
+        /// <returns>true on success</returns>
+        private bool ClientScanParallel
+        (
+            bool a_blGetThumbnails,
+            bool a_blGetMetadataWithImage,
+            out ApiCmd a_apicmd
+        )
+        {
+            bool blSuccess;
+            bool blSuccessClientScan;
+            bool blStopCapturing;
+            long[] alImageBlocks;
+            ApiCmd apicmd;
+
+            // Init stuff...
+            alImageBlocks = null;
+            blStopCapturing = true;
+            m_szPassword = null;
+            m_blSecurityChecked = false;
+
+            // We want to return the first apicmd that has a problem, to do that we
+            // need a bait-and-switch scheme that starts with making an object that
+            // we'll return and then replace, if needed...
+            a_apicmd = null; // it'll never be null, but the compiler needs comforting...
+            apicmd = new ApiCmd(m_dnssddeviceinfo);
+            blSuccessClientScan = true;
+
+            // Clear the picture boxes, make sure we start with the left box...
+            m_iUseBitmap = 0;
+            LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null, "");
+            LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null, "");
+
+            // You won't find FormSetup.SetupMode.capturingOptions being handled
+            // here, because its negotiation takes place entirely on the setup
+            // dialog, so when we get here there's nothing left to do...
+
+            // Send the task to the scanner... 
+            m_twainlocalscannerclient.ClientScannerSendTask(m_formsetup.GetTask(), ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerSendTask", ref apicmd);
+            if (!blSuccess)
+            {
+                a_apicmd = apicmd;
+                return (false);
+            }
+
+            // Last chance to bail before we start capturing...
+            if (m_blStopCapturing || m_blAbortCapturing)
+            {
+                return (true);
+            }
+
+            // Start capturing...
+            m_twainlocalscannerclient.ClientScannerStartCapturing(ref apicmd);
+            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStartCapturing", ref apicmd);
+            if (!blSuccess)
+            {
+                a_apicmd = apicmd;
+                return (false);
+            }
+
+            // We're in a capturing state now, reflect that in the buttons...
+            SetButtons(EBUTTONSTATE.SCANNING);
+
+            // This is the outermost loop, inside we're handling thing in
+            // two stages: first, we look for an event that tells us we
+            // have work to do; second, we do work...
+            blSuccess = true;
+            while (true)
+            {
+                // Scoot if the scanner says it's done sending images, or if
+                // we've received a failure status...
+                if (m_blAbortCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
+                {
+                    Log.Info("ClientScanParallel: break on abort, not success, or drained...");
+                    break;
+                }
+
+                // Wait for the session object to be updated, after that we'll
+                // only need to wait for more events if we drain the scanner
+                // of images...
+                while (true)
+                {
+                    // Wait for the session object to be updated.  If this command
+                    // returns false, it means that somebody wants us to stop
+                    // scanning...
+                    blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue);
+                    if (m_blAbortCapturing)
+                    {
+                        Log.Info("ClientScanParallel: break on abort...");
+                        break;
+                    }
+                    else if (m_blStopCapturing)
+                    {
+                        // Stop capturing...
+                        if (blStopCapturing)
+                        {
+                            // If this doesn't work, then abort...
+                            blStopCapturing = false;
+                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                            if (!blSuccess)
+                            {
+                                m_blAbortCapturing = true;
+                                if (blSuccessClientScan)
+                                {
+                                    a_apicmd = apicmd;
+                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                                }
+                                blSuccessClientScan = false;
+                            }
+                        }
+                    }
+                    else if (!blSuccess)
+                    {
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        Log.Info("ClientScanParallel: break not success...");
+                        break;
+                    }
+
+                    // If we have an imageBlock pop out, we're going to transfer it...
+                    alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
+                    if (m_twainlocalscannerclient.ClientGetImageBlocksDrained() || ((alImageBlocks != null) && (alImageBlocks.Length > 0)))
+                    {
+                        break;
+                    }
+                }
+
+                // Scoot if the scanner says it's done sending images, or if
+                // we've received a failure status...
+                if (m_blAbortCapturing || !blSuccess || m_twainlocalscannerclient.ClientGetImageBlocksDrained())
+                {
+                    Log.Info("ClientScanParallel: break on abort, not success, or drained (2)...");
+                    break;
+                }
+
+                // Loop on each imageBlock until we exhaust the imageBlocks array...
+                while (true)
+                {
+                    // Get the corresponding image block in the array...
+                    m_twainlocalscannerclient.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
+                    if (m_blAbortCapturing)
+                    {
+                        break;
+                    }
+                    else if (m_blStopCapturing)
+                    {
+                        // Stop capturing...
+                        if (blStopCapturing)
+                        {
+                            // If this doesn't work, then abort...
+                            blStopCapturing = false;
+                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                            if (!blSuccess)
+                            {
+                                m_blAbortCapturing = true;
+                                if (blSuccessClientScan)
+                                {
+                                    a_apicmd = apicmd;
+                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                                }
+                                blSuccessClientScan = false;
+                            }
+                        }
+                    }
+                    else if (!blSuccess)
+                    {
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        break;
+                    }
+
+                    // Release the image block...
+                    m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
+                    if (m_blAbortCapturing)
+                    {
+                        break;
+                    }
+                    else if (m_blStopCapturing)
+                    {
+                        // Stop capturing...
+                        if (blStopCapturing)
+                        {
+                            // If this doesn't work, then abort...
+                            blStopCapturing = false;
+                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                            if (!blSuccess)
+                            {
+                                m_blAbortCapturing = true;
+                                if (blSuccessClientScan)
+                                {
+                                    a_apicmd = apicmd;
+                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
+                                }
+                                blSuccessClientScan = false;
+                            }
+                        }
+                    }
+                    else if (!blSuccess)
+                    {
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        break;
+                    }
+
+                    // If we're out of imageBlocks, exit this loop...
+                    alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
+                    if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // Stop capturing...
+            if (blStopCapturing)
+            {
+                m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                if (!blSuccess)
+                {
+                    if (blSuccessClientScan)
+                    {
+                        a_apicmd = apicmd;
+                        apicmd = new ApiCmd(m_dnssddeviceinfo);
+                    }
+                    blSuccessClientScan = false;
+                }
+            }
+
+            // As long as we're in the capturing or draining states, we need to
+            // keep releasing images.
+            while ((m_twainlocalscannerclient.ClientGetSessionState() == "capturing")
                    || (m_twainlocalscannerclient.ClientGetSessionState() == "draining"))
             {
                 // If we're drained, we can scoot, this handles stopCapturing,

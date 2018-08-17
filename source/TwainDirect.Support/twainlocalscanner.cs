@@ -260,10 +260,12 @@ namespace TwainDirect.Support
             if (    (szUri == "/privet/info")
                 ||  (szUri == "/privet/infoex"))
             {
+                apicmd = new ApiCmd(null, null, ref a_httplistenercontext);
+
                 // Log it...
                 Log.Info("");
-                Log.Info("http>>> " + szUri.Replace("/privet/", ""));
-                Log.Info("http>>> " + a_httplistenercontext.Request.HttpMethod + " uri " + a_httplistenercontext.Request.Url.AbsoluteUri);
+                Log.Info("http" + apicmd.GetCommandId() + ">>> " + szUri.Replace("/privet/", ""));
+                Log.Info("http" + apicmd.GetCommandId() + ">>> " + a_httplistenercontext.Request.HttpMethod + " uri " + a_httplistenercontext.Request.Url.AbsoluteUri);
 
                 // Get each header and display each value.
                 NameValueCollection namevaluecollectionHeaders = a_httplistenercontext.Request.Headers;
@@ -272,19 +274,18 @@ namespace TwainDirect.Support
                     string[] aszValues = namevaluecollectionHeaders.GetValues(szKey);
                     if (aszValues.Length == 0)
                     {
-                        Log.Verbose("http>>> recvheader " + szKey + ": n/a");
+                        Log.Verbose("http" + apicmd.GetCommandId() + ">>> recvheader " + szKey + ": n/a");
                     }
                     else
                     {
                         foreach (string szValue in aszValues)
                         {
-                            Log.Verbose("http>>> recvheader " + szKey + ": " + szValue);
+                            Log.Verbose("http" + apicmd.GetCommandId() + ">>> recvheader " + szKey + ": " + szValue);
                         }
                     }
                 }
 
                 // Run it...
-                apicmd = new ApiCmd(null, null, ref a_httplistenercontext);
                 DeviceInfo(ref apicmd);
                 return;
             }
@@ -435,8 +436,8 @@ namespace TwainDirect.Support
             if (Log.GetLevel() != 0)
             {
                 Log.Info("");
-                Log.Info("http>>> " + jsonlookup.Get("method"));
-                Log.Info("http>>> " + a_httplistenercontext.Request.HttpMethod + " uri " + a_httplistenercontext.Request.Url.AbsoluteUri);
+                Log.Info("http" + apicmd.GetCommandId() + ">>> " + jsonlookup.Get("method"));
+                Log.Info("http" + apicmd.GetCommandId() + ">>> " + a_httplistenercontext.Request.HttpMethod + " uri " + a_httplistenercontext.Request.Url.AbsoluteUri);
                 NameValueCollection namevaluecollectionHeaders = a_httplistenercontext.Request.Headers;
                 // Get each header and display each value.
                 foreach (string szKey in namevaluecollectionHeaders.AllKeys)
@@ -444,17 +445,17 @@ namespace TwainDirect.Support
                     string[] aszValues = namevaluecollectionHeaders.GetValues(szKey);
                     if (aszValues.Length == 0)
                     {
-                        Log.Verbose("http>>> recvheader " + szKey + ": n/a");
+                        Log.Verbose("http" + apicmd.GetCommandId() + ">>> recvheader " + szKey + ": n/a");
                     }
                     else
                     {
                         foreach (string szValue in aszValues)
                         {
-                            Log.Verbose("http>>> recvheader " + szKey + ": " + szValue);
+                            Log.Verbose("http" + apicmd.GetCommandId() + ">>> recvheader " + szKey + ": " + szValue);
                         }
                     }
                 }
-                Log.Info("http>>> recvdata  " + a_szJsonCommand);
+                Log.Info("http" + apicmd.GetCommandId() + ">>> recvdata  " + a_szJsonCommand);
             }
 
             // Dispatch the command...
@@ -2425,7 +2426,7 @@ namespace TwainDirect.Support
                     if (a_blGetSession)
                     {
                         Log.Info("");
-                        Log.Info("http>>> waitForEvents (response) sendevents=" + a_blSendEvents + " getsession=" + a_blGetSession + " eventname=" + a_szEventName);
+                        Log.Info("http" + ((a_apicmd != null) ? a_apicmd.GetCommandId() : "") + ">>> waitForEvents (response) sendevents=" + a_blSendEvents + " getsession=" + a_blGetSession + " eventname=" + a_szEventName);
                     }
 
                     // We've already been handled...
@@ -4587,13 +4588,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collect session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -4607,7 +4607,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"closeSession\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"" +
@@ -4655,7 +4655,7 @@ namespace TwainDirect.Support
                 }
 
                 // Send the RESTful API command...
-                var szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
@@ -4665,7 +4665,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"createSession\"" +
                     "}",
                     null,
@@ -4706,13 +4706,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -4726,7 +4725,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"getSession\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"" +
@@ -4763,6 +4762,7 @@ namespace TwainDirect.Support
             lock (m_objectLockClientApi)
             {
                 // Send the RESTful API command...
+                a_apicmd.SetClientCommandId(Guid.NewGuid().ToString());
                 blSuccess = ClientHttpRequest
                 (
                     szFunction,
@@ -4772,7 +4772,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + Guid.NewGuid().ToString() + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"invalidCommand\"" +
                     "}",
                     null,
@@ -4854,13 +4854,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -4891,7 +4890,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"readImageBlock\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"," +
@@ -4972,13 +4971,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -5014,7 +5012,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"readImageBlockMetadata\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"," +
@@ -5088,13 +5086,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -5108,7 +5105,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"releaseImageBlocks\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"," +
@@ -5146,13 +5143,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collect session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -5166,7 +5162,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"sendTask\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"," +
@@ -5202,7 +5198,6 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Init stuff...
@@ -5212,7 +5207,7 @@ namespace TwainDirect.Support
                 // Collect session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                     m_twainlocalsession.SetSessionStatusSuccess(true);
                     m_twainlocalsession.SetSessionStatusDetected("nominal");
@@ -5230,7 +5225,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"startCapturing\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"" +
@@ -5270,13 +5265,12 @@ namespace TwainDirect.Support
             // Lock this command to protect the session object...
             lock (m_objectLockClientApi)
             {
-                string szClientCreateCommandId = "";
                 string szSessionId = "";
 
                 // Collection session data, if we have any...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
                 }
 
@@ -5290,7 +5284,7 @@ namespace TwainDirect.Support
                     ClientHttpBuildHeader(),
                     "{" +
                     "\"kind\":\"twainlocalscanner\"," +
-                    "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                    "\"commandId\":\"" + a_apicmd.GetCommandId() + "\"," +
                     "\"method\":\"stopCapturing\"," +
                     "\"params\":{" +
                     "\"sessionId\":\"" + szSessionId + "\"" +
@@ -5739,14 +5733,13 @@ namespace TwainDirect.Support
             // Loop until something stops us...
             for (;;)
             {
-                string szClientCreateCommandId = "";
                 string szSessionRevision = "0";
                 SessionState sessionstate = SessionState.noSession;
 
                 // Get data from our session...
                 if (m_twainlocalsession != null)
                 {
-                    szClientCreateCommandId = m_twainlocalsession.ClientCreateCommandId();
+                    apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionRevision = m_twainlocalsession.GetSessionRevision().ToString();
                     sessionstate = m_twainlocalsession.GetSessionState();
                 }
@@ -5754,7 +5747,7 @@ namespace TwainDirect.Support
                 // Update the data, first we need a new command id for this
                 // instance of the long poll...
                 string szData = m_waitforeventsinfo.m_szData;
-                szData = szData.Replace("@@@COMMANDID@@@", szClientCreateCommandId);
+                szData = szData.Replace("@@@COMMANDID@@@", apicmd.GetCommandId());
 
                 // Session data is protected...
                 lock (m_waitforeventsinfo.m_objectlapicmdLock)
@@ -5789,7 +5782,7 @@ namespace TwainDirect.Support
                             -1,
                             "{" +
                             "\"kind\":\"twainlocalscanner\"," +
-                            "\"commandId\":\"" + szClientCreateCommandId + "\"," +
+                            "\"commandId\":\"" + apicmd.GetCommandId() + "\"," +
                             "\"method\":\"waitForEvents\"," +
                             "\"results\":{" +
                             "\"success\":false," +
