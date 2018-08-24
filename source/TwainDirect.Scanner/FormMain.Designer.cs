@@ -1,6 +1,6 @@
 ﻿namespace TwainDirect.Scanner
 {
-    partial class Form1
+    partial class FormMain
     {
         /// <summary>
         /// Required designer variable.
@@ -37,16 +37,13 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormMain));
             this.m_buttonStart = new System.Windows.Forms.Button();
             this.m_buttonStop = new System.Windows.Forms.Button();
             this.m_richtextboxTask = new System.Windows.Forms.RichTextBox();
-            this.m_buttonRegister = new System.Windows.Forms.Button();
             this.m_notifyicon = new System.Windows.Forms.NotifyIcon(this.components);
             this.panel1 = new System.Windows.Forms.Panel();
-            this.m_CloudRegisterButton = new System.Windows.Forms.Button();
-            this.m_buttonManageTwainLocal = new System.Windows.Forms.Button();
-            this.m_checkboxRunOnLogin = new System.Windows.Forms.CheckBox();
+            this.m_buttonSetup = new System.Windows.Forms.Button();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -82,20 +79,9 @@
             this.m_richtextboxTask.Location = new System.Drawing.Point(0, 0);
             this.m_richtextboxTask.Name = "m_richtextboxTask";
             this.m_richtextboxTask.ReadOnly = true;
-            this.m_richtextboxTask.Size = new System.Drawing.Size(598, 240);
+            this.m_richtextboxTask.Size = new System.Drawing.Size(598, 266);
             this.m_richtextboxTask.TabIndex = 61;
             this.m_richtextboxTask.Text = "";
-            // 
-            // m_buttonRegister
-            // 
-            this.m_buttonRegister.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.m_buttonRegister.Location = new System.Drawing.Point(471, 8);
-            this.m_buttonRegister.Name = "m_buttonRegister";
-            this.m_buttonRegister.Size = new System.Drawing.Size(142, 23);
-            this.m_buttonRegister.TabIndex = 62;
-            this.m_buttonRegister.Text = "Select Scanner...";
-            this.m_buttonRegister.UseVisualStyleBackColor = true;
-            this.m_buttonRegister.Click += new System.EventHandler(this.m_buttonRegister_Click);
             // 
             // m_notifyicon
             // 
@@ -112,64 +98,38 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.panel1.Controls.Add(this.m_richtextboxTask);
-            this.panel1.Location = new System.Drawing.Point(13, 38);
+            this.panel1.Location = new System.Drawing.Point(13, 12);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(600, 242);
+            this.panel1.Size = new System.Drawing.Size(600, 268);
             this.panel1.TabIndex = 63;
             // 
-            // m_CloudRegisterButton
+            // m_buttonSetup
             // 
-            this.m_CloudRegisterButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.m_CloudRegisterButton.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.m_CloudRegisterButton.Location = new System.Drawing.Point(14, 8);
-            this.m_CloudRegisterButton.Name = "m_CloudRegisterButton";
-            this.m_CloudRegisterButton.Size = new System.Drawing.Size(142, 23);
-            this.m_CloudRegisterButton.TabIndex = 64;
-            this.m_CloudRegisterButton.Text = "Register Cloud...";
-            this.m_CloudRegisterButton.UseVisualStyleBackColor = true;
-            this.m_CloudRegisterButton.Click += new System.EventHandler(this.m_CloudRegisterButton_Click);
+            this.m_buttonSetup.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_buttonSetup.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            this.m_buttonSetup.Location = new System.Drawing.Point(14, 286);
+            this.m_buttonSetup.Name = "m_buttonSetup";
+            this.m_buttonSetup.Size = new System.Drawing.Size(75, 23);
+            this.m_buttonSetup.TabIndex = 66;
+            this.m_buttonSetup.Text = "Setup...";
+            this.m_buttonSetup.UseVisualStyleBackColor = true;
+            this.m_buttonSetup.Click += new System.EventHandler(this.m_buttonSetup_Click);
             // 
-            // m_buttonManageTwainLocal
-            // 
-            this.m_buttonManageTwainLocal.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.m_buttonManageTwainLocal.Location = new System.Drawing.Point(162, 8);
-            this.m_buttonManageTwainLocal.Name = "m_buttonManageTwainLocal";
-            this.m_buttonManageTwainLocal.Size = new System.Drawing.Size(142, 23);
-            this.m_buttonManageTwainLocal.TabIndex = 65;
-            this.m_buttonManageTwainLocal.Text = "Manage Local...";
-            this.m_buttonManageTwainLocal.UseVisualStyleBackColor = true;
-            this.m_buttonManageTwainLocal.Click += new System.EventHandler(this.m_buttonManageTwainLocal_Click);
-            // 
-            // m_checkboxRunOnLogin
-            // 
-            this.m_checkboxRunOnLogin.AutoSize = true;
-            this.m_checkboxRunOnLogin.Location = new System.Drawing.Point(13, 291);
-            this.m_checkboxRunOnLogin.Name = "m_checkboxRunOnLogin";
-            this.m_checkboxRunOnLogin.Size = new System.Drawing.Size(187, 17);
-            this.m_checkboxRunOnLogin.TabIndex = 66;
-            this.m_checkboxRunOnLogin.Text = "Run this program when you log on";
-            this.m_checkboxRunOnLogin.UseVisualStyleBackColor = true;
-            this.m_checkboxRunOnLogin.CheckedChanged += new System.EventHandler(this.m_checkboxRunOnLogin_CheckedChanged);
-            // 
-            // Form1
+            // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(625, 318);
-            this.Controls.Add(this.m_checkboxRunOnLogin);
-            this.Controls.Add(this.m_buttonManageTwainLocal);
-            this.Controls.Add(this.m_CloudRegisterButton);
+            this.Controls.Add(this.m_buttonSetup);
             this.Controls.Add(this.panel1);
-            this.Controls.Add(this.m_buttonRegister);
             this.Controls.Add(this.m_buttonStop);
             this.Controls.Add(this.m_buttonStart);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimumSize = new System.Drawing.Size(383, 274);
-            this.Name = "Form1";
+            this.Name = "FormMain";
             this.Text = "TWAIN Direct: Scanner";
             this.panel1.ResumeLayout(false);
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
@@ -178,12 +138,9 @@
         private System.Windows.Forms.Button m_buttonStart;
         private System.Windows.Forms.Button m_buttonStop;
         private System.Windows.Forms.RichTextBox m_richtextboxTask;
-        private System.Windows.Forms.Button m_buttonRegister;
         private System.Windows.Forms.NotifyIcon m_notifyicon;
         private System.Windows.Forms.Panel panel1;
-        private System.Windows.Forms.Button m_CloudRegisterButton;
-        private System.Windows.Forms.Button m_buttonManageTwainLocal;
-        private System.Windows.Forms.CheckBox m_checkboxRunOnLogin;
+        private System.Windows.Forms.Button m_buttonSetup;
     }
 }
 

@@ -34,6 +34,7 @@
 
 // Helpers...
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -335,26 +336,17 @@ namespace TwainDirect.Support
                         Log.Error("ConvertPdfToTiffOrJpeg: unrecognized security type - " + rasterreadersecuritytype);
                         return (null);
                     case PdfRasterReader.Reader.PdfRasterReaderSecurityType.RASREAD_PUBLIC_KEY_SECURITY:
-                        Log.Error("ConvertPdfToTiffOrJpeg: not supported yet - " + rasterreadersecuritytype);
-                        return (null);
+                        decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage, a_szPassword);
+                        break;
                     case PdfRasterReader.Reader.PdfRasterReaderSecurityType.PDFRASREAD_UNENCRYPTED:
+                        decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
+                        break;
                     case PdfRasterReader.Reader.PdfRasterReaderSecurityType.RASREAD_STANDARD_SECURITY:
-                        // We can do these...
+                        decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage, a_szPassword);
                         break;
                 }
 
                 // Okay, let's do it...
-                if (a_szPassword == null)
-                {
-                    decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage);
-                }
-                else
-                {
-                    // tbd:mlm clean this up when PDF/raster is fixed...
-                    Log.Error("ConvertPdfToTiffOrJpeg: we can't decrypt yet...");
-                    return (null);
-                    //decoder = pdfRasRd.decoder_create(PdfRasterReader.Reader.PdfRasterConst.PDFRASREAD_API_LEVEL, a_szImage, a_szPassword);
-                }
                 lWidth = pdfRasRd.decoder_get_width(decoder);
                 lHeight = pdfRasRd.decoder_get_height(decoder);
                 lResolution = (long)pdfRasRd.decoder_get_yresolution(decoder);
@@ -498,11 +490,16 @@ namespace TwainDirect.Support
                             blFound = true;
                             break;
                         }
+
+                        // Next profile...
+                        iProfile += 1;
                     }
 
                     // Found it...
                     if (blFound)
                     {
+                        List<PdfRasterWriter.Writer.PdfRasterPubSecRecipient> listpdfrasterrubsecrecipient;
+                        PdfRasterWriter.Writer.PdfRasterPubSecRecipient pdfrasterpubsecrecipient;
                         switch (Config.Get("encryptionProfiles[" + iProfile + "].type", ""))
                         {
                             default:
@@ -513,9 +510,30 @@ namespace TwainDirect.Support
                                     enc,
                                     Config.Get("encryptionProfiles[" + iProfile + "].passwordUser", ""),
                                     Config.Get("encryptionProfiles[" + iProfile + "].passwordOwner", ""),
-                                    PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_COPY_FROM_DOCUMENT,
-                                    0
+                                    PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT,
+                                    ((Config.Get("encryptMetadata", "true") == "true") ? (uint)1 : (uint)0)
                                 );
+                                break;
+                            case "publicKey":
+                                listpdfrasterrubsecrecipient = new List<PdfRasterWriter.Writer.PdfRasterPubSecRecipient>();
+                                pdfrasterpubsecrecipient = new PdfRasterWriter.Writer.PdfRasterPubSecRecipient();
+                                switch (Config.Get("encryptionProfiles[" + iProfile + "].publicKeyType", ""))
+                                {
+                                    default:
+                                        Log.Error("Unsupported publicKeyType: <" + Config.Get("encryptionProfiles[" + iProfile + "].publicKeyType", "") + ">");
+                                        break;
+                                    case "aes256":
+                                        pdfrasterpubsecrecipient.public_key = Config.Get("encryptionProfiles[" + iProfile + "].publicKey", "");
+                                        pdfrasterpubsecrecipient.perms = PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT;
+                                        listpdfrasterrubsecrecipient.Add(pdfrasterpubsecrecipient);
+                                        pdfRasWr.encoder_set_pubsec_AES256_encrypter
+                                        (
+                                            enc,
+                                            listpdfrasterrubsecrecipient,
+                                            ((Config.Get("encryptMetadata", "true") == "true") ? (uint)1 : (uint)0)
+                                        );
+                                        break;
+                                }
                                 break;
                         }
                     }

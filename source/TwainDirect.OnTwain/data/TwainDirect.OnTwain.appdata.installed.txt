@@ -78,6 +78,13 @@
             "type": "password",
             "passwordUser": "open",
             "passwordOwner": "edit"
+        },
+        {
+            "name": "public key",
+            "profile": "Public Key",
+            "type": "publicKey",
+            "publicKeyType": "aes256",
+            "publicKey": "full path to .pem file containing the public key"
         }
     ]
 }

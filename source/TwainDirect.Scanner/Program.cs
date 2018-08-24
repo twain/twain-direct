@@ -25,7 +25,7 @@ namespace TwainDirect.Scanner
             string szExecutableName;
             string szWriteFolder;
             float fScale;
-            Form1 form1;
+            FormMain form1;
 
             // Are we already running?
             Process[] aprocess = Process.GetProcessesByName(System.IO.Path.GetFileNameWithoutExtension(System.Reflection.Assembly.GetEntryAssembly().Location));
@@ -111,7 +111,7 @@ namespace TwainDirect.Scanner
                 case Mode.WINDOW:
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
-                    form1 = new Form1();
+                    form1 = new FormMain();
                     Application.Run(form1);
                     form1.Dispose();
                     break;

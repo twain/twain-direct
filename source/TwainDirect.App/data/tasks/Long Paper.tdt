@@ -10,16 +10,16 @@
 			"sources": [{
 				"source": "any",
 				"pixelFormats": [{
-					"pixelFormat": "rgb24",
+					"pixelFormat": "any",
 					"attributes": [{
 						"attribute": "automaticDeskew",
 						"values": [{
-							"value": "on"
+							"value": "off"
 						}]
 					}, {
 						"attribute": "automaticSize",
 						"values": [{
-							"value": "on"
+							"value": "off"
 						}]
 					}, {
 						"attribute": "barcodes",
@@ -39,12 +39,12 @@
 					}, {
 						"attribute": "cropping",
 						"values": [{
-							"value": "automatic"
+							"value": "long"
 						}]
 					}, {
 						"attribute": "discardBlankImages",
 						"values": [{
-							"value": "on"
+							"value": "off"
 						}]
 					}, {
 						"attribute": "doublefeedDetectionResponse",
@@ -54,21 +54,9 @@
 							"value": "stop"
 						}]
 					}, {
-						"attribute": "jpegQuality",
-						"values": [{
-							"value": "best"
-						}]
-					}, {
-						"attribute": "resolution",
-						"values": [{
-							"value": "300"
-						}, {
-							"value": "optical"
-						}]
-					}, {
 						"attribute": "rotation",
 						"values": [{
-							"value": "automatic"
+							"value": "0"
 						}]
 					}]
 				}]

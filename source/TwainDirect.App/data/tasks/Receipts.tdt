@@ -10,7 +10,7 @@
 			"sources": [{
 				"source": "any",
 				"pixelFormats": [{
-					"pixelFormat": "rgb24",
+					"pixelFormat": "gray8",
 					"attributes": [{
 						"attribute": "automaticDeskew",
 						"values": [{
@@ -19,7 +19,7 @@
 					}, {
 						"attribute": "automaticSize",
 						"values": [{
-							"value": "on"
+							"value": "off"
 						}]
 					}, {
 						"attribute": "barcodes",
@@ -52,18 +52,6 @@
 							"value": "pauseAndWait"
 						}, {
 							"value": "stop"
-						}]
-					}, {
-						"attribute": "jpegQuality",
-						"values": [{
-							"value": "best"
-						}]
-					}, {
-						"attribute": "resolution",
-						"values": [{
-							"value": "300"
-						}, {
-							"value": "optical"
 						}]
 					}, {
 						"attribute": "rotation",

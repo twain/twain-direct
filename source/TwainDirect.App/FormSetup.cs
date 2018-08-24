@@ -359,6 +359,51 @@ namespace TwainDirect.App
         }
 
         /// <summary>
+        /// Bring up Dynamsoft's advanced task generation page...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonGenerateTaskAdvanced_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetText(Path.Combine(Config.Get("writeFolder", ""), "tasks"));
+            System.Diagnostics.Process.Start("https://www.dynamsoft.com/Demo/TwainDirectTaskGeneratorOnline/advanced.html");
+        }
+
+        /// <summary>
+        /// Bring up Dynamsoft's basic task generation page...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonGenerateTaskBasic_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetText(Path.Combine(Config.Get("writeFolder", ""), "tasks"));
+            System.Diagnostics.Process.Start("https://www.dynamsoft.com/Demo/TwainDirectTaskGeneratorOnline/Basic.html");
+        }
+
+        /// <summary>
+        /// Bring up Dynamsoft's PDF/raster validator page...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonValidatePdfRaster_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetText(Path.Combine(Config.Get("writeFolder", ""), "images"));
+            System.Diagnostics.Process.Start("https://www.dynamsoft.com/Demo/TwainDirectPdfRasterValidatorOnline/index.html");
+        }
+
+        /// <summary>
+        /// Bring up Dynamsoft's task validator page...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+
+        private void m_buttonValidateTask_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetText(Path.Combine(Config.Get("writeFolder", ""), "tasks"));
+            System.Diagnostics.Process.Start("https://www.dynamsoft.com/Demo/TwainDirectTaskValidatorOnline/index.html");
+        }
+
+        /// <summary>
         /// Send an encryption report to the scanner and show the results...
         /// </summary>
         /// <param name="sender"></param>

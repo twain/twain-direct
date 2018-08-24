@@ -14,12 +14,12 @@
 					"attributes": [{
 						"attribute": "automaticDeskew",
 						"values": [{
-							"value": "on"
+							"value": "off"
 						}]
 					}, {
 						"attribute": "automaticSize",
 						"values": [{
-							"value": "on"
+							"value": "off"
 						}]
 					}, {
 						"attribute": "barcodes",
@@ -29,22 +29,22 @@
 					}, {
 						"attribute": "brightness",
 						"values": [{
-							"value": "automatic"
+							"value": "50"
 						}]
 					}, {
 						"attribute": "compression",
 						"values": [{
-							"value": "autoVersion1"
+							"value": "none"
 						}]
 					}, {
 						"attribute": "cropping",
 						"values": [{
-							"value": "automatic"
+							"value": "fixed"
 						}]
 					}, {
 						"attribute": "discardBlankImages",
 						"values": [{
-							"value": "on"
+							"value": "off"
 						}]
 					}, {
 						"attribute": "doublefeedDetectionResponse",
@@ -54,21 +54,39 @@
 							"value": "stop"
 						}]
 					}, {
-						"attribute": "jpegQuality",
+						"attribute": "height",
 						"values": [{
-							"value": "best"
+							"value": "maximum"
+						}]
+					}, {
+						"attribute": "offsetX",
+						"values": [{
+							"value": "0"
+						}]
+					}, {
+						"attribute": "offsetY",
+						"values": [{
+							"value": "0"
 						}]
 					}, {
 						"attribute": "resolution",
 						"values": [{
-							"value": "300"
-						}, {
 							"value": "optical"
 						}]
 					}, {
 						"attribute": "rotation",
 						"values": [{
-							"value": "automatic"
+							"value": "0"
+						}]
+					}, {
+						"attribute": "uncalibratedImage",
+						"values": [{
+							"value": "on"
+						}]
+					}, {
+						"attribute": "width",
+						"values": [{
+							"value": "maximum"
 						}]
 					}]
 				}]

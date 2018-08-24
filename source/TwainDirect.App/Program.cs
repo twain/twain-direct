@@ -45,7 +45,7 @@ namespace TwainDirect.App
         /// <param name="a_aszArgs">interesting arguments</param>
         [STAThread]
         static void Main(string[] a_aszArgs)
-        {
+       {
 			// TODO: Handle this correctly - this is a temporary workaround.
 	        // Trust all certificates
 	        System.Net.ServicePointManager.ServerCertificateValidationCallback =

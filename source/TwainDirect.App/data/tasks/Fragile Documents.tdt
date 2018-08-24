@@ -10,7 +10,7 @@
 			"sources": [{
 				"source": "any",
 				"pixelFormats": [{
-					"pixelFormat": "rgb24",
+					"pixelFormat": "bw1",
 					"attributes": [{
 						"attribute": "automaticDeskew",
 						"values": [{
@@ -25,6 +25,11 @@
 						"attribute": "barcodes",
 						"values": [{
 							"value": "off"
+						}]
+					}, {
+						"attribute": "bitDepthReduction",
+						"values": [{
+							"value": "dynamic"
 						}]
 					}, {
 						"attribute": "brightness",
@@ -54,21 +59,14 @@
 							"value": "stop"
 						}]
 					}, {
-						"attribute": "jpegQuality",
-						"values": [{
-							"value": "best"
-						}]
-					}, {
-						"attribute": "resolution",
-						"values": [{
-							"value": "300"
-						}, {
-							"value": "optical"
-						}]
-					}, {
 						"attribute": "rotation",
 						"values": [{
 							"value": "automatic"
+						}]
+					}, {
+						"attribute": "sheetHandling",
+						"values": [{
+							"value": "fragile"
 						}]
 					}]
 				}]

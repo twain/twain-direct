@@ -10,7 +10,7 @@
 			"sources": [{
 				"source": "any",
 				"pixelFormats": [{
-					"pixelFormat": "rgb24",
+					"pixelFormat": "any",
 					"attributes": [{
 						"attribute": "automaticDeskew",
 						"values": [{
@@ -54,16 +54,16 @@
 							"value": "stop"
 						}]
 					}, {
-						"attribute": "jpegQuality",
+						"attribute": "imageMerge",
 						"values": [{
-							"value": "best"
+							"value": "frontAboveRear"
+						}, {
+							"value": "frontLeftOfRear"
 						}]
 					}, {
-						"attribute": "resolution",
+						"attribute": "imageMergeHeightThreshold",
 						"values": [{
-							"value": "300"
-						}, {
-							"value": "optical"
+							"value": 101600
 						}]
 					}, {
 						"attribute": "rotation",
