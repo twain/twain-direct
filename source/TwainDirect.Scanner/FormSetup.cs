@@ -21,7 +21,7 @@ namespace TwainDirect.Scanner
         /// Init stuff...
         /// </summary>
         /// <param name="a_resourcemanager"></param>
-        public FormSetup(FormMain a_formmain, ResourceManager a_resourcemanager)
+        public FormSetup(FormMain a_formmain, ResourceManager a_resourcemanager, bool a_blConfirmScan)
         {
             // Init the component...
             InitializeComponent();
@@ -30,6 +30,7 @@ namespace TwainDirect.Scanner
             // Remember stuff...
             m_formmain = a_formmain;
             m_resourcemanager = a_resourcemanager;
+            m_checkboxConfirmation.Checked = a_blConfirmScan;
 
             // Localize...
             this.Text = Config.GetResource(m_resourcemanager, "strFormMainTitle"); // TWAIN Direct: TWAIN Bridge

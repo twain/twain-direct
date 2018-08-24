@@ -93,7 +93,7 @@ namespace TwainDirect.Scanner
             InitializeComponent();
 
             // Instantiate our setup object...
-            m_formsetup = new FormSetup(this, m_resourcemanager);
+            m_formsetup = new FormSetup(this, m_resourcemanager, blConfirmScan);
 
             // Localize...
             this.Text = Config.GetResource(m_resourcemanager, "strFormMainTitle"); // TWAIN Direct: TWAIN Bridge
@@ -142,7 +142,7 @@ namespace TwainDirect.Scanner
             (
                 m_resourcemanager,
                 Display,
-                blConfirmScan ? ConfirmScan : (TwainLocalScannerDevice.ConfirmScan)null,
+                ConfirmScan,
                 fScale,
                 out m_blNoDevices
             );
@@ -498,6 +498,13 @@ namespace TwainDirect.Scanner
                 return (m_buttonpress);
             }
 
+            // This is turned off, so return OK...
+            if (!m_formsetup.GetConfirmation())
+            {
+                return (TwainLocalScanner.ButtonPress.OK);
+            }
+
+            // Okay, keep going...
             DialogResult dialogresult = DialogResult.No;
             ConfirmScan confirmscan;
 
