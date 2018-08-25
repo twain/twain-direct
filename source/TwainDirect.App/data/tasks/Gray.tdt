@@ -1,1 +1,0 @@
-{"actions":[{"action":"configure","streams":[{"sources":[{"source":"any","pixelFormats":[{"pixelFormat":"gray8","attributes":[{"attribute":"compression","values":[{"value":"autoVersion1"}]}]}]}]}]}]}

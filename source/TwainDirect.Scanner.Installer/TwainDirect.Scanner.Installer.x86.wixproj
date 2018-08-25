@@ -76,6 +76,8 @@ $(WixInstallPath)\heat.exe dir $(ProjectDir)..\..\..\TwainDirect.Scanner\bin\$(P
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="bin\" />
+    <Folder Include="bin\Debug\" />
     <Folder Include="Localization\" />
   </ItemGroup>
   <ItemGroup>
