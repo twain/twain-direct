@@ -16,6 +16,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.ServiceProcess;
+using System.Text;
 using System.Windows.Forms;
 
 namespace TwainDirect.Scanner.TwainLocalManager
@@ -244,11 +245,14 @@ namespace TwainDirect.Scanner.TwainLocalManager
                 {
                     MessageBox.Show
                     (
-                        "A copy of the self-signed root certificate has been placed in this folder: " + Environment.NewLine +
+                        "Two copies of the self-signed root certificate have been placed in this folder: " + Environment.NewLine +
                         szTwainDirectCertificates + Environment.NewLine +
                         Environment.NewLine +
-                        "This certificate must be installed into the 'Trusted Root Certification Authorities' store, " +
-                        "in the 'Local Computer' location for each PC that needs access to this scanner.",
+                        "The certificate ending in -pc.cer must be installed into the 'Trusted Root Certification Authorities', " +
+                        "store in the 'Local Computer' location for each Windows PC needing access to this scanner." +
+                        Environment.NewLine +
+                        "The certificate ending in -android.der.crt must be copied to the Android's SD card, and installed using" +
+                        "'Setup / Security / Install from device storage'.",
                         "Create Certificates"
                     );
                 }
@@ -659,9 +663,13 @@ namespace TwainDirect.Scanner.TwainLocalManager
             }
 
             // Create the self-signed root certificate...
-            X509Certificate2 caCert = CreateCertificateAuthorityCertificate(szRootCN, out caPrivateKey);
+            byte[] Android;
+            X509Certificate2 caCert = CreateCertificateAuthorityCertificate(szRootCN, out caPrivateKey, out Android);
             addCertToStore(caCert, StoreName.Root, StoreLocation.LocalMachine);
-            File.WriteAllBytes(Path.Combine(a_szTwainDirectCertificates, szRootCN + ".cer"), caCert.Export(X509ContentType.Cert, szPasswordRootCa));
+            File.WriteAllBytes(Path.Combine(a_szTwainDirectCertificates, szRootCN + "-pc.cer"), caCert.Export(X509ContentType.Cert, szPasswordRootCa));
+
+            // Write the Android DER file...
+            File.WriteAllBytes(Path.Combine(a_szTwainDirectCertificates, szRootCN + "-android.der.crt"), Android);
 
             // Create the self-signed exchange certificate...
             X509Certificate2 clientCert = CreateSelfSignedCertificateBasedOnCertificateAuthorityPrivateKey(Environment.MachineName + ".local", szRootCN, caPrivateKey);
@@ -806,7 +814,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
             return x509;
         }
 
-        public X509Certificate2 CreateCertificateAuthorityCertificate(string subjectName, out AsymmetricKeyParameter CaPrivateKey)
+        public X509Certificate2 CreateCertificateAuthorityCertificate(string subjectName, out AsymmetricKeyParameter CaPrivateKey, out byte[] Android)
         {
             const int keyStrength = 2048;
 
@@ -849,11 +857,17 @@ namespace TwainDirect.Scanner.TwainLocalManager
 
             // selfsign certificate
             Org.BouncyCastle.X509.X509Certificate certificate = certificateGenerator.Generate(signatureFactory);
-
             X509Certificate2 x509 = new X509Certificate2(certificate.GetEncoded());
             x509.FriendlyName = subjectName;
-
             CaPrivateKey = issuerKeyPair.Private;
+
+            // Now do Android...
+            certificateGenerator.AddExtension(X509Extensions.BasicConstraints, true, new BasicConstraints(true));
+            issuerKeyPair = subjectKeyPair;
+            signatureFactory = new Asn1SignatureFactory("SHA256WITHRSA", issuerKeyPair.Private, random);
+            Org.BouncyCastle.X509.X509Certificate certificateAndroid = certificateGenerator.Generate(signatureFactory);
+            X509Certificate2 x509Android = new X509Certificate2(certificateAndroid.GetEncoded());
+            Android = x509Android.Export(X509ContentType.Cert, "1234");
 
             return x509;
         }
