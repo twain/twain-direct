@@ -18,7 +18,7 @@
         "2 - log verbose stuff, like HTML headers",
         "4 - flush to disk, use to help diagnose crashes"
     ],
-    "XlogLevel": 0,
+    "logLevel": 0,
 
 
 
