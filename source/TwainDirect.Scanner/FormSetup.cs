@@ -25,6 +25,8 @@ namespace TwainDirect.Scanner
         {
             // Init the component...
             InitializeComponent();
+            this.MinimizeBox = false;
+            this.MaximizeBox = false;
             Config.ElevateButton(m_buttonManageTwainLocal.Handle);
 
             // Remember stuff...
@@ -34,13 +36,68 @@ namespace TwainDirect.Scanner
 
             // Localize...
             this.Text = Config.GetResource(m_resourcemanager, "strFormMainTitle"); // TWAIN Direct: TWAIN Bridge
-            m_buttonManageTwainLocal.Text = Config.GetResource(m_resourcemanager, "strButtonTwainLocalManagerEllipsis"); // Register...
+            m_buttonManageTwainLocal.Text = Config.GetResource(m_resourcemanager, "strButtonTwainLocalManagerEllipsis"); // Manage Local...
+            m_buttonCloudRegister.Text = Config.GetResource(m_resourcemanager, "strButtonCloudRegisterEllipsis"); // Register Cloud...
+            m_buttonManageCloud.Text = Config.GetResource(m_resourcemanager, "strButtonManageCloudEllipsis"); // Manage Cloud...
             m_buttonRegister.Text = Config.GetResource(m_resourcemanager, "strButtonRegisterEllipsis"); // Register...
             m_checkboxRunOnLogin.Text = Config.GetResource(m_resourcemanager, "strCheckboxRunOnLogin"); // Run on login
+            m_labelCurrentDriver.Text = Config.GetResource(m_resourcemanager, "strLabelCurrentDriver"); // Current Driver:
+            m_labelCurrentNote.Text = Config.GetResource(m_resourcemanager, "strLabelCurrentNote"); // Current Note:
+
+            // Set stuff...
+            m_textboxCurrentDriver.Text = m_formmain.GetTwainLocalTy();
+            m_textboxCurrentNote.Text = m_formmain.GetTwainLocalNote();
 
             // Are we registered for autorun?
-            m_checkboxRunOnLogin.Checked = false;
-            m_checkboxRunOnLogin_CheckedChanged(m_checkboxRunOnLogin, null);
+            string szValueName = null;
+            string szCommand = "";
+            RegistryKey registrykeyRun;
+
+            // Check the local machine (needed for legacy)...
+            registrykeyRun = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+            foreach (string sz in registrykeyRun.GetValueNames())
+            {
+                string szValue = Convert.ToString(registrykeyRun.GetValue(sz));
+                if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                {
+                    szValueName = sz;
+                    szCommand = szValue;
+                    break;
+                }
+            }
+
+            // Check the local user...
+            if (string.IsNullOrEmpty(szValueName))
+            {
+                registrykeyRun = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+                foreach (string sz in registrykeyRun.GetValueNames())
+                {
+                    string szValue = Convert.ToString(registrykeyRun.GetValue(sz));
+                    if (szValue.ToLowerInvariant().Contains("twaindirect.scanner.exe"))
+                    {
+                        szValueName = sz;
+                        szCommand = szValue;
+                        break;
+                    }
+                }
+            }
+
+            // Looks like we're set...
+            if (!string.IsNullOrEmpty(szCommand))
+            {
+                m_checkboxRunOnLogin.Checked = true;
+                if (szCommand.Contains("startmonitoring=true"))
+                {
+                    m_checkboxAdvertise.Checked = true;
+                }
+                if (szCommand.Contains("confirmscan=true"))
+                {
+                    m_checkboxConfirmation.Checked = true;
+                }
+            }
+
+            // Okay, we can let this happen now...
+            m_blSkipUpdatingTheRegistry = false;
         }
 
         /// <summary>
@@ -138,6 +195,8 @@ namespace TwainDirect.Scanner
         private void m_buttonRegister_Click(object sender, EventArgs e)
         {
             m_formmain.SelectScanner();
+            m_textboxCurrentDriver.Text = m_formmain.GetTwainLocalTy();
+            m_textboxCurrentNote.Text = m_formmain.GetTwainLocalNote();
         }
 
         /// <summary>
@@ -151,6 +210,16 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
+        /// Bring up the cloud console...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonManageCloud_Click(object sender, EventArgs e)
+        {
+            Process.Start("https://twain.hazybits.com");
+        }
+
+        /// <summary>
         /// Control autorun...
         /// </summary>
         /// <param name="sender"></param>
@@ -158,6 +227,12 @@ namespace TwainDirect.Scanner
         private void m_checkboxRunOnLogin_CheckedChanged(object sender, EventArgs e)
         {
             CheckBox checkbox = (CheckBox)sender;
+
+            // Denied!
+            if (m_blSkipUpdatingTheRegistry)
+            {
+                return;
+            }
 
             // If we're checked, add us...
             if (checkbox.Checked)
@@ -192,15 +267,23 @@ namespace TwainDirect.Scanner
                     }
                 }
 
-                // We don't exist, so add us...
-                if (string.IsNullOrEmpty(szValueName))
+                // Add or update us...
+                try
                 {
                     Registry.SetValue
                     (
                         "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
                         "TWAIN Direct: TWAIN Bridge",
-                        "\"" + System.Reflection.Assembly.GetEntryAssembly().Location + "\" background=true"
+                        "\"" + System.Reflection.Assembly.GetEntryAssembly().Location + "\" background=true" + 
+                        (m_checkboxAdvertise.Checked ? " startmonitoring=true" : "") +
+                        (m_checkboxConfirmation.Checked ? " confirmscan=true" : "")
                     );
+                }
+                catch (Exception exception)
+                {
+                    MessageBox.Show("Sorry, we couldn't turn on autostart.  Run this program as admin, and try again.", "Error");
+                    Log.Error("Failed to add registry value - " + exception.Message);
+                    checkbox.Checked = true;
                 }
             }
 
@@ -265,6 +348,26 @@ namespace TwainDirect.Scanner
             }
         }
 
+        /// <summary>
+        /// Modify the RunOnLogin command with the advertising update...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_checkboxAdvertise_CheckedChanged(object sender, EventArgs e)
+        {
+            m_checkboxRunOnLogin_CheckedChanged(m_checkboxRunOnLogin, null);
+        }
+
+        /// <summary>
+        /// Modify the RunOnLogin command with the confirm scanning update...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_checkboxConfirmation_CheckedChanged(object sender, EventArgs e)
+        {
+            m_checkboxRunOnLogin_CheckedChanged(m_checkboxRunOnLogin, null);
+        }
+
         #endregion
 
 
@@ -282,6 +385,11 @@ namespace TwainDirect.Scanner
         /// Our resource manager to help with localization...
         /// </summary>
         private ResourceManager m_resourcemanager;
+
+        /// <summary>
+        /// This prevents us from hammering the registry at startup...
+        /// </summary>
+        private bool m_blSkipUpdatingTheRegistry = true;
 
         #endregion
     }

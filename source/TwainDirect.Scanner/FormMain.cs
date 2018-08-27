@@ -34,12 +34,11 @@
 // Helpers...
 using Microsoft.Win32;
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Resources;
-using System.Security.Principal;
 using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
@@ -91,9 +90,6 @@ namespace TwainDirect.Scanner
 
             // Init our form...
             InitializeComponent();
-
-            // Instantiate our setup object...
-            m_formsetup = new FormSetup(this, m_resourcemanager, blConfirmScan);
 
             // Localize...
             this.Text = Config.GetResource(m_resourcemanager, "strFormMainTitle"); // TWAIN Direct: TWAIN Bridge
@@ -152,6 +148,9 @@ namespace TwainDirect.Scanner
                 throw new Exception("Scanner failed...");
             }
 
+            // Instantiate our setup object...
+            m_formsetup = new FormSetup(this, m_resourcemanager, blConfirmScan);
+
             // If we don't have any devices, then don't let the user select
             // the start button...
             if (m_blNoDevices)
@@ -166,8 +165,20 @@ namespace TwainDirect.Scanner
             // Have we been asked to run in the background?
             if (Config.Get("background", "false") == "true")
             {
+                Log.Info("Minimize us to the background...");
                 WindowState = FormWindowState.Minimized;
                 this.Hide();
+            }
+
+            // Have we been asked automatically start monitoring?
+            if (Config.Get("startmonitoring", "false") == "true")
+            {
+                // Only if we have a device...
+                if (!m_blNoDevices)
+                {
+                    Log.Info("Autostart monitoring...");
+                    m_buttonStart_Click(m_buttonStart, null);
+                }
             }
         }
 
@@ -181,12 +192,39 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
+        /// Get the current driver...
+        /// </summary>
+        /// <returns></returns>
+        public string GetTwainLocalTy()
+        {
+            if (m_scanner == null)
+            {
+                return ("");
+            }
+            return (m_scanner.GetTwainLocalTy());
+        }
+
+        /// <summary>
+        /// Get the current note...
+        /// </summary>
+        /// <returns></returns>
+        public string GetTwainLocalNote()
+        {
+            if (m_scanner == null)
+            {
+                return ("");
+            }
+            return (m_scanner.GetTwainLocalNote());
+        }
+
+        /// <summary>
         /// Register a device with cloud infrastructure.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         public async void RegisterCloud()
         {
+            /*
             string szCloudSqlite = Path.Combine(Config.Get("writeFolder", ""), "cloud.sqlite");
             if (File.Exists(szCloudSqlite))
             {
@@ -196,10 +234,11 @@ namespace TwainDirect.Scanner
                 }
                 catch (Exception exception)
                 {
-                    MessageBox.Show("Update to delete <" + szCloudSqlite + "> - " + exception.Message);
+                    MessageBox.Show("Unable to delete <" + szCloudSqlite + "> - " + exception.Message);
                     return;
                 }
             }
+            */
             await m_scanner.RegisterCloudScanner();
         }
 
@@ -212,25 +251,11 @@ namespace TwainDirect.Scanner
         {
             int iScanner;
             long lResponseCharacterOffset;
-            string szNumber;
             string szScanners;
             string szText;
             JsonLookup jsonlookup;
             ApiCmd apicmd;
-            DialogResult dialogresult;
-
-            // Are you sure?
-            // Do you want to register a TWAIN driver?  If so, please make sure your scanner is powered on and connected, and press YES.
-            dialogresult = MessageBox.Show
-            (
-                Config.GetResource(m_resourcemanager, "errRegisterTwainDriver"),
-                Config.GetResource(m_resourcemanager, "strFormMainTitle"),
-                MessageBoxButtons.YesNo
-            );
-            if (dialogresult == DialogResult.No)
-            {
-                return;
-            }
+            List<string> lszDrivers = new List<string>();
 
             // Turn the buttons off...
             SetButtons(ButtonState.Undefined);
@@ -260,6 +285,8 @@ namespace TwainDirect.Scanner
             // Show all the scanners, and then ask for the number of
             // the one to use as the new default...
             szText = "";
+            string szMessage = "";
+            string szDefault = "";
             for (iScanner = 0; ; iScanner++)
             {
                 // Get the next scanner...
@@ -276,78 +303,52 @@ namespace TwainDirect.Scanner
                 }
 
                 // If this is the current default, make a note of it...
+                lszDrivers.Add(szScanner);
                 if (m_scanner.GetTwainLocalTy() == szScanner)
                 {
+                    szMessage += (iScanner + 1) + ": " + szScanner + " ***DEFAULT***" + Environment.NewLine;
                     szText = (iScanner + 1) + ": " + szScanner + " ***DEFAULT***";
+                    szDefault = szScanner;
                     Display(szText);
                 }
                 // Otherwise, just list it...
                 else
                 {
+                    szMessage += (iScanner + 1) + ": " + szScanner + Environment.NewLine;
                     Display((iScanner + 1) + ": " + szScanner);
                 }
             }
 
-            // Finish the text for the prompt...
-            if (string.IsNullOrEmpty(szText))
+            // Ask the user to pick a scanner...
+            FormSelect formselect = new FormSelect(m_resourcemanager, lszDrivers, szDefault, m_scanner.GetTwainLocalNote());
+            formselect.ShowDialog();
+            int iNumber = formselect.GetSelectedDriver();
+            string szNote = formselect.GetNote();
+            if (iNumber < 0)
             {
-                szText =
-                    "Enter a number from 1 to " + iScanner + Environment.NewLine +
-                    "(there is no current default)" + iScanner;
-            }
-            else
-            {
-                szText =
-                    "Enter a number from 1 to " + iScanner + Environment.NewLine +
-                    szText;
+                Display("");
+                Display(Config.GetResource(m_resourcemanager, "errNoScannersFound"));
+                SetButtons(ButtonState.NoDevices);
+                return;
             }
 
-            // Select the default...
-            int iNumber = 0;
-            for (; ; )
-            {
-                // Prompt the user...
-                szNumber = "";
-                dialogresult = InputBox
-                (
-                    "Select Default Scanner",
-                    szText,
-                    ref szNumber
-                );
-
-                // The user wants out...
-                if (dialogresult != DialogResult.OK)
-                {
-                    Display("Canceled...");
-                    SetButtons(ButtonState.NoDevices);
-                    break;
-                }
-
-                // Check the result...
-                if (!int.TryParse(szNumber, out iNumber))
-                {
-                    Display("Please enter a number in the range 1 to " + iScanner);
-                    continue;
-                }
-
-                // Check the range...
-                if ((iNumber < 1) || (iNumber > iScanner))
-                {
-                    Display("Please enter a number in the range 1 to " + iScanner);
-                    continue;
-                }
-
-                // We have what we want...
-                break;
-            }
+            // A little sleight of hand to get a busy cursor...
+            this.Refresh();
+            Cursor.Current = Cursors.WaitCursor;
+            this.Refresh();
 
             // Tell the user what we're up to...
             Display("");
             Display("We're going to ask the scanner some questions.");
             Display("This may take a minute...");
 
+            // A little sleight of hand to get a busy cursor...
+            this.Refresh();
+            Cursor.Current = Cursors.WaitCursor;
+            this.Refresh();
+
             // Do a deep inquiry on the selected scanner...
-            szScanners = m_scanner.GetAvailableScanners("getinquiry", jsonlookup.Get("scanners[" + (iNumber - 1) + "].twidentityProductName"));
+            szScanners = m_scanner.GetAvailableScanners("getinquiry", jsonlookup.Get("scanners[" + iNumber + "].twidentityProductName"));
             if (string.IsNullOrEmpty(szScanners))
             {
                 // We are unable to use the selected scanner.  Please make sure your scanner is turned on and connected before trying again.
@@ -355,6 +356,7 @@ namespace TwainDirect.Scanner
                 Display(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"));
                 MessageBox.Show(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"), Config.GetResource(m_resourcemanager, "strFormMainTitle"));
                 SetButtons(ButtonState.NoDevices);
+                Cursor.Current = Cursors.Default;
                 return;
             }
             try
@@ -368,32 +370,8 @@ namespace TwainDirect.Scanner
                 Display(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"));
                 MessageBox.Show(Config.GetResource(m_resourcemanager, "errUnableToUseScanner"), Config.GetResource(m_resourcemanager, "strFormMainTitle"));
                 SetButtons(ButtonState.NoDevices);
+                Cursor.Current = Cursors.Default;
                 return;
-            }
-
-            // See if the user wants to update their note...
-            string szNote = m_scanner.GetTwainLocalNote();
-            if ((iNumber >= 1) && (iNumber <= iScanner))
-            {
-                // Tell the user what we're up to...
-                Display("");
-                Display("We're asking what you'd like to call your scanner.");
-                Display("Please look for a dialog box...");
-
-                // Prompt the user...
-                dialogresult = InputBox
-                (
-                    "Enter Note",
-                    "Your current note is: " + m_scanner.GetTwainLocalNote() + Environment.NewLine +
-                    "Type a new note, or just press the Enter key to keep what you have.",
-                    ref szNote
-                );
-
-                // The user wants out...
-                if ((dialogresult != DialogResult.OK) || string.IsNullOrEmpty(szNote))
-                {
-                    szNote = m_scanner.GetTwainLocalNote();
-                }
             }
 
             // Register it, make a note if it works by clearing the
@@ -433,24 +411,28 @@ namespace TwainDirect.Scanner
                 // When we first start up, use this...
                 default:
                 case ButtonState.Undefined:
+                    m_buttonSetup.Enabled = false;
                     m_buttonStart.Enabled = false;
                     m_buttonStop.Enabled = false;
                     break;
 
                 // We have no devices, they need to register...
                 case ButtonState.NoDevices:
+                    m_buttonSetup.Enabled = true;
                     m_buttonStart.Enabled = false;
                     m_buttonStop.Enabled = false;
                     break;
 
                 // We have devices, they can register or start...
                 case ButtonState.WaitingForStart:
+                    m_buttonSetup.Enabled = true;
                     m_buttonStart.Enabled = true;
                     m_buttonStop.Enabled = false;
                     break;
 
                 // We're waiting for a command, they can stop...
                 case ButtonState.Started:
+                    m_buttonSetup.Enabled = false;
                     m_buttonStart.Enabled = false;
                     m_buttonStop.Enabled = true;
                     break;
@@ -724,6 +706,24 @@ namespace TwainDirect.Scanner
         #region Private Form Controls...
 
         /// <summary>
+        /// Make sure we shutdown properly if the user logs off...
+        /// </summary>
+        /// <param name="m"></param>
+        protected override void WndProc(ref System.Windows.Forms.Message m)
+        {
+            // Tag it...
+            if (m.Msg == WM_QUERYENDSESSION)
+            {
+                ms_blSystemShutdown = true;
+            }
+
+            // If this is WM_QUERYENDSESSION, the closing event should be  
+            // raised in the base WndProc.  
+            base.WndProc(ref m);
+
+        }
+
+        /// <summary>
         /// Cleanup...
         /// </summary>
         /// <param name="sender"></param>
@@ -731,7 +731,7 @@ namespace TwainDirect.Scanner
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             // Reeeeeeeeejected!
-            if (!m_blAllowFormToClose && (e.CloseReason == CloseReason.UserClosing))
+            if (!ms_blSystemShutdown && !m_blAllowFormToClose && (e.CloseReason == CloseReason.UserClosing))
             {
                 MessageBox.Show(Config.GetResource(m_resourcemanager, "strTextNotClosing"), Config.GetResource(m_resourcemanager, "strFormMainTitle"));
                 e.Cancel = true;
@@ -877,6 +877,12 @@ namespace TwainDirect.Scanner
         /// Scratchpad for the confirm scan dialog...
         /// </summary>
         private TwainLocalScanner.ButtonPress m_buttonpress;
+
+        /// <summary>
+        /// Handle end session...
+        /// </summary>
+        private static int WM_QUERYENDSESSION = 0x11;
+        private static bool ms_blSystemShutdown = false;
 
         #endregion
     }

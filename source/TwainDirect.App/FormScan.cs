@@ -1309,6 +1309,12 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void m_buttonScan_Click(object sender, EventArgs e)
         {
+            int ii;
+            bool blSuccess;
+            long lJsonErrorIndex;
+            string szAction;
+            string szName;
+
             // If we already have one of these, scoot...
             if (m_threadClientScan != null)
             {
@@ -1321,12 +1327,31 @@ namespace TwainDirect.App
 
             // If encryption is turned on, ask for a password...
             string szTask = m_formsetup.GetTask();
-            if (szTask.Contains("\"encryptionProfiles\""))
+            if (!string.IsNullOrEmpty(szTask))
             {
-                FormPassword formpassword = new FormPassword(m_szPassword, m_blShowPassword);
-                formpassword.ShowDialog();
-                m_szPassword = formpassword.GetPassword();
-                m_blShowPassword = formpassword.GetShowPassword();
+                JsonLookup jsonlookup = new JsonLookup();
+                blSuccess = jsonlookup.Load(szTask, out lJsonErrorIndex);
+                if (blSuccess)
+                {
+                    ii = 0;
+                    for (szAction = jsonlookup.Get("actions[" + ii + "].action", false);
+                         !string.IsNullOrEmpty(szAction);
+                         szAction = jsonlookup.Get("actions[" + (++ii) + "].action", false))
+                    {
+                        if (szAction == "encryptionProfiles")
+                        {
+                            szName = jsonlookup.Get("actions[" + ii + "].encryptionProfiles[0].name", false);
+                            if (!string.IsNullOrEmpty(szName))
+                            {
+                                FormPassword formpassword = new FormPassword(m_szPassword, m_blShowPassword);
+                                formpassword.ShowDialog();
+                                m_szPassword = formpassword.GetPassword();
+                                m_blShowPassword = formpassword.GetShowPassword();
+                            }
+                            break;
+                        }
+                    }
+                }
             }
 
             // Make a new one, and get it going...
@@ -2417,7 +2442,7 @@ namespace TwainDirect.App
         private TwainCloudTokens _cloudTokens;
 
         // Where we get our localized strings...
-        ResourceManager m_resourcemanager;
+        private ResourceManager m_resourcemanager;
 
         #endregion
 

@@ -63,6 +63,8 @@ namespace TwainDirect.App
         {
             // Init stuff...
             InitializeComponent();
+            MinimizeBox = false;
+            MaximizeBox = false;
             Config.ElevateButton(m_buttonManageTwainLocal.Handle);
             m_listviewSelect.MouseDoubleClick += new MouseEventHandler(m_listviewSelect_MouseDoubleClick);
             m_resourcemanager = a_resourcemanager;

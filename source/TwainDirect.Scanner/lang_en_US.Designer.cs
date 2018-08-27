@@ -106,6 +106,24 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Register Cloud....
+        /// </summary>
+        public static string strButtonCloudRegisterEllipsis {
+            get {
+                return ResourceManager.GetString("strButtonCloudRegisterEllipsis", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Manage Cloud....
+        /// </summary>
+        public static string strButtonManageCloudEllipsis {
+            get {
+                return ResourceManager.GetString("strButtonManageCloudEllipsis", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Select Scanner....
         /// </summary>
         public static string strButtonRegisterEllipsis {
@@ -160,6 +178,24 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Current driver:.
+        /// </summary>
+        public static string strLabelCurrentDriver {
+            get {
+                return ResourceManager.GetString("strLabelCurrentDriver", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Current note:.
+        /// </summary>
+        public static string strLabelCurrentNote {
+            get {
+                return ResourceManager.GetString("strLabelCurrentNote", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to &amp;About.
         /// </summary>
         public static string strMenuAbout {
@@ -183,6 +219,24 @@ namespace TwainDirect.Scanner {
         public static string strMenuShowConsole {
             get {
                 return ResourceManager.GetString("strMenuShowConsole", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select scanner driver:.
+        /// </summary>
+        public static string strSelectScannerDriver {
+            get {
+                return ResourceManager.GetString("strSelectScannerDriver", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A note or friendly name for your scanner:.
+        /// </summary>
+        public static string strSetNote {
+            get {
+                return ResourceManager.GetString("strSetNote", resourceCulture);
             }
         }
         

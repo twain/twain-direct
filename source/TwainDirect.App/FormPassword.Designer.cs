@@ -62,6 +62,7 @@
             this.m_textboxPassword.Name = "m_textboxPassword";
             this.m_textboxPassword.Size = new System.Drawing.Size(412, 20);
             this.m_textboxPassword.TabIndex = 2;
+            this.m_textboxPassword.KeyDown += m_textboxPassword_KeyDown;
             // 
             // FormPassword
             // 

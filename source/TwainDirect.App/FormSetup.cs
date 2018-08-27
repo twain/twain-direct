@@ -72,6 +72,8 @@ namespace TwainDirect.App
 
             // Init stuff...
             InitializeComponent();
+            MinimizeBox = false;
+            MaximizeBox = false;
             m_dnssddeviceinfo = a_dnssddeviceinfo;
             m_resourcemanager = a_resourcemanager;
 

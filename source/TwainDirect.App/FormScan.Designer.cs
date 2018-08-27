@@ -151,6 +151,7 @@
             // 
             this.m_textbox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_textbox1.BackColor = System.Drawing.SystemColors.Window;
             this.m_textbox1.Location = new System.Drawing.Point(13, 444);
             this.m_textbox1.Name = "m_textbox1";
             this.m_textbox1.ReadOnly = true;
@@ -162,6 +163,7 @@
             // 
             this.m_textbox2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_textbox2.BackColor = System.Drawing.SystemColors.Window;
             this.m_textbox2.Location = new System.Drawing.Point(354, 444);
             this.m_textbox2.Name = "m_textbox2";
             this.m_textbox2.ReadOnly = true;
@@ -173,6 +175,7 @@
             // 
             this.m_textboxSummary.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_textboxSummary.BackColor = System.Drawing.SystemColors.Window;
             this.m_textboxSummary.Location = new System.Drawing.Point(13, 471);
             this.m_textboxSummary.Name = "m_textboxSummary";
             this.m_textboxSummary.ReadOnly = true;
@@ -218,6 +221,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.SystemColors.Window;
             this.ClientSize = new System.Drawing.Size(702, 545);
             this.Controls.Add(this.cloudButton);
             this.Controls.Add(this.m_textboxSummary);

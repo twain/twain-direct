@@ -132,6 +132,12 @@
   <data name="errUnableToUseScanner" xml:space="preserve">
     <value>We are unable to use the selected scanner.  Please make sure your scanner is turned on and connected before trying again.</value>
   </data>
+  <data name="strButtonCloudRegisterEllipsis" xml:space="preserve">
+    <value>Register Cloud...</value>
+  </data>
+  <data name="strButtonManageCloudEllipsis" xml:space="preserve">
+    <value>Manage Cloud...</value>
+  </data>
   <data name="strButtonRegisterEllipsis" xml:space="preserve">
     <value>Sélectionnez le scanner...</value>
     <comment>Pick a new TWAIN Driver...</comment>
@@ -154,6 +160,12 @@
     <value>TWAIN Direct on TWAIN Bridge</value>
     <comment>Main Form title...</comment>
   </data>
+  <data name="strLabelCurrentDriver" xml:space="preserve">
+    <value>Current driver:</value>
+  </data>
+  <data name="strLabelCurrentNote" xml:space="preserve">
+    <value>Current note:</value>
+  </data>
   <data name="strMenuAbout" xml:space="preserve">
     <value>&amp;A propos</value>
     <comment>Information about this program...</comment>
@@ -165,6 +177,12 @@
   <data name="strMenuShowConsole" xml:space="preserve">
     <value>&amp;Ouvrir</value>
     <comment>Raise the server console window...</comment>
+  </data>
+  <data name="strSelectScannerDriver" xml:space="preserve">
+    <value>Select scanner driver:</value>
+  </data>
+  <data name="strSetNote" xml:space="preserve">
+    <value>A note or friendly name for your scanner:</value>
   </data>
   <data name="strTextAbout" xml:space="preserve">
     <value>Un programme permettant aux applications TWAIN Direct de communiquer avec les scanners pris en charge par les pilotes TWAIN.</value>

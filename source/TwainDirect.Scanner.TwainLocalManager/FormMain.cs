@@ -30,6 +30,8 @@ namespace TwainDirect.Scanner.TwainLocalManager
         {
             // Init the form...
             InitializeComponent();
+            this.MinimizeBox = false;
+            this.MaximizeBox = false;
 
             // Are we running in reduced mode?
             string szTwainDirectApp = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -83,9 +85,9 @@ namespace TwainDirect.Scanner.TwainLocalManager
             DialogResult dialogresult = MessageBox.Show
             (
                 this,
-                "Clicking 'Yes' installs or updates your version of Apple's Bonjour" +
-                "Service.  This is used by TWAIN Local to advertise and find scanners" + Environment.NewLine +
-                "on your local area network.  It may be use by devices and programs" + Environment.NewLine +
+                "Clicking 'Yes' installs or updates your version of Apple's Bonjour " +
+                "Service.  This is used by TWAIN Local to advertise and find scanners " +
+                "on your local area network.  It may be use by devices and programs " +
                 "on your PC." + Environment.NewLine +
                 Environment.NewLine +
                 "Would you like to continue?",
@@ -150,8 +152,8 @@ namespace TwainDirect.Scanner.TwainLocalManager
             DialogResult dialogresult = MessageBox.Show
             (
                 this,
-                "Clicking 'Yes' uninstalls Bonjour.  You should only do this if" + Environment.NewLine +
-                "you installed Bonjour using this TWAIN Local Manager.  Do not" + Environment.NewLine +
+                "Clicking 'Yes' uninstalls Bonjour.  You should only do this if " +
+                "you installed Bonjour using this TWAIN Local Manager.  Do not " +
                 "uninstall Bonjour if you have other devices that depend on it." + Environment.NewLine +
                 Environment.NewLine +
                 "Would you like to continue?",
@@ -224,8 +226,8 @@ namespace TwainDirect.Scanner.TwainLocalManager
             DialogResult dialogresult = MessageBox.Show
             (
                 this,
-                "Clicking 'Yes' replaces your TWAIN Direct self-signed certificates with" + Environment.NewLine +
-                "new certificates.  You will have to install the new root certificate on" + Environment.NewLine +
+                "Clicking 'Yes' replaces your TWAIN Direct self-signed certificates with " +
+                "new certificates.  You will have to install the new root certificate on " +
                 "any other computer accessing this scanner." + Environment.NewLine +
                 Environment.NewLine +
                 "Would you like to continue?",
@@ -245,13 +247,13 @@ namespace TwainDirect.Scanner.TwainLocalManager
                 {
                     MessageBox.Show
                     (
-                        "Two copies of the self-signed root certificate have been placed in this folder: " + Environment.NewLine +
+                        "Two copies of the self-signed root certificate have been placed in this folder: " + 
                         szTwainDirectCertificates + Environment.NewLine +
                         Environment.NewLine +
-                        "The certificate ending in -pc.cer must be installed into the 'Trusted Root Certification Authorities', " +
-                        "store in the 'Local Computer' location for each Windows PC needing access to this scanner." +
+                        "The certificate ending in -pc.cer must be installed into the 'Trusted Root Certification Authorities' " + 
+                        "store in the 'Local Computer' location for each Windows PC needing access to this scanner." + Environment.NewLine +
                         Environment.NewLine +
-                        "The certificate ending in -android.der.crt must be copied to the Android's SD card, and installed using" +
+                        "The certificate ending in -android.der.crt must be copied to the Android's SD card, and installed using " + 
                         "'Setup / Security / Install from device storage'.",
                         "Create Certificates"
                     );
@@ -270,7 +272,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
             DialogResult dialogresult = MessageBox.Show
             (
                 this,
-                "Clicking 'Yes' deletes your TWAIN Direct self-signed certificates." + Environment.NewLine +
+                "Clicking 'Yes' deletes your TWAIN Direct self-signed certificates. " +
                 "TWAIN Local scanning will no longer work." + Environment.NewLine +
                 Environment.NewLine +
                 "Would you like to continue?",
@@ -294,8 +296,8 @@ namespace TwainDirect.Scanner.TwainLocalManager
             DialogResult dialogresult = MessageBox.Show
             (
                 this,
-                "Clicking 'Yes' creates an inbound firewall rule for the" + Environment.NewLine +
-                "TwainDirect.Scanner program, so that TWAIN Local applications" + Environment.NewLine +
+                "Clicking 'Yes' creates an inbound firewall rule for the " +
+                "TwainDirect.Scanner program, so that TWAIN Local applications " +
                 "on other PCs can use your scanner." + Environment.NewLine +
                 Environment.NewLine +
                 "Would you like to continue?",
@@ -330,9 +332,9 @@ namespace TwainDirect.Scanner.TwainLocalManager
             DialogResult dialogresult = MessageBox.Show
             (
                 this,
-                "Clicking 'Yes' deletes the inbound firewall rule for the" + Environment.NewLine +
-                "TwainDirect.Scanner program, preventing TWAIN Local applications" + Environment.NewLine +
-                "on other PCs from using your scanner.  You will still be able" + Environment.NewLine +
+                "Clicking 'Yes' deletes the inbound firewall rule for the " +
+                "TwainDirect.Scanner program, preventing TWAIN Local applications " +
+                "on other PCs from using your scanner.  You will still be able " +
                 "to run TWAIN Local applications on this PC." + Environment.NewLine +
                 Environment.NewLine +
                 "Would you like to continue?",

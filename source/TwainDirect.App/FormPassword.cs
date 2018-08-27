@@ -18,6 +18,8 @@ namespace TwainDirect.App
         public FormPassword(string a_szPassword, bool a_blShowPassword)
         {
             InitializeComponent();
+            MinimizeBox = false;
+            MaximizeBox = false;
             m_textboxPassword.Text = a_szPassword;
             m_checkboxShowPassword.Checked = a_blShowPassword;
             if (m_checkboxShowPassword.Checked)
@@ -63,6 +65,19 @@ namespace TwainDirect.App
             else
             {
                 m_textboxPassword.PasswordChar = '*';
+            }
+        }
+
+        /// <summary>
+        /// Handle the enter key...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_textboxPassword_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                DialogResult = DialogResult.OK;
             }
         }
     }
