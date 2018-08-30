@@ -64,8 +64,6 @@ namespace TwainDirect.App
         /// <param name="a_fScale">scale factor for our form</param>
         public FormScan()
         {
-            bool blServiceIsAvailable;
-
             // Set up a data folder, in this instance we're assuming the project
             // name matches the binary, so we can quickly locate it...
             string szExecutableName = Config.Get("executableName", "");
@@ -159,19 +157,6 @@ namespace TwainDirect.App
             // Clear the picture boxes...
             LoadImage(ref m_pictureboxImage1, ref m_graphics1, ref m_bitmapGraphic1, null, "");
             LoadImage(ref m_pictureboxImage2, ref m_graphics2, ref m_bitmapGraphic2, null, "");
-
-            // Create the mdns monitor, and start it...
-            m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
-            if (blServiceIsAvailable)
-            {
-                m_dnssd.MonitorStart(null, IntPtr.Zero);
-            }
-            else
-            {
-                Log.Error("Bonjour is not available, has it been installed?");
-                m_dnssd.Dispose();
-                m_dnssd = null;
-            }
 
             // Get our TWAIN Local interface.
             m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
@@ -1631,7 +1616,7 @@ namespace TwainDirect.App
             string szIpv4;
             string szIpv6;
             JsonLookup jsonlookupSelected;
-            Dnssd.DnssdDeviceInfo[] adnssddeviceinfo;
+            Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
 
             // If we don't have a selected file, then run the selection
             // function to prompt the user to pick something...
@@ -1695,68 +1680,91 @@ namespace TwainDirect.App
                 return;
             }
 
-            // Grab a snapshot of what's out there...
-            adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
-            if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
+            // Create the mdns monitor, and start it...
+            bool blServiceIsAvailable;
+            m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+            if (blServiceIsAvailable)
             {
-                MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoTwainScanners"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
-                SetButtons(EBUTTONSTATE.CLOSED);
+                m_dnssd.MonitorStart(null, IntPtr.Zero);
+            }
+            else
+            {
+                m_dnssd.Dispose();
+                m_dnssd = null;
+                m_buttonSelect_Click(sender, e);
                 return;
             }
 
-            // Find our entry...
-            foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
+            // Grab a snapshot of what's out there...
+            if (m_dnssd != null)
             {
-                if (dnssddeviceinfo.GetLinkLocal() == szLinkLocal)
+                adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
+                if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
                 {
-                    // Try for a match on Ipv6...
-                    if (!string.IsNullOrEmpty(szIpv6))
-                    {
-                        if (dnssddeviceinfo.GetIpv6() == szIpv6)
-                        {
-                            m_dnssddeviceinfo = dnssddeviceinfo;
-                            break;
-                        }
-                    }
+                    MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoTwainScanners"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
+                    SetButtons(EBUTTONSTATE.CLOSED);
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                    return;
+                }
+            }
 
-                    // If that fails, try various forms of Ipv4...
-                    if (!string.IsNullOrEmpty(szIpv4))
+            // Find our entry...
+            if (adnssddeviceinfo != null)
+            {
+                foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
+                {
+                    if (dnssddeviceinfo.GetLinkLocal() == szLinkLocal)
                     {
-                        string szIpv4Tmp = szIpv4;
-                        // XXX.XXX.XXX.XXX...
-                        if (dnssddeviceinfo.GetIpv4() == szIpv4Tmp)
+                        // Try for a match on Ipv6...
+                        if (!string.IsNullOrEmpty(szIpv6))
                         {
-                            m_dnssddeviceinfo = dnssddeviceinfo;
-                            break;
-                        }
-                        // XXX.XXX.XXX.*
-                        if (szIpv4Tmp.Contains("."))
-                        {
-                            szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
+                            if (dnssddeviceinfo.GetIpv6() == szIpv6)
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
                             }
                         }
-                        // XXX.XXX.*.*
-                        if (szIpv4Tmp.Contains("."))
+
+                        // If that fails, try various forms of Ipv4...
+                        if (!string.IsNullOrEmpty(szIpv4))
                         {
-                            szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
+                            string szIpv4Tmp = szIpv4;
+                            // XXX.XXX.XXX.XXX...
+                            if (dnssddeviceinfo.GetIpv4() == szIpv4Tmp)
                             {
                                 m_dnssddeviceinfo = dnssddeviceinfo;
                                 break;
                             }
-                        }
-                        // XXX.*.*.*
-                        if (szIpv4Tmp.Contains("."))
-                        {
-                            szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
-                            if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
+                            // XXX.XXX.XXX.*
+                            if (szIpv4Tmp.Contains("."))
                             {
-                                m_dnssddeviceinfo = dnssddeviceinfo;
-                                break;
+                                szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
+                                if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
+                                {
+                                    m_dnssddeviceinfo = dnssddeviceinfo;
+                                    break;
+                                }
+                            }
+                            // XXX.XXX.*.*
+                            if (szIpv4Tmp.Contains("."))
+                            {
+                                szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
+                                if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
+                                {
+                                    m_dnssddeviceinfo = dnssddeviceinfo;
+                                    break;
+                                }
+                            }
+                            // XXX.*.*.*
+                            if (szIpv4Tmp.Contains("."))
+                            {
+                                szIpv4Tmp = szIpv4Tmp.Remove(szIpv4Tmp.LastIndexOf('.'));
+                                if (dnssddeviceinfo.GetIpv4().StartsWith(szIpv4Tmp + "."))
+                                {
+                                    m_dnssddeviceinfo = dnssddeviceinfo;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -1768,11 +1776,24 @@ namespace TwainDirect.App
             {
                 Log.Error("m_buttonOpen_Click: selected not found - <" + szSelected + ">");
                 m_buttonSelect_Click(sender, e);
-                return;
+                if (m_dnssd != null)
+                {
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                    return;
+                }
             }
 
             // We got something, so open the scanner...
-            OpenScanner();
+            blSuccess = OpenScanner();
+            if (blSuccess)
+            {
+                if (m_dnssd != null)
+                {
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                }
+            }
         }
 
         /// <summary>
@@ -1848,6 +1869,13 @@ namespace TwainDirect.App
             // Buttons off...
             SetButtons(EBUTTONSTATE.CLOSED);
 
+            // Lose dnssd...
+            if (m_dnssd != null)
+            {
+                m_dnssd.Dispose();
+                m_dnssd = null;
+            }
+
             // Update the title bar...
             Text = "TWAIN Direct: Application";
         }
@@ -1871,13 +1899,32 @@ namespace TwainDirect.App
             // Buttons off...
             SetButtons(EBUTTONSTATE.UNDEFINED);
 
+            // Create the mdns monitor, and start it...
+            bool blServiceIsAvailable;
+            m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+            if (blServiceIsAvailable)
+            {
+                m_dnssd.MonitorStart(null, IntPtr.Zero);
+            }
+            else
+            {
+                Log.Error("Bonjour is not available, has it been installed?");
+                m_dnssd.Dispose();
+                m_dnssd = null;
+            }
+
             // Instantiate our selection form with the list of devices, and
             // wait for the user to pick something...
             dialogresult = DialogResult.Cancel;
-            formselect = new FormSelect(m_dnssd, m_fScale, _cloudTokens, out blSuccess, m_resourcemanager);
+            formselect = new FormSelect(ref m_dnssd, m_fScale, m_twaincloudTokens, out blSuccess, m_resourcemanager);
             if (!blSuccess)
             {
                 SetButtons(EBUTTONSTATE.CLOSED);
+                if (m_dnssd != null)
+                {
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                }
                 return;
             }
 
@@ -1892,6 +1939,11 @@ namespace TwainDirect.App
                     SetButtons(EBUTTONSTATE.CLOSED);
                     formselect.Dispose();
                     formselect = null;
+                    if (m_dnssd != null)
+                    {
+                        m_dnssd.Dispose();
+                        m_dnssd = null;
+                    }
                     return;
                 }
             }
@@ -1916,11 +1968,24 @@ namespace TwainDirect.App
                 MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoDeviceSelected"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                 SetButtons(EBUTTONSTATE.CLOSED);
                 formselect = null;
+                if (m_dnssd != null)
+                {
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                }
                 return;
             }
 
             // Open, open the beastie...
-            OpenScanner();
+            blSuccess = OpenScanner();
+            if (!blSuccess)
+            {
+                if (m_dnssd != null)
+                {
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                }
+            }
         }
 
         /// <summary>
@@ -2182,10 +2247,16 @@ namespace TwainDirect.App
         /// <summary>
         /// Open a scanner with the last selected DnssdDeviceInfo...
         /// </summary>
-        private void OpenScanner()
+        private bool OpenScanner()
         {
             bool blSuccess;
             ApiCmd apicmd;
+
+            // We need device info to proceed...
+            if (m_dnssddeviceinfo == null)
+            {
+                return (false);
+            }
 
             // Create a command context...
             apicmd = new ApiCmd(m_dnssddeviceinfo);
@@ -2197,7 +2268,7 @@ namespace TwainDirect.App
                 Log.Error("ClientInfo failed: " + apicmd.GetHttpResponseData());
                 MessageBox.Show(ReportError("infoex", apicmd.GetHttpResponseData()), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                 SetButtons(EBUTTONSTATE.CLOSED);
-                return;
+                return (false);
             }
 
             // Create session...
@@ -2207,7 +2278,7 @@ namespace TwainDirect.App
                 Log.Error("ClientScannerCreateSession failed: " + apicmd.GetHttpResponseData());
                 MessageBox.Show(ReportError("createSession", apicmd.GetHttpResponseData()), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                 SetButtons(EBUTTONSTATE.CLOSED);
-                return;
+                return (false);
             }
 
             // Try to save this selection...
@@ -2277,6 +2348,9 @@ namespace TwainDirect.App
 
             // New state...
             SetButtons(EBUTTONSTATE.OPEN);
+
+            // All done...
+            return (true);
         }
 
         /// <summary>
@@ -2339,6 +2413,49 @@ namespace TwainDirect.App
             {
                 System.Diagnostics.Process.Start(szPdfFile);
             }
+        }
+
+        /// <summary>
+        /// Bring up the strip menu of authentication choices...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void cloudButton_Click(object sender, EventArgs e)
+        {
+            int menuPosition = cloudButton.Height;
+            Point screenPoint = PointToScreen(new Point(cloudButton.Left, cloudButton.Bottom));
+
+            if (screenPoint.Y + cloudMenuStrip.Size.Height > Screen.PrimaryScreen.WorkingArea.Height)
+                menuPosition = -cloudMenuStrip.Size.Height;
+
+            cloudMenuStrip.Show(cloudButton, new Point(0, menuPosition));
+        }
+
+        /// <summary>
+        /// Process the selected authentication method...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void loginToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var loginProvider = (sender as ToolStripMenuItem).Tag as string;
+            var apiRoot = CloudManager.GetCloudApiRoot();
+            var loginUrl = $"{apiRoot}/authentication/signin/" + loginProvider;
+
+            var loginForm = new FacebookLoginForm(loginUrl);
+            loginForm.Authorized += async (_, args) =>
+            {
+                loginForm.Close();
+
+                m_twaincloudTokens = args.Tokens;
+
+                var client = new TwainCloudClient(apiRoot, m_twaincloudTokens);
+                await m_twainlocalscannerclient.ConnectToCloud(client);
+                m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
+
+            };
+
+            loginForm.ShowDialog(this);
         }
 
         #endregion
@@ -2439,44 +2556,11 @@ namespace TwainDirect.App
         private Brush m_brushBackground;
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
-        private TwainCloudTokens _cloudTokens;
+        private TwainCloudTokens m_twaincloudTokens;
 
         // Where we get our localized strings...
         private ResourceManager m_resourcemanager;
 
         #endregion
-
-        private void cloudButton_Click(object sender, EventArgs e)
-        {
-            int menuPosition = cloudButton.Height;
-            Point screenPoint = PointToScreen(new Point(cloudButton.Left, cloudButton.Bottom));
-
-            if (screenPoint.Y + cloudMenuStrip.Size.Height > Screen.PrimaryScreen.WorkingArea.Height)
-                menuPosition = -cloudMenuStrip.Size.Height;
-
-            cloudMenuStrip.Show(cloudButton, new Point(0, menuPosition));
-        }
-
-        private void loginToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            var loginProvider = (sender as ToolStripMenuItem).Tag as string;
-            var apiRoot = CloudManager.GetCloudApiRoot();
-            var loginUrl = $"{apiRoot}/authentication/signin/" + loginProvider;
-
-            var loginForm = new FacebookLoginForm(loginUrl);
-            loginForm.Authorized += async (_, args) =>
-            {
-                loginForm.Close();
-
-                _cloudTokens = args.Tokens;
-
-                var client = new TwainCloudClient(apiRoot, _cloudTokens);
-                await m_twainlocalscannerclient.ConnectToCloud(client);
-                m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
-
-            };
-
-            loginForm.ShowDialog(this);
-        }
     }
 }

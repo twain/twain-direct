@@ -56,10 +56,10 @@ namespace TwainDirect.App
         /// </summary>
         /// <param name="a_dnssd">The mDNS info</param>
         /// <param name="a_fScale">change the scale of the form</param>
-        /// <param name="cloudTokens">TWAIN Cloud access tokens</param>
+        /// <param name="a_twaincloudtokens">TWAIN Cloud access tokens</param>
         /// <param name="a_blFoundOne">return how we did</param>
         /// <param name="a_resourcemanager">localization</param>
-        public FormSelect(Dnssd a_dnssd, float a_fScale, TwainCloudTokens cloudTokens, out bool a_blFoundOne, ResourceManager a_resourcemanager)
+        public FormSelect(ref Dnssd a_dnssd, float a_fScale, TwainCloudTokens a_twaincloudtokens, out bool a_blFoundOne, ResourceManager a_resourcemanager)
         {
             // Init stuff...
             InitializeComponent();
@@ -89,6 +89,7 @@ namespace TwainDirect.App
 
             // Hang onto this...
             m_dnssd = a_dnssd;
+            m_twaincloudtokens = a_twaincloudtokens;
 
             // Load the list box...
             Thread.Sleep(1000);
@@ -104,19 +105,24 @@ namespace TwainDirect.App
             m_timerLoadScannerNames.Tag = this;
             m_timerLoadScannerNames.Start();
 
-            a_blFoundOne |= LoadCloudScanners(cloudTokens);
+            a_blFoundOne |= LoadCloudScanners(m_twaincloudtokens);
         }
 
-        private bool LoadCloudScanners(TwainCloudTokens cloudTokens)
+        private TwainCloudTokens GetTwainCloudTokens()
+        {
+            return (m_twaincloudtokens);
+        }
+
+        private bool LoadCloudScanners(TwainCloudTokens a_twaincloudtokens)
         {
             // The user hasn't identified themselves...
-            if (cloudTokens == null)
+            if (a_twaincloudtokens == null)
             {
                 return (false);
             }
 
             var apiRoot = CloudManager.GetCloudApiRoot();
-            var client = new TwainCloudClient(apiRoot, cloudTokens);
+            var client = new TwainCloudClient(apiRoot, a_twaincloudtokens);
             var applicationManager = new ApplicationManager(client);
 
             applicationManager.GetScanners().ContinueWith(task =>
@@ -158,8 +164,16 @@ namespace TwainDirect.App
             }
             else
             {
+                // tbd:mlm, this find shouldn't be done off the text, it should
+                // be done off the device id, which is a guid; but we'll have to
+                // get that value down into here so we can filter it out...
                 item.Group = m_listviewSelect.Groups["cloudScannersGroup"];
-                m_listviewSelect.Items.Add(item);
+                ListViewItem[] alistviewitem = m_listviewSelect.Items.Find(item.Text, false);
+                if ((alistviewitem == null) || (alistviewitem.Length == 0))
+                {
+                    item.Name = item.Text;
+                    m_listviewSelect.Items.Add(item);
+                }
             }
         }
 
@@ -192,13 +206,7 @@ namespace TwainDirect.App
                 int ii;
                 bool blUpdated = false;
                 bool blNoMonitor = false;
-                Dnssd.DnssdDeviceInfo[] adnssddeviceinfo;
-
-                // TWAIN Local isn't running...
-                if (m_dnssd == null)
-                {
-                    return (false);
-                }
+            Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
 
                 // Make a note of our current selection, if we have one, we expect our
                 // snapshot to exactly match what we have in the list, including the
@@ -216,8 +224,15 @@ namespace TwainDirect.App
                     }
                 }
 
+                // We don't have a TWAIN Local monitor...
+                if (m_dnssd == null)
+                {
+                    blNoMonitor = true;
+                    blUpdated = false;
                 // Take a snapshot...
-                adnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_adnssddeviceinfoCompare : null, out blUpdated, out blNoMonitor);
+                } else {
+                    adnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_adnssddeviceinfoCompare : null, out blUpdated, out blNoMonitor);
+                }
 
                 // If we've been asked to compare to the previous snapshot,
                 // and if we detect that no change occurred, we can scoot...
@@ -269,11 +284,14 @@ namespace TwainDirect.App
                     }
 
                     // Fix our columns...
-                    m_listviewSelect.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                    m_listviewSelect.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                    m_listviewSelect.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                    m_listviewSelect.Columns[3].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                    m_listviewSelect.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    if (m_listviewSelect.Columns.Count >= 4)
+                    {
+                        m_listviewSelect.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                        m_listviewSelect.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                        m_listviewSelect.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                        m_listviewSelect.Columns[3].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                        m_listviewSelect.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    }
 
                     // Select the first column, and make sure it has the focus...
                     if (m_dnssddeviceinfoSelected == null)
@@ -334,6 +352,7 @@ namespace TwainDirect.App
                 System.Windows.Forms.Timer timer = (System.Windows.Forms.Timer)a_object;
                 FormSelect formselect = (FormSelect)timer.Tag;
                 formselect.LoadScannerNames(true);
+                formselect.LoadCloudScanners(formselect.GetTwainCloudTokens());
             }
 
             /// <summary>
@@ -343,6 +362,7 @@ namespace TwainDirect.App
             /// <param name="e"></param>
             private void m_buttonManageTwainLocal_Click(object sender, EventArgs e)
             {
+                bool blServiceIsAvailable;
                 string szTwainLocalManager;
                 Process process;
                 bool blDevicesFound = m_buttonOpen.Enabled;
@@ -359,6 +379,13 @@ namespace TwainDirect.App
                 Cursor.Current = Cursors.WaitCursor;
                 SetButtons(ButtonState.Undefined);
                 this.Refresh();
+
+                // We need to shutdown m_dnssd while we're in here...
+                if (m_dnssd != null)
+                {
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                }
 
                 // Launch it as admin...
                 process = new Process();
@@ -377,6 +404,19 @@ namespace TwainDirect.App
                     Log.Error("User chose not to run TwainLocalManager in elevated mode...");
                     SetButtons(blDevicesFound ? ButtonState.Devices : ButtonState.Nodevices);
                     Cursor.Current = Cursors.Default;
+
+                    // Create the mdns monitor, and start it...
+                    m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+                    if (blServiceIsAvailable)
+                    {
+                        m_dnssd.MonitorStart(null, IntPtr.Zero);
+                    }
+                    else
+                    {
+                        Log.Error("Bonjour is not available, has it been installed?");
+                        m_dnssd.Dispose();
+                        m_dnssd = null;
+                    }
                     return;
                 }
 
@@ -394,8 +434,20 @@ namespace TwainDirect.App
                     Log.Error("Error waiting for TwainLocalManager - " + exception.Message);
                 }
                 SetButtons(blDevicesFound ? ButtonState.Devices : ButtonState.Nodevices);
-                MessageBox.Show("Please exit from the Twain Direct Application, and restart it.", "Installation Complete");
                 Cursor.Current = Cursors.Default;
+
+                // Create the mdns monitor, and start it...
+                m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+                if (blServiceIsAvailable)
+                {
+                    m_dnssd.MonitorStart(null, IntPtr.Zero);
+                }
+                else
+                {
+                    Log.Error("Bonjour is not available, has it been installed?");
+                    m_dnssd.Dispose();
+                    m_dnssd = null;
+                }
             }
 
             /// <summary>
@@ -538,6 +590,7 @@ namespace TwainDirect.App
 
         private System.Windows.Forms.Timer m_timerLoadScannerNames;
         private Dnssd m_dnssd;
+        private TwainCloudTokens m_twaincloudtokens;
         private Dnssd.DnssdDeviceInfo m_dnssddeviceinfoSelected;
         private Dnssd.DnssdDeviceInfo[] m_adnssddeviceinfoCompare;
         private ResourceManager m_resourcemanager;
