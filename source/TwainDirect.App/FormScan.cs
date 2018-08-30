@@ -1686,6 +1686,7 @@ namespace TwainDirect.App
             if (blServiceIsAvailable)
             {
                 m_dnssd.MonitorStart(null, IntPtr.Zero);
+                Thread.Sleep(3000);
             }
             else
             {

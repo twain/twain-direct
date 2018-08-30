@@ -226,6 +226,7 @@ namespace TwainDirect.Support
 
             // Create our window...
             m_vblQuitWindow = false;
+            m_vblQuitProcessed = false;
             m_hwnd = NativeMethods.CreateWindowExW
             (
                 0x00000080, //0x300 /*WS_EX_OVERLAPPEDWINDOW*/,
@@ -336,10 +337,20 @@ namespace TwainDirect.Support
                 else
                 {
                     iResult = NativeMethods.GetMessage(out msg, IntPtr.Zero, 0, 0);
+                    if (msg.message == 18) // WM_QUIT
+                    {
+                        m_vblQuitProcessed = true;
+                    }
                 }
                 if (iResult == 0)
                 {
                     break;
+                }
+
+                // We've been told to quit, so don't process this message anymore...
+                if (m_vblQuitWindow && (msg.message == NativeMethods.BONJOUR_EVENT))
+                {
+                    return;
                 }
 
                 // Dispatch...
@@ -1158,7 +1169,7 @@ namespace TwainDirect.Support
                     // Look for this keyword to find the full explanation...
                     m_vblQuitWindow = true;
                     NativeMethods.PostMessage(m_hwnd, NativeMethods.BONJOUR_EVENT, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
-                    for (int iLoop = 0; iLoop < 5; iLoop++)
+                    for (int iLoop = 0; !m_vblQuitProcessed && (iLoop < 5); iLoop++)
                     {
                         NativeMethods.PostMessage(m_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
                         Thread.Sleep(10);
@@ -1965,6 +1976,7 @@ namespace TwainDirect.Support
         IntPtr m_dnsservicerefRegister;
         IntPtr m_hwnd;
         volatile bool m_vblQuitWindow;
+        volatile bool m_vblQuitProcessed;
         GCHandle m_gchandleThis;
 
         // Linux stuff...
