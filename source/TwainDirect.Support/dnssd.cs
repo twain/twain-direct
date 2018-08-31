@@ -37,6 +37,7 @@
 
 // Helpers...
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -208,30 +209,57 @@ namespace TwainDirect.Support
         public void MonitorThread()
         {
             // Windows...
-            IntPtr instance;
-            NativeMethods.WNDCLASS wcex;
             NativeMethods.MSG msg;
             Int32 dnsserviceerrortype;
 
+            // Create our delegate only once per session, or there will be crashes
+            // as garbage collection messes with us.  And since we only need to
+            // register once, let's put that in here too...
+            if (ms_intptrWndProcDelegate == IntPtr.Zero)
+            {
+                // Our window procedure...
+                ms_wndprocdelegate = WndProcLaunchpad;
+                ms_intptrWndProcDelegate = Marshal.GetFunctionPointerForDelegate(ms_wndprocdelegate);
+
+                // Register our class...
+                ms_wndclassexw = default(NativeMethods.WNDCLASSEXW);
+                ms_wndclassexw.cbSize = Marshal.SizeOf(typeof(NativeMethods.WNDCLASSEXW));
+                ms_wndclassexw.style = 0;
+                ms_wndclassexw.hbrBackground = IntPtr.Zero;
+                ms_wndclassexw.cbClsExtra = 0;
+                ms_wndclassexw.cbWndExtra = 0;
+                ms_wndclassexw.hInstance = Marshal.GetHINSTANCE(this.GetType().Module); ;// alternative: Process.GetCurrentProcess().Handle;
+                ms_wndclassexw.hIcon = IntPtr.Zero;
+                ms_wndclassexw.hCursor = IntPtr.Zero;
+                ms_wndclassexw.lpszMenuName = null;
+                ms_wndclassexw.lpszClassName = "TwainDirectBonjourWindow" + Process.GetCurrentProcess().Id;
+                ms_wndclassexw.lpfnWndProc = ms_intptrWndProcDelegate;
+                ms_wndclassexw.hIconSm = IntPtr.Zero;
+                Int16 i16 = NativeMethods.RegisterClassExW(ref ms_wndclassexw);
+                if (i16 == 0)
+                {
+                    int iGle = Marshal.GetLastWin32Error();
+                    if (iGle != 1410) // already registered...
+                    {
+                        Log.Error("RegisterClassExW failed..." + i16);
+                        ms_wndclassexw = default(NativeMethods.WNDCLASSEXW);
+                        ms_wndprocdelegate = null;
+                        ms_intptrWndProcDelegate = IntPtr.Zero;
+                        m_blMonitorIsReady = true;
+                        return;
+                    }
+                }
+            }
+
             // Create the window. This window won't actually be shown, but it demonstrates how to use Bonjour
             // with Windows GUI applications by having Bonjour events processed as messages to a Window.
-            instance = NativeMethods.GetModuleHandleW(null);
-            NativeMethods.WndProcDelegate wndprocdelegate = WndProcLaunchpad;
-
-            // Register our class...
-            wcex = new NativeMethods.WNDCLASS();
-            wcex.lpszClassName = "TwainDirectBonjourWindow";
-            wcex.lpfnWndProc = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(wndprocdelegate);
-            Int16 i16 = NativeMethods.RegisterClassW(ref wcex);
-
-            // Create our window...
             m_vblQuitWindow = false;
             m_vblQuitProcessed = false;
             m_hwnd = NativeMethods.CreateWindowExW
             (
                 0x00000080, //0x300 /*WS_EX_OVERLAPPEDWINDOW*/,
-                wcex.lpszClassName,
-                wcex.lpszClassName,
+                ms_wndclassexw.lpszClassName,
+                ms_wndclassexw.lpszClassName,
                 -1000,  //0,
                 10,     //-2147483648, // CW_USEDEFAULT
                 -1000,  //0,
@@ -239,7 +267,7 @@ namespace TwainDirect.Support
                 0,
                 IntPtr.Zero,
                 IntPtr.Zero,
-                instance,
+                ms_wndclassexw.hInstance,
                 IntPtr.Zero
             );
             if (m_hwnd == IntPtr.Zero)
@@ -326,6 +354,7 @@ namespace TwainDirect.Support
             // icky alternatively.  We set a volatile state flag, send a fake
             // bonjour message, and then switch to processing anything.  It's
             // vile, but it works.
+            m_blMonitorIsReady = true;
             while (true)
             {
                 // Get the message...
@@ -350,13 +379,17 @@ namespace TwainDirect.Support
                 // We've been told to quit, so don't process this message anymore...
                 if (m_vblQuitWindow && (msg.message == NativeMethods.BONJOUR_EVENT))
                 {
-                    return;
+                    break;
                 }
 
                 // Dispatch...
                 NativeMethods.TranslateMessage(ref msg);
                 NativeMethods.DispatchMessage(ref msg);
             }
+
+            // Make sure the window is destroyed...
+            NativeMethods.DestroyWindow(m_hwnd);
+            m_hwnd = IntPtr.Zero;
 
             // All done...
             return;
@@ -385,11 +418,27 @@ namespace TwainDirect.Support
             m_intptrOsdnssdcallbackArg = a_pvOsdnssdcallbackArg;
 
             // Start our thread...
+            m_blMonitorIsReady = false;
             m_threadMonitor = new Thread(MonitorThread);
             m_threadMonitor.Start();
 
-		    // All done...
-		    return (true);
+            // Wait for it to be ready, and then give time for
+            // the first snapshot...
+            while (!m_blMonitorIsReady)
+            {
+                Thread.Sleep(0);
+            }
+            Thread.Sleep(1000);
+
+            // Double-check to see that we're really up and running...
+            if (!m_threadMonitor.IsAlive)
+            {
+                Log.Error("Our monitor thread has aborted during startup...");
+                return (false);
+            }
+
+            // All done...
+            return (true);
         }
 
         /// <summary>
@@ -418,6 +467,8 @@ namespace TwainDirect.Support
         /// <param name="a_iPort">socket port number</param>
         /// <param name="a_szTy">the friendly name for the device, not forced to be unique</param>
         /// <param name="a_szUrl">url of cloud server or empty string</param>
+        /// <param name="a_szCloudScannerId">device id guid for our scanner</param>
+        /// <param name="a_szTwainCloudState">the cloud state</param>
         /// <param name="a_szNote">a helpful note about the device (optional)</param>
         /// <returns>true on success</returns>
         public bool RegisterStart
@@ -426,6 +477,8 @@ namespace TwainDirect.Support
             int a_iPort,
             string a_szTy,
             string a_szUrl,
+            string a_szCloudScannerId,
+            string a_szTwainCloudState,
             string a_szNote
         )
         {
@@ -463,8 +516,8 @@ namespace TwainDirect.Support
                 "ty=<" + a_szTy + "> " +
                 "url=<" + a_szUrl + "> " +
                 "type=<twaindirect> " +
-                "id=<> " +
-                "cs=<offline> " +
+                "id=<" + a_szCloudScannerId + "> " +
+                "cs=<" + a_szTwainCloudState + "> " +
                 "https=<" + ((Config.Get("useHttps", "yes") == "no") ? "0" : "1") + "> " +
                 "note=<" + a_szNote + "> "
             );
@@ -480,8 +533,8 @@ namespace TwainDirect.Support
                 "\t" + "ty=" + a_szTy +
                 "\t" + "url=" + a_szUrl +
                 "\t" + "type=twaindirect" +
-                "\t" + "id=" +
-                "\t" + "cs=offline" +
+                "\t" + "id=" + a_szCloudScannerId +
+                "\t" + "cs=" + a_szTwainCloudState +
                 "\t" + "https=" + ((Config.Get("useHttps", "yes") == "no") ? "0" : "1") +
                 (string.IsNullOrEmpty(a_szNote) ? "" : "\t" + "note=" + a_szNote);
             byte[] abTxt = Encoding.UTF8.GetBytes(szTxt);
@@ -497,14 +550,14 @@ namespace TwainDirect.Support
                 switch (tt)
                 {
                     default:
-                    case 0: abTxt[ii] = 9; break; // txtvers
-                    case 1: abTxt[ii] = (byte)(3 + Encoding.UTF8.GetBytes(a_szTy).Length); break; // ty
-                    case 2: abTxt[ii] = (byte)(4 + Encoding.UTF8.GetBytes(a_szUrl).Length); break; // url
-                    case 3: abTxt[ii] = 16; break; // type
-                    case 4: abTxt[ii] = 3; break; // id
-                    case 5: abTxt[ii] = 10; break; // cs
-                    case 6: abTxt[ii] = 7; break; // https
-                    case 7: abTxt[ii] = (byte)(5 + Encoding.UTF8.GetBytes(a_szNote).Length); break; // note
+                    case 0: abTxt[ii] = 9; break; // txtvers=1
+                    case 1: abTxt[ii] = (byte)(3 + Encoding.UTF8.GetBytes(a_szTy).Length); break; // ty=*
+                    case 2: abTxt[ii] = (byte)(4 + Encoding.UTF8.GetBytes(a_szUrl).Length); break; // url=*
+                    case 3: abTxt[ii] = 16; break; // type=twaindirect
+                    case 4: abTxt[ii] = (byte)(3 + Encoding.UTF8.GetBytes(a_szCloudScannerId).Length); break; // id=*
+                    case 5: abTxt[ii] = (byte)(3 + Encoding.UTF8.GetBytes(a_szTwainCloudState).Length); break; // cs=*
+                    case 6: abTxt[ii] = 7; break; // https=?
+                    case 7: abTxt[ii] = (byte)(5 + Encoding.UTF8.GetBytes(a_szNote).Length); break; // note=*
                 }
 
                 // Next item...
@@ -1158,7 +1211,7 @@ namespace TwainDirect.Support
                 {
                     // Clean up Bonjour. This is not strictly necessary since the normal process cleanup will 
                     // close Bonjour socket(s) and release memory, but it's here to demonstrate how to do it.
-                    if (m_dnsservicerefClient != IntPtr.Zero)
+                    if ((m_dnsservicerefClient != IntPtr.Zero) && (m_hwnd != IntPtr.Zero))
                     {
                         NativeMethods.WSAAsyncSelect(m_pfndnsservicerefsockfd(m_dnsservicerefClient), m_hwnd, NativeMethods.BONJOUR_EVENT, 0);
                         m_pfndnsservicerefdeallocate(m_dnsservicerefClient);
@@ -1168,11 +1221,17 @@ namespace TwainDirect.Support
                     // KEYWORD:BARF
                     // Look for this keyword to find the full explanation...
                     m_vblQuitWindow = true;
-                    NativeMethods.PostMessage(m_hwnd, NativeMethods.BONJOUR_EVENT, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
-                    for (int iLoop = 0; !m_vblQuitProcessed && (iLoop < 5); iLoop++)
+                    if (m_hwnd != IntPtr.Zero)
                     {
-                        NativeMethods.PostMessage(m_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
-                        Thread.Sleep(10);
+                        NativeMethods.PostMessage(m_hwnd, NativeMethods.BONJOUR_EVENT, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                        for (int iLoop = 0; !m_vblQuitProcessed && (iLoop < 5); iLoop++)
+                        {
+                            if (m_hwnd != IntPtr.Zero)
+                            {
+                                NativeMethods.PostMessage(m_hwnd, 18, IntPtr.Zero, IntPtr.Zero); // WM_QUIT
+                                Thread.Sleep(10);
+                            }
+                        }
                     }
 
                     // See if our thread is dead (paws crossed)...
@@ -1944,7 +2003,7 @@ namespace TwainDirect.Support
         /// </summary>
         private object m_objectLockCache;
 
-        struct CallbackContext
+        private struct CallbackContext
         {
 	        public IntPtr dnssd;
             public DnssdDeviceInfo dnssddeviceinfo;
@@ -1954,30 +2013,34 @@ namespace TwainDirect.Support
         public delegate int OsDnssdCallback(IntPtr a_pvArg, DnssdDeviceInfo a_dnssddeviceinfo);
 
         // The callback...
-        OsDnssdCallback m_osdnssdcallback;
-        IntPtr m_intptrOsdnssdcallbackArg;
+        private OsDnssdCallback m_osdnssdcallback;
+        private IntPtr m_intptrOsdnssdcallbackArg;
 
         // Our thread...
-        Thread m_threadMonitor;
+        private Thread m_threadMonitor;
 
         // The Bonjour functions...
-        readonly pfnDNSServiceBrowse m_pfndnsservicebrowse;
-        readonly pfnDNSServiceCreateConnection m_pfndnsserrvicecreateconnection;
-        readonly pfnDNSServiceProcessResult m_pfndnsserviceprocessresult;
-        readonly pfnDNSServiceRefDeallocate m_pfndnsservicerefdeallocate;
-        readonly pfnDNSServiceRefSockFD m_pfndnsservicerefsockfd;
-        readonly pfnDNSServiceResolve m_pfndnsserviceresolve;
-        readonly pfnDNSServiceQueryRecord m_pfndnsservicequeryrecord;
-        readonly pfnDNSServiceRegister m_pfndnsserviceregister;
+        private readonly pfnDNSServiceBrowse m_pfndnsservicebrowse;
+        private readonly pfnDNSServiceCreateConnection m_pfndnsserrvicecreateconnection;
+        private readonly pfnDNSServiceProcessResult m_pfndnsserviceprocessresult;
+        private readonly pfnDNSServiceRefDeallocate m_pfndnsservicerefdeallocate;
+        private readonly pfnDNSServiceRefSockFD m_pfndnsservicerefsockfd;
+        private readonly pfnDNSServiceResolve m_pfndnsserviceresolve;
+        private readonly pfnDNSServiceQueryRecord m_pfndnsservicequeryrecord;
+        private readonly pfnDNSServiceRegister m_pfndnsserviceregister;
 
         // Windows stuff...
-        IntPtr m_hmoduleDnssd;
-	    IntPtr m_dnsservicerefClient;
-        IntPtr m_dnsservicerefRegister;
-        IntPtr m_hwnd;
-        volatile bool m_vblQuitWindow;
-        volatile bool m_vblQuitProcessed;
-        GCHandle m_gchandleThis;
+        private IntPtr m_hmoduleDnssd;
+        private IntPtr m_dnsservicerefClient;
+        private IntPtr m_dnsservicerefRegister;
+        private volatile IntPtr m_hwnd;
+        private volatile bool m_blMonitorIsReady;
+        private volatile bool m_vblQuitWindow;
+        private volatile bool m_vblQuitProcessed;
+        private static NativeMethods.WndProcDelegate ms_wndprocdelegate;
+        private static IntPtr ms_intptrWndProcDelegate = IntPtr.Zero;
+        private static NativeMethods.WNDCLASSEXW ms_wndclassexw;
+        private GCHandle m_gchandleThis;
 
         // Linux stuff...
         // nothing at this time...

@@ -264,7 +264,7 @@ namespace TwainDirect.OnTwain
                     dnssd = new Dnssd(Dnssd.Reason.Register, out blServiceIsAvailable);
                     if (blServiceIsAvailable)
                     {
-                        dnssd.RegisterStart("Instance", 55556, "Ty", "", "Note");
+                        dnssd.RegisterStart("Instance", 55556, "Ty", "", "", "", "Note");
                         Thread.Sleep(60000);
                         dnssd.RegisterStop();
                     }

@@ -38,7 +38,7 @@
             this.m_textbox1 = new System.Windows.Forms.TextBox();
             this.m_textbox2 = new System.Windows.Forms.TextBox();
             this.m_textboxSummary = new System.Windows.Forms.TextBox();
-            this.cloudButton = new System.Windows.Forms.Button();
+            this.m_buttonCloud = new System.Windows.Forms.Button();
             this.cloudMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.loginWithGoogleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.loginWithFacebookToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -182,16 +182,16 @@
             this.m_textboxSummary.Size = new System.Drawing.Size(676, 20);
             this.m_textboxSummary.TabIndex = 15;
             // 
-            // cloudButton
+            // m_buttonCloud
             // 
-            this.cloudButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.cloudButton.Location = new System.Drawing.Point(314, 507);
-            this.cloudButton.Name = "cloudButton";
-            this.cloudButton.Size = new System.Drawing.Size(75, 23);
-            this.cloudButton.TabIndex = 16;
-            this.cloudButton.Text = "cloud...";
-            this.cloudButton.UseVisualStyleBackColor = true;
-            this.cloudButton.Click += new System.EventHandler(this.cloudButton_Click);
+            this.m_buttonCloud.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.m_buttonCloud.Location = new System.Drawing.Point(314, 507);
+            this.m_buttonCloud.Name = "m_buttonCloud";
+            this.m_buttonCloud.Size = new System.Drawing.Size(75, 23);
+            this.m_buttonCloud.TabIndex = 16;
+            this.m_buttonCloud.Text = "cloud...";
+            this.m_buttonCloud.UseVisualStyleBackColor = true;
+            this.m_buttonCloud.Click += new System.EventHandler(this.cloudButton_Click);
             // 
             // cloudMenuStrip
             // 
@@ -223,7 +223,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Window;
             this.ClientSize = new System.Drawing.Size(702, 545);
-            this.Controls.Add(this.cloudButton);
+            this.Controls.Add(this.m_buttonCloud);
             this.Controls.Add(this.m_textboxSummary);
             this.Controls.Add(this.m_textbox2);
             this.Controls.Add(this.m_textbox1);
@@ -260,7 +260,7 @@
         private System.Windows.Forms.TextBox m_textbox1;
         private System.Windows.Forms.TextBox m_textbox2;
         private System.Windows.Forms.TextBox m_textboxSummary;
-        private System.Windows.Forms.Button cloudButton;
+        private System.Windows.Forms.Button m_buttonCloud;
         private System.Windows.Forms.ContextMenuStrip cloudMenuStrip;
         private System.ComponentModel.IContainer components;
         private System.Windows.Forms.ToolStripMenuItem loginWithGoogleToolStripMenuItem;

@@ -323,4 +323,7 @@
   <data name="titleNotification" xml:space="preserve">
     <value>Notification</value>
   </data>
+  <data name="strButtonCloudEllipsis" xml:space="preserve">
+    <value>Cloud...</value>
+  </data>
 </root>

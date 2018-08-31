@@ -83,6 +83,8 @@ namespace TwainDirect.Support
         /// <param name="a_iPort">socket port number (can be 0 to auto select)</param>
         /// <param name="a_szTy">the friendly name for the device, not forced to be unique</param>
         /// <param name="a_szUrl">url of cloud server or empty string</param>
+        /// <param name="a_szCloudScannerId">device id guid for our scanner</param>
+        /// <param name="a_szTwainCloudState">the cloud state</param>
         /// <param name="a_szNote">a helpful note about the device (optional)</param>
         /// <returns>true on success</returns>
         public bool ServerStart
@@ -92,6 +94,8 @@ namespace TwainDirect.Support
             int a_iPort,
             string a_szTy,
             string a_szUrl,
+            string a_szCloudScannerId,
+            string a_szTwainCloudState,
             string a_szNote
         )
         {
@@ -171,7 +175,7 @@ namespace TwainDirect.Support
             m_iasyncresult = m_httplistener.BeginGetContext(new AsyncCallback(ListenerCallback), m_httplistener);
 
             // Register our new device...
-            m_dnssd.RegisterStart(a_szInstanceName, m_iPort, a_szTy, a_szUrl, a_szNote);
+            m_dnssd.RegisterStart(a_szInstanceName, m_iPort, a_szTy, a_szUrl, a_szCloudScannerId, a_szTwainCloudState, a_szNote);
 
             // All done...
             return (true);

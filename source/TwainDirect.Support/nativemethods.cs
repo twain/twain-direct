@@ -176,7 +176,7 @@ namespace TwainDirect.Support
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.U2)]
-        public static extern short RegisterClassW([In] ref WNDCLASS lpwc);
+        public static extern short RegisterClassExW([In] ref WNDCLASSEXW lpwc);
 
         /// <summary>
         /// The Windows Point structure.
@@ -210,8 +210,11 @@ namespace TwainDirect.Support
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         [SuppressMessage("Microsoft.Design", "CA1049:TypesThatOwnNativeResourcesShouldBeDisposable", Justification = "Not allocating any resources.")]
-        public struct WNDCLASS
+        public struct WNDCLASSEXW
         {
+            [MarshalAs(UnmanagedType.U4)]
+            public int cbSize;
+            [MarshalAs(UnmanagedType.U4)]
             public int style;
             public IntPtr lpfnWndProc; // not WndProc
             public int cbClsExtra;

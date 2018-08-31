@@ -620,36 +620,6 @@ namespace TwainDirect.Support
                 return (false);
             }
 
-            // Handle TWAIN Local monitoring...
-            try
-            {
-                // Create our TWAIN Local server...
-                m_httpserver = new HttpServer();
-
-                // Start watching the skies...
-                blSuccess = m_httpserver.ServerStart
-                (
-                    DeviceDispatchCommand,
-                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
-                    iPort,
-                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
-                    "",
-                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
-                );
-                if (blSuccess)
-                {
-                    m_blTwainLocalStarted = true;
-                }
-                else
-                {
-                    Log.Error("DeviceHttpServerStart: ServerStart failed...");
-                }
-            }
-            catch (Exception exception)
-            {
-                Log.Error("DeviceHttpServerStart: ServerStart failed - " + exception.Message);
-            }
-
             // Handle TWAIN Cloud monitoring...
             if (m_devicesessionCloud != null)
             {
@@ -719,6 +689,54 @@ namespace TwainDirect.Support
                 {
                     Log.Error("DeviceHttpServerStart: connect failed - " + exception.Message);
                 }
+            }
+
+            // Handle TWAIN Local monitoring...
+            try
+            {
+                string szConnectionState;
+
+                // Create our TWAIN Local server...
+                m_httpserver = new HttpServer();
+
+                // Work out our connection state, we don't have "connecting"...
+                if (string.IsNullOrEmpty(a_szCloudApiRoot) || string.IsNullOrEmpty(a_szCloudScannerId))
+                {
+                    szConnectionState = "not-configured"; // we have nothing
+                }
+                else if (m_blTwainCloudStarted)
+                {
+                    szConnectionState = "online"; // we think we successfully connected
+                }
+                else
+                {
+                    szConnectionState = "offline"; // we're pretty sure we didn't connect
+                }
+
+                // Start watching the skies...
+                blSuccess = m_httpserver.ServerStart
+                (
+                    DeviceDispatchCommand,
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalInstanceName(),
+                    iPort,
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalTy(),
+                    a_szCloudApiRoot,
+                    a_szCloudScannerId,
+                    szConnectionState,
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
+                );
+                if (blSuccess)
+                {
+                    m_blTwainLocalStarted = true;
+                }
+                else
+                {
+                    Log.Error("DeviceHttpServerStart: ServerStart failed...");
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("DeviceHttpServerStart: ServerStart failed - " + exception.Message);
             }
 
             // All done...
@@ -7394,6 +7412,33 @@ namespace TwainDirect.Support
             public string DeviceRegisterGetTwainLocalTy()
             {
                 return (m_deviceregister.GetTwainLocalTy());
+            }
+
+            /// <summary>
+            /// Get the TWAIN Local url= field
+            /// </summary>
+            /// <returns>url to the default cloud</returns>
+            public string DeviceRegisterGetTwainLocalUrl()
+            {
+                return (m_deviceregister.GetTwainLocalUrl());
+            }
+
+            /// <summary>
+            /// Get the TWAIN Local id= field
+            /// </summary>
+            /// <returns>device id in the default cloud</returns>
+            public string DeviceRegisterGetTwainLocalId()
+            {
+                return (m_deviceregister.GetTwainLocalId());
+            }
+
+            /// <summary>
+            /// Get the TWAIN Local cs= field
+            /// </summary>
+            /// <returns>the connection state</returns>
+            public string DeviceRegisterGetTwainLocalCs()
+            {
+                return (m_deviceregister.GetTwainLocalCs());
             }
 
             /// <summary>

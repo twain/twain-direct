@@ -123,12 +123,13 @@ namespace TwainDirect.App
 
             // Localize...
             this.Text = Config.GetResource(m_resourcemanager, "strFormScanTitle"); // TWAIN Direct: Application
-            m_buttonClose.Text = Config.GetResource(m_resourcemanager, "strButtonClose");
-            m_buttonOpen.Text = Config.GetResource(m_resourcemanager, "strButtonOpen");
-            m_buttonSelect.Text = Config.GetResource(m_resourcemanager, "strButtonSelectEllipsis");
-            m_buttonScan.Text = Config.GetResource(m_resourcemanager, "strButtonScan");
-            m_buttonSetup.Text = Config.GetResource(m_resourcemanager, "strButtonSetupEllipsis");
-            m_buttonStop.Text = Config.GetResource(m_resourcemanager, "strButtonStop");
+            m_buttonClose.Text = Config.GetResource(m_resourcemanager, "strButtonClose"); // Close
+            m_buttonCloud.Text = Config.GetResource(m_resourcemanager, "strButtonCloudEllipsis"); // Cloud...
+            m_buttonOpen.Text = Config.GetResource(m_resourcemanager, "strButtonOpen"); // Open
+            m_buttonSelect.Text = Config.GetResource(m_resourcemanager, "strButtonSelectEllipsis"); // Select...
+            m_buttonScan.Text = Config.GetResource(m_resourcemanager, "strButtonScan"); // Scan
+            m_buttonSetup.Text = Config.GetResource(m_resourcemanager, "strButtonSetupEllipsis"); // Setup...
+            m_buttonStop.Text = Config.GetResource(m_resourcemanager, "strButtonStop"); // Stop
 
             // Help with scaling...
             this.Resize += new EventHandler(FormScan_Resize);
@@ -1564,6 +1565,7 @@ namespace TwainDirect.App
                 case EBUTTONSTATE.UNDEFINED:
                     m_buttonOpen.Enabled = false;
                     m_buttonSelect.Enabled = false;
+                    m_buttonCloud.Enabled = false;
                     m_buttonClose.Enabled = false;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
@@ -1573,6 +1575,7 @@ namespace TwainDirect.App
                 case EBUTTONSTATE.CLOSED:
                     m_buttonOpen.Enabled = true;
                     m_buttonSelect.Enabled = true;
+                    m_buttonCloud.Enabled = (m_twaincloudtokens == null); // only let the user do this once!
                     m_buttonClose.Enabled = false;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
@@ -1582,6 +1585,7 @@ namespace TwainDirect.App
                 case EBUTTONSTATE.OPEN:
                     m_buttonOpen.Enabled = false;
                     m_buttonSelect.Enabled = false;
+                    m_buttonCloud.Enabled = false;
                     m_buttonClose.Enabled = true;
                     m_buttonSetup.Enabled = true;
                     m_buttonScan.Enabled = true;
@@ -1591,6 +1595,7 @@ namespace TwainDirect.App
                 case EBUTTONSTATE.SCANNING:
                     m_buttonOpen.Enabled = false;
                     m_buttonSelect.Enabled = false;
+                    m_buttonCloud.Enabled = false;
                     m_buttonClose.Enabled = true;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
@@ -1686,7 +1691,6 @@ namespace TwainDirect.App
             if (blServiceIsAvailable)
             {
                 m_dnssd.MonitorStart(null, IntPtr.Zero);
-                Thread.Sleep(3000);
             }
             else
             {
@@ -1917,7 +1921,7 @@ namespace TwainDirect.App
             // Instantiate our selection form with the list of devices, and
             // wait for the user to pick something...
             dialogresult = DialogResult.Cancel;
-            formselect = new FormSelect(ref m_dnssd, m_fScale, m_twaincloudTokens, out blSuccess, m_resourcemanager);
+            formselect = new FormSelect(ref m_dnssd, m_fScale, m_twaincloudtokens, out blSuccess, m_resourcemanager);
             if (!blSuccess)
             {
                 SetButtons(EBUTTONSTATE.CLOSED);
@@ -2423,13 +2427,13 @@ namespace TwainDirect.App
         /// <param name="e"></param>
         private void cloudButton_Click(object sender, EventArgs e)
         {
-            int menuPosition = cloudButton.Height;
-            Point screenPoint = PointToScreen(new Point(cloudButton.Left, cloudButton.Bottom));
+            int menuPosition = m_buttonCloud.Height;
+            Point screenPoint = PointToScreen(new Point(m_buttonCloud.Left, m_buttonCloud.Bottom));
 
             if (screenPoint.Y + cloudMenuStrip.Size.Height > Screen.PrimaryScreen.WorkingArea.Height)
                 menuPosition = -cloudMenuStrip.Size.Height;
 
-            cloudMenuStrip.Show(cloudButton, new Point(0, menuPosition));
+            cloudMenuStrip.Show(m_buttonCloud, new Point(0, menuPosition));
         }
 
         /// <summary>
@@ -2446,14 +2450,19 @@ namespace TwainDirect.App
             var loginForm = new FacebookLoginForm(loginUrl);
             loginForm.Authorized += async (_, args) =>
             {
+                // Form goes bye-bye...
                 loginForm.Close();
 
-                m_twaincloudTokens = args.Tokens;
+                // Squirrel this away...
+                m_twaincloudtokens = args.Tokens;
 
-                var client = new TwainCloudClient(apiRoot, m_twaincloudTokens);
+                // Put the authorization bearer token where we can get it...
+                var client = new TwainCloudClient(apiRoot, m_twaincloudtokens);
                 await m_twainlocalscannerclient.ConnectToCloud(client);
                 m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
 
+                // Fix our buttons...
+                SetButtons(EBUTTONSTATE.CLOSED);
             };
 
             loginForm.ShowDialog(this);
@@ -2557,7 +2566,7 @@ namespace TwainDirect.App
         private Brush m_brushBackground;
         private Rectangle m_rectangleBackground;
         private int m_iUseBitmap;
-        private TwainCloudTokens m_twaincloudTokens;
+        private TwainCloudTokens m_twaincloudtokens;
 
         // Where we get our localized strings...
         private ResourceManager m_resourcemanager;
