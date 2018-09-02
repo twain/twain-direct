@@ -40,7 +40,9 @@ using System.Globalization;
 using System.IO;
 using System.Resources;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using TwainDirect.Scanner.Storage;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -149,7 +151,7 @@ namespace TwainDirect.Scanner
             }
 
             // Instantiate our setup object...
-            m_formsetup = new FormSetup(this, m_resourcemanager, blConfirmScan);
+            m_formsetup = new FormSetup(this, m_resourcemanager, m_scanner, blConfirmScan);
 
             // If we don't have any devices, then don't let the user select
             // the start button...
@@ -222,7 +224,7 @@ namespace TwainDirect.Scanner
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
-        public async void RegisterCloud()
+        public async Task RegisterCloud()
         {
             /*
             string szCloudSqlite = Path.Combine(Config.Get("writeFolder", ""), "cloud.sqlite");

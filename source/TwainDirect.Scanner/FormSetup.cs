@@ -2,15 +2,17 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Resources;
 using System.Security.Principal;
 using System.Threading;
 using System.Windows.Forms;
+using TwainDirect.Scanner.Storage;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
 {
-    public partial class FormSetup : Form
+    internal partial class FormSetup : Form
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods...
@@ -21,7 +23,7 @@ namespace TwainDirect.Scanner
         /// Init stuff...
         /// </summary>
         /// <param name="a_resourcemanager"></param>
-        public FormSetup(FormMain a_formmain, ResourceManager a_resourcemanager, bool a_blConfirmScan)
+        public FormSetup(FormMain a_formmain, ResourceManager a_resourcemanager, Scanner a_scanner, bool a_blConfirmScan)
         {
             // Init the component...
             InitializeComponent();
@@ -32,6 +34,7 @@ namespace TwainDirect.Scanner
             // Remember stuff...
             m_formmain = a_formmain;
             m_resourcemanager = a_resourcemanager;
+            m_scanner = a_scanner;
             m_checkboxConfirmation.Checked = a_blConfirmScan;
 
             // Localize...
@@ -47,6 +50,8 @@ namespace TwainDirect.Scanner
             // Set stuff...
             m_textboxCurrentDriver.Text = m_formmain.GetTwainLocalTy();
             m_textboxCurrentNote.Text = m_formmain.GetTwainLocalNote();
+
+            LoadRegisteredCloudDevices();
 
             // Are we registered for autorun?
             string szValueName = null;
@@ -127,6 +132,34 @@ namespace TwainDirect.Scanner
         #region Private Methods...
 
         /// <summary>
+        /// Loads list of registered cloud devices.
+        /// </summary>
+        private void LoadRegisteredCloudDevices()
+        {
+            m_CloudDevicesComboBox.Items.Clear();
+            using (var context = new CloudContext())
+            {
+                // load registered scanners
+                var scanners = context.Scanners.ToArray();
+                m_CloudDevicesComboBox.Items.AddRange(scanners);
+
+                // select the current one
+                var currentScanner = m_scanner.GetCurrentCloudScanner();
+                if (currentScanner != null)
+                {
+                    foreach (var s in scanners)
+                    {
+                        if (s.Id == currentScanner.Id)
+                        {
+                            m_CloudDevicesComboBox.SelectedItem = s;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Launch the TWAIN Local Manager...
         /// </summary>
         /// <param name="sender"></param>
@@ -204,9 +237,15 @@ namespace TwainDirect.Scanner
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
-        private void m_buttonCloudRegister_Click(object sender, EventArgs e)
+        private async void m_buttonCloudRegister_Click(object sender, EventArgs e)
         {
-            m_formmain.RegisterCloud();
+            await m_formmain.RegisterCloud();
+            LoadRegisteredCloudDevices();
+        }
+
+        private void m_CloudDevicesComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            m_scanner.SetCurrentCloudScanner(m_CloudDevicesComboBox.SelectedItem as CloudScanner);
         }
 
         /// <summary>
@@ -385,6 +424,11 @@ namespace TwainDirect.Scanner
         /// Our resource manager to help with localization...
         /// </summary>
         private ResourceManager m_resourcemanager;
+
+        /// <summary>
+        /// Scanner object to work with.
+        /// </summary>
+        private Scanner m_scanner;
 
         /// <summary>
         /// This prevents us from hammering the registry at startup...
