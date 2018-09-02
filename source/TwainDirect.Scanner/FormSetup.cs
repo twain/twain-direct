@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Resources;
@@ -246,6 +247,20 @@ namespace TwainDirect.Scanner
         private void m_CloudDevicesComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             m_scanner.SetCurrentCloudScanner(m_CloudDevicesComboBox.SelectedItem as CloudScanner);
+        }
+
+        private void m_CloudDevicesComboBox_DropDown(object sender, EventArgs e)
+        {
+            var comboBox = (ComboBox)sender;
+            var width = comboBox.DropDownWidth;
+            var font = comboBox.Font;
+
+            var vertScrollBarWidth = comboBox.Items.Count > comboBox.MaxDropDownItems ? SystemInformation.VerticalScrollBarWidth : 0;
+            var itemsList = comboBox.Items.Cast<object>().Select(item => item.ToString());
+
+            width = itemsList.Select(s => TextRenderer.MeasureText(s, font).Width + vertScrollBarWidth).Concat(new[] { width }).Max();
+
+            comboBox.DropDownWidth = width;
         }
 
         /// <summary>

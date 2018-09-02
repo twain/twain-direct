@@ -209,6 +209,7 @@
             this.m_CloudDevicesComboBox.Name = "m_CloudDevicesComboBox";
             this.m_CloudDevicesComboBox.Size = new System.Drawing.Size(375, 21);
             this.m_CloudDevicesComboBox.TabIndex = 82;
+            this.m_CloudDevicesComboBox.DropDown += new System.EventHandler(this.m_CloudDevicesComboBox_DropDown);
             this.m_CloudDevicesComboBox.SelectedIndexChanged += new System.EventHandler(this.m_CloudDevicesComboBox_SelectedIndexChanged);
             // 
             // FormSetup
