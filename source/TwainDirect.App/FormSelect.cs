@@ -134,8 +134,8 @@ namespace TwainDirect.App
                     (
                         new[] {
                             s.Name,
+                            s.Id,
                             s.Description,
-                            s.Manufacturer,
                             CloudManager.GetScannerCloudUrl(s),
                             "(no ip)"
                         }
