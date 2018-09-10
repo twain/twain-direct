@@ -293,7 +293,7 @@ namespace TwainDirect.Support
             // Every command must have X-Privet-Token in the header...
             for (ii = 0; ii < a_httplistenercontext.Request.Headers.Count; ii++)
             {
-                if (a_httplistenercontext.Request.Headers.GetKey(ii) == "X-Privet-Token")
+                if (a_httplistenercontext.Request.Headers.GetKey(ii).ToLowerInvariant() == "x-privet-token")
                 {
                     break;
                 }
