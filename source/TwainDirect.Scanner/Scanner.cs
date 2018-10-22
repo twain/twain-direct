@@ -242,42 +242,39 @@ namespace TwainDirect.Scanner
         /// <returns>true on success</returns>
         public async Task<bool> MonitorTasksStart()
         {
-            bool blSuccess;
-            CloudScanner cloudScanner = null;
             DeviceSession devicesession = null;
             string szCloudApiRoot = "";
             string szCloudScannerId = "";
-            TwainCloudClient twaincloudclient = null;
+
+            var cloudScanner = GetCurrentCloudScanner();
 
             // If cloud fails, we should keep going so that the
             // user can still run TWAIN Local...
-            try
-            {
-                using (var context = new CloudContext())
+            if (cloudScanner != null)
+            { 
+                try
                 {
-                    cloudScanner = context.Scanners.First();
+                    szCloudApiRoot = CloudManager.GetCloudApiRoot();
+                    var twaincloudtokens = new TwainCloudTokens(cloudScanner.AuthorizationToken, cloudScanner.RefreshToken);
+                    var twaincloudclient = new TwainCloudClient(szCloudApiRoot, twaincloudtokens);
+                    twaincloudclient.TokensRefreshed += (sender, args) =>
+                    {
+                        cloudScanner.AuthorizationToken = args.Tokens.AuthorizationToken;
+                        cloudScanner.RefreshToken = args.Tokens.RefreshToken;
+                        SaveScannerRegistration(cloudScanner);
+                    };
+                    devicesession = new DeviceSession(twaincloudclient, cloudScanner.Id);
+                    szCloudScannerId = cloudScanner.Id;
                 }
-
-                szCloudApiRoot = CloudManager.GetCloudApiRoot();
-                TwainCloudTokens twaincloudtokens = new TwainCloudTokens(cloudScanner.AuthorizationToken, cloudScanner.RefreshToken);
-                twaincloudclient = new TwainCloudClient(szCloudApiRoot, twaincloudtokens);
-                twaincloudclient.TokensRefreshed += (sender, args) =>
+                catch (Exception exception)
                 {
-                    cloudScanner.AuthorizationToken = args.Tokens.AuthorizationToken;
-                    cloudScanner.RefreshToken = args.Tokens.RefreshToken;
-                    SaveScannerRegistration(cloudScanner);
-                };
-                devicesession = new DeviceSession(twaincloudclient, cloudScanner.Id);
-                szCloudScannerId = cloudScanner.Id;
-            }
-            catch (Exception exception)
-            {
-                Log.Error("MonitorTasksStart: failed to initialize cloud, has it been registered? - " + exception.Message);
-                devicesession = null;
+                    Log.Error("MonitorTasksStart: failed to initialize cloud, has it been registered? - " + exception.Message);
+                    devicesession = null;
+                }
             }
 
             // Start monitoring for commands...
-            blSuccess = await m_twainlocalscannerdevice.DeviceHttpServerStart(devicesession, szCloudApiRoot, szCloudScannerId);
+            var blSuccess = await m_twainlocalscannerdevice.DeviceHttpServerStart(devicesession, szCloudApiRoot, szCloudScannerId);
             if (!blSuccess)
             {
                 Log.Error("MonitorTasksStart: DeviceHttpServerStart failed...");
@@ -373,14 +370,45 @@ namespace TwainDirect.Scanner
             var pollResult = registrationDialog.PollResponse;
             if (pollResult != null)
             {
-                SaveScannerRegistration(new CloudScanner
+                var cloudScanner = new CloudScanner
                 {
                     Id = result.ScannerId,
-                    Name = scannerInfo.Name,
+                    Name = $"{scannerInfo.Name} ({scannerInfo.Description})",
                     AuthorizationToken = pollResult.AuthorizationToken,
                     RefreshToken = pollResult.RefreshToken
-                });
+                };
+
+                SaveScannerRegistration(cloudScanner);
+                SetCurrentCloudScanner(cloudScanner);
             }
+        }
+
+        public void SetCurrentCloudScanner(CloudScanner scanner)
+        {
+            var cloudConfigFileName = GetCloudConfigFileName();
+            File.WriteAllText(cloudConfigFileName, scanner.Id);
+
+        }
+
+        public CloudScanner GetCurrentCloudScanner()
+        {
+            CloudScanner cloudScanner = null;
+
+            var cloudConfigFileName = GetCloudConfigFileName();
+            if (File.Exists(cloudConfigFileName))
+            {
+                var cloudScannerId = File.ReadAllText(GetCloudConfigFileName());
+
+                using (var context = new CloudContext())
+                    cloudScanner = context.Scanners.Find(cloudScannerId);
+            }
+
+            return cloudScanner;
+        }
+
+        private static string GetCloudConfigFileName()
+        {
+            return Path.Combine(Config.Get("writeFolder", ""), "cloud.txt");
         }
 
         #endregion

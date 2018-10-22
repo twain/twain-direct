@@ -42,12 +42,14 @@
             this.m_textboxCurrentNote = new System.Windows.Forms.TextBox();
             this.m_labelCurrentNote = new System.Windows.Forms.Label();
             this.m_buttonManageCloud = new System.Windows.Forms.Button();
+            this.m_RegisteredDeviceLabel = new System.Windows.Forms.Label();
+            this.m_CloudDevicesComboBox = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
             // 
             // m_checkboxRunOnLogin
             // 
             this.m_checkboxRunOnLogin.AutoSize = true;
-            this.m_checkboxRunOnLogin.Location = new System.Drawing.Point(12, 250);
+            this.m_checkboxRunOnLogin.Location = new System.Drawing.Point(12, 283);
             this.m_checkboxRunOnLogin.Name = "m_checkboxRunOnLogin";
             this.m_checkboxRunOnLogin.Size = new System.Drawing.Size(187, 17);
             this.m_checkboxRunOnLogin.TabIndex = 70;
@@ -118,7 +120,7 @@
             // m_checkboxAdvertise
             // 
             this.m_checkboxAdvertise.AutoSize = true;
-            this.m_checkboxAdvertise.Location = new System.Drawing.Point(12, 273);
+            this.m_checkboxAdvertise.Location = new System.Drawing.Point(12, 306);
             this.m_checkboxAdvertise.Name = "m_checkboxAdvertise";
             this.m_checkboxAdvertise.Size = new System.Drawing.Size(360, 17);
             this.m_checkboxAdvertise.TabIndex = 74;
@@ -129,7 +131,7 @@
             // m_checkboxConfirmation
             // 
             this.m_checkboxConfirmation.AutoSize = true;
-            this.m_checkboxConfirmation.Location = new System.Drawing.Point(12, 296);
+            this.m_checkboxConfirmation.Location = new System.Drawing.Point(12, 329);
             this.m_checkboxConfirmation.Name = "m_checkboxConfirmation";
             this.m_checkboxConfirmation.Size = new System.Drawing.Size(237, 17);
             this.m_checkboxConfirmation.TabIndex = 75;
@@ -148,6 +150,8 @@
             // 
             // m_textboxCurrentDriver
             // 
+            this.m_textboxCurrentDriver.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.m_textboxCurrentDriver.BackColor = System.Drawing.SystemColors.Window;
             this.m_textboxCurrentDriver.Location = new System.Drawing.Point(91, 29);
             this.m_textboxCurrentDriver.Name = "m_textboxCurrentDriver";
@@ -157,6 +161,8 @@
             // 
             // m_textboxCurrentNote
             // 
+            this.m_textboxCurrentNote.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.m_textboxCurrentNote.BackColor = System.Drawing.SystemColors.Window;
             this.m_textboxCurrentNote.Location = new System.Drawing.Point(91, 55);
             this.m_textboxCurrentNote.Name = "m_textboxCurrentNote";
@@ -184,12 +190,36 @@
             this.m_buttonManageCloud.UseVisualStyleBackColor = true;
             this.m_buttonManageCloud.Click += new System.EventHandler(this.m_buttonManageCloud_Click);
             // 
+            // m_RegisteredDeviceLabel
+            // 
+            this.m_RegisteredDeviceLabel.AutoSize = true;
+            this.m_RegisteredDeviceLabel.Location = new System.Drawing.Point(46, 239);
+            this.m_RegisteredDeviceLabel.Name = "m_RegisteredDeviceLabel";
+            this.m_RegisteredDeviceLabel.Size = new System.Drawing.Size(111, 13);
+            this.m_RegisteredDeviceLabel.TabIndex = 81;
+            this.m_RegisteredDeviceLabel.Text = "Current Cloud Device:";
+            // 
+            // m_CloudDevicesComboBox
+            // 
+            this.m_CloudDevicesComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.m_CloudDevicesComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.m_CloudDevicesComboBox.FormattingEnabled = true;
+            this.m_CloudDevicesComboBox.Location = new System.Drawing.Point(163, 236);
+            this.m_CloudDevicesComboBox.Name = "m_CloudDevicesComboBox";
+            this.m_CloudDevicesComboBox.Size = new System.Drawing.Size(375, 21);
+            this.m_CloudDevicesComboBox.TabIndex = 82;
+            this.m_CloudDevicesComboBox.DropDown += new System.EventHandler(this.m_CloudDevicesComboBox_DropDown);
+            this.m_CloudDevicesComboBox.SelectedIndexChanged += new System.EventHandler(this.m_CloudDevicesComboBox_SelectedIndexChanged);
+            // 
             // FormSetup
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Window;
-            this.ClientSize = new System.Drawing.Size(550, 328);
+            this.ClientSize = new System.Drawing.Size(550, 356);
+            this.Controls.Add(this.m_CloudDevicesComboBox);
+            this.Controls.Add(this.m_RegisteredDeviceLabel);
             this.Controls.Add(this.m_buttonManageCloud);
             this.Controls.Add(this.m_textboxCurrentNote);
             this.Controls.Add(this.m_labelCurrentNote);
@@ -227,5 +257,7 @@
         private System.Windows.Forms.TextBox m_textboxCurrentNote;
         private System.Windows.Forms.Label m_labelCurrentNote;
         private System.Windows.Forms.Button m_buttonManageCloud;
+        private System.Windows.Forms.Label m_RegisteredDeviceLabel;
+        private System.Windows.Forms.ComboBox m_CloudDevicesComboBox;
     }
 }
