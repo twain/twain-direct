@@ -104,7 +104,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="HazyBits.Twain.Cloud">
-      <Version>1.0.20</Version>
+      <Version>1.0.35</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>6.0.8</Version>

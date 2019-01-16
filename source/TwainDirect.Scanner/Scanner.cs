@@ -357,7 +357,7 @@ namespace TwainDirect.Scanner
             var client = new TwainCloudClient(CloudManager.GetCloudApiRoot());
             var registrationManager = new RegistrationManager(client);
 
-            var scannerInfo = new ScannerInformation
+            var scannerInfo = new RegistrationRequest
             {
                 Name = GetTwainLocalTy(),
                 Description = GetTwainLocalNote()
