@@ -649,7 +649,9 @@ namespace TwainDirect.Support
                             headers.Add(pair.Key, pair.Value);
                         }
 
-                        cloudMessage.Headers.TryGetValue("X-TWAIN-Cloud-Request-Id", out var requestId);
+                        var requestId = cloudMessage.Headers.FirstOrDefault(h =>
+                            string.Equals(h.Key, "X-TWAIN-Cloud-Request-Id",
+                                StringComparison.InvariantCultureIgnoreCase)).Value;                            
 
                         context.Response = new HttpListenerResponseBase(m_devicesessionCloud);
                         var responseStream = context.Response.OutputStream as ReactiveMemoryStream;
