@@ -1210,7 +1210,7 @@ namespace TwainDirect.Support
 
         private string GetScannerIdFromRequest(string requestUriAbsolutePath)
         {
-            var regex = new Regex("/dev/scanners/(?<scannerId>[0-9a-zA-Z-]*)");
+            var regex = new Regex("(?<apiPrefix>.*)/scanners/(?<scannerId>[0-9a-zA-Z-]*)");
             var match = regex.Match(requestUriAbsolutePath);
 
             return match.Groups["scannerId"].Value;
@@ -1813,7 +1813,11 @@ namespace TwainDirect.Support
             // Build the URI, for HTTP we can use the IP address to get to our device...
             else
             {
-                szUri = "http://" + m_dnssddeviceinfo.GetIpv4() + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
+                var szLinkLocal = m_dnssddeviceinfo.GetLinkLocal();
+                if (!string.IsNullOrEmpty(szLinkLocal))
+                    szUri = szLinkLocal + a_szUri;
+                else
+                    szUri = "http://" + m_dnssddeviceinfo.GetIpv4() + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
             }
             m_httplistenerdata.szUriFull = szUri;
 
