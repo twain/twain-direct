@@ -1798,15 +1798,21 @@ namespace TwainDirect.Support
                 {
                     szUri = "https://" + m_dnssddeviceinfo.GetIpv4() + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
                 }
-                // Where we normally want to be...
+                // Where we normally want to be, note that we are checking for http and
+                // not https.  This is because the cloud URLs specify how they want to
+                // do this, so we don't need to override them.  In particular the
+                // twain-cloud-express simulation system is currently http only...
                 else
                 {
                     string szLinkLocal = m_dnssddeviceinfo.GetLinkLocal().Replace(".local.", ".local");
-                    if (szLinkLocal.StartsWith("https"))
+                    if (szLinkLocal.StartsWith("http"))
+                    {
                         szUri = szLinkLocal + a_szUri;
+                    }
                     else
+                    {
                         szUri = "https://" + szLinkLocal + ":" + m_dnssddeviceinfo.GetPort() + a_szUri;
-
+                    }
                 }
             }
 
@@ -2034,7 +2040,7 @@ namespace TwainDirect.Support
             }
             if (m_httpresponsedata.iResponseHttpStatus >= 300)
             {
-                Log.Error(a_szReason + " failed...");
+                Log.Error(a_szReason + " failed (in HttpRequest)...");
                 Log.Error("http" + GetCommandId() + ">>> sts " + m_httpresponsedata.iResponseHttpStatus);
                 Log.Error("http" + GetCommandId() + ">>> stsreason " + a_szReason + " (" + m_httpresponsedata.szResponseData + ")");
                 return (false);

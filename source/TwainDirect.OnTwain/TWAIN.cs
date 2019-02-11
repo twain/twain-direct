@@ -927,7 +927,6 @@ namespace TWAINWorkingGroup
             IntPtr intptrLocked;
             TWTY ItemType;
             uint NumItems;
-            string szTmp;
 
             // Handle the container...
             switch (a_twcapability.ConType)
@@ -1090,6 +1089,7 @@ namespace TWAINWorkingGroup
                 case TWON.RANGE:
                     {
                         CSV csvRange;
+                        string szTmp;
                         TW_RANGE twrange;
                         TW_RANGE_LINUX64 twrangelinux64;
                         TW_RANGE_MACOSX twrangemacosx;
@@ -1258,7 +1258,15 @@ namespace TWAINWorkingGroup
                 // Set the capability from text or hex...
                 try
                 {
-                    a_twcapability.Cap = (CAP)Enum.Parse(typeof(CAP), asz[0], true);
+					// see if it is a custom cap
+					if ((asz[0][0] == '8') || asz[0].StartsWith("0x8"))
+					{
+						a_twcapability.Cap = (CAP)0xFFFF;
+					}
+					else
+					{
+						a_twcapability.Cap = (CAP)Enum.Parse(typeof(CAP), asz[0], true);
+					}
                 }
                 catch
                 {
@@ -11015,8 +11023,11 @@ namespace TWAINWorkingGroup
                 }
                 if (!ms_blOpened)
                 {
-                    // We'll assume they want logging, since they didn't tell us...
-                    Open("Twain", ".", 1);
+                    // Add logging on / off
+                    if (ms_iLevel > 0)
+                    {
+                        Open("Twain", ".", ms_iLevel);
+                    }
                 }
                 Trace.UseGlobalLock = true;
                 ms_blFirstPass = false;

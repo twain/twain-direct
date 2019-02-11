@@ -123,6 +123,9 @@
   <data name="errLookingForScanners" xml:space="preserve">
     <value>Looking for scanners...</value>
   </data>
+  <data name="errNoCloudManager" xml:space="preserve">
+    <value>Sorry, we do not have a cloud manager for this cloud.</value>
+  </data>
   <data name="errNoScannersFound" xml:space="preserve">
     <value>No scanners found.</value>
   </data>
@@ -187,6 +190,10 @@
   <data name="strTextAbout" xml:space="preserve">
     <value>A program allowing TWAIN Direct applications to communicate with scanners supported by TWAIN drivers.</value>
     <comment>Information about this program...</comment>
+  </data>
+  <data name="strTextCurrentCloud" xml:space="preserve">
+    <value>Current cloud:</value>
+    <comment>URI of the current cloud</comment>
   </data>
   <data name="strTextListingScannersBegin" xml:space="preserve">
     <value>Listing registered scanners...(please wait for the list)</value>

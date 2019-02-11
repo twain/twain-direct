@@ -36,7 +36,6 @@ using System;
 using System.Data.Entity.Migrations;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Resources;
 using System.Threading.Tasks;
 using HazyBits.Twain.Cloud.Client;
@@ -408,7 +407,30 @@ namespace TwainDirect.Scanner
 
         private static string GetCloudConfigFileName()
         {
-            return Path.Combine(Config.Get("writeFolder", ""), "cloud.txt");
+            string szWriteFolder;
+            CloudManager.CloudInfo cloudinfo;
+
+            // We want to be able to support multiple clouds...
+            cloudinfo = CloudManager.GetCurrentCloudInfo();
+            if ((cloudinfo != null) && !string.IsNullOrEmpty(cloudinfo.szFolderName))
+            {
+                szWriteFolder = Path.Combine(Config.Get("writeFolder", "."), "clouds");
+                szWriteFolder = Path.Combine(szWriteFolder, cloudinfo.szFolderName);
+                if (!Directory.Exists(szWriteFolder))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(szWriteFolder);
+                    }
+                    catch
+                    {
+                    }
+                }
+                return Path.Combine(szWriteFolder, "cloud.txt");
+            }
+
+            // Uhhhhh...okay...
+            return Path.Combine(Config.Get("writeFolder", "."), "cloud.txt");
         }
 
         #endregion

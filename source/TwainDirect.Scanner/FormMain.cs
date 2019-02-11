@@ -32,17 +32,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 // Helpers...
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
-using System.IO;
 using System.Resources;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using TwainDirect.Scanner.Storage;
 using TwainDirect.Support;
 
 namespace TwainDirect.Scanner
@@ -152,6 +149,9 @@ namespace TwainDirect.Scanner
 
             // Instantiate our setup object...
             m_formsetup = new FormSetup(this, m_resourcemanager, m_scanner, blConfirmScan);
+
+            // Our current cloud...
+            Display(Config.GetResource(m_resourcemanager, "strTextCurrentCloud") + " " + m_formsetup.GetCloudApiRoot());
 
             // If we don't have any devices, then don't let the user select
             // the start button...
@@ -755,7 +755,15 @@ namespace TwainDirect.Scanner
         /// <param name="e"></param>
         private void m_buttonSetup_Click(object sender, EventArgs e)
         {
+            string szCloudApiRoot = m_formsetup.GetCloudApiRoot();
             m_formsetup.ShowDialog();
+            string szNewCloudApiRoot = m_formsetup.GetCloudApiRoot();
+            if (    !string.IsNullOrEmpty(szCloudApiRoot)
+                &&  !string.IsNullOrEmpty(szNewCloudApiRoot)
+                &&  (szCloudApiRoot != m_formsetup.GetCloudApiRoot()))
+            {
+                Display(Config.GetResource(m_resourcemanager, "strTextCurrentCloud") + " " + m_formsetup.GetCloudApiRoot());
+            }
         }
 
         /// <summary>
@@ -885,6 +893,11 @@ namespace TwainDirect.Scanner
         /// </summary>
         private static int WM_QUERYENDSESSION = 0x11;
         private static bool ms_blSystemShutdown = false;
+
+        /// <summary>
+        /// Our list of clouds...
+        /// </summary>
+        private List<string> m_lszCloudApiRoot;
 
         #endregion
     }

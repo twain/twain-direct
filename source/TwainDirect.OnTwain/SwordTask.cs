@@ -1747,15 +1747,21 @@ namespace TwainDirect.OnTwain
                 }
             }
 
-            // No UI, all drivers must support this...
-            szStatus = "";
-            szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-            if (sts != TWAIN.STS.SUCCESS)
+            // No UI, all drivers must support this, unless useCapIndicators is set
+            // to false.  If this is done then the driver's UI will be used, which
+            // is a bad experience, but may be necessary for some folks.  The line
+            // is written so that only 'false' will work...
+            if (Config.Get("useCapIndicators", "true") != "false")
             {
-                TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
-                a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
-                return (false);
+                szStatus = "";
+                szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
+                    a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                    return (false);
+                }
             }
 
             // Ask for extended image info, if we can get it...

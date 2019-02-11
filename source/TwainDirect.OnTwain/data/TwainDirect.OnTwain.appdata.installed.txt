@@ -18,7 +18,7 @@
         "2 - log verbose stuff, like HTML headers",
         "4 - flush to disk, use to help diagnose crashes"
     ],
-    "logLevel": 0,
+    "XlogLevel": 3,
 
 
 
@@ -42,6 +42,16 @@
         "     and the PDF/raster images."
     ],
     "XuseDatTwaindirect": "yes",
+
+
+
+    "commentUseCapIndicators": [
+        "******************************************************************************",
+        "default: true",
+        "true - do NOT show the TWAIN Drivers UI when scanning",
+        "false - show the TWAIN Drivers UI"
+    ],
+    "XuseCapIndicators": true,
 
 
 

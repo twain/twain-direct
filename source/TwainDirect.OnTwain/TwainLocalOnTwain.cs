@@ -1461,14 +1461,20 @@ namespace TwainDirect.OnTwain
                         return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                     }
 
-                    // No UI...
-                    szStatus = "";
-                    szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
+                    // No UI, all drivers must support this, unless useCapIndicators is set
+                    // to false.  If this is done then the driver's UI will be used, which
+                    // is a bad experience, but may be necessary for some folks.  The line
+                    // is written so that only 'false' will work...
+                    if (Config.Get("useCapIndicators", "true") != "false")
                     {
-                        TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
-                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        szStatus = "";
+                        szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
+                            return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        }
                     }
 
                     // Ask for extended image info...
@@ -1566,14 +1572,20 @@ namespace TwainDirect.OnTwain
                         }
                     }
 
-                    // No UI...
-                    szStatus = "";
-                    szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
+                    // No UI, all drivers must support this, unless useCapIndicators is set
+                    // to false.  If this is done then the driver's UI will be used, which
+                    // is a bad experience, but may be necessary for some folks.  The line
+                    // is written so that only 'false' will work...
+                    if (Config.Get("useCapIndicators", "true") != "false")
                     {
-                        TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
-                        return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        szStatus = "";
+                        szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
+                            return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
+                        }
                     }
 
                     // Ask for extended image info...
@@ -1597,9 +1609,21 @@ namespace TwainDirect.OnTwain
                 }
             }
 
+            // No UI, all drivers must support this, unless useCapIndicators is set
+            // to false.  If this is done then the driver's UI will be used, which
+            // is a bad experience, but may be necessary for some folks.  The line
+            // is written so that only 'false' will work...
+            if (Config.Get("useCapIndicators", "true") != "false")
+            {
+                szUserInterface = "0,0";
+            }
+            else
+            {
+                szUserInterface = "1,0";
+            }
+                
             // Start scanning (no UI)...
             szStatus = "";
-            szUserInterface = "0,0";
             sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_ENABLEDS", ref szUserInterface, ref szStatus);
             if (sts != TWAIN.STS.SUCCESS)
             {

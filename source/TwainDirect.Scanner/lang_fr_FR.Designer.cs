@@ -79,6 +79,15 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Sorry, we do not have a cloud manager for this cloud..
+        /// </summary>
+        public static string errNoCloudManager {
+            get {
+                return ResourceManager.GetString("errNoCloudManager", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to No scanners found..
         /// </summary>
         public static string errNoScannersFound {
@@ -246,6 +255,15 @@ namespace TwainDirect.Scanner {
         public static string strTextAbout {
             get {
                 return ResourceManager.GetString("strTextAbout", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Current cloud:.
+        /// </summary>
+        public static string strTextCurrentCloud {
+            get {
+                return ResourceManager.GetString("strTextCurrentCloud", resourceCulture);
             }
         }
         

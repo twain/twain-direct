@@ -18,7 +18,7 @@
         "2 - log verbose stuff, like HTML headers",
         "4 - flush to disk, use to help diagnose crashes"
     ],
-    "logLevel": 0,
+    "XlogLevel": 3,
 
 
 
@@ -75,5 +75,40 @@
         "port number for the bridge to use for TWAIN Local; changing this requires",
         "changing the URLACL setting too."
     ],
-    "XusePort": 34034
+    "XusePort": 34034,
+
+
+
+    "commentCloudApiRoot": [
+        "******************************************************************************",
+        "default: https://api-twain.hazybits.com/dev",
+        "Add one or more cloud api root paths for the user to select from.",
+        " ",
+        "available fields:",
+        "  name - friendly name to show the user in dropdowns",
+        "  url - endpoint for talking to the cloud",
+        "  manage - web page to bring up for managing this cloud",
+        "  folderName - name under Twain.Scanner where we keep data for this cloud",
+        "  useHttps - default is 'yes', specify 'no' if using twain-cloud-express",
+        " ",
+        "If using twain-cloud-express, copy the following lines down into cloudApiRoot",
+        "as the first item in the array of objects (just after the '[').",
+        "***BEGIN STARTING FROM THE NEXT LINE***",
+        {
+            "name": "Local Cloud",
+            "url": "http://localhost:3000/api",
+            "manager": "http://localhost:3000",
+            "folderName": "localcloud",
+            "useHttps": "no"
+        },
+        "***DO NOT COPY THIS LINE***"
+    ],
+    "XcloudApiRoot": [
+        {
+            "name": "HazyBits",
+            "url": "https://api-twain.hazybits.com/dev",
+            "manager": "https://twain.hazybits.com",
+            "folderName": "hazybits"
+        }
+    ]
 }

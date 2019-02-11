@@ -96,17 +96,16 @@ namespace TwainDirect.Support
             string a_szUrl,
             string a_szCloudScannerId,
             string a_szTwainCloudState,
-            string a_szNote
+            string a_szNote,
+            out bool a_blServiceIsAvailable
         )
         {
             string szUri;
-            bool blServiceIsAvailable;
 
             // Sanity check...
-            m_dnssd = new Dnssd(Dnssd.Reason.Register, out blServiceIsAvailable);
-            if (!blServiceIsAvailable)
+            m_dnssd = new Dnssd(Dnssd.Reason.Register, out a_blServiceIsAvailable);
+            if (!a_blServiceIsAvailable)
             {
-                Log.Error("Bonjour is not available, has it been installed?");
                 m_dnssd.Dispose();
                 m_dnssd = null;
                 return (false);

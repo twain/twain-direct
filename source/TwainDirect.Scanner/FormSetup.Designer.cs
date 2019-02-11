@@ -44,6 +44,7 @@
             this.m_buttonManageCloud = new System.Windows.Forms.Button();
             this.m_RegisteredDeviceLabel = new System.Windows.Forms.Label();
             this.m_CloudDevicesComboBox = new System.Windows.Forms.ComboBox();
+            this.m_comboboxCloudApiRoot = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
             // 
             // m_checkboxRunOnLogin
@@ -71,7 +72,7 @@
             // m_buttonCloudRegister
             // 
             this.m_buttonCloudRegister.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.m_buttonCloudRegister.Location = new System.Drawing.Point(49, 207);
+            this.m_buttonCloudRegister.Location = new System.Drawing.Point(249, 207);
             this.m_buttonCloudRegister.Name = "m_buttonCloudRegister";
             this.m_buttonCloudRegister.Size = new System.Drawing.Size(142, 23);
             this.m_buttonCloudRegister.TabIndex = 68;
@@ -182,7 +183,7 @@
             // m_buttonManageCloud
             // 
             this.m_buttonManageCloud.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.m_buttonManageCloud.Location = new System.Drawing.Point(197, 207);
+            this.m_buttonManageCloud.Location = new System.Drawing.Point(397, 207);
             this.m_buttonManageCloud.Name = "m_buttonManageCloud";
             this.m_buttonManageCloud.Size = new System.Drawing.Size(142, 23);
             this.m_buttonManageCloud.TabIndex = 80;
@@ -212,12 +213,22 @@
             this.m_CloudDevicesComboBox.DropDown += new System.EventHandler(this.m_CloudDevicesComboBox_DropDown);
             this.m_CloudDevicesComboBox.SelectedIndexChanged += new System.EventHandler(this.m_CloudDevicesComboBox_SelectedIndexChanged);
             // 
+            // m_comboboxCloudApiRoot
+            // 
+            this.m_comboboxCloudApiRoot.FormattingEnabled = true;
+            this.m_comboboxCloudApiRoot.Location = new System.Drawing.Point(49, 208);
+            this.m_comboboxCloudApiRoot.Name = "m_comboboxCloudApiRoot";
+            this.m_comboboxCloudApiRoot.Size = new System.Drawing.Size(194, 21);
+            this.m_comboboxCloudApiRoot.TabIndex = 83;
+            this.m_comboboxCloudApiRoot.SelectedIndexChanged += new System.EventHandler(this.m_comboboxCloudApiRoot_SelectedIndexChanged);
+            // 
             // FormSetup
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Window;
             this.ClientSize = new System.Drawing.Size(550, 356);
+            this.Controls.Add(this.m_comboboxCloudApiRoot);
             this.Controls.Add(this.m_CloudDevicesComboBox);
             this.Controls.Add(this.m_RegisteredDeviceLabel);
             this.Controls.Add(this.m_buttonManageCloud);
@@ -259,5 +270,6 @@
         private System.Windows.Forms.Button m_buttonManageCloud;
         private System.Windows.Forms.Label m_RegisteredDeviceLabel;
         private System.Windows.Forms.ComboBox m_CloudDevicesComboBox;
+        private System.Windows.Forms.ComboBox m_comboboxCloudApiRoot;
     }
 }

@@ -313,6 +313,15 @@ namespace TwainDirect.App {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Sorry, we do not have a cloud manager for this cloud..
+        /// </summary>
+        public static string errNoCloudManager {
+            get {
+                return ResourceManager.GetString("errNoCloudManager", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to No device selected..
         /// </summary>
         public static string errNoDeviceSelected {

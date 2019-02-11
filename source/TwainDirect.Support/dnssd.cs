@@ -71,7 +71,7 @@ namespace TwainDirect.Support
             m_hmoduleDnssd = NativeMethods.LoadLibraryExW("dnssd.dll", IntPtr.Zero, 0);
             if (m_hmoduleDnssd == IntPtr.Zero)
             {
-                Log.Error("dnssd.dll is not installed...");
+                Log.Info("Bonjour is not available, has it been installed?");
                 return;
             }
 
@@ -93,7 +93,7 @@ namespace TwainDirect.Support
                 ||  (m_pfndnsservicequeryrecord == null)
                 || (m_pfndnsserviceregister == null))
             {
-                Log.Error("dnssd.dll is missing functions...");
+                Log.Error("dnssd.dll (bonjour) is missing functions...");
                 NativeMethods.FreeLibrary(m_hmoduleDnssd);
                 m_hmoduleDnssd = IntPtr.Zero;
                 return;

@@ -32,6 +32,21 @@ namespace TwainDirect.Scanner
             this.MaximizeBox = false;
             Config.ElevateButton(m_buttonManageTwainLocal.Handle);
 
+            // Populate the cloud api root combobox...
+            int ii = 0;
+            CloudManager.CloudInfo cloudinfo;
+            m_comboboxCloudApiRoot.Items.Clear();
+            for (cloudinfo = CloudManager.GetCloudInfo(ii);
+                 cloudinfo != null;
+                 cloudinfo = CloudManager.GetCloudInfo(++ii))
+            {
+                m_comboboxCloudApiRoot.Items.Add(cloudinfo.szName);
+            }
+            if (m_comboboxCloudApiRoot.Items.Count > 0)
+            {
+                m_comboboxCloudApiRoot.Text = (string)m_comboboxCloudApiRoot.Items[0];
+            }
+
             // Remember stuff...
             m_formmain = a_formmain;
             m_resourcemanager = a_resourcemanager;
@@ -124,6 +139,15 @@ namespace TwainDirect.Scanner
             return (m_checkboxConfirmation.Checked);
         }
 
+        /// <summary>
+        /// Gt the currently selected cloud...
+        /// </summary>
+        /// <returns>cloud user wants to go with</returns>
+        public string GetCloudApiRoot()
+        {
+            return (m_comboboxCloudApiRoot.Text);
+        }
+
         #endregion
 
 
@@ -137,6 +161,13 @@ namespace TwainDirect.Scanner
         /// </summary>
         private void LoadRegisteredCloudDevices()
         {
+            // Handle a chicken and egg problem...
+            if (m_scanner == null)
+            {
+                return;
+            }
+
+            // We're good from this point on...
             m_CloudDevicesComboBox.Items.Clear();
             using (var context = new CloudContext())
             {
@@ -270,7 +301,15 @@ namespace TwainDirect.Scanner
         /// <param name="e"></param>
         private void m_buttonManageCloud_Click(object sender, EventArgs e)
         {
-            Process.Start("https://twain.hazybits.com");
+            CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
+            if ((cloudinfo != null) && !string.IsNullOrEmpty(cloudinfo.szManager))
+            {
+                Process.Start(cloudinfo.szManager);
+            }
+            else
+            {
+                MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoCloudManager"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
+            }
         }
 
         /// <summary>
@@ -420,6 +459,18 @@ namespace TwainDirect.Scanner
         private void m_checkboxConfirmation_CheckedChanged(object sender, EventArgs e)
         {
             m_checkboxRunOnLogin_CheckedChanged(m_checkboxRunOnLogin, null);
+        }
+
+        /// <summary>
+        /// Make this our new current item...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_comboboxCloudApiRoot_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ComboBox combobox = (ComboBox)sender;
+            CloudManager.SetCloudApiRoot(combobox.Text);
+            LoadRegisteredCloudDevices();
         }
 
         #endregion

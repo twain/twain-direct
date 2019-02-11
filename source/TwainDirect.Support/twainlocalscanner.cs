@@ -716,6 +716,7 @@ namespace TwainDirect.Support
                 }
 
                 // Start watching the skies...
+                bool blServiceIsAvailable;
                 blSuccess = m_httpserver.ServerStart
                 (
                     DeviceDispatchCommand,
@@ -725,7 +726,8 @@ namespace TwainDirect.Support
                     a_szCloudApiRoot,
                     a_szCloudScannerId,
                     szConnectionState,
-                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote()
+                    m_twainlocalsessionInfo.DeviceRegisterGetTwainLocalNote(),
+                    out blServiceIsAvailable
                 );
                 if (blSuccess)
                 {
@@ -733,7 +735,11 @@ namespace TwainDirect.Support
                 }
                 else
                 {
-                    Log.Error("DeviceHttpServerStart: ServerStart failed...");
+                    // Don't log an error if bonjour isn't installed...
+                    if (blServiceIsAvailable)
+                    {
+                        Log.Error("DeviceHttpServerStart: ServerStart failed...");
+                    }
                 }
             }
             catch (Exception exception)
@@ -3983,6 +3989,7 @@ namespace TwainDirect.Support
                 a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.httpstatus);
                 a_apicmd.AddApiErrorCode("httpError");
                 a_apicmd.AddApiErrorDescription(a_szFunction + ": httpError - " + a_apicmd.HttpStatus());
+                Log.Error(a_szFunction + ": httpError - " + a_apicmd.HttpStatus());
                 return (false);
             }
 
@@ -3994,6 +4001,7 @@ namespace TwainDirect.Support
                 a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
                 a_apicmd.AddApiErrorCode("protocolError");
                 a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - data is missing from the HTTP response");
+                Log.Error(a_szFunction + ": protocolError - data is missing from the HTTP response");
                 return (false);
             }
 
@@ -4006,6 +4014,15 @@ namespace TwainDirect.Support
                 a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
                 a_apicmd.AddApiErrorCode("invalidJson");
                 a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - JSON error in the HTTP response at character offset " + lJsonErrorIndex);
+                Log.Error(a_szFunction + ": protocolError - JSON error in the HTTP response at character offset " + lJsonErrorIndex);
+                if (string.IsNullOrEmpty(szReply))
+                {
+                    Log.Error(a_szFunction + ": szReply=null or empty");
+                }
+                else
+                {
+                    Log.Error(a_szFunction + ": szReply=" + szReply);
+                }
                 return (false);
             }
 
@@ -4021,6 +4038,7 @@ namespace TwainDirect.Support
                 a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.security);
                 a_apicmd.AddApiErrorCode("invalidJson");
                 a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szDescription);
+                Log.Error(a_szFunction + ": " + szCode + " - " + szDescription);
                 return (false);
             }
 
@@ -4031,6 +4049,7 @@ namespace TwainDirect.Support
                 a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
                 a_apicmd.AddApiErrorCode("protocolError");
                 a_apicmd.AddApiErrorDescription(a_szFunction + ": protocolError - results.success is missing or invalid");
+                Log.Error(a_szFunction + ": protocolError - results.success is missing or invalid");
                 return (false);
             }
             else if (szSuccess == "false")
@@ -4056,6 +4075,7 @@ namespace TwainDirect.Support
                 a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.protocol);
                 a_apicmd.AddApiErrorCode("protocolError");
                 a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - characterOffset=" + szCharacterOffset + " jsonKey=" + szJsonKey);
+                Log.Error(a_szFunction + ": " + szCode + " - characterOffset=" + szCharacterOffset + " jsonKey=" + szJsonKey);
                 return (false);
             }
 
@@ -4090,6 +4110,7 @@ namespace TwainDirect.Support
                     a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
                     a_apicmd.AddApiErrorCode("invalidTask");
                     a_apicmd.AddApiErrorDescription(a_szFunction + ": invalidTask - " + szAction + ".results.success is missing or invalid");
+                    Log.Error(a_szFunction + ": invalidTask - " + szAction + ".results.success is missing or invalid");
                     continue;
                 }
 
@@ -4109,6 +4130,7 @@ namespace TwainDirect.Support
                 a_apicmd.SetApiErrorFacility(ApiCmd.ApiErrorFacility.language);
                 a_apicmd.AddApiErrorCode("invalidTask");
                 a_apicmd.AddApiErrorDescription(a_szFunction + ": " + szCode + " - " + szAction + ", jsonKey=" + szJsonKey);
+                Log.Error(a_szFunction + ": " + szCode + " - " + szAction + ", jsonKey=" + szJsonKey);
             }
             if (blErrorDetected)
             {

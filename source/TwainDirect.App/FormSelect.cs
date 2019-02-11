@@ -488,9 +488,10 @@ namespace TwainDirect.App
                     if (scanner != null)
                     {
                         string szUrl = CloudManager.GetScannerCloudUrl(scanner);
+                        CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
 
                         Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
-                        dnssddeviceinfo.SetTxtHttps(true);
+                        dnssddeviceinfo.SetTxtHttps(cloudinfo.szUseHttps == "yes");
                         dnssddeviceinfo.SetLinkLocal(szUrl);
                         dnssddeviceinfo.SetCloud(true);
                         return (dnssddeviceinfo);

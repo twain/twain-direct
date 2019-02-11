@@ -202,8 +202,13 @@ namespace TwainDirect.Support
 	        // Fully tokenize the key so we can look ahead when needed...
             aszKey = a_szKey.Split('.');
 
-	        // Search, always skip the root...
-	        property = m_property.propertyChild;
+	        // Search, always skip the root if it's an object,
+                // if it's an array we need to process it...
+                property = m_property;
+                if (property.epropertytype == EPROPERTYTYPE.OBJECT)
+                {
+	        	property = m_property.propertyChild;
+                }
 	        for (kk = 0; kk < aszKey.Length; kk++)
 	        {
 		        // Extract the basename, in case we have an index...

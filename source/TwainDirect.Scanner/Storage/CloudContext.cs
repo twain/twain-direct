@@ -1,6 +1,7 @@
 ﻿using System.Configuration;
 using System.Data.Entity;
 using System.Data.SQLite;
+using System.IO;
 using SQLite.CodeFirst;
 using TwainDirect.Support;
 
@@ -13,8 +14,28 @@ namespace TwainDirect.Scanner.Storage
 
         private static SQLiteConnection GetConnectionString(string connectionName)
         {
-            // get the folder we have write access to (use current executable folder as deafult)
+            CloudManager.CloudInfo cloudinfo;
+
+            // get the folder we have write access to (use current executable folder as default)
             var writeFolder = Config.Get("writeFolder", ".");
+
+            // We want to be able to support multiple clouds...
+            cloudinfo = CloudManager.GetCurrentCloudInfo();
+            if ((cloudinfo != null) && !string.IsNullOrEmpty(cloudinfo.szFolderName))
+            {
+                writeFolder = Path.Combine(writeFolder, "clouds");
+                writeFolder = Path.Combine(writeFolder, cloudinfo.szFolderName);
+                if (!Directory.Exists(writeFolder))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(writeFolder);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
 
             // retrieve connection string and update it to use write folder
             var settings = ConfigurationManager.ConnectionStrings;

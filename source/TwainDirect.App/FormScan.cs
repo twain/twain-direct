@@ -102,6 +102,21 @@ namespace TwainDirect.App
             // Build our form...
             InitializeComponent();
 
+            // Populate the cloud api root combobox...
+            int ii = 0;
+            CloudManager.CloudInfo cloudinfo;
+            m_comboboxCloudApiRoot.Items.Clear();
+            for (cloudinfo = CloudManager.GetCloudInfo(ii);
+                 cloudinfo != null;
+                 cloudinfo = CloudManager.GetCloudInfo(++ii))
+            {
+                m_comboboxCloudApiRoot.Items.Add(cloudinfo.szName);
+            }
+            if (m_comboboxCloudApiRoot.Items.Count > 0)
+            {
+                m_comboboxCloudApiRoot.Text = (string)m_comboboxCloudApiRoot.Items[0];
+            }
+
             // Pick a place where we can write stuff...
             m_szWriteFolder = Config.Get("writeFolder", "");
 
@@ -139,15 +154,6 @@ namespace TwainDirect.App
             m_iUseBitmap = 0;
             this.MinimumSize = new Size(440, 331);
             this.FormClosing += new FormClosingEventHandler(FormScan_FormClosing);
-
-            // Configure the listbox...
-            this.m_listviewCertification.Hide();
-            this.m_listviewCertification.Clear();
-            this.m_listviewCertification.View = View.Details;
-            this.m_listviewCertification.Sorting = SortOrder.None;
-            this.m_listviewCertification.Columns.Add("Category", 130);
-            this.m_listviewCertification.Columns.Add("Summary", 400);
-            this.m_listviewCertification.Columns.Add("Status", 100);
 
             // Init our picture box...
             InitImage();
@@ -1282,7 +1288,6 @@ namespace TwainDirect.App
             // Select the controls to show based on the user selection...
             m_pictureboxImage1.Show();
             m_pictureboxImage2.Show();
-            m_listviewCertification.Hide();
 
             // Update the summary...
             UpdateSummary();
@@ -1570,6 +1575,7 @@ namespace TwainDirect.App
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
                     m_buttonStop.Enabled = false;
+                    m_comboboxCloudApiRoot.Enabled = m_buttonCloud.Enabled;
                     break;
 
                 case EBUTTONSTATE.CLOSED:
@@ -1580,6 +1586,7 @@ namespace TwainDirect.App
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
                     m_buttonStop.Enabled = false;
+                    m_comboboxCloudApiRoot.Enabled = m_buttonCloud.Enabled;
                     break;
 
                 case EBUTTONSTATE.OPEN:
@@ -1590,6 +1597,7 @@ namespace TwainDirect.App
                     m_buttonSetup.Enabled = true;
                     m_buttonScan.Enabled = true;
                     m_buttonStop.Enabled = false;
+                    m_comboboxCloudApiRoot.Enabled = m_buttonCloud.Enabled;
                     break;
 
                 case EBUTTONSTATE.SCANNING:
@@ -1600,6 +1608,7 @@ namespace TwainDirect.App
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
                     m_buttonStop.Enabled = true;
+                    m_comboboxCloudApiRoot.Enabled = m_buttonCloud.Enabled;
                     break;
             }
         }
@@ -2425,7 +2434,7 @@ namespace TwainDirect.App
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void cloudButton_Click(object sender, EventArgs e)
+        private void m_buttonCloud_Click(object sender, EventArgs e)
         {
             int menuPosition = m_buttonCloud.Height;
             Point screenPoint = PointToScreen(new Point(m_buttonCloud.Left, m_buttonCloud.Bottom));
@@ -2466,6 +2475,12 @@ namespace TwainDirect.App
             };
 
             loginForm.ShowDialog(this);
+        }
+
+        private void m_comboboxCloudApiRoot_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ComboBox combobox = (ComboBox)sender;
+            CloudManager.SetCloudApiRoot(combobox.Text);
         }
 
         #endregion

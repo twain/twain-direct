@@ -326,4 +326,7 @@
   <data name="strButtonCloudEllipsis" xml:space="preserve">
     <value>Cloud...</value>
   </data>
+  <data name="errNoCloudManager" xml:space="preserve">
+    <value>Sorry, we do not have a cloud manager for this cloud.</value>
+  </data>
 </root>
