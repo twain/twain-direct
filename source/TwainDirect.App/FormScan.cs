@@ -1922,7 +1922,6 @@ namespace TwainDirect.App
             }
             else
             {
-                Log.Error("Bonjour is not available, has it been installed?");
                 m_dnssd.Dispose();
                 m_dnssd = null;
             }
