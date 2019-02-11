@@ -214,7 +214,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="HazyBits.Twain.Cloud.Forms">
-      <Version>1.0.35</Version>
+      <Version>1.0.37</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="MsBuildAL1073WarningWorkaround.targets" />
