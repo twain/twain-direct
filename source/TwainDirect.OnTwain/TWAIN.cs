@@ -19,7 +19,7 @@
 //  M.McLaughlin    27-Feb-2014     2.3.0.1     AnyCPU support
 //  M.McLaughlin    21-Oct-2013     2.3.0.0     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2013-2018 Kodak Alaris Inc.
+//  Copyright (C) 2013-2019 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -8677,7 +8677,15 @@ namespace TWAINWorkingGroup
                         // call to MSG_ENABLEDS.  We can just do it...
                         else
                         {
-                            m_blAcceptXferReady = false;
+                            // To handle data sources that return MSG_XFERREADY in
+                            // the midst of processing MSG_ENABLEDS, we need to clear
+                            // the flag so we don't get in here again. However, if
+                            // the UI is up, we DO want to see all MSG_XFERREADYs.
+                            if (m_twuserinterface.ShowUI == 0)
+                            {
+                                m_blAcceptXferReady = false;
+                            }
+
                             m_state = STATE.S6;
                             m_blIsMsgxferready = true;
                             // TBD
@@ -11023,11 +11031,8 @@ namespace TWAINWorkingGroup
                 }
                 if (!ms_blOpened)
                 {
-                    // Add logging on / off
-                    if (ms_iLevel > 0)
-                    {
-                        Open("Twain", ".", ms_iLevel);
-                    }
+                    // We'll assume they want logging, since they didn't tell us...
+                    Open("Twain", ".", 1);
                 }
                 Trace.UseGlobalLock = true;
                 ms_blFirstPass = false;
