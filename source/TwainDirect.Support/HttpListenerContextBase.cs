@@ -126,16 +126,16 @@ namespace TwainDirect.Support
         /// <param name="m_szThumbnailFile"></param>
         /// <param name="m_szImageFile"></param>
         /// <returns></returns>
-        public bool WriteImageBlockResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        public bool WriteImageBlockResponse(string a_szResponse, string a_szThumbnailFile, string a_szImageFile)
         {
             // Handle TWAIN Cloud...
             if (m_devicesessionCloud != null)
             {
-                return (WriteCloudResponse(a_szResponse, m_szThumbnailFile, m_szImageFile));
+                return (WriteCloudResponse(a_szResponse, a_szThumbnailFile, a_szImageFile));
             }
 
             // Handle TWAIN Local...
-            return (WriteMultipartResponse(a_szResponse, m_szThumbnailFile, m_szImageFile));
+            return (WriteMultipartResponse(a_szResponse, a_szThumbnailFile, a_szImageFile));
         }
 
         /// <summary>
@@ -378,15 +378,39 @@ namespace TwainDirect.Support
         /// </summary>
         /// <param name="fileName"></param>
         /// <returns></returns>
-        private async Task<string> UploadBlock(string fileName)
+        private async Task<string> UploadBlock(string a_szfileName)
         {
-            if (!string.IsNullOrEmpty(fileName) && File.Exists(fileName))
+            byte[] bytes;
+
+            // This really shouldn't happen, but if it does, just scoot...
+            if (string.IsNullOrEmpty(a_szfileName))
             {
-                var bytes = File.ReadAllBytes(fileName);
-                return await m_devicesessionCloud.UploadBlock(bytes);
+                return (null);
             }
 
-            return null;
+            // Load the data...
+            try
+            {
+                bytes = File.ReadAllBytes(a_szfileName);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("UploadBlock: read exception - " + exception.Message);
+                Log.Error("UploadBlock: " + a_szfileName);
+                return (null);
+            }
+
+            // Upload the file...
+            try
+            {
+                return await m_devicesessionCloud.UploadBlock(bytes);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("UploadBlock: upload exception - " + exception.Message);
+                Log.Error("UploadBlock: " + a_szfileName);
+                return (null);
+            }
         }
 
         /// <summary>
@@ -396,9 +420,9 @@ namespace TwainDirect.Support
         /// <param name="m_szThumbnailFile"></param>
         /// <param name="m_szImageFile"></param>
         /// <returns></returns>
-        private bool WriteCloudResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        private bool WriteCloudResponse(string a_szResponse, string a_szThumbnailFile, string a_szImageFile)
         {
-            var task = Task.Run(async () => await WriteCloudResponseAsync(a_szResponse, m_szThumbnailFile, m_szImageFile));
+            var task = Task.Run(async () => await WriteCloudResponseAsync(a_szResponse, a_szThumbnailFile, a_szImageFile));
             task.Wait();
 
             return task.Result;
@@ -411,20 +435,45 @@ namespace TwainDirect.Support
         /// <param name="m_szThumbnailFile"></param>
         /// <param name="m_szImageFile"></param>
         /// <returns></returns>
-        private async Task<bool> WriteCloudResponseAsync(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        private async Task<bool> WriteCloudResponseAsync(string a_szResponse, string a_szThumbnailFile, string a_szImageFile)
         {
-            var thumbnailBlockId = await UploadBlock(m_szThumbnailFile);
-            var imageBlockId = await UploadBlock(m_szImageFile);
+            string imageBlockId = null;
+            string thumbnailBlockId = null;
 
-            if (imageBlockId != null || thumbnailBlockId != null)
+            // If we have a image, upload it and record the id...
+            if (!string.IsNullOrEmpty(a_szImageFile))
             {
+                Log.Info("WriteCloudResponseAsync: upload " + a_szImageFile);
+                imageBlockId = await UploadBlock(a_szImageFile);
+                if (string.IsNullOrEmpty(imageBlockId))
+                {
+                    Log.Error("WriteCloudResponseAsync: upload failed...");
+                    return (false);
+                }
                 var jsonObject = JObject.Parse(a_szResponse);
                 jsonObject["results"]["imageBlockId"] = imageBlockId;
-                jsonObject["results"]["thumbnailBlockId"] = thumbnailBlockId;
                 a_szResponse = jsonObject.ToString();
+                Log.Info("WriteCloudResponseAsync: upload done");
             }
 
-            return WriteJsonResponse(a_szResponse);
+            // If we have a thumbnail, upload it and record the id...
+            if (!string.IsNullOrEmpty(a_szThumbnailFile))
+            {
+                Log.Info("WriteCloudResponseAsync: upload " + a_szThumbnailFile);
+                thumbnailBlockId = await UploadBlock(a_szThumbnailFile);
+                if (string.IsNullOrEmpty(thumbnailBlockId))
+                {
+                    Log.Error("WriteCloudResponseAsync: upload failed...");
+                    return (false);
+                }
+                var jsonObject = JObject.Parse(a_szResponse);
+                jsonObject["results"]["thumbnailBlockId"] = thumbnailBlockId;
+                a_szResponse = jsonObject.ToString();
+                Log.Info("WriteCloudResponseAsync: upload done");
+            }
+
+            // All done...
+            return (WriteJsonResponse(a_szResponse));
         }
 
         /// <summary>
@@ -434,7 +483,7 @@ namespace TwainDirect.Support
         /// <param name="m_szThumbnailFile"></param>
         /// <param name="m_szImageFile"></param>
         /// <returns></returns>
-        private bool WriteMultipartResponse(string a_szResponse, string m_szThumbnailFile, string m_szImageFile)
+        private bool WriteMultipartResponse(string a_szResponse, string a_szThumbnailFile, string a_szImageFile)
         {
             byte[] abBufferJson = null;
             byte[] abBufferThumbnailHeader = null;
@@ -447,11 +496,11 @@ namespace TwainDirect.Support
             string szBoundary = "WaFfLeSaReTaStY";
 
             // Open our thumbnail file, if we have one...
-            if (!string.IsNullOrEmpty(m_szThumbnailFile) && File.Exists(m_szThumbnailFile))
+            if (!string.IsNullOrEmpty(a_szThumbnailFile) && File.Exists(a_szThumbnailFile))
             {
                 try
                 {
-                    filestreamThumbnail = new FileStream(m_szThumbnailFile, FileMode.Open);
+                    filestreamThumbnail = new FileStream(a_szThumbnailFile, FileMode.Open);
                 }
                 catch (Exception exception)
                 {
@@ -460,11 +509,11 @@ namespace TwainDirect.Support
             }
 
             // Open our image file, if we have one...
-            if (!string.IsNullOrEmpty(m_szImageFile) && File.Exists(m_szImageFile))
+            if (!string.IsNullOrEmpty(a_szImageFile) && File.Exists(a_szImageFile))
             {
                 try
                 {
-                    filestreamImage = new FileStream(m_szImageFile, FileMode.Open);
+                    filestreamImage = new FileStream(a_szImageFile, FileMode.Open);
                 }
                 catch (Exception exception)
                 {
