@@ -134,6 +134,158 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Does a find, and if the item is found, does a get...
+        /// </summary>
+        /// <param name="a_szKey">key to find</param>
+        /// <param name="a_iStartingIndex">array index to start at</param>
+        /// <param name="a_iCount">count of array elements to search</param>
+        /// <param name="a_szValue">value to return</param>
+        /// <param name="a_epropertytype">type of property that we've found</param>
+        /// <param name="a_blLog">log if key isn't found</param>
+        /// <returns>0 - n on success, -1 on failure</returns>
+        public int FindGet(string a_szKey, int a_iStartingIndex, int a_iCount, out string a_szValue, out EPROPERTYTYPE a_epropertytype, bool a_blLog)
+        {
+	        bool blSuccess;
+	        int iIndex;
+            int iIndexBrackets;
+	        string szKey;
+
+            // Init stuff...
+            a_szValue = "";
+            a_epropertytype = EPROPERTYTYPE.UNDEFINED;
+
+            // Find the item...
+            iIndex = FindKey(a_szKey, a_iStartingIndex, a_iCount);
+	        if (iIndex < 0)
+	        {
+		        return (iIndex);
+	        }
+
+            // If we found it, then create the full key at this index...
+            iIndexBrackets = a_szKey.IndexOf("[].");
+            if (iIndexBrackets < 0)
+            {
+                return (-1);
+            }
+            szKey = a_szKey.Substring(0, iIndexBrackets) + "[" + iIndex + "]." + a_szKey.Substring(iIndexBrackets + 3);
+
+	        // And get the data...
+	        blSuccess = GetCheck(szKey, out a_szValue, out a_epropertytype, a_blLog);
+	        if (!blSuccess)
+	        {
+		        return (-1);
+	        }
+
+	        // All done...
+	        return (iIndex);
+        }
+
+        /// <summary>
+        ///	Find a key in an array of objects.  The JSON needs to take
+        ///	a form similar to:
+        ///		{ "array":[
+        ///			{"key1":data},
+        ///			{"key2":data},
+        ///			{"key3":data},
+        ///			...
+        ///		}
+        ///	In this case a search string could be:
+        ///		array[].key2
+        ///	Where [] indicates the array to be enumerated, and key2 is
+        ///	the property name we're searching for.  In the case of a
+        ///	rooted array like:
+        ///		[
+        ///			{"key1":data},
+        ///			{"key2":data},
+        ///			{"key3":data},
+        ///			...
+        ///		]
+        ///	Then the search string would be [].key2
+        /// </summary>
+        /// <param name="a_szKey">key to find</param>
+        /// <param name="a_iStartingIndex">array index to start at</param>
+        /// <param name="a_iCount">count of array elements to search</param>
+        /// <returns>0 - n on success, -1 on failure</returns>
+        public int FindKey(string a_szKey, int a_iStartingIndex = 0, int a_iCount = 0)
+        {
+	        bool blSuccess;
+	        int iCount;
+	        int iIndex;
+	        string szKey;
+            string szKeyLeft;
+            string szKeyRight;
+            string szValue;
+            EPROPERTYTYPE epropertytype;
+
+            // Validate...
+            if (string.IsNullOrEmpty(a_szKey) || (a_iStartingIndex < 0) || (a_iCount < 0))
+	        {
+		        return (-1);
+	        }
+
+            // The function is useless unless it can enumerate through an array,
+            // so just bail if the user didn't ask for this...
+            iIndex = a_szKey.IndexOf("[].");
+            if (iIndex == -1)
+	        {
+		        return (-1);
+	        }
+
+            // Get the left and right sides of the key...
+            szKeyLeft = a_szKey.Substring(0, iIndex);
+            szKeyRight = a_szKey.Substring(iIndex + 3);
+
+	        // The left side can be empty, but not the right side...
+	        if (string.IsNullOrEmpty(szKeyRight))
+	        {
+		        return (-1);
+	        }
+
+	        // The left side must be found, and it must be an array...
+	        blSuccess = GetCheck(szKeyLeft, out szValue, out epropertytype, false);
+	        if (!blSuccess || (epropertytype != EPROPERTYTYPE.ARRAY))
+	        {
+		        return (-1);
+	        }
+
+	        // Figure out our endpoint in the array...
+	        if (a_iCount == 0)
+	        {
+		        iCount = int.MaxValue;
+	        }
+	        else
+	        {
+		        iCount = a_iStartingIndex + a_iCount;
+	        }
+
+	        // Okay, it's time to loop.  We need to make sure the array item exists
+	        // before we look for the key, so this is a two step process...
+	        for (iIndex = a_iStartingIndex; iIndex < iCount; iIndex++)
+	        {
+                // Build the array key...
+                szKey = szKeyLeft + "[" + iIndex + "]";
+
+		        // Does the array element exist?  And is it an object?
+		        blSuccess = GetCheck(szKey, out szValue, out epropertytype, false);
+		        if (!blSuccess || (epropertytype != EPROPERTYTYPE.OBJECT))
+		        {
+			        return (-1);
+		        }
+
+                // Okay, try to get the full key...
+                szKey += "." + szKeyRight;
+		        blSuccess = GetCheck(szKey, out szValue, out epropertytype, false);
+		        if (blSuccess)
+		        {
+			        return (iIndex);
+		        }
+	        }
+
+	        // No joy...
+	        return (-1);
+        }
+
+        /// <summary>
         /// Get the string associated with the key.  This is a convenience
         /// function, because in most cases getting back a null string is
         /// enough, so we don't need a special boolean check...
@@ -203,12 +355,12 @@ namespace TwainDirect.Support
             aszKey = a_szKey.Split('.');
 
 	        // Search, always skip the root if it's an object,
-                // if it's an array we need to process it...
-                property = m_property;
-                if (property.epropertytype == EPROPERTYTYPE.OBJECT)
-                {
+            // if it's an array we need to process it...
+            property = m_property;
+            if (property.epropertytype == EPROPERTYTYPE.OBJECT)
+            {
 	        	property = m_property.propertyChild;
-                }
+            }
 	        for (kk = 0; kk < aszKey.Length; kk++)
 	        {
 		        // Extract the basename, in case we have an index...
