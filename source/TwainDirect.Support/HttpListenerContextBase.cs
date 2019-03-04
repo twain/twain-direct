@@ -437,21 +437,18 @@ namespace TwainDirect.Support
         /// <returns></returns>
         private async Task<bool> WriteCloudResponseAsync(string a_szResponse, string a_szThumbnailFile, string a_szImageFile)
         {
-            string imageBlockId = null;
-            string thumbnailBlockId = null;
-
             // If we have a image, upload it and record the id...
             if (!string.IsNullOrEmpty(a_szImageFile))
             {
                 Log.Info("WriteCloudResponseAsync: upload " + a_szImageFile);
-                imageBlockId = await UploadBlock(a_szImageFile);
-                if (string.IsNullOrEmpty(imageBlockId))
+                var imageBlockUrl = await UploadBlock(a_szImageFile);
+                if (string.IsNullOrEmpty(imageBlockUrl))
                 {
                     Log.Error("WriteCloudResponseAsync: upload failed...");
                     return (false);
                 }
-                var jsonObject = JObject.Parse(a_szResponse);
-                jsonObject["results"]["imageBlockId"] = imageBlockId;
+                var jsonObject = JObject.Parse(a_szResponse);                
+                jsonObject["results"]["imageBlockUrl"] = imageBlockUrl;
                 a_szResponse = jsonObject.ToString();
                 Log.Info("WriteCloudResponseAsync: upload done");
             }
@@ -460,14 +457,14 @@ namespace TwainDirect.Support
             if (!string.IsNullOrEmpty(a_szThumbnailFile))
             {
                 Log.Info("WriteCloudResponseAsync: upload " + a_szThumbnailFile);
-                thumbnailBlockId = await UploadBlock(a_szThumbnailFile);
-                if (string.IsNullOrEmpty(thumbnailBlockId))
+                var thumbnailBlockUrl = await UploadBlock(a_szThumbnailFile);
+                if (string.IsNullOrEmpty(thumbnailBlockUrl))
                 {
                     Log.Error("WriteCloudResponseAsync: upload failed...");
                     return (false);
                 }
                 var jsonObject = JObject.Parse(a_szResponse);
-                jsonObject["results"]["thumbnailBlockId"] = thumbnailBlockId;
+                jsonObject["results"]["thumbnailBlockUrl"] = thumbnailBlockUrl;
                 a_szResponse = jsonObject.ToString();
                 Log.Info("WriteCloudResponseAsync: upload done");
             }

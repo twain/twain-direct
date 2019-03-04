@@ -1160,15 +1160,15 @@ namespace TwainDirect.Support
                 {
                     if (results.HasValues)
                     {
-                        var imageBlockIdToken = results["imageBlockId"];
-                        if (imageBlockIdToken != null)
+                        var imageBlockUrlToken = results["imageBlockUrl"];
+                        if (imageBlockUrlToken != null)
                         {
-                            var blockId = imageBlockIdToken.Value<string>();
+                            var blockUrl = imageBlockUrlToken.Value<string>();
 
                             if (m_applicationmanager != null)
                             {
                                 var scannerId = GetScannerIdFromRequest(m_httprequestdata.httpwebrequest.RequestUri.AbsolutePath);
-                                var downloadTask = Task.Run(async () => await m_applicationmanager.DownloadBlock(scannerId, blockId));
+                                var downloadTask = Task.Run(async () => await m_applicationmanager.DownloadBlock(blockUrl));
                                 downloadTask.Wait();
                                 var bytes = downloadTask.Result;
 
