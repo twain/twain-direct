@@ -164,16 +164,18 @@ namespace TwainDirect.App
             }
             else
             {
-                // tbd:mlm, this find shouldn't be done off the text, it should
-                // be done off the device id, which is a guid; but we'll have to
-                // get that value down into here so we can filter it out...
-                item.Group = m_listviewSelect.Groups["cloudScannersGroup"];
-                ListViewItem[] alistviewitem = m_listviewSelect.Items.Find(item.Text, false);
-                if ((alistviewitem == null) || (alistviewitem.Length == 0))
+                var newScannerInfo = (ScannerInformation)item.Tag;
+
+                // check if we have this scanner already
+                foreach (ListViewItem existingItem in m_listviewSelect.Items)
                 {
-                    item.Name = item.Text;
-                    m_listviewSelect.Items.Add(item);
+                    var existingScannerInfo = (ScannerInformation) existingItem.Tag;
+                    if (existingScannerInfo?.Id == newScannerInfo.Id)
+                        return;
                 }
+
+                item.Group = m_listviewSelect.Groups["cloudScannersGroup"];
+                m_listviewSelect.Items.Add(item);
             }
         }
 
