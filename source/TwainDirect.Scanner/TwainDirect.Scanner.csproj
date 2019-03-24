@@ -192,7 +192,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="HazyBits.Twain.Cloud.Forms">
-      <Version>1.0.39</Version>
+      <Version>1.0.42</Version>
     </PackageReference>
     <PackageReference Include="SQLite.CodeFirst">
       <Version>1.5.1.25</Version>
