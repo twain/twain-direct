@@ -564,7 +564,7 @@ namespace TwainDirect.Scanner.TwainLocalManager
                 // than one, but let's be prepared for that possibility...
                 foreach (string szLine in aszLines)
                 {
-                    if (szLine.ToLowerInvariant().Contains("/privet/twaindirect/session/") && szLine.ToLowerInvariant().Contains("https"))
+                    if (szLine.ToLowerInvariant().Contains("/twaindirect/session/") && szLine.ToLowerInvariant().Contains("https"))
                     {
                         listSzTwainDirect.Add(szLine.Substring(szLine.IndexOf("https")));
                     }

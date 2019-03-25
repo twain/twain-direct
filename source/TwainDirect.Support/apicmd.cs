@@ -309,7 +309,7 @@ namespace TwainDirect.Support
         /// <summary>
         /// Return the URI for this command...
         /// </summary>
-        /// <returns>/privet/* URI</returns>
+        /// <returns>return the URI for this command</returns>
         public string GetUri()
         {
             return (m_httplistenerdata.szUri);
@@ -1725,6 +1725,12 @@ namespace TwainDirect.Support
         /// <summary>
         /// We make decisions about how the HttpRequestAttempt went.  It keeps
         /// the code cleaner this way, especially for the retry loop.
+        /// 
+        /// Note that to help centralize decision making, the decision whether
+        /// or not to prefix a_szUri with "/privet" is made in this function
+        /// when we detect that we're talking to a TWAIN Local scanner.  To
+        /// make sure we can still use the function for other stuff if needed
+        /// we'll replace /privet with a # token, that must be replaced...
         /// </summary>
         /// <param name="a_szReason">reason for the call, for logging</param>
         /// <param name="a_szUri">our target</param>
@@ -1757,6 +1763,22 @@ namespace TwainDirect.Support
             string szUri;
             Stream stream = null;
 
+            // Check for a replacement token, this indicates that the caller
+            // wants help to decide if they have to add "privet" to the path
+            // for the URI request...
+            if (a_szUri.StartsWith("#"))
+            {
+                // With TWAIN Cloud the token is removed...
+                if (m_dnssddeviceinfo.IsCloud())
+                {
+                    a_szUri = a_szUri.Replace("#", "");
+                }
+                // With TWAIN Local the token is replaced with /privet...
+                else
+                {
+                    a_szUri = a_szUri.Replace("#", "/privet");
+                }
+            }
 
             // Setup the HTTP Request
             #region Setup HTTP Request

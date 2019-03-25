@@ -199,7 +199,7 @@ namespace TwainDirect.Support
         /// The info and infoex commands are handled first, since we're likely to
         /// see more of them than any other command.
         /// 
-        /// After that we're processing /privet/twaindirect/session commands.  We
+        /// After that we're processing /twaindirect/session commands.  We
         /// validate our X-Privet-Token (received from a prior call to info or
         /// infoex) and if that goes well we parse the JSON.
         /// 
@@ -229,11 +229,12 @@ namespace TwainDirect.Support
         {
             HttpListenerContextBase httplistenercontextbase = new HttpListenerContextBase();
             httplistenercontextbase.Initialize(a_httplistenercontext);
-            DeviceDispatchCommandInternal(a_szJsonCommand, httplistenercontextbase);
+            DeviceDispatchCommandInternal(false, a_szJsonCommand, httplistenercontextbase);
         }
 
         public void DeviceDispatchCommandInternal
         (
+            bool a_blIsCloud,
             string a_szJsonCommand,
             HttpListenerContextBase a_httplistenercontext
         )
@@ -242,6 +243,7 @@ namespace TwainDirect.Support
             bool blSuccess;
             int iTaskIndex;
             ApiCmd apicmd;
+            string szLocalOrCloud;
             string szUri;
             string szXPrivetToken;
             string szFunction = "DeviceDispatchCommand";
@@ -249,22 +251,25 @@ namespace TwainDirect.Support
             // Confirm that this command is coming in on a good URI, if it's not
             // then ignore it...
             szUri = a_httplistenercontext.Request.RawUrl.ToString();
-            if (    (szUri != "/privet/info")
-                &&  (szUri != "/privet/infoex")
-                &&  (szUri != "/privet/twaindirect/session"))
+            if (    !szUri.EndsWith("/info")
+                &&  !szUri.EndsWith("/infoex")
+                &&  !szUri.EndsWith("/twaindirect/session"))
             {
                 return;
             }
 
-            // Handle the /privet/info and /privet/infoex commands...
-            if (    (szUri == "/privet/info")
-                ||  (szUri == "/privet/infoex"))
+            // Handle the /info and /infoex commands...
+            if (    szUri.EndsWith("/info")
+                ||  szUri.EndsWith("/infoex"))
             {
                 apicmd = new ApiCmd(null, null, ref a_httplistenercontext);
 
                 // Log it...
                 Log.Info("");
-                Log.Info("http" + apicmd.GetCommandId() + ">>> " + szUri.Replace("/privet/", ""));
+                if (!a_blIsCloud)
+                {
+                    Log.Info("http" + apicmd.GetCommandId() + ">>> " + szUri.Replace("/privet/", ""));
+                }
                 Log.Info("http" + apicmd.GetCommandId() + ">>> " + a_httplistenercontext.Request.HttpMethod + " uri " + a_httplistenercontext.Request.Url.AbsoluteUri);
 
                 // Get each header and display each value.
@@ -318,7 +323,7 @@ namespace TwainDirect.Support
                 return;
             }
 
-            // The rest of this must be coming in on /privet/twaindirect/session,
+            // The rest of this must be coming in on /twaindirect/session,
             // we'll start by validating our X-Privet-Token.  We check the session
             // first, because if it has the token, it wins...
             else if ((m_twainlocalsession != null) && (szXPrivetToken == m_twainlocalsession.GetXPrivetToken()))
@@ -637,6 +642,8 @@ namespace TwainDirect.Support
                         var context = new HttpListenerContextBase();
 
                         var resource = cloudMessage.Url;
+
+                        // Skip over /privet, if found...
                         var startIndex = resource.IndexOf("/privet");
                         if (startIndex > 0)
                         {
@@ -678,7 +685,7 @@ namespace TwainDirect.Support
                             Url = new Uri(cloudMessage.Url)
                         };
 
-                        DeviceDispatchCommandInternal(cloudMessage.Body, context);
+                        DeviceDispatchCommandInternal(true, cloudMessage.Body, context);
                     });
                 };
 
@@ -1528,9 +1535,11 @@ namespace TwainDirect.Support
             }
 
             /////////////////////////////////////////////////////////////////////
-            // We're responding to the /privet/info or /privet/infoex command...
-            #region We're responding to the /privet/info or /privet/infoex command...
-            if ((a_apicmd != null) && ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex")))
+            // We're responding to the /info or /infoex command...
+            #region We're responding to the /info or /infoex command...
+            if (    (a_apicmd != null)
+                &&  (a_apicmd.GetUri().EndsWith("/info") // checkcommand
+                ||   a_apicmd.GetUri().EndsWith("/infoex"))) // checkcommand
             {
                 string szDeviceState;
                 string szManufacturer;
@@ -1589,11 +1598,13 @@ namespace TwainDirect.Support
                 }
 
                 // Add additional data for infoex...
+                string szApi = "";
                 string szInfoex = "";
-                if (a_apicmd.GetUri() == "/privet/infoex")
+                if (a_apicmd.GetUri().EndsWith("/infoex")) // checkcommand
                 {
                     if ((m_devicesessionCloud == null))
                     {
+                        szApi = "\"/privet/twaindirect/session\"";
                         szInfoex =
                             "," +
                             "\"clouds\":[" +
@@ -1601,6 +1612,7 @@ namespace TwainDirect.Support
                     }
                     else
                     {
+                        szApi = "\"/twaindirect/session\"";
                         szInfoex =
                             "," +
                             "\"clouds\":[" +
@@ -1637,7 +1649,7 @@ namespace TwainDirect.Support
                     "\"update_url\":\"" + "" + "\"," +
                     "\"x-privet-token\":\"" + CreateXPrivetToken(0) + "\"," +
                     "\"api\":[" +
-                    "\"/privet/twaindirect/session\"" +
+                    szApi +
                     "]," +
                     "\"semantic_state\":\"" + "" + "\"" +
                     szInfoex +
@@ -1658,10 +1670,10 @@ namespace TwainDirect.Support
             #endregion
 
             ////////////////////////////////////////////////////////////////
-            // /privet/twaindirect/session command
-            #region /privet/twaindirect/session command
+            // /twaindirect/session command
+            #region /twaindirect/session command
             if (    (a_apicmd != null)
-                &&  (a_apicmd.GetUri() == "/privet/twaindirect/session")
+                &&  a_apicmd.GetUri().EndsWith("/twaindirect/session")
                 &&  !a_blWaitForEvents)
             {
                 string szMethod = a_apicmd.GetJsonReceived("method");
@@ -1794,9 +1806,9 @@ namespace TwainDirect.Support
             #endregion
 
             ////////////////////////////////////////////////////////////////
-            // /privet/twaindirect/session event
-            #region /privet/twaindirect/session event
-            if (    ((a_apicmd == null) || (a_apicmd.GetUri() == "/privet/twaindirect/session"))
+            // /twaindirect/session event
+            #region /twaindirect/session event
+            if (    ((a_apicmd == null) || a_apicmd.GetUri().EndsWith("/twaindirect/session")) // checkcommand
                 &&  a_blWaitForEvents)
             {
                 // This should never happen, but let's be sure...
@@ -3830,7 +3842,7 @@ namespace TwainDirect.Support
         private Timer m_timerEvent;
 
         /// <summary>
-        /// Our session timer for /privet/twaindirect/session...
+        /// Our session timer for /twaindirect/session...
         /// </summary>
         private Timer m_timerSession;
 
@@ -4580,15 +4592,15 @@ namespace TwainDirect.Support
             // Figure out what command we're sending...
             if (a_szOverride != null)
             {
-                szCommand = "/privet/" + a_szOverride;
+                szCommand = "#/" + a_szOverride;
             }
             else
             {
-                szCommand = (Config.Get("useInfoex", "yes") == "yes") ? "/privet/infoex" : "/privet/info";
+                szCommand = (Config.Get("useInfoex", "yes") == "yes") ? "#/infoex" : "#/info";
             }
 
             // Send the RESTful API command, we'll support using either
-            // privet/info or /privet/infoex, but we'll default to infoex...
+            // /info or /infoex, but we'll default to infoex...
             blSuccess = ClientHttpRequest
             (
                 szFunction,
@@ -4644,7 +4656,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -4702,7 +4714,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -4762,7 +4774,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -4809,7 +4821,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -4852,7 +4864,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/invaliduri",
+                    "#/twaindirect/invaliduri",
                     "GET",
                     ClientHttpBuildHeader(true),
                     null,
@@ -4927,7 +4939,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -5049,7 +5061,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -5142,7 +5154,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -5199,7 +5211,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -5262,7 +5274,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -5321,7 +5333,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -5385,7 +5397,7 @@ namespace TwainDirect.Support
                 (
                     szFunction,
                     ref a_apicmd,
-                    "/privet/twaindirect/session",
+                    "#/twaindirect/session",
                     "POST",
                     ClientHttpBuildHeader(),
                     "{" +
@@ -6041,7 +6053,7 @@ namespace TwainDirect.Support
             }
 
             // Are we info or infoex?
-            blIsInfoOrInfoex = ((a_apicmd.GetUri() == "/privet/info") || (a_apicmd.GetUri() == "/privet/infoex"));
+            blIsInfoOrInfoex = (a_apicmd.GetUri().EndsWith("/info") || a_apicmd.GetUri().EndsWith("/infoex"));
 
             // Run-roh...
             if (!blIsInfoOrInfoex && jsonlookup.Get("results.success") == "false")
@@ -6090,8 +6102,8 @@ namespace TwainDirect.Support
             }
 
 
-            // Handle /privet/info and /privet/infoex
-            #region Handle /privet/info and /privet/infoex
+            // Handle /info and /infoex
+            #region Handle /info and /infoex
             if (blIsInfoOrInfoex)
             {
                 // Squirrel away the x-privet-token so that we'll have
@@ -7177,12 +7189,12 @@ namespace TwainDirect.Support
         #region Protected Attributes
 
         /// <summary>
-        /// Use this with the /privet/info and /privet/infoex commands...
+        /// Use this with the /info and /infoex commands...
         /// </summary>
         protected TwainLocalSession m_twainlocalsessionInfo;
 
         /// <summary>
-        /// All of the data we need for /privet/twaindirect/session...
+        /// All of the data we need for /twaindirect/session...
         /// </summary>
         protected TwainLocalSession m_twainlocalsession;
 
@@ -8107,14 +8119,13 @@ namespace TwainDirect.Support
             private Process m_processTwainDirectOnTwain;
 
             /// <summary>
-            /// Privet requires this in the header for every
-            /// command, except /privet/info and /privet/info (which
-            /// return the value used by all other commands).  Google
-            /// recommends that it be refreshed every 24 hours,
-            /// but this can get weird with long lasting sessions,
-            /// so instead we're going to refresh it if it's been
-            /// more than two minutes since the last call to
-            /// /privet/info or /privet/infoex.  Clients must call
+            /// Privet requires this in the header for every command,
+            /// except /info and /infoex (which return the value used
+            /// by all other commands).  Google recommends that it be
+            /// refreshed every 24 hours, but this can get weird with
+            /// long lasting sessions, so instead we're going to
+            /// refresh it if it's been more than two minutes since
+            /// the last call to /info or /infoex.  Clients must call
             /// createSession immediately after info.  The token is
             /// stored in TwainLocalSession, so it will be valid for
             /// that session as long as it lasts...
