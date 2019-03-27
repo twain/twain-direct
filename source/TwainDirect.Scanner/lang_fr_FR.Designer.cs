@@ -302,5 +302,23 @@ namespace TwainDirect.Scanner {
                 return ResourceManager.GetString("strTextNotClosing", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to start npm.
+        /// </summary>
+        public static string strTextNpmFailed {
+            get {
+                return ResourceManager.GetString("strTextNpmFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Starting &apos;npm start&apos;, we will wait 10 seconds for it to stabilize..
+        /// </summary>
+        public static string strTextStartNpm {
+            get {
+                return ResourceManager.GetString("strTextStartNpm", resourceCulture);
+            }
+        }
     }
 }

@@ -34,6 +34,7 @@
 // Helpers...
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.Resources;
@@ -148,7 +149,7 @@ namespace TwainDirect.Scanner
             }
 
             // Instantiate our setup object...
-            m_formsetup = new FormSetup(this, m_resourcemanager, m_scanner, blConfirmScan);
+            m_formsetup = new FormSetup(this, m_resourcemanager, m_scanner, Display, blConfirmScan);
 
             // Our current cloud...
             Display(Config.GetResource(m_resourcemanager, "strTextCurrentCloud") + " " + m_formsetup.GetCloudApiRoot());

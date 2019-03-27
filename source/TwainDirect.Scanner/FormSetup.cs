@@ -24,13 +24,23 @@ namespace TwainDirect.Scanner
         /// Init stuff...
         /// </summary>
         /// <param name="a_resourcemanager"></param>
-        public FormSetup(FormMain a_formmain, ResourceManager a_resourcemanager, Scanner a_scanner, bool a_blConfirmScan)
+        public FormSetup
+        (
+            FormMain a_formmain,
+            ResourceManager a_resourcemanager,
+            Scanner a_scanner,
+            TwainLocalScannerDevice.DisplayCallback a_displaycallback,
+            bool a_blConfirmScan
+        )
         {
             // Init the component...
             InitializeComponent();
             this.MinimizeBox = false;
             this.MaximizeBox = false;
             Config.ElevateButton(m_buttonManageTwainLocal.Handle);
+            m_checkboxStartNpm.Checked = (Config.Get("startNpm", "true") == "true");
+            this.FormClosing += new FormClosingEventHandler(FormSetup_FormClosing);
+            m_displaycallback = a_displaycallback;
 
             // Populate the cloud api root combobox...
             int ii = 0;
@@ -140,7 +150,7 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
-        /// Gt the currently selected cloud...
+        /// Get the currently selected cloud...
         /// </summary>
         /// <returns>cloud user wants to go with</returns>
         public string GetCloudApiRoot()
@@ -155,6 +165,29 @@ namespace TwainDirect.Scanner
         // Private Methods...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Methods...
+
+        /// <summary>
+        /// Cleanup when we're going away...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void FormSetup_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            // If we have an npm process, make it go away...
+            if (m_processNpm != null)
+            {
+                try
+                {
+                    m_processNpm.CloseMainWindow();
+                }
+                catch
+                {
+                    // Just keep going...
+                }
+                m_processNpm.Dispose();
+                m_processNpm = null;
+            }
+        }
 
         /// <summary>
         /// Loads list of registered cloud devices.
@@ -189,6 +222,85 @@ namespace TwainDirect.Scanner
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// If we need an npm i process, start it up...
+        /// </summary>
+        /// <param name="a_blForceRestart">close the outstanding npm</param>
+        /// <returns>true if things went well</returns>
+        private bool StartNpmIfNeeded(bool a_blForceRestart)
+        {
+            // Remove anything from the past...
+            if (a_blForceRestart)
+            {
+                if (m_processNpm != null)
+                {
+                    try
+                    {
+                        m_processNpm.CloseMainWindow();
+                    }
+                    catch
+                    {
+                        // Just keep going...
+                    }
+                    m_processNpm.Dispose();
+                    m_processNpm = null;
+                }
+            }
+            // We already have one, stick with it...
+            else if (m_processNpm != null)
+            {
+                return (true);
+            }
+
+            // Get our local cloud info...
+            CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
+            if (cloudinfo == null)
+            {
+                return (true);
+            }
+
+            // If we don't have a working directory, we're done...
+            if (string.IsNullOrEmpty(cloudinfo.szTwainCloudExpressFolder) || !Directory.Exists(cloudinfo.szTwainCloudExpressFolder))
+            {
+                return (true);
+            }
+
+            // Okay, fortune favors the bold (or the complete nutters)...
+            try
+            {
+                if (m_displaycallback != null)
+                {
+                    m_displaycallback(Config.GetResource(m_resourcemanager, "strTextStartNpm"));
+                }
+                ProcessStartInfo processstartinfo = new ProcessStartInfo();
+                processstartinfo.UseShellExecute = true;
+                processstartinfo.FileName = "npm";
+                processstartinfo.Arguments = "start";
+                processstartinfo.WorkingDirectory = cloudinfo.szTwainCloudExpressFolder;
+                processstartinfo.WindowStyle = ProcessWindowStyle.Minimized;
+                m_processNpm = Process.Start(processstartinfo);
+                Thread.Sleep(10000);
+            }
+            catch (Exception exception)
+            {
+
+                if (m_displaycallback != null)
+                {
+                    m_displaycallback(Config.GetResource(m_resourcemanager, "strTextNpmFailed") + " - " + exception.Message);
+                }
+                Log.Error("npi start launch failed - " + exception.Message);
+                if (m_processNpm != null)
+                {
+                    m_processNpm.Dispose();
+                    m_processNpm = null;
+                    return (false);
+                }
+            }
+
+            // All done...
+            return (true);
         }
 
         /// <summary>
@@ -271,6 +383,7 @@ namespace TwainDirect.Scanner
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         private async void m_buttonCloudRegister_Click(object sender, EventArgs e)
         {
+            StartNpmIfNeeded(true);
             await m_formmain.RegisterCloud();
             LoadRegisteredCloudDevices();
         }
@@ -301,6 +414,7 @@ namespace TwainDirect.Scanner
         /// <param name="e"></param>
         private void m_buttonManageCloud_Click(object sender, EventArgs e)
         {
+            StartNpmIfNeeded(false);
             CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
             if ((cloudinfo != null) && !string.IsNullOrEmpty(cloudinfo.szManager))
             {
@@ -471,6 +585,8 @@ namespace TwainDirect.Scanner
             ComboBox combobox = (ComboBox)sender;
             CloudManager.SetCloudApiRoot(combobox.Text);
             LoadRegisteredCloudDevices();
+            CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
+            m_checkboxStartNpm.Enabled = ((cloudinfo != null) && !string.IsNullOrEmpty(cloudinfo.szTwainCloudExpressFolder) && Directory.Exists(cloudinfo.szTwainCloudExpressFolder));
         }
 
         #endregion
@@ -500,6 +616,16 @@ namespace TwainDirect.Scanner
         /// This prevents us from hammering the registry at startup...
         /// </summary>
         private bool m_blSkipUpdatingTheRegistry = true;
+
+        /// <summary>
+        /// If we need twain-cloud-express, we use this to run 'npm i'...
+        /// </summary>
+        private Process m_processNpm;
+
+        /// <summary>
+        /// If we need to display any text...
+        /// </summary>
+        TwainLocalScannerDevice.DisplayCallback m_displaycallback;
 
         #endregion
     }

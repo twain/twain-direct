@@ -210,4 +210,10 @@
   <data name="strTextNotClosing" xml:space="preserve">
     <value>The program is being minimized to the system tray.  Please right-click on its icon there to close it.</value>
   </data>
+  <data name="strTextNpmFailed" xml:space="preserve">
+    <value>Failed to start npm</value>
+  </data>
+  <data name="strTextStartNpm" xml:space="preserve">
+    <value>Starting 'npm start', we will wait 10 seconds for it to stabilize.</value>
+  </data>
 </root>

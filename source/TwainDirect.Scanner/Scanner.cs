@@ -353,32 +353,39 @@ namespace TwainDirect.Scanner
         /// </summary>
         public async Task RegisterCloudScanner()
         {
-            var client = new TwainCloudClient(CloudManager.GetCloudApiRoot());
-            var registrationManager = new RegistrationManager(client);
-
-            var scannerInfo = new RegistrationRequest
+            try
             {
-                Name = GetTwainLocalTy(),
-                Description = GetTwainLocalNote()
-            };
+                var client = new TwainCloudClient(CloudManager.GetCloudApiRoot());
+                var registrationManager = new RegistrationManager(client);
 
-            var result = await registrationManager.Register(scannerInfo);
-            var registrationDialog = new RegistrationForm(registrationManager, result);
-            registrationDialog.ShowDialog();
-
-            var pollResult = registrationDialog.PollResponse;
-            if (pollResult != null)
-            {
-                var cloudScanner = new CloudScanner
+                var scannerInfo = new RegistrationRequest
                 {
-                    Id = result.ScannerId,
-                    Name = $"{scannerInfo.Name} ({scannerInfo.Description})",
-                    AuthorizationToken = pollResult.AuthorizationToken,
-                    RefreshToken = pollResult.RefreshToken
+                    Name = GetTwainLocalTy(),
+                    Description = GetTwainLocalNote()
                 };
 
-                SaveScannerRegistration(cloudScanner);
-                SetCurrentCloudScanner(cloudScanner);
+                var result = await registrationManager.Register(scannerInfo);
+                var registrationDialog = new RegistrationForm(registrationManager, result);
+                registrationDialog.ShowDialog();
+
+                var pollResult = registrationDialog.PollResponse;
+                if (pollResult != null)
+                {
+                    var cloudScanner = new CloudScanner
+                    {
+                        Id = result.ScannerId,
+                        Name = $"{scannerInfo.Name} ({scannerInfo.Description})",
+                        AuthorizationToken = pollResult.AuthorizationToken,
+                        RefreshToken = pollResult.RefreshToken
+                    };
+
+                    SaveScannerRegistration(cloudScanner);
+                    SetCurrentCloudScanner(cloudScanner);
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("RegisterCloudScanner exception - " + exception.Message);
             }
         }
 

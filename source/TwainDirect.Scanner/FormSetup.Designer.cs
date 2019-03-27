@@ -45,12 +45,13 @@
             this.m_RegisteredDeviceLabel = new System.Windows.Forms.Label();
             this.m_CloudDevicesComboBox = new System.Windows.Forms.ComboBox();
             this.m_comboboxCloudApiRoot = new System.Windows.Forms.ComboBox();
+            this.m_checkboxStartNpm = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // m_checkboxRunOnLogin
             // 
             this.m_checkboxRunOnLogin.AutoSize = true;
-            this.m_checkboxRunOnLogin.Location = new System.Drawing.Point(12, 283);
+            this.m_checkboxRunOnLogin.Location = new System.Drawing.Point(12, 313);
             this.m_checkboxRunOnLogin.Name = "m_checkboxRunOnLogin";
             this.m_checkboxRunOnLogin.Size = new System.Drawing.Size(187, 17);
             this.m_checkboxRunOnLogin.TabIndex = 70;
@@ -121,7 +122,7 @@
             // m_checkboxAdvertise
             // 
             this.m_checkboxAdvertise.AutoSize = true;
-            this.m_checkboxAdvertise.Location = new System.Drawing.Point(12, 306);
+            this.m_checkboxAdvertise.Location = new System.Drawing.Point(12, 336);
             this.m_checkboxAdvertise.Name = "m_checkboxAdvertise";
             this.m_checkboxAdvertise.Size = new System.Drawing.Size(360, 17);
             this.m_checkboxAdvertise.TabIndex = 74;
@@ -132,7 +133,7 @@
             // m_checkboxConfirmation
             // 
             this.m_checkboxConfirmation.AutoSize = true;
-            this.m_checkboxConfirmation.Location = new System.Drawing.Point(12, 329);
+            this.m_checkboxConfirmation.Location = new System.Drawing.Point(12, 359);
             this.m_checkboxConfirmation.Name = "m_checkboxConfirmation";
             this.m_checkboxConfirmation.Size = new System.Drawing.Size(237, 17);
             this.m_checkboxConfirmation.TabIndex = 75;
@@ -222,12 +223,23 @@
             this.m_comboboxCloudApiRoot.TabIndex = 83;
             this.m_comboboxCloudApiRoot.SelectedIndexChanged += new System.EventHandler(this.m_comboboxCloudApiRoot_SelectedIndexChanged);
             // 
+            // m_checkboxStartNpm
+            // 
+            this.m_checkboxStartNpm.AutoSize = true;
+            this.m_checkboxStartNpm.Location = new System.Drawing.Point(49, 266);
+            this.m_checkboxStartNpm.Name = "m_checkboxStartNpm";
+            this.m_checkboxStartNpm.Size = new System.Drawing.Size(189, 17);
+            this.m_checkboxStartNpm.TabIndex = 84;
+            this.m_checkboxStartNpm.Text = "Run \'npm i\' for twain-cloud-express";
+            this.m_checkboxStartNpm.UseVisualStyleBackColor = true;
+            // 
             // FormSetup
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Window;
-            this.ClientSize = new System.Drawing.Size(550, 356);
+            this.ClientSize = new System.Drawing.Size(550, 388);
+            this.Controls.Add(this.m_checkboxStartNpm);
             this.Controls.Add(this.m_comboboxCloudApiRoot);
             this.Controls.Add(this.m_CloudDevicesComboBox);
             this.Controls.Add(this.m_RegisteredDeviceLabel);
@@ -271,5 +283,6 @@
         private System.Windows.Forms.Label m_RegisteredDeviceLabel;
         private System.Windows.Forms.ComboBox m_CloudDevicesComboBox;
         private System.Windows.Forms.ComboBox m_comboboxCloudApiRoot;
+        private System.Windows.Forms.CheckBox m_checkboxStartNpm;
     }
 }

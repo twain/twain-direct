@@ -93,13 +93,18 @@
         " ",
         "If using twain-cloud-express, copy the following lines down into cloudApiRoot",
         "as the first item in the array of objects (just after the '[').",
+        " ",
+        "If you fill in twainCloudExpressFolder with the full path (using forward",
+        "slashes) to your twain-cloud-express folder, the bridge will start npm i",
+        "for you when you register or manage your local cloud."
         "***BEGIN STARTING FROM THE NEXT LINE***",
         {
             "name": "Local Cloud",
             "url": "http://localhost:3000/api",
             "manager": "http://localhost:3000",
             "folderName": "localcloud",
-            "useHttps": "no"
+            "useHttps": "no",
+            "twainCloudExpressFolder": ""
         },
         "***DO NOT COPY THIS LINE***"
     ],
