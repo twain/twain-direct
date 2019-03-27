@@ -230,7 +230,7 @@
             this.m_checkboxStartNpm.Name = "m_checkboxStartNpm";
             this.m_checkboxStartNpm.Size = new System.Drawing.Size(189, 17);
             this.m_checkboxStartNpm.TabIndex = 84;
-            this.m_checkboxStartNpm.Text = "Run \'npm i\' for twain-cloud-express";
+            this.m_checkboxStartNpm.Text = "Automatically run \'npm start\' for twain-cloud-express";
             this.m_checkboxStartNpm.UseVisualStyleBackColor = true;
             // 
             // FormSetup

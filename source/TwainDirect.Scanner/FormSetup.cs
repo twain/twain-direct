@@ -225,7 +225,7 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
-        /// If we need an npm i process, start it up...
+        /// If we need an 'npm start' process, start it up...
         /// </summary>
         /// <param name="a_blForceRestart">close the outstanding npm</param>
         /// <returns>true if things went well</returns>
@@ -618,7 +618,7 @@ namespace TwainDirect.Scanner
         private bool m_blSkipUpdatingTheRegistry = true;
 
         /// <summary>
-        /// If we need twain-cloud-express, we use this to run 'npm i'...
+        /// If we need twain-cloud-express, we use this to run 'npm start'...
         /// </summary>
         private Process m_processNpm;
 
