@@ -563,8 +563,8 @@ namespace TwainDirect.Scanner
         {
             this.Show();
             this.WindowState = FormWindowState.Normal;
-            this.Update();
             this.Show();
+            m_richtextboxTask.Refresh();
         }
 
         /// <summary>
@@ -725,12 +725,17 @@ namespace TwainDirect.Scanner
                 e.Cancel = true;
                 WindowState = FormWindowState.Minimized;
                 this.Hide();
+                return;
             }
 
-            // Okay, fine...
+            // Okay, fine, clean house...
             if (m_scanner != null)
             {
                 m_scanner.MonitorTasksStop(e.CloseReason == CloseReason.UserClosing);
+            }
+            if (m_formsetup != null)
+            {
+                m_formsetup.Cleanup();
             }
         }
 

@@ -139,7 +139,7 @@ namespace TwainDirect.Support
             // Use whatever has been baked into the app...
             if (m_lcloudinfo.Count == 0)
             {
-                m_lcloudinfo.Add(new CloudInfo(ConfigurationManager.AppSettings["CloudName"], ConfigurationManager.AppSettings["CloudApiRoot"], ConfigurationManager.AppSettings["CloudApiRoot"], ConfigurationManager.AppSettings["CloudFolderName"], ConfigurationManager.AppSettings["CloudUseHttps"], ""));
+                m_lcloudinfo.Add(new CloudInfo(ConfigurationManager.AppSettings["CloudName"], ConfigurationManager.AppSettings["CloudApiRoot"], ConfigurationManager.AppSettings["CloudManager"], ConfigurationManager.AppSettings["CloudFolderName"], ConfigurationManager.AppSettings["CloudUseHttps"], ""));
             }
 
             // Grab the first value, if the user's configured us...

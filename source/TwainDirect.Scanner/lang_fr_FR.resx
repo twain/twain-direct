@@ -214,6 +214,6 @@
     <value>Failed to start npm</value>
   </data>
   <data name="strTextStartNpm" xml:space="preserve">
-    <value>Starting 'npm start', we will wait 10 seconds for it to stabilize.</value>
+    <value>Starting 'npm start', we will wait 15 seconds for it to stabilize.</value>
   </data>
 </root>

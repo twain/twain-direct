@@ -313,7 +313,7 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Starting &apos;npm start&apos;, we will wait 10 seconds for it to stabilize..
+        ///   Looks up a localized string similar to Starting &apos;npm start&apos;, we will wait 15 seconds for it to stabilize..
         /// </summary>
         public static string strTextStartNpm {
             get {

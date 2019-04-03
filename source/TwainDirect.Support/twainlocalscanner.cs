@@ -1602,24 +1602,80 @@ namespace TwainDirect.Support
                 string szInfoex = "";
                 if (a_apicmd.GetUri().EndsWith("/infoex")) // checkcommand
                 {
-                    if ((m_devicesessionCloud == null))
+                    // The command came from a TWAIN Local client, so this is the API we need...
+                    if (a_apicmd.IsLocal())
                     {
-                        szApi = "\"/privet/twaindirect/session\"";
-                        szInfoex =
-                            "," +
+                        szApi =
+                            "\"api\":[" +
+                            "\"/privet/twaindirect/session\"" +
+                            "],";
+                    }
+
+                    // The command came from a TWAIN Cloud client, so this is the API we need...
+                    else
+                    {
+                        szApi =
+                            "\"api\":[" +
+                            "\"/twaindirect/session\"" +
+                            "],";
+                    }
+
+                    // We need our seperator...
+                    szInfoex = ",";
+
+                    // We need TWAIN Local data...
+                    if (m_blTwainLocalStarted)
+                    {
+                        szInfoex +=
+                            "\"localMethods\":{" +
+                            "\"closeSession\":{}," +
+                            "\"createSession\":{}," +
+                            "\"getSession\":{}," +
+                            "\"readImageBlock\":{}," +
+                            "\"readImageBlockMetadata\":{}," +
+                            "\"releaseImageBlocks\":{}," +
+                            "\"sendTask\":{}," +
+                            "\"startCapturing\":{}," +
+                            "\"stopCapturing\":{}," +
+                            "\"waitForEvents\":{}" +
+                            "},";
+                    }
+
+                    // We don't have TWAIN Cloud, the spec says provide an empty cloud array...
+                    if (!m_blTwainCloudStarted)
+                    {
+                        szInfoex +=
                             "\"clouds\":[" +
                             "]";
                     }
+
+                    // We need TWAIN Cloud data...
                     else
                     {
-                        szApi = "\"/twaindirect/session\"";
-                        szInfoex =
-                            "," +
+                        szInfoex +=
                             "\"clouds\":[" +
                             "{" +
                             "\"url\":\"" + m_szCloudApiRoot + "\"," +
                             "\"id\":\"" + m_szCloudScannerId + "\"," +
                             "\"connection_state\":\"" + (m_blTwainCloudStarted ? "online" : "offline") + "\"," +
+                            "\"cloudMethods\":{" +
+                            "\"claim\":{}," +
+                            "\"closeSession\":{}," +
+                            "\"createSession\":{}," +
+                            "\"getSession\":{}," +
+                            "\"poll\":{}," +
+                            "\"readImageBlock\":{}," +
+                            "\"readImageBlockMetadata\":{}," +
+                            "\"releaseImageBlocks\":{}," +
+                            "\"refresh\":{}," +
+                            "\"register\":{}," +
+                            "\"scanners\":{}," +
+                            "\"sendTask\":{}," +
+                            "\"signin\":{}," +
+                            "\"startCapturing\":{}," +
+                            "\"stopCapturing\":{}," +
+                            "\"waitForEvents\":{}" +
+                            "}," +
                             "\"setup_url\":\"" + "" + "\"," +
                             "\"support_url\":\"" + "" + "\"," +
                             "\"update_url\":\"" + "" + "\"" +
@@ -1648,9 +1704,7 @@ namespace TwainDirect.Support
                     "\"support_url\":\"" + "" + "\"," +
                     "\"update_url\":\"" + "" + "\"," +
                     "\"x-privet-token\":\"" + CreateXPrivetToken(0) + "\"," +
-                    "\"api\":[" +
                     szApi +
-                    "]," +
                     "\"semantic_state\":\"" + "" + "\"" +
                     szInfoex +
                     "}";

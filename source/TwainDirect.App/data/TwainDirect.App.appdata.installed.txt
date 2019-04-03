@@ -104,9 +104,10 @@
     "XcloudApiRoot": [
         {
             "name": "HazyBits",
-            "url": "https://api-twain.hazybits.com/dev",
+            "url": "https://twain.hazybits.com/api",
             "manager": "https://twain.hazybits.com",
-            "folderName": "hazybits"
+            "folderName": "hazybits",
+            "useHttps": "yes"
         }
     ]
 }

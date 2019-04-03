@@ -132,6 +132,28 @@ namespace TwainDirect.Scanner
         }
 
         /// <summary>
+        /// Our owner needs to call this to make sure we free
+        /// all interesting resources...
+        /// </summary>
+        public void Cleanup()
+        {
+            // If we have an npm process, make it go away...
+            if (m_processNpm != null)
+            {
+                try
+                {
+                    m_processNpm.CloseMainWindow();
+                }
+                catch
+                {
+                    // Just keep going...
+                }
+                m_processNpm.Dispose();
+                m_processNpm = null;
+            }
+        }
+
+        /// <summary>
         /// Are we automatically advertising on startup?
         /// </summary>
         /// <returns>true if we should start the monitor</returns>
@@ -173,20 +195,6 @@ namespace TwainDirect.Scanner
         /// <param name="e"></param>
         void FormSetup_FormClosing(object sender, FormClosingEventArgs e)
         {
-            // If we have an npm process, make it go away...
-            if (m_processNpm != null)
-            {
-                try
-                {
-                    m_processNpm.CloseMainWindow();
-                }
-                catch
-                {
-                    // Just keep going...
-                }
-                m_processNpm.Dispose();
-                m_processNpm = null;
-            }
         }
 
         /// <summary>
@@ -234,20 +242,9 @@ namespace TwainDirect.Scanner
             // Remove anything from the past...
             if (a_blForceRestart)
             {
-                if (m_processNpm != null)
-                {
-                    try
-                    {
-                        m_processNpm.CloseMainWindow();
-                    }
-                    catch
-                    {
-                        // Just keep going...
-                    }
-                    m_processNpm.Dispose();
-                    m_processNpm = null;
-                }
+                Cleanup();
             }
+
             // We already have one, stick with it...
             else if (m_processNpm != null)
             {
@@ -281,7 +278,7 @@ namespace TwainDirect.Scanner
                 processstartinfo.WorkingDirectory = cloudinfo.szTwainCloudExpressFolder;
                 processstartinfo.WindowStyle = ProcessWindowStyle.Minimized;
                 m_processNpm = Process.Start(processstartinfo);
-                Thread.Sleep(10000);
+                Thread.Sleep((int)Config.Get("npmWaitForStart", 15000));
             }
             catch (Exception exception)
             {
@@ -291,12 +288,7 @@ namespace TwainDirect.Scanner
                     m_displaycallback(Config.GetResource(m_resourcemanager, "strTextNpmFailed") + " - " + exception.Message);
                 }
                 Log.Error("npi start launch failed - " + exception.Message);
-                if (m_processNpm != null)
-                {
-                    m_processNpm.Dispose();
-                    m_processNpm = null;
-                    return (false);
-                }
+                Cleanup();
             }
 
             // All done...
