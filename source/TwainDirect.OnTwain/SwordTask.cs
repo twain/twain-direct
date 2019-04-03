@@ -5029,7 +5029,7 @@ namespace TwainDirect.OnTwain
                 /// <param name="a_szEncryptionProfileName">name of the encryptionProfile</param>
                 /// <param name="a_szException">exception for this encryptionProfile</param>
                 /// <param name="a_szVendor">vendor id, if any</param>
-                /// /// <param name="a_szEncryptionProfileProfile">profile of the encryptionProfile</param>
+                /// <param name="a_szEncryptionProfileProfile">profile of the encryptionProfile</param>
                 /// <returns></returns>
                 public SwordEncryptionProfile AppendEncryptionProfile
                 (

@@ -227,21 +227,6 @@ namespace TwainDirect.Scanner
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         public async Task RegisterCloud()
         {
-            /*
-            string szCloudSqlite = Path.Combine(Config.Get("writeFolder", ""), "cloud.sqlite");
-            if (File.Exists(szCloudSqlite))
-            {
-                try
-                {
-                    File.Delete(szCloudSqlite);
-                }
-                catch (Exception exception)
-                {
-                    MessageBox.Show("Unable to delete <" + szCloudSqlite + "> - " + exception.Message);
-                    return;
-                }
-            }
-            */
             await m_scanner.RegisterCloudScanner();
         }
 

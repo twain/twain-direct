@@ -1348,7 +1348,7 @@ namespace TwainDirect.Support
                     m_xfermultipartheader.GetBuffer(),
                     (int)m_xfermultipartheader.GetBytes(),
                     (int)m_xfermultipartheader.GetAvailableBytes(),
-                    new AsyncCallback(ReadCallBackJsonLaunchpad),
+                    new AsyncCallback(ReadCallBackMultipartHeaderLaunchpad),
                     this
                 );
 
