@@ -1597,29 +1597,29 @@ namespace TwainDirect.Support
                     }
                 }
 
-                // Add additional data for infoex...
+                // The command came from a TWAIN Local client, so this is the API we need...
                 string szApi = "";
+                if (a_apicmd.GetClientConnection() == HttpListenerResponseBase.ClientConnection.Local)
+                {
+                    szApi =
+                        "\"api\":[" +
+                        "\"/privet/twaindirect/session\"" +
+                        "],";
+                }
+
+                // The command came from a TWAIN Cloud client, so this is the API we need...
+                else
+                {
+                    szApi =
+                        "\"api\":[" +
+                        "\"/twaindirect/session\"" +
+                        "],";
+                }
+
+                // Add additional data for infoex...
                 string szInfoex = "";
                 if (a_apicmd.GetUri().EndsWith("/infoex")) // checkcommand
                 {
-                    // The command came from a TWAIN Local client, so this is the API we need...
-                    if (a_apicmd.IsLocal())
-                    {
-                        szApi =
-                            "\"api\":[" +
-                            "\"/privet/twaindirect/session\"" +
-                            "],";
-                    }
-
-                    // The command came from a TWAIN Cloud client, so this is the API we need...
-                    else
-                    {
-                        szApi =
-                            "\"api\":[" +
-                            "\"/twaindirect/session\"" +
-                            "],";
-                    }
-
                     // We need our seperator...
                     szInfoex = ",";
 

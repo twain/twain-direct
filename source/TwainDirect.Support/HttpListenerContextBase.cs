@@ -58,6 +58,7 @@ namespace TwainDirect.Support
         public HttpListenerResponseBase(DeviceSession a_devicesessionCloud)
         {
             // This is how we know we're a TWAIN Cloud response...
+            m_clientconnection = ClientConnection.Cloud;
             m_devicesessionCloud = a_devicesessionCloud;
             m_httplistenerresponseLocal = null;
 
@@ -77,6 +78,7 @@ namespace TwainDirect.Support
         public HttpListenerResponseBase(HttpListenerResponse a_httplistenerresponseLocal)
         {
             // This is how we know we're a TWAIN Local response...
+            m_clientconnection = ClientConnection.Local;
             m_httplistenerresponseLocal = a_httplistenerresponseLocal;
             m_devicesessionCloud = null;
 
@@ -120,6 +122,15 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Our client connection...
+        /// </summary>
+        /// <returns>cloud, local, or ruh-roh</returns>
+        public ClientConnection GetClientConnection()
+        {
+            return (m_clientconnection);
+        }
+
+        /// <summary>
         /// Dispatch an image block to TWAIN Cloud or TWAIN Local...
         /// </summary>
         /// <param name="a_szResponse"></param>
@@ -146,38 +157,38 @@ namespace TwainDirect.Support
             get
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     return (m_webheadercollection);
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     return (m_httplistenerresponseLocal.Headers);
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                     return (null);
                 }
             }
             set
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     m_webheadercollection = value;
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     m_httplistenerresponseLocal.Headers = value;
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                 }
             }
         }
@@ -190,38 +201,38 @@ namespace TwainDirect.Support
             get
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     return (m_szStastusDescription);
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     return (m_httplistenerresponseLocal.StatusDescription);
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                     return (null);
                 }
             }
             set
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     m_szStastusDescription = value;
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     m_httplistenerresponseLocal.StatusDescription = value;
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                 }
             }
         }
@@ -234,38 +245,38 @@ namespace TwainDirect.Support
             get
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     return (m_iStatusCode);
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     return (m_httplistenerresponseLocal.StatusCode);
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                     return (404);
                 }
             }
             set
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     m_iStatusCode = value;
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     m_httplistenerresponseLocal.StatusCode = value;
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                 }
             }
         }
@@ -278,19 +289,19 @@ namespace TwainDirect.Support
             get
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     return (m_streamOutput);
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     return (m_httplistenerresponseLocal.OutputStream);
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                     return (null);
                 }
             }
@@ -304,31 +315,31 @@ namespace TwainDirect.Support
             get
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     return (m_lContentLength64);
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     return (m_httplistenerresponseLocal.ContentLength64);
                 }
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                     return (-1);
                 }
             }
             set
             {
                 // Handle TWAIN Cloud...
-                if (m_devicesessionCloud != null)
+                if ((m_clientconnection == ClientConnection.Cloud) && (m_devicesessionCloud != null))
                 {
                     m_lContentLength64 = value;
                 }
                 // Handle TWAIN Local...
-                else if (m_httplistenerresponseLocal != null)
+                else if ((m_clientconnection == ClientConnection.Local) && (m_httplistenerresponseLocal != null))
                 {
                     try
                     {
@@ -343,7 +354,7 @@ namespace TwainDirect.Support
                 // Ruh-roh...
                 else
                 {
-                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither...");
+                    Log.Assert("Okay, how did you pull this off?  Gotta be Local or Cloud, can't be neither..." + m_clientconnection);
                 }
             }
         }
@@ -736,6 +747,17 @@ namespace TwainDirect.Support
         // Private Definitions...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Definitions...
+
+        /// <summary>
+        /// True if we're TWAIN Cloud, false if we're TWAIN Local...
+        /// </summary>
+        public enum ClientConnection
+        {
+            Undefined,
+            Cloud,
+            Local
+        }
+        private ClientConnection m_clientconnection;
 
         /// <summary>
         /// Handle TWAIN Cloud...

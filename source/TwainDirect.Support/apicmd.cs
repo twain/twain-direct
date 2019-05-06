@@ -2143,12 +2143,12 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Are we on a local area network?
+        /// How did the client connect to us?
         /// </summary>
-        /// <returns>return true if we are</returns>
-        public bool IsLocal()
+        /// <returns>cloud, local, or hmmmm</returns>
+        public HttpListenerResponseBase.ClientConnection GetClientConnection()
         {
-            return (m_httplistenerdata.httplistenerresponse != null);
+            return (m_httplistenerdata.httplistenerresponse.GetClientConnection());
         }
 
         /// <summary>
@@ -2614,7 +2614,7 @@ namespace TwainDirect.Support
             object a_objectWaitforeventprocessingcallback
         )
         {
-             // Should we use HTTP or HTTPS?  Our default behavior is to
+            // Should we use HTTP or HTTPS?  Our default behavior is to
             // require HTTPS...
             switch (Config.Get("useHttps", "yes"))
             {
