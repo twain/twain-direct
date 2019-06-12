@@ -31,6 +31,7 @@
 
 // Helpers...
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -151,7 +152,7 @@ namespace TwainDirect.App
 
             // All done, there's no guarantee that we have any
             // cloud scanners, but since the user identified
-            // themself, we can proceed...
+            // themselves, we can proceed...
             return (true);
         }
 
@@ -204,236 +205,206 @@ namespace TwainDirect.App
         /// <param name="a_blCompare">if true, compare to our last snapshot</param>
         /// <returns>true if we updated</returns>
         bool LoadScannerNames(bool a_blCompare)
+        {
+            int ii;
+            bool blUpdated = false;
+            bool blNoMonitor = false;
+            List<Dnssd.DnssdDeviceInfo> ldnssddeviceinfo = null;
+
+            // Make a note of our current selection, if we have one, we expect our
+            // snapshot to exactly match what we have in the list, including the
+            // order of the data...
+            m_dnssddeviceinfoSelected = null;
+            if (m_ldnssddeviceinfoCompare != null)
             {
-                int ii;
-                bool blUpdated = false;
-                bool blNoMonitor = false;
-            Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
-
-                // Make a note of our current selection, if we have one, we expect our
-                // snapshot to exactly match what we have in the list, including the
-                // order of the data...
-                m_dnssddeviceinfoSelected = null;
-                if (m_adnssddeviceinfoCompare != null)
+                for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
                 {
-                    for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
+                    if (m_listviewSelect.Items[ii].Selected && m_listviewSelect.Items[ii].Group == m_listviewSelect.Groups["localScannersGroup"])
                     {
-                        if (m_listviewSelect.Items[ii].Selected && m_listviewSelect.Items[ii].Group == m_listviewSelect.Groups["localScannersGroup"])
-                        {
-                            m_dnssddeviceinfoSelected = m_adnssddeviceinfoCompare[ii];
-                            break;
-                        }
+                        m_dnssddeviceinfoSelected = m_ldnssddeviceinfoCompare[ii];
+                        break;
                     }
                 }
+            }
 
-                // We don't have a TWAIN Local monitor...
-                if (m_dnssd == null)
+            // We don't have a TWAIN Local monitor...
+            if (m_dnssd == null)
+            {
+                blNoMonitor = true;
+                blUpdated = false;
+            // Take a snapshot...
+            } else {
+                ldnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_ldnssddeviceinfoCompare : null, out blUpdated, out blNoMonitor);
+            }
+
+            // If we've been asked to compare to the previous snapshot,
+            // and if we detect that no change occurred, we can scoot...
+            if (a_blCompare && !blUpdated)
+            {
+                return (false);
+            }
+
+            // Suspend updating...
+            m_listviewSelect.BeginUpdate();
+
+            // Start with a clean slate...
+            m_listviewSelect.Items.Clear();
+
+            // Handle TWAIN Local: we've no data...
+            if (ldnssddeviceinfo == null)
+            {
+                if (blNoMonitor)
                 {
-                    blNoMonitor = true;
-                    blUpdated = false;
-                // Take a snapshot...
-                } else {
-                    adnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_adnssddeviceinfoCompare : null, out blUpdated, out blNoMonitor);
+                    // Don't display anything, TWAIN Local is disabled...
                 }
-
-                // If we've been asked to compare to the previous snapshot,
-                // and if we detect that no change occurred, we can scoot...
-                if (a_blCompare && !blUpdated)
-                {
-                    return (false);
-                }
-
-                // Suspend updating...
-                m_listviewSelect.BeginUpdate();
-
-                // Start with a clean slate...
-                m_listviewSelect.Items.Clear();
-
-                // Handle TWAIN Local: we've no data...
-                if (adnssddeviceinfo == null)
-                {
-                    if (blNoMonitor)
-                    {
-                        // Don't display anything, TWAIN Local is disabled...
-                    }
-                    else
-                    {
-                        // TWAIN Local is supported, we just didn't find any scanners...
-                        var item = new ListViewItem("*none*");
-                        item.Group = m_listviewSelect.Groups["localScannersGroup"];
-                        m_listviewSelect.Items.Add(item);
-                    }
-                    SetButtons(ButtonState.Nodevices);
-                }
-                // Handle TWAIN Local: show what we have...
                 else
                 {
-                    // Populate our driver list...
-                    foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
-                    {
-                        ListViewItem listviewitem = new ListViewItem
-                        (
-                            new string[] {
-                                dnssddeviceinfo.GetTxtTy(),
-                                dnssddeviceinfo.GetServiceName().Split(new string[] { ".", "\\." },StringSplitOptions.None)[0],
-                                (dnssddeviceinfo.GetTxtNote() != null) ? dnssddeviceinfo.GetTxtNote() : "(no note)",
-                                dnssddeviceinfo.GetLinkLocal(),
-                                (dnssddeviceinfo.GetIpv4() != null) ? dnssddeviceinfo.GetIpv4() : (dnssddeviceinfo.GetIpv6() != null) ? dnssddeviceinfo.GetIpv6() : "(no ip)"
-                            }
-                        );
-                        listviewitem.Group = m_listviewSelect.Groups["localScannersGroup"];
-                        m_listviewSelect.Items.Add(listviewitem);
-                    }
-
-                    // Fix our columns...
-                    if (m_listviewSelect.Columns.Count >= 4)
-                    {
-                        m_listviewSelect.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                        m_listviewSelect.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                        m_listviewSelect.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                        m_listviewSelect.Columns[3].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                        m_listviewSelect.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
-                    }
-
-                    // Select the first column, and make sure it has the focus...
-                    if (m_dnssddeviceinfoSelected == null)
-                    {
-                        if ((m_listviewSelect.Items != null) && (m_listviewSelect.Items.Count > 0))
-                        {
-                            m_listviewSelect.Items[0].Selected = true;
+                    // TWAIN Local is supported, we just didn't find any scanners...
+                    var item = new ListViewItem("*none*");
+                    item.Group = m_listviewSelect.Groups["localScannersGroup"];
+                    m_listviewSelect.Items.Add(item);
+                }
+                SetButtons(ButtonState.Nodevices);
+            }
+            // Handle TWAIN Local: show what we have...
+            else
+            {
+                // Populate our driver list...
+                foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in ldnssddeviceinfo)
+                {
+                    ListViewItem listviewitem = new ListViewItem
+                    (
+                        new string[] {
+                            dnssddeviceinfo.GetTxtTy(),
+                            dnssddeviceinfo.GetServiceName().Split(new string[] { ".", "\\." },StringSplitOptions.None)[0],
+                            (dnssddeviceinfo.GetTxtNote() != null) ? dnssddeviceinfo.GetTxtNote() : "(no note)",
+                            dnssddeviceinfo.GetLinkLocal(),
+                            (dnssddeviceinfo.GetIpv4() != null) ? dnssddeviceinfo.GetIpv4() : (dnssddeviceinfo.GetIpv6() != null) ? dnssddeviceinfo.GetIpv6() : "(no ip)"
                         }
-                    }
-
-                    // Try to match the last item we had, if we can't, then go to the top
-                    // of the list...
-                    else
-                    {
-                        ii = 0;
-                        bool blFound = false;
-                        foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
-                        {
-                            if (   (dnssddeviceinfo.GetTxtTy() == m_dnssddeviceinfoSelected.GetTxtTy())
-                                && (dnssddeviceinfo.GetServiceName() == m_dnssddeviceinfoSelected.GetServiceName())
-                                && (dnssddeviceinfo.GetLinkLocal() == m_dnssddeviceinfoSelected.GetLinkLocal())
-                                && (dnssddeviceinfo.GetIpv4() == m_dnssddeviceinfoSelected.GetIpv4())
-                                && (dnssddeviceinfo.GetIpv6() == m_dnssddeviceinfoSelected.GetIpv6()))
-                            {
-                                m_listviewSelect.Items[ii].Selected = true;
-                                blFound = true;
-                                break;
-                            }
-                            ii += 1;
-                        }
-                        if (!blFound)
-                        {
-                            m_listviewSelect.Items[0].Selected = true;
-                        }
-                    }
-
-                    // Fix our buttons...
-                    SetButtons(ButtonState.Devices);
+                    );
+                    listviewitem.Group = m_listviewSelect.Groups["localScannersGroup"];
+                    m_listviewSelect.Items.Add(listviewitem);
                 }
 
-                // Resume updating...
-                m_listviewSelect.EndUpdate();
+                // Fix our columns...
+                if (m_listviewSelect.Columns.Count >= 4)
+                {
+                    m_listviewSelect.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[1].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[3].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                    m_listviewSelect.Columns[4].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+                }
 
-                // Rememeber this...
-                m_adnssddeviceinfoCompare = adnssddeviceinfo;
+                // Select the first column, and make sure it has the focus...
+                if (m_dnssddeviceinfoSelected == null)
+                {
+                    if ((m_listviewSelect.Items != null) && (m_listviewSelect.Items.Count > 0))
+                    {
+                        m_listviewSelect.Items[0].Selected = true;
+                    }
+                }
 
-                // All done...
-                return (true);
+                // Try to match the last item we had, if we can't, then go to the top
+                // of the list...
+                else
+                {
+                    ii = 0;
+                    bool blFound = false;
+                    foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in ldnssddeviceinfo)
+                    {
+                        if (   (dnssddeviceinfo.GetTxtTy() == m_dnssddeviceinfoSelected.GetTxtTy())
+                            && (dnssddeviceinfo.GetServiceName() == m_dnssddeviceinfoSelected.GetServiceName())
+                            && (dnssddeviceinfo.GetLinkLocal() == m_dnssddeviceinfoSelected.GetLinkLocal())
+                            && (dnssddeviceinfo.GetIpv4() == m_dnssddeviceinfoSelected.GetIpv4())
+                            && (dnssddeviceinfo.GetIpv6() == m_dnssddeviceinfoSelected.GetIpv6()))
+                        {
+                            m_listviewSelect.Items[ii].Selected = true;
+                            blFound = true;
+                            break;
+                        }
+                        ii += 1;
+                    }
+                    if (!blFound)
+                    {
+                        m_listviewSelect.Items[0].Selected = true;
+                    }
+                }
+
+                // Fix our buttons...
+                SetButtons(ButtonState.Devices);
             }
 
-            /// <summary>
-            /// See if we have a change in our device list...
-            /// </summary>
-            /// <param name="myObject"></param>
-            /// <param name="myEventArgs"></param>
-            private void TimerEventProcessor(Object a_object, EventArgs a_eventargs)
+            // Resume updating...
+            m_listviewSelect.EndUpdate();
+
+            // Rememeber this...
+            m_ldnssddeviceinfoCompare = ldnssddeviceinfo;
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
+        /// See if we have a change in our device list...
+        /// </summary>
+        /// <param name="myObject"></param>
+        /// <param name="myEventArgs"></param>
+        private void TimerEventProcessor(Object a_object, EventArgs a_eventargs)
+        {
+            System.Windows.Forms.Timer timer = (System.Windows.Forms.Timer)a_object;
+            FormSelect formselect = (FormSelect)timer.Tag;
+            formselect.LoadScannerNames(true);
+            formselect.LoadCloudScanners(formselect.GetTwainCloudTokens());
+        }
+
+        /// <summary>
+        /// Launch the TWAIN Local Manager...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonManageTwainLocal_Click(object sender, EventArgs e)
+        {
+            bool blServiceIsAvailable;
+            string szTwainLocalManager;
+            Process process;
+            bool blDevicesFound = m_buttonOpen.Enabled;
+
+            // Get the path to the manager...
+            szTwainLocalManager = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "TwainDirect.Scanner.TwainLocalManager.exe");
+            if (!File.Exists(szTwainLocalManager))
             {
-                System.Windows.Forms.Timer timer = (System.Windows.Forms.Timer)a_object;
-                FormSelect formselect = (FormSelect)timer.Tag;
-                formselect.LoadScannerNames(true);
-                formselect.LoadCloudScanners(formselect.GetTwainCloudTokens());
+                MessageBox.Show("TWAIN Local Manager is not installed on this system.", "Error");
+                return;
             }
 
-            /// <summary>
-            /// Launch the TWAIN Local Manager...
-            /// </summary>
-            /// <param name="sender"></param>
-            /// <param name="e"></param>
-            private void m_buttonManageTwainLocal_Click(object sender, EventArgs e)
+            // We're busy...
+            Cursor.Current = Cursors.WaitCursor;
+            SetButtons(ButtonState.Undefined);
+            this.Refresh();
+
+            // We need to shutdown m_dnssd while we're in here...
+            if (m_dnssd != null)
             {
-                bool blServiceIsAvailable;
-                string szTwainLocalManager;
-                Process process;
-                bool blDevicesFound = m_buttonOpen.Enabled;
+                m_dnssd.Dispose();
+                m_dnssd = null;
+            }
 
-                // Get the path to the manager...
-                szTwainLocalManager = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "TwainDirect.Scanner.TwainLocalManager.exe");
-                if (!File.Exists(szTwainLocalManager))
-                {
-                    MessageBox.Show("TWAIN Local Manager is not installed on this system.", "Error");
-                    return;
-                }
-
-                // We're busy...
-                Cursor.Current = Cursors.WaitCursor;
-                SetButtons(ButtonState.Undefined);
-                this.Refresh();
-
-                // We need to shutdown m_dnssd while we're in here...
-                if (m_dnssd != null)
-                {
-                    m_dnssd.Dispose();
-                    m_dnssd = null;
-                }
-
-                // Launch it as admin...
-                process = new Process();
-                process.StartInfo.FileName = szTwainLocalManager;
-                process.StartInfo.UseShellExecute = true;
-                if (System.Environment.OSVersion.Version.Major >= 6)
-                {
-                    process.StartInfo.Verb = "runas";
-                }
-                try
-                {
-                    process.Start();
-                }
-                catch
-                {
-                    Log.Error("User chose not to run TwainLocalManager in elevated mode...");
-                    SetButtons(blDevicesFound ? ButtonState.Devices : ButtonState.Nodevices);
-                    Cursor.Current = Cursors.Default;
-
-                    // Create the mdns monitor, and start it...
-                    m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
-                    if (blServiceIsAvailable)
-                    {
-                        m_dnssd.MonitorStart(null, IntPtr.Zero);
-                    }
-                    else
-                    {
-                        m_dnssd.Dispose();
-                        m_dnssd = null;
-                    }
-                    return;
-                }
-
-                // Wait for it to finish...
-                Thread.Sleep(1000);
-                try
-                {
-                    process.WaitForInputIdle();
-                    this.Refresh();
-                    process.WaitForExit();
-                    process.Dispose();
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("Error waiting for TwainLocalManager - " + exception.Message);
-                }
+            // Launch it as admin...
+            process = new Process();
+            process.StartInfo.FileName = szTwainLocalManager;
+            process.StartInfo.UseShellExecute = true;
+            if (System.Environment.OSVersion.Version.Major >= 6)
+            {
+                process.StartInfo.Verb = "runas";
+            }
+            try
+            {
+                process.Start();
+            }
+            catch
+            {
+                Log.Error("User chose not to run TwainLocalManager in elevated mode...");
                 SetButtons(blDevicesFound ? ButtonState.Devices : ButtonState.Nodevices);
                 Cursor.Current = Cursors.Default;
 
@@ -448,125 +419,155 @@ namespace TwainDirect.App
                     m_dnssd.Dispose();
                     m_dnssd = null;
                 }
+                return;
             }
 
-            /// <summary>
-            /// Select this as our driver and close the dialog...
-            /// </summary>
-            /// <param name="sender"></param>
-            /// <param name="e"></param>
-            private void m_buttonOpen_Click(object sender, EventArgs e)
+            // Wait for it to finish...
+            Thread.Sleep(1000);
+            try
             {
-                m_timerLoadScannerNames.Stop();
-                this.DialogResult = DialogResult.OK;
+                process.WaitForInputIdle();
+                this.Refresh();
+                process.WaitForExit();
+                process.Dispose();
             }
-
-            /// <summary>
-            /// Open the clicked item...
-            /// </summary>
-            /// <param name="sender"></param>
-            /// <param name="e"></param>
-            private void m_listviewSelect_MouseDoubleClick(object sender, MouseEventArgs e)
+            catch (Exception exception)
             {
-                m_timerLoadScannerNames.Stop();
-                this.DialogResult = DialogResult.OK;
+                Log.Error("Error waiting for TwainLocalManager - " + exception.Message);
             }
+            SetButtons(blDevicesFound ? ButtonState.Devices : ButtonState.Nodevices);
+            Cursor.Current = Cursors.Default;
 
-            /// <summary>
-            /// Which device have we selected?
-            /// </summary>
-            /// <returns>the one we've selected</returns>
-            public Dnssd.DnssdDeviceInfo GetSelectedDevice()
+            // Create the mdns monitor, and start it...
+            m_dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
+            if (blServiceIsAvailable)
             {
-                int ii;
+                m_dnssd.MonitorStart(null, IntPtr.Zero);
+            }
+            else
+            {
+                m_dnssd.Dispose();
+                m_dnssd = null;
+            }
+        }
 
-                // Handle TWAIN Cloud...
-                if (m_listviewSelect.SelectedIndices.Count > 0)
+        /// <summary>
+        /// Select this as our driver and close the dialog...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_buttonOpen_Click(object sender, EventArgs e)
+        {
+            m_timerLoadScannerNames.Stop();
+            this.DialogResult = DialogResult.OK;
+        }
+
+        /// <summary>
+        /// Open the clicked item...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_listviewSelect_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            m_timerLoadScannerNames.Stop();
+            this.DialogResult = DialogResult.OK;
+        }
+
+        /// <summary>
+        /// Which device have we selected?
+        /// </summary>
+        /// <returns>the one we've selected</returns>
+        public Dnssd.DnssdDeviceInfo GetSelectedDevice()
+        {
+            int ii;
+
+            // Handle TWAIN Cloud...
+            if (m_listviewSelect.SelectedIndices.Count > 0)
+            {
+                var item = m_listviewSelect.SelectedItems[0];
+                var scanner = (ScannerInformation)item.Tag;
+                if (scanner != null)
                 {
-                    var item = m_listviewSelect.SelectedItems[0];
-                    var scanner = (ScannerInformation)item.Tag;
-                    if (scanner != null)
-                    {
-                        string szUrl = CloudManager.GetScannerCloudUrl(scanner);
-                        CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
+                    string szUrl = CloudManager.GetScannerCloudUrl(scanner);
+                    CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
 
-                        Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
-                        dnssddeviceinfo.SetTxtHttps(cloudinfo.szUseHttps == "yes");
-                        dnssddeviceinfo.SetLinkLocal(szUrl);
-                        dnssddeviceinfo.SetCloud(true);
-                        return (dnssddeviceinfo);
+                    Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
+                    dnssddeviceinfo.SetTxtHttps(cloudinfo.szUseHttps == "yes");
+                    dnssddeviceinfo.SetLinkLocal(szUrl);
+                    dnssddeviceinfo.SetCloud(true);
+                    return (dnssddeviceinfo);
+                }
+            }
+
+            // Handle TWAIN Local...
+            // Make a note of our current selection, if we have one, we expect our
+            // snapshot to exactly match what we have in the list, including the
+            // order of the data...
+            m_dnssddeviceinfoSelected = null;
+            if (m_ldnssddeviceinfoCompare != null)
+            {
+                for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
+                {
+                    if (m_listviewSelect.Items[ii].Selected)
+                    {
+                        m_dnssddeviceinfoSelected = m_ldnssddeviceinfoCompare[ii];
+                        break;
                     }
                 }
-
-                // Handle TWAIN Local...
-                // Make a note of our current selection, if we have one, we expect our
-                // snapshot to exactly match what we have in the list, including the
-                // order of the data...
-                m_dnssddeviceinfoSelected = null;
-                if (m_adnssddeviceinfoCompare != null)
-                {
-                    for (ii = 0; ii < m_listviewSelect.Items.Count; ii++)
-                    {
-                        if (m_listviewSelect.Items[ii].Selected)
-                        {
-                            m_dnssddeviceinfoSelected = m_adnssddeviceinfoCompare[ii];
-                            break;
-                        }
-                    }
-                }
-
-                // Return what we found...
-                return (m_dnssddeviceinfoSelected);
             }
 
-            /// <summary>
-            /// Select and accept...
-            /// </summary>
-            /// <param name="sender"></param>
-            /// <param name="e"></param>
-            private void m_listboxSelect_MouseDoubleClick(object sender, MouseEventArgs e)
+            // Return what we found...
+            return (m_dnssddeviceinfoSelected);
+        }
+
+        /// <summary>
+        /// Select and accept...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void m_listboxSelect_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            m_timerLoadScannerNames.Stop();
+            this.DialogResult = DialogResult.OK;
+        }
+
+        /// <summary>
+        /// Configure our buttons to match our current state...
+        /// </summary>
+        /// <param name="a_ebuttonstate"></param>
+        private void SetButtons(ButtonState a_buttonstate)
+        {
+            if (InvokeRequired)
             {
-                m_timerLoadScannerNames.Stop();
-                this.DialogResult = DialogResult.OK;
+                Action<ButtonState> action = SetButtons;
+                Invoke(action, a_buttonstate);
             }
-
-            /// <summary>
-            /// Configure our buttons to match our current state...
-            /// </summary>
-            /// <param name="a_ebuttonstate"></param>
-            private void SetButtons(ButtonState a_buttonstate)
+            else
             {
-                if (InvokeRequired)
+                // Fix the buttons...
+                switch (a_buttonstate)
                 {
-                    Action<ButtonState> action = SetButtons;
-                    Invoke(action, a_buttonstate);
+                    default:
+                    case ButtonState.Undefined:
+                        m_buttonManageTwainLocal.Enabled = false;
+                        m_buttonOpen.Enabled = false;
+                        break;
+
+                    case ButtonState.Nodevices:
+                        m_buttonManageTwainLocal.Enabled = true;
+                        m_buttonOpen.Enabled = false;
+                        break;
+
+                    case ButtonState.Devices:
+                        m_buttonManageTwainLocal.Enabled = true;
+                        m_buttonOpen.Enabled = true;
+                        break;
                 }
-                else
-                {
-                    // Fix the buttons...
-                    switch (a_buttonstate)
-                    {
-                        default:
-                        case ButtonState.Undefined:
-                            m_buttonManageTwainLocal.Enabled = false;
-                            m_buttonOpen.Enabled = false;
-                            break;
-
-                        case ButtonState.Nodevices:
-                            m_buttonManageTwainLocal.Enabled = true;
-                            m_buttonOpen.Enabled = false;
-                            break;
-
-                        case ButtonState.Devices:
-                            m_buttonManageTwainLocal.Enabled = true;
-                            m_buttonOpen.Enabled = true;
-                            break;
-                    }
-                }
-
             }
 
-            #endregion
+        }
+
+        #endregion
 
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -593,7 +594,7 @@ namespace TwainDirect.App
         private Dnssd m_dnssd;
         private TwainCloudTokens m_twaincloudtokens;
         private Dnssd.DnssdDeviceInfo m_dnssddeviceinfoSelected;
-        private Dnssd.DnssdDeviceInfo[] m_adnssddeviceinfoCompare;
+        private List<Dnssd.DnssdDeviceInfo> m_ldnssddeviceinfoCompare;
         private ResourceManager m_resourcemanager;
 
         #endregion

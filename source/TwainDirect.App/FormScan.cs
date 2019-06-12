@@ -1102,6 +1102,7 @@ namespace TwainDirect.App
             return (image);
 
         }
+
         /// <summary>
         /// Handle sessionTimedOut errors...
         /// </summary>
@@ -1630,7 +1631,7 @@ namespace TwainDirect.App
             string szIpv4;
             string szIpv6;
             JsonLookup jsonlookupSelected;
-            Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
+            List<Dnssd.DnssdDeviceInfo> ldnssddeviceinfo = new List<Dnssd.DnssdDeviceInfo>();
 
             // If we don't have a selected file, then run the selection
             // function to prompt the user to pick something...
@@ -1712,8 +1713,8 @@ namespace TwainDirect.App
             // Grab a snapshot of what's out there...
             if (m_dnssd != null)
             {
-                adnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
-                if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
+                ldnssddeviceinfo = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
+                if ((ldnssddeviceinfo == null) || (ldnssddeviceinfo.Count == 0))
                 {
                     MessageBox.Show(Config.GetResource(m_resourcemanager, "errNoTwainScanners"), Config.GetResource(m_resourcemanager, "strFormScanTitle"));
                     SetButtons(EBUTTONSTATE.CLOSED);
@@ -1724,9 +1725,9 @@ namespace TwainDirect.App
             }
 
             // Find our entry...
-            if (adnssddeviceinfo != null)
+            if (ldnssddeviceinfo != null)
             {
-                foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in adnssddeviceinfo)
+                foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in ldnssddeviceinfo)
                 {
                     if (dnssddeviceinfo.GetLinkLocal() == szLinkLocal)
                     {
@@ -2369,7 +2370,7 @@ namespace TwainDirect.App
         /// <summary>
         /// Update the summary text box...
         /// </summary>
-        void UpdateSummary()
+        private void UpdateSummary()
         {
             if (m_twainlocalscannerclient != null)
             {
@@ -2467,7 +2468,7 @@ namespace TwainDirect.App
                 // Put the authorization bearer token where we can get it...
                 var client = new TwainCloudClient(apiRoot, m_twaincloudtokens);
                 await m_twainlocalscannerclient.ConnectToCloud(client);
-                m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", args.Tokens.AuthorizationToken);
+                m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", m_twaincloudtokens.AuthorizationToken);
 
                 // Fix our buttons...
                 SetButtons(EBUTTONSTATE.CLOSED);

@@ -4010,6 +4010,11 @@ namespace TwainDirect.Support
             m_llPendingImageBlocks = new List<long>();
         }
 
+        public ApplicationManager GetApplicationManager()
+        {
+            return (m_applicationmanager);
+        }
+
         public async Task ConnectToCloud(TwainCloudClient client)
         {
             m_applicationmanager = new ApplicationManager(client);
@@ -4020,6 +4025,38 @@ namespace TwainDirect.Support
             };
 
             await m_applicationmanager.Connect();
+        }
+
+        /// <summary>
+        /// We're going to dispose of the object sent to us, and
+        /// replace it with a new object that maintains the signin
+        /// information...
+        /// </summary>
+        /// <returns></returns>
+        static public void CleanAndReallocate(ref TwainLocalScannerClient a_twainlocalscannerclient)
+        {
+            // If it's null we're done...
+            if (a_twainlocalscannerclient == null)
+            {
+                return;
+            }
+
+            // Save stuff...
+            ApplicationManager applicationmanager = a_twainlocalscannerclient.m_applicationmanager;
+            Dictionary<string, string> dictionaryExtraHeaders = a_twainlocalscannerclient.m_dictionaryExtraHeaders;
+            EventCallback eventcallback = a_twainlocalscannerclient.m_eventcallback;
+            object objectEventCallback = a_twainlocalscannerclient.m_objectEventCallback;
+
+            // Reset...
+            a_twainlocalscannerclient.Dispose();
+            a_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
+
+            // Restore stuff...
+            a_twainlocalscannerclient.m_applicationmanager = applicationmanager;
+            a_twainlocalscannerclient.m_dictionaryExtraHeaders = dictionaryExtraHeaders;
+            a_twainlocalscannerclient.m_eventcallback = eventcallback;
+            a_twainlocalscannerclient.m_objectEventCallback = objectEventCallback;
+            return;
         }
 
         /// <summary>

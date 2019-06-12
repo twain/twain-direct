@@ -37,6 +37,7 @@
 
 // Helpers...
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -66,6 +67,7 @@ namespace TwainDirect.Support
             m_reason = a_reason;
             a_blServiceIsAvailable = false;
             m_objectLockCache = new Object();
+            m_ldnssddeviceinfoCache = new List<DnssdDeviceInfo>();
 
             // Load the library...
             m_hmoduleDnssd = NativeMethods.LoadLibraryExW("dnssd.dll", IntPtr.Zero, 0);
@@ -128,10 +130,9 @@ namespace TwainDirect.Support
         /// <param name="a_blUpdated">true if updated</param>
         /// <param name="a_blNoMonitor">true if we don't have a monitor</param>
         /// <returns>a list of devices or null</returns>
-        public DnssdDeviceInfo[] GetSnapshot(DnssdDeviceInfo[] a_adnssddeviceinfoCompare, out bool a_blUpdated, out bool a_blNoMonitor)
+        public List<DnssdDeviceInfo> GetSnapshot(List<DnssdDeviceInfo> a_ldnssddeviceinfoCompare, out bool a_blUpdated, out bool a_blNoMonitor)
         {
-            long ii;
-            DnssdDeviceInfo[] dnssddeviceinfoCache = null;
+            int ii;
 
             // Init stuff...
             a_blUpdated = false;
@@ -151,55 +152,53 @@ namespace TwainDirect.Support
                 return (null);
             }
 
-            // Lock us...
-            lock (m_objectLockCache)
+            // Keep things simple, this way we can check count and ignore null...
+            if (a_ldnssddeviceinfoCompare == null)
             {
-                // Get the snapshot...
-                if (m_adnssddeviceinfoCache != null)
-                {
-                    dnssddeviceinfoCache = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length];
-                    m_adnssddeviceinfoCache.CopyTo(dnssddeviceinfoCache, 0);
-                }
+                a_ldnssddeviceinfoCompare = new List<DnssdDeviceInfo>();
             }
 
-            // Compare the snapshots...
-            if ((a_adnssddeviceinfoCompare == null) && (dnssddeviceinfoCache == null))
+            lock (m_objectLockCache)
             {
-                a_blUpdated = false;
-            }
-            else if ((a_adnssddeviceinfoCompare == null) && (dnssddeviceinfoCache != null))
-            {
-                a_blUpdated = true;
-            }
-            else if ((a_adnssddeviceinfoCompare != null) && (dnssddeviceinfoCache == null))
-            {
-                a_blUpdated = true;
-            }
-            else if (a_adnssddeviceinfoCompare.Length != dnssddeviceinfoCache.Length)
-            {
-                a_blUpdated = true;
-            }
-            else
-            {
-                // They've been sorted, so they must exactly match, row for row...
-                for (ii = 0; ii < a_adnssddeviceinfoCompare.Length; ii++)
+                // Compare the snapshots...
+                if ((a_ldnssddeviceinfoCompare.Count == 0) && (m_ldnssddeviceinfoCache.Count == 0))
                 {
-                    if (    (a_adnssddeviceinfoCompare[ii].GetInterface() != dnssddeviceinfoCache[ii].GetInterface())
-                        ||  (a_adnssddeviceinfoCompare[ii].GetTxtTy() != dnssddeviceinfoCache[ii].GetTxtTy())
-                        ||  (a_adnssddeviceinfoCompare[ii].GetServiceName() != dnssddeviceinfoCache[ii].GetServiceName())
-                        ||  (a_adnssddeviceinfoCompare[ii].GetLinkLocal() != dnssddeviceinfoCache[ii].GetLinkLocal())
-                        ||  (a_adnssddeviceinfoCompare[ii].GetPort() != dnssddeviceinfoCache[ii].GetPort())
-                        ||  (a_adnssddeviceinfoCompare[ii].GetIpv4() != dnssddeviceinfoCache[ii].GetIpv4())
-                        ||  (a_adnssddeviceinfoCompare[ii].GetIpv6() != dnssddeviceinfoCache[ii].GetIpv6()))
+                    a_blUpdated = false;
+                }
+                else if ((a_ldnssddeviceinfoCompare.Count == 0) && (m_ldnssddeviceinfoCache.Count != 0))
+                {
+                    a_blUpdated = true;
+                }
+                else if ((a_ldnssddeviceinfoCompare.Count != 0) && (m_ldnssddeviceinfoCache.Count == 0))
+                {
+                    a_blUpdated = true;
+                }
+                else if (a_ldnssddeviceinfoCompare.Count != m_ldnssddeviceinfoCache.Count)
+                {
+                    a_blUpdated = true;
+                }
+                else
+                {
+                    // They've been sorted, so they must exactly match, row for row...
+                    for (ii = 0; (ii < a_ldnssddeviceinfoCompare.Count) && (ii < m_ldnssddeviceinfoCache.Count); ii++)
                     {
-                        a_blUpdated = true;
-                        break;
+                        if (    (a_ldnssddeviceinfoCompare[ii].GetInterface() != m_ldnssddeviceinfoCache[ii].GetInterface())
+                            ||  (a_ldnssddeviceinfoCompare[ii].GetTxtTy() != m_ldnssddeviceinfoCache[ii].GetTxtTy())
+                            ||  (a_ldnssddeviceinfoCompare[ii].GetServiceName() != m_ldnssddeviceinfoCache[ii].GetServiceName())
+                            ||  (a_ldnssddeviceinfoCompare[ii].GetLinkLocal() != m_ldnssddeviceinfoCache[ii].GetLinkLocal())
+                            ||  (a_ldnssddeviceinfoCompare[ii].GetPort() != m_ldnssddeviceinfoCache[ii].GetPort())
+                            ||  (a_ldnssddeviceinfoCompare[ii].GetIpv4() != m_ldnssddeviceinfoCache[ii].GetIpv4())
+                            ||  (a_ldnssddeviceinfoCompare[ii].GetIpv6() != m_ldnssddeviceinfoCache[ii].GetIpv6()))
+                        {
+                            a_blUpdated = true;
+                            break;
+                        }
                     }
                 }
             }
 
             // All done...
-            return (dnssddeviceinfoCache);
+            return (m_ldnssddeviceinfoCache);
         }
 
         /// <summary>
@@ -1257,9 +1256,9 @@ namespace TwainDirect.Support
                 }
 
                 // Free the cache...
-                if (m_adnssddeviceinfoCache != null)
+                if (m_ldnssddeviceinfoCache != null)
                 {
-                    m_adnssddeviceinfoCache = null;
+                    m_ldnssddeviceinfoCache = null;
                 }
 
                 // Free memory...
@@ -1500,41 +1499,14 @@ namespace TwainDirect.Support
                 // need the link service name and the interface it's on...
                 lock (m_objectLockCache)
                 {
-                    if (m_adnssddeviceinfoCache != null)
+                    if (m_ldnssddeviceinfoCache != null)
                     {
-                        for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
+                        for (ii = 0; ii < m_ldnssddeviceinfoCache.Count; ii++)
                         {
-                            if (    (m_adnssddeviceinfoCache[ii].GetInterface() == a_i32Interface)
-                                &&  (m_adnssddeviceinfoCache[ii].GetServiceName() == (a_szName + "." + a_szType + a_szDomain)))
+                            if (    (m_ldnssddeviceinfoCache[ii].GetInterface() == a_i32Interface)
+                                &&  (m_ldnssddeviceinfoCache[ii].GetServiceName() == (a_szName + "." + a_szType + a_szDomain)))
                             {
-                                // Last item...
-                                if (m_adnssddeviceinfoCache.Length == 1)
-                                {
-                                    m_adnssddeviceinfoCache = null;
-                                }
-                                else
-                                {
-                                    DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length - 1];
-                                    // Drop the first item...
-                                    if (ii == 0)
-                                    {
-                                        Array.Copy(m_adnssddeviceinfoCache, 1, adnssddeviceinfo, 0, m_adnssddeviceinfoCache.Length - 1);
-                                    }
-                                    // Drop the last item...
-                                    else if (ii == (m_adnssddeviceinfoCache.Length - 1))
-                                    {
-                                        Array.Copy(m_adnssddeviceinfoCache, 0, adnssddeviceinfo, 0, m_adnssddeviceinfoCache.Length - 1);
-                                    }
-                                    // Drop a middle item...
-                                    else
-                                    {
-                                        // 0 1 2 3 4 5
-                                        // . . . i . .
-                                        Array.Copy(m_adnssddeviceinfoCache, 0, adnssddeviceinfo, 0, ii); // ex: s[0] -> d[0] : 3
-                                        Array.Copy(m_adnssddeviceinfoCache, ii + 1, adnssddeviceinfo, ii, m_adnssddeviceinfoCache.Length - (ii + 1)); // ex: s[4] -> d[3] : 2
-                                    }
-                                    m_adnssddeviceinfoCache = adnssddeviceinfo;
-                                }
+                                m_ldnssddeviceinfoCache.RemoveAt(ii);
                                 break;
                             }
                         }
@@ -1921,24 +1893,23 @@ namespace TwainDirect.Support
             lock (m_objectLockCache)
             {
                 // First item in the list...
-                if (m_adnssddeviceinfoCache == null)
+                if (m_ldnssddeviceinfoCache == null)
                 {
-                    m_adnssddeviceinfoCache = new DnssdDeviceInfo[1];
-                    m_adnssddeviceinfoCache[0] = callbackcontext.dnssddeviceinfo;
+                    m_ldnssddeviceinfoCache = new List<DnssdDeviceInfo>();
                 }
 
                 // Check if we already have this item...
-                for (ii = 0; ii < m_adnssddeviceinfoCache.Length; ii++)
+                for (ii = 0; ii < m_ldnssddeviceinfoCache.Count; ii++)
                 {
-                    if (    (m_adnssddeviceinfoCache[ii].GetInterface() == a_i32Interface)
-                        &&  (m_adnssddeviceinfoCache[ii].GetLinkLocal() == a_szFullname))
+                    if (    (m_ldnssddeviceinfoCache[ii].GetInterface() == a_i32Interface)
+                        &&  (m_ldnssddeviceinfoCache[ii].GetLinkLocal() == a_szFullname))
                     {
                         break;
                     }
                 }
 
                 // Yes we do, so see about updating it...
-                if (ii < m_adnssddeviceinfoCache.Length)
+                if (ii < m_ldnssddeviceinfoCache.Count)
                 {
                     switch (a_u16Rrtype)
                     {
@@ -1947,13 +1918,13 @@ namespace TwainDirect.Support
                             goto ABORT;
 
                         case 1: // kDNSServiceType_A
-                            m_adnssddeviceinfoCache[ii].SetIpv4(callbackcontext.dnssddeviceinfo.GetIpv4());
-                            m_adnssddeviceinfoCache[ii].SetTtl(callbackcontext.dnssddeviceinfo.GetTtl());
+                            m_ldnssddeviceinfoCache[ii].SetIpv4(callbackcontext.dnssddeviceinfo.GetIpv4());
+                            m_ldnssddeviceinfoCache[ii].SetTtl(callbackcontext.dnssddeviceinfo.GetTtl());
                             break;
 
                         case 28: // kDNSServiceType_AAAA
-                            m_adnssddeviceinfoCache[ii].SetIpv6(callbackcontext.dnssddeviceinfo.GetIpv6());
-                            m_adnssddeviceinfoCache[ii].SetTtl(callbackcontext.dnssddeviceinfo.GetTtl());
+                            m_ldnssddeviceinfoCache[ii].SetIpv6(callbackcontext.dnssddeviceinfo.GetIpv6());
+                            m_ldnssddeviceinfoCache[ii].SetTtl(callbackcontext.dnssddeviceinfo.GetTtl());
                             break;
                     }
                 }
@@ -1961,11 +1932,8 @@ namespace TwainDirect.Support
                 // No we don't, so add it to our list...
                 else
                 {
-                    DnssdDeviceInfo[] adnssddeviceinfo = new DnssdDeviceInfo[m_adnssddeviceinfoCache.Length + 1];
-                    m_adnssddeviceinfoCache.CopyTo(adnssddeviceinfo, 0);
-                    adnssddeviceinfo[m_adnssddeviceinfoCache.Length] = callbackcontext.dnssddeviceinfo;
-                    m_adnssddeviceinfoCache = adnssddeviceinfo;
-                    Array.Sort(m_adnssddeviceinfoCache);
+                    m_ldnssddeviceinfoCache.Add(callbackcontext.dnssddeviceinfo);
+                    m_ldnssddeviceinfoCache.Sort();
                 }
             }
 
@@ -1996,7 +1964,7 @@ namespace TwainDirect.Support
         /// Our cache of devices currently on the LAN, this is the
         /// official cache that can be referenced at any given time...
         /// </summary>
-        private DnssdDeviceInfo[] m_adnssddeviceinfoCache;
+        private List<DnssdDeviceInfo> m_ldnssddeviceinfoCache;
 
         /// <summary>
         /// Object used to lock the cache...

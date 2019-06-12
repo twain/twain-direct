@@ -31,9 +31,9 @@
 
 // Helpers...
 using System;
+using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
-[assembly: CLSCompliant(true)]
 
 namespace TwainDirect.Certification
 {
@@ -65,9 +65,26 @@ namespace TwainDirect.Certification
             Log.Open(szExecutableName, szWriteFolder, (int)Config.Get("logLevel", 0));
             Log.Info(szExecutableName + " Log Started...");
 
-            // Launch the terminal window...
-            Terminal terminal = new TwainDirect.Certification.Terminal();
-            terminal.Run();
+            // Create our main form...
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            FormMain formmain = new FormMain();
+
+            // Launch the terminal window, we're doing this in
+            // a thread so we can have a console and a form...
+            Terminal terminal = new TwainDirect.Certification.Terminal(formmain);
+            Thread threadTerminal = new Thread(
+                new ThreadStart(
+                    delegate ()
+                    {
+                        terminal.Run();
+                    }
+                )
+            );
+            threadTerminal.Start();
+
+            // Run our form (needed for the cloud stuff)...
+            Application.Run(formmain);
 
             // All done...
             Log.Info(szExecutableName + " Log Ended...");

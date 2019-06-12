@@ -40,6 +40,7 @@
 
 // Helpers...
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
@@ -224,7 +225,7 @@ namespace TwainDirect.OnTwain
                     Dnssd dnssd;
                     bool blServiceIsAvailable;
                     Interpreter.CreateConsole();
-                    Dnssd.DnssdDeviceInfo[] adnssddeviceinfo = null;
+                    List<Dnssd.DnssdDeviceInfo> ldnssddeviceinfo = new List<Dnssd.DnssdDeviceInfo>();
                     dnssd = new Dnssd(Dnssd.Reason.Monitor, out blServiceIsAvailable);
                     if (blServiceIsAvailable)
                     {
@@ -234,19 +235,19 @@ namespace TwainDirect.OnTwain
                             bool blUpdated = false;
                             bool blNoMonitor = false;
                             Thread.Sleep(1000);
-                            adnssddeviceinfo = dnssd.GetSnapshot(adnssddeviceinfo, out blUpdated, out blNoMonitor);
+                            ldnssddeviceinfo = dnssd.GetSnapshot(ldnssddeviceinfo, out blUpdated, out blNoMonitor);
                             if (blUpdated)
                             {
                                 Console.Out.WriteLine("");
-                                if ((adnssddeviceinfo == null) || (adnssddeviceinfo.Length == 0))
+                                if ((ldnssddeviceinfo == null) || (ldnssddeviceinfo.Count == 0))
                                 {
                                     Console.Out.WriteLine("***empty***");
                                 }
                                 else
                                 {
-                                    for (jj = 0; jj < adnssddeviceinfo.Length; jj++)
+                                    for (jj = 0; jj < ldnssddeviceinfo.Count; jj++)
                                     {
-                                        Console.Out.WriteLine(adnssddeviceinfo[jj].GetInterface() + " " + adnssddeviceinfo[jj].GetServiceName());
+                                        Console.Out.WriteLine(ldnssddeviceinfo[jj].GetInterface() + " " + ldnssddeviceinfo[jj].GetServiceName());
                                     }
                                 }
                             }

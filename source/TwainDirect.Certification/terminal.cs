@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    01-Jun-2017     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2018 Kodak Alaris Inc.
+//  Copyright (C) 2014-2019 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -36,6 +36,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Windows.Forms;
 using TwainDirect.Support;
 
 namespace TwainDirect.Certification
@@ -52,7 +53,7 @@ namespace TwainDirect.Certification
         /// <summary>
         /// Initialize stuff...
         /// </summary>
-        public Terminal()
+        public Terminal(FormMain a_formmain)
         {
             bool blServiceIsAvailable;
 
@@ -62,13 +63,15 @@ namespace TwainDirect.Certification
             // Init stuff...
             m_blSilent = false;
             m_blSilentEvents = false;
-            m_adnssddeviceinfoSnapshot = null;
+            m_ldnssddeviceinfoSnapshot = new List<Dnssd.DnssdDeviceInfo>();
             m_dnssddeviceinfoSelected = null;
             m_twainlocalscannerclient = null;
             m_lkeyvalue = new List<KeyValue>();
             m_objectKeyValue = new object();
             m_transactionLast = null;
             m_lcallstack = new List<CallStack>();
+            m_cloudimport = CloudImport.HazyBits;
+            m_formmain = a_formmain;
 
             // Set up the base stack with the program arguments, we know
             // this is the base stack for two reasons: first, it has no
@@ -100,7 +103,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                       new string[] { "select" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdStatus,                       new string[] { "status" }));
 
-            // Api commands...
+            // Api commands (Local and Cloud)...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClosesession,              new string[] { "close", "closesession", "closeSession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCreatesession,             new string[] { "create", "createsession", "createSession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiGetsession,                new string[] { "get", "getsession", "getSession" }));
@@ -115,6 +118,14 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStartcapturing,            new string[] { "start", "startcapturing", "startCapturing" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiStopcapturing,             new string[] { "stop", "stopcapturing", "stopCapturing" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,             new string[] { "wait", "waitforevents", "waitForEvents" }));
+
+            // Api commands (Cloud)...
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiSignin,                    new string[] { "signin" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInvite,                    new string[] { "invite" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClaim,                     new string[] { "claim" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiRefresh,                   new string[] { "refresh" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiScannersQuery,             new string[] { "scannersquery", "scannersQuery" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiScannersDelete,            new string[] { "scannersdelete", "scannersDelete" }));
 
             // Scripting...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCall,                         new string[] { "call" }));
@@ -202,6 +213,7 @@ namespace TwainDirect.Certification
                 blDone = interpreter.Dispatch(ref functionarguments, m_ldispatchtable);
                 if (blDone)
                 {
+                    m_formmain.Shutdown();
                     return;
                 }
                 m_transactionLast = functionarguments.transaction;
@@ -224,13 +236,13 @@ namespace TwainDirect.Certification
                     }
                 }
             }
-        }
+       }
 
         #endregion
 
 
-        // Private Methods (api)
-        #region Private Methods (api)
+        // Private Methods (api - Local and Cloud)
+        #region Private Methods (api - Local and Cloud)
 
         /// <summary>
         /// Close a session...
@@ -369,6 +381,7 @@ namespace TwainDirect.Certification
             }
 
             // Make the call...
+            AutoResetEvent autoresetevent = new AutoResetEvent(false);
             apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
             m_twainlocalscannerclient.ClientInfo(ref apicmd, "infoex");
 
@@ -788,6 +801,108 @@ namespace TwainDirect.Certification
         #endregion
 
 
+        // Private Methods (api - Cloud)
+        #region Private Methods (api - Cloud)
+
+        /// <summary>
+        /// Signin to a cloud...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiSignin(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            switch (m_cloudimport)
+            {
+                default:
+                    return (false);
+
+                // Establish our provider, build the URL, and send it off...
+                case CloudImport.HazyBits:
+                    string szSigninProvider = "google";
+                    if ((a_functionarguments.aszCmd.Length >= 2) && !string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
+                    {
+                        switch (a_functionarguments.aszCmd[1])
+                        {
+                            default:
+                                DisplayError("unrecognized signin provider..." + a_functionarguments.aszCmd[1]);
+                                return (false);
+                            case "google":
+                                szSigninProvider = "google";
+                                break;
+                            case "facebook":
+                                szSigninProvider = "facebook";
+                                break;
+                        }
+                    }
+                    string szApiRoot = CloudManager.GetCloudApiRoot();
+                    string szSigninUrl = $"{szApiRoot}/authentication/signin/" + szSigninProvider;
+
+                    // Cleanup, if we've been here before...
+                    if (m_twainlocalscannerclient != null)
+                    {
+                        m_twainlocalscannerclient.Dispose();
+                        m_twainlocalscannerclient = null;
+                    }
+
+                    // Okay, sign us in...
+                    m_twainlocalscannerclient = m_formmain.Signin(szApiRoot, szSigninUrl);
+                    return (false);
+            }
+        }
+
+        /// <summary>
+        /// Launch a browser with an invite URL...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiInvite(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (false);
+        }
+
+        /// <summary>
+        /// Claim a scanner with the result from an invite...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiClaim(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (false);
+        }
+
+        /// <summary>
+        /// Refresh an OAuth2 token...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiRefresh(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (false);
+        }
+
+        /// <summary>
+        /// Query info for a specific scanner...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiScannersQuery(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (false);
+        }
+
+        /// <summary>
+        /// Delete a specific scanner...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiScannersDelete(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            return (false);
+        }
+
+        #endregion
+
+
         // Private Methods (commands)
         #region Private Methods (commands)
 
@@ -846,6 +961,13 @@ namespace TwainDirect.Certification
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null) || (a_functionarguments.aszCmd[0].ToLowerInvariant() == "pwd"))
             {
                 Display(Directory.GetCurrentDirectory(), true);
+                return (false);
+            }
+
+            // Ruh-roh...
+            if (!Directory.Exists(a_functionarguments.aszCmd[1]))
+            {
+                DisplayError("cd failed - path not found");
                 return (false);
             }
 
@@ -1275,7 +1397,8 @@ namespace TwainDirect.Certification
                 Display("help [command]...............................this text or info about a command");
                 Display("list.........................................list scanners");
                 Display("quit.........................................exit the program");
-                Display("select {pattern}.............................select a scanner");
+                Display("select [cloud:|local:|signin:]{pattern}......select a cloud (signin) or local scanner");
+                Display("signin.......................................sign in to a cloud");
                 Display("status.......................................status of the program");
                 Display("");
                 DisplayRed("Image Capture APIs (in order of use)");
@@ -2232,27 +2355,94 @@ namespace TwainDirect.Certification
             bool blUpdated;
             bool blNoMonitor;
 
-            // Get a snapshot of the TWAIN Local scanners...
-            m_adnssddeviceinfoSnapshot = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
+            // Get a snapshot of the TWAIN Local scanners, this will
+            // be sorted...
+            m_ldnssddeviceinfoSnapshot = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
 
-            // Display TWAIN Local...
+            // If the user has identified themselves, look for cloud content,
+            // this will be sorted, and then merged with the TWAIN Local items,
+            // if any...
+            if (m_formmain.GetTwainCloudTokens() != null)
+            {
+                List<Dnssd.DnssdDeviceInfo> ldnssddeviceinfo = new List<Dnssd.DnssdDeviceInfo>();
+
+                // Make the request...
+                m_autoreseteventScannerslist = new AutoResetEvent(false);
+                m_twainlocalscannerclient.GetApplicationManager().GetScanners().ContinueWith(task =>
+                {
+                    var scanners = task.Result;
+                    foreach (var s in scanners)
+                    {
+                        CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
+                        Dnssd.DnssdDeviceInfo dnssddeviceinfo = new Dnssd.DnssdDeviceInfo();
+                        dnssddeviceinfo.SetTxtTy(s.Name);
+                        dnssddeviceinfo.SetTxtId(s.Id);
+                        dnssddeviceinfo.SetTxtHttps(cloudinfo.szUseHttps == "yes");
+                        dnssddeviceinfo.SetTxtNote(s.Description);
+                        dnssddeviceinfo.SetLinkLocal(CloudManager.GetScannerCloudUrl(s));
+                        dnssddeviceinfo.SetCloud(true);
+                        ldnssddeviceinfo.Add(dnssddeviceinfo);
+                    }
+                    ldnssddeviceinfo.Sort();
+                    m_ldnssddeviceinfoSnapshot.AddRange(ldnssddeviceinfo);
+                    m_autoreseteventScannerslist.Set();
+                });
+
+                // Wait for it to finish (give it ten seconds)...
+                m_autoreseteventScannerslist.WaitOne(10000);
+            }
+
+            // Display TWAIN Local and TWAIN Cloud...
             if (!m_blSilent)
             {
-                if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
+                if ((m_ldnssddeviceinfoSnapshot == null) || (m_ldnssddeviceinfoSnapshot.Count == 0))
                 {
-                    DisplayError("no TWAIN Local scanners");
+                    DisplayError("(no scanners found)");
                 }
                 else
                 {
-                    foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
+                    foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_ldnssddeviceinfoSnapshot)
                     {
-                        if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()))
+                        if (dnssddeviceinfo.IsCloud())
                         {
-                            Display(dnssddeviceinfo.GetLinkLocal() + " " + dnssddeviceinfo.GetIpv4() + " " + dnssddeviceinfo.GetTxtNote());
+                            Display
+                            (
+                                string.Format
+                                (
+                                    "TWAIN Cloud:  {0,-30}  {1,-30}  {2}",
+                                    dnssddeviceinfo.GetTxtTy(),
+                                    dnssddeviceinfo.GetTxtNote(),
+                                    dnssddeviceinfo.GetLinkLocal()
+                                )
+                            );
+                        }
+                        else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()))
+                        {
+                            Display
+                            (
+                                string.Format
+                                (
+                                    "TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
+                                    dnssddeviceinfo.GetTxtTy(),
+                                    dnssddeviceinfo.GetTxtNote(),
+                                    dnssddeviceinfo.GetLinkLocal(),
+                                    dnssddeviceinfo.GetIpv4()
+                                )
+                            );
                         }
                         else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv6()))
                         {
-                            Display(dnssddeviceinfo.GetLinkLocal() + " " + dnssddeviceinfo.GetIpv6() + " " + dnssddeviceinfo.GetTxtNote());
+                            Display
+                            (
+                                string.Format
+                                (
+                                    "TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
+                                    dnssddeviceinfo.GetTxtTy(),
+                                    dnssddeviceinfo.GetTxtNote(),
+                                    dnssddeviceinfo.GetLinkLocal(),
+                                    dnssddeviceinfo.GetIpv6()
+                                )
+                            );
                         }
                     }
                 }
@@ -2652,18 +2842,47 @@ namespace TwainDirect.Certification
         {
             bool blSilent;
             bool blLocal;
+            bool blCloud;
+            bool blSignin;
             string szName;
+
+            // Handle the local/cloud flags...
+            blLocal = false;
+            blCloud = false;
+            blSignin = false;
+            szName = a_functionarguments.aszCmd[1];
+            if (szName.ToLower().StartsWith("local:"))
+            {
+                blLocal = true;
+                szName = szName.Replace("local:", "");
+            }
+            if (szName.ToLower().StartsWith("cloud:"))
+            {
+                blCloud = true;
+                szName = szName.Replace("cloud:", "");
+            }
+            if (szName.ToLower().StartsWith("signin:"))
+            {
+                blCloud = true;
+                blSignin = true;
+                szName = szName.Replace("signin:", "");
+            }
+
+            // We've been asked to do a signin, so make the call...
+            if (blSignin)
+            {
+                Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
+                functionarguments.aszCmd = new string[1];
+                CmdApiSignin(ref functionarguments);
+            }
 
             // Clear the last selected scanner...
             m_dnssddeviceinfoSelected = null;
-            if (m_twainlocalscannerclient != null)
-            {
-                m_twainlocalscannerclient.Dispose();
-                m_twainlocalscannerclient = null;
-            }
+            TwainLocalScannerClient.CleanAndReallocate(ref m_twainlocalscannerclient);
+            m_formmain.SetTwainLocalScannerClient(m_twainlocalscannerclient);
 
             // If we don't have a snapshot, get one...
-            if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
+            if ((m_ldnssddeviceinfoSnapshot == null) || (m_ldnssddeviceinfoSnapshot.Count == 0))
             {
                 blSilent = m_blSilent;
                 m_blSilent = true;
@@ -2673,9 +2892,9 @@ namespace TwainDirect.Certification
             }
 
             // No joy...
-            if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
+            if ((m_ldnssddeviceinfoSnapshot == null) || (m_ldnssddeviceinfoSnapshot.Count == 0))
             {
-                DisplayError("no TWAIN Local scanners");
+                DisplayError("no TWAIN Local or TWAIN Cloud scanners");
                 SetReturnValue("false");
                 return (false);
             }
@@ -2683,25 +2902,28 @@ namespace TwainDirect.Certification
             // We didn't get a selection, so grab the first item...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
             {
-                m_dnssddeviceinfoSelected = m_adnssddeviceinfoSnapshot[0];
+                m_dnssddeviceinfoSelected = m_ldnssddeviceinfoSnapshot[0];
                 SetReturnValue("true");
                 return (false);
             }
 
-            // Handle the local flag...
-            blLocal = false;
-            szName = a_functionarguments.aszCmd[1];
-            if (szName.ToLower().StartsWith("local:"))
-            {
-                blLocal = true;
-                szName = szName.Replace("local:", "");
-            }
-
             // Look for a match...
-            foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
+            foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_ldnssddeviceinfoSnapshot)
             {
+                // We've been asked to only keep cloud items...
+                if (blCloud && !dnssddeviceinfo.IsCloud())
+                {
+                    continue;
+                }
+
+                // We've been asked to only keep local items...
+                if (blLocal && dnssddeviceinfo.IsCloud())
+                {
+                    continue;
+                }
+
                 // Check the name...
-                if (!string.IsNullOrEmpty(dnssddeviceinfo.GetLinkLocal()) && dnssddeviceinfo.GetLinkLocal().Contains(szName))
+                if (!string.IsNullOrEmpty(dnssddeviceinfo.GetTxtTy()) && dnssddeviceinfo.GetTxtTy().Contains(szName))
                 {
                     m_dnssddeviceinfoSelected = dnssddeviceinfo;
                     break;
@@ -2725,25 +2947,54 @@ namespace TwainDirect.Certification
             // Report the result...
             if (m_dnssddeviceinfoSelected != null)
             {
-                // We need a special case to handle the 127.0.0.1 problem, so
-                // override the IPv4, but keep everything else...
-                if (blLocal)
-                {
-                    m_dnssddeviceinfoSelected.SetIpv4("127.0.0.1");
-                }
-
                 // Spit out the result...
-                if (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv4()))
+                if (m_dnssddeviceinfoSelected.IsCloud())
                 {
-                    Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv4() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
+                    Display
+                    (
+                        string.Format
+                        (
+                            "Selected TWAIN Cloud:  {0,-30}  {1,-30}  {2}",
+                            m_dnssddeviceinfoSelected.GetTxtTy(),
+                            m_dnssddeviceinfoSelected.GetTxtNote(),
+                            m_dnssddeviceinfoSelected.GetLinkLocal()
+                        )
+                    );
+                }
+                else if (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv4()))
+                {
+                    Display
+                    (
+                        string.Format
+                        (
+                            "Selected TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
+                            m_dnssddeviceinfoSelected.GetTxtTy(),
+                            m_dnssddeviceinfoSelected.GetTxtNote(),
+                            m_dnssddeviceinfoSelected.GetLinkLocal(),
+                            m_dnssddeviceinfoSelected.GetIpv4()
+                        )
+                    );
                 }
                 else if (!string.IsNullOrEmpty(m_dnssddeviceinfoSelected.GetIpv6()))
                 {
-                    Display(m_dnssddeviceinfoSelected.GetLinkLocal() + " " + m_dnssddeviceinfoSelected.GetIpv6() + " " + m_dnssddeviceinfoSelected.GetTxtNote());
+                    Display
+                    (
+                        string.Format
+                        (
+                            "Selected TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
+                            m_dnssddeviceinfoSelected.GetTxtTy(),
+                            m_dnssddeviceinfoSelected.GetTxtNote(),
+                            m_dnssddeviceinfoSelected.GetLinkLocal(),
+                            m_dnssddeviceinfoSelected.GetIpv6()
+                        )
+                    );
                 }
 
                 // Create our client...
-                m_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
+                if (m_twainlocalscannerclient == null)
+                {
+                    m_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
+                }
                 SetReturnValue("true");
             }
             else
@@ -2890,13 +3141,13 @@ namespace TwainDirect.Certification
             // Current snapshot of scanners...
             Display("");
             DisplayRed("LAST SCANNER LIST SNAPSHOT");
-            if ((m_adnssddeviceinfoSnapshot == null) || (m_adnssddeviceinfoSnapshot.Length == 0))
+            if ((m_ldnssddeviceinfoSnapshot == null) || (m_ldnssddeviceinfoSnapshot.Count == 0))
             {
                 DisplayError("no TWAIN Local scanners");
             }
             else
             {
-                foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_adnssddeviceinfoSnapshot)
+                foreach (Dnssd.DnssdDeviceInfo dnssddeviceinfo in m_ldnssddeviceinfoSnapshot)
                 {
                     if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()))
                     {
@@ -4207,6 +4458,15 @@ namespace TwainDirect.Certification
 
         // Private Definitions
         #region Private Definitions
+        
+        /// <summary>
+        /// Select the cloud import code we're working with...
+        /// </summary>
+        private enum CloudImport
+        {
+            Undefined,
+            HazyBits
+        }
 
         /// <summary>
         /// A key/value pair...
@@ -4235,16 +4495,16 @@ namespace TwainDirect.Certification
             public Interpreter.FunctionArguments functionarguments;
         }
 
-        #endregion
+    #endregion
 
 
-        // Private Attributes
-        #region Private Attributes
+    // Private Attributes
+    #region Private Attributes
 
-        /// <summary>
-        /// Map commands to functions...
-        /// </summary>
-        private List<Interpreter.DispatchTable> m_ldispatchtable;
+    /// <summary>
+    /// Map commands to functions...
+    /// </summary>
+    private List<Interpreter.DispatchTable> m_ldispatchtable;
 
         /// <summary>
         /// Our console input...embiggened...
@@ -4254,7 +4514,7 @@ namespace TwainDirect.Certification
         /// <summary>
         /// A snapshot of the current available devices...
         /// </summary>
-        private Dnssd.DnssdDeviceInfo[] m_adnssddeviceinfoSnapshot;
+        private List<Dnssd.DnssdDeviceInfo> m_ldnssddeviceinfoSnapshot;
 
         /// <summary>
         /// Information about our device...
@@ -4308,6 +4568,21 @@ namespace TwainDirect.Certification
         /// The opening banner (program, version, etc)...
         /// </summary>
         private string m_szBanner;
+
+        /// <summary>
+        /// The imported cloud class we're working with...
+        /// </summary>
+        private CloudImport m_cloudimport;
+
+        /// <summary>
+        /// List of scanners paired with us in a cloud...
+        /// </summary>
+        private AutoResetEvent m_autoreseteventScannerslist;
+
+        /// <summary>
+        /// Our main form, needed for the cloud stuff...
+        /// </summary>
+        private FormMain m_formmain;
 
         #endregion
     }

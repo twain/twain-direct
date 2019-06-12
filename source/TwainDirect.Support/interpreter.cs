@@ -69,15 +69,26 @@ namespace TwainDirect.Support
                 // Get our console...
                 NativeMethods.AllocConsole();
 
-                // We have to do some additional work to get out text in the console instead
-                // of having it redirected to Visual Studio's output window...
-                IntPtr stdHandle = NativeMethods.GetStdHandle(NativeMethods.STD_OUTPUT_HANDLE);
-                SafeFileHandle safefilehandle = new SafeFileHandle(stdHandle, true);
-                FileStream fileStream = new FileStream(safefilehandle, FileAccess.Write);
-                Encoding encoding = System.Text.Encoding.GetEncoding(Encoding.Default.CodePage);
-                StreamWriter streamwriterStdout = new StreamWriter(fileStream, encoding);
-                streamwriterStdout.AutoFlush = true;
-                Console.SetOut(streamwriterStdout);
+                // Only do this junk if running under Visual Studio, note that we'll
+                // lose color.  So it goes...
+                if (System.Diagnostics.Debugger.IsAttached)
+                {
+                    var handle = NativeMethods.CreateFile
+                    (
+                        "CONOUT$",
+                        NativeMethods.DesiredAccess.GenericWrite | NativeMethods.DesiredAccess.GenericWrite,
+                        NativeMethods.FileShare.Read | NativeMethods.FileShare.Write,
+                        IntPtr.Zero,
+                        NativeMethods.CreationDisposition.OpenExisting,
+                        NativeMethods.FileAttributes.Normal,
+                        IntPtr.Zero
+                    );
+                    SafeFileHandle safefilehandle = new SafeFileHandle(handle, true);
+                    FileStream fileStream = new FileStream(safefilehandle, FileAccess.Write);
+                    StreamWriter streamwriterStdout = new StreamWriter(fileStream, Encoding.ASCII);
+                    streamwriterStdout.AutoFlush = true;
+                    Console.SetOut(streamwriterStdout);
+                }
             }
 
             // And because life is hard, we need to up the size of standard input...
