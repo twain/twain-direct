@@ -105,33 +105,6 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Return the TWAIN url= field...
-        /// </summary>
-        /// <returns>default cloud</returns>
-        public string GetTwainLocalUrl()
-        {
-            return (m_device.szTwainLocalUrl);
-        }
-
-        /// <summary>
-        /// Return the TWAIN id= field...
-        /// </summary>
-        /// <returns>device id for default cloud</returns>
-        public string GetTwainLocalId()
-        {
-            return (m_device.szTwainLocalId);
-        }
-
-        /// <summary>
-        /// Return the TWAIN cd= field...
-        /// </summary>
-        /// <returns>the connection state</returns>
-        public string GetTwainLocalCs()
-        {
-            return (m_device.szTwainLocalCs);
-        }
-
-        /// <summary>
         /// Return the note= field (supplied by the user)...
         /// </summary>
         /// <returns>the note</returns>
@@ -1353,24 +1326,6 @@ namespace TwainDirect.Support
             /// selection box...
             /// </summary>
             public string szTwainLocalTy;
-
-            /// <summary>
-            /// TWAIN Local URL to the default cloud for this scanner.  If there
-            /// isn't one this stays empty...
-            /// </summary>
-            public string szTwainLocalUrl;
-
-            /// <summary>
-            /// TWAIN Local device id (a guid) with the default cloud for this
-            /// scanner.  If there isn't one this stays empty...
-            /// </summary>
-            public string szTwainLocalId;
-
-            /// <summary>
-            /// TWAIN Local connection state to the default cloud for this
-            /// scanner...
-            /// </summary>
-            public string szTwainLocalCs;
 
             /// <summary>
             /// Serial number from the TWAIN Driver, obtained from the

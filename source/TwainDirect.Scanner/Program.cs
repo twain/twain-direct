@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
-[assembly: CLSCompliant(true)]
 
 namespace TwainDirect.Scanner
 {

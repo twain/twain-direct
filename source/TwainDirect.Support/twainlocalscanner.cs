@@ -109,8 +109,6 @@ using HazyBits.Twain.Cloud.Client;
 using HazyBits.Twain.Cloud.Device;
 using Newtonsoft.Json;
 
-[assembly: CLSCompliant(true)]
-
 // This namespace supports applications and scanners...
 namespace TwainDirect.Support
 {
@@ -243,7 +241,6 @@ namespace TwainDirect.Support
             bool blSuccess;
             int iTaskIndex;
             ApiCmd apicmd;
-            string szLocalOrCloud;
             string szUri;
             string szXPrivetToken;
             string szFunction = "DeviceDispatchCommand";
@@ -3931,7 +3928,7 @@ namespace TwainDirect.Support
     /// <summary>
     /// TWAIN Local support for the Client (Application and Certfication Tool)...
     /// </summary>
-    public sealed class TwainLocalScannerClient : TwainLocalScanner
+    public sealed class TwainLocalScannerClient : TwainLocalScanner, IDisposable
     {
         ///////////////////////////////////////////////////////////////////////////////
         // Public Methods
@@ -4008,6 +4005,46 @@ namespace TwainDirect.Support
             // the scanner, and which we need to merge into finished
             // images...
             m_llPendingImageBlocks = new List<long>();
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public override sealed void Dispose()
+        {
+            // Stop waiting for events...
+            if (m_waitforeventsinfo != null)
+            {
+                m_blCancelWaitForEventsProcessing = true;
+                m_autoreseteventWaitForEventsProcessing.Set();
+                if (m_waitforeventsinfo.m_apicmd != null)
+                {
+                    m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
+                }
+                m_waitforeventsinfo.Dispose();
+                m_waitforeventsinfo = null;
+            }
+
+            // No more triggers...
+            if (m_autoreseteventWaitForEventsProcessing != null)
+            {
+                m_autoreseteventWaitForEventsProcessing.Dispose();
+                m_autoreseteventWaitForEventsProcessing = null;
+                m_blCancelWaitForEventsProcessing = false;
+            }
+
+            // Lose this stuff...
+            if (m_applicationmanager != null)
+            {
+                m_applicationmanager.Dispose();
+                m_applicationmanager = null;
+            }
+
+            // Zap the rest of it...
+            base.Dispose(true);
+
+            // Cleanup...
+            GC.SuppressFinalize(this);
         }
 
         public ApplicationManager GetApplicationManager()
@@ -5584,35 +5621,6 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
-        /// Cleanup...
-        /// </summary>
-        protected sealed override void Dispose(bool a_blDisposing)
-        {
-            // Stop waiting for events...
-            if (m_waitforeventsinfo != null)
-            {
-                m_blCancelWaitForEventsProcessing = true;
-                m_autoreseteventWaitForEventsProcessing.Set();
-                if (m_waitforeventsinfo.m_apicmd != null)
-                {
-                    m_waitforeventsinfo.m_apicmd.HttpAbortClientRequest(false);
-                }
-                m_waitforeventsinfo.Dispose();
-                m_waitforeventsinfo = null;
-            }
-
-            // No more triggers...
-            if (m_autoreseteventWaitForEventsProcessing != null)
-            {
-                m_autoreseteventWaitForEventsProcessing.Dispose();
-                m_autoreseteventWaitForEventsProcessing = null;
-            }
-
-            // Zap the rest of it...
-            base.Dispose(a_blDisposing);
-        }
-
-        /// <summary>
         /// Return the current images folder...
         /// </summary>
         /// <returns>the images folder</returns>
@@ -6871,7 +6879,7 @@ namespace TwainDirect.Support
         /// <summary>
         /// Cleanup...
         /// </summary>
-        public void Dispose()
+        public virtual void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
@@ -7539,33 +7547,6 @@ namespace TwainDirect.Support
             public string DeviceRegisterGetTwainLocalTy()
             {
                 return (m_deviceregister.GetTwainLocalTy());
-            }
-
-            /// <summary>
-            /// Get the TWAIN Local url= field
-            /// </summary>
-            /// <returns>url to the default cloud</returns>
-            public string DeviceRegisterGetTwainLocalUrl()
-            {
-                return (m_deviceregister.GetTwainLocalUrl());
-            }
-
-            /// <summary>
-            /// Get the TWAIN Local id= field
-            /// </summary>
-            /// <returns>device id in the default cloud</returns>
-            public string DeviceRegisterGetTwainLocalId()
-            {
-                return (m_deviceregister.GetTwainLocalId());
-            }
-
-            /// <summary>
-            /// Get the TWAIN Local cs= field
-            /// </summary>
-            /// <returns>the connection state</returns>
-            public string DeviceRegisterGetTwainLocalCs()
-            {
-                return (m_deviceregister.GetTwainLocalCs());
             }
 
             /// <summary>

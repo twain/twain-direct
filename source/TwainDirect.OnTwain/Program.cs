@@ -46,7 +46,6 @@ using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
 using TWAINWorkingGroupToolkit;
-//[assembly: CLSCompliant(true)]
 
 namespace TwainDirect.OnTwain
 {

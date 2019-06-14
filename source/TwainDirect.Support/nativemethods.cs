@@ -69,7 +69,7 @@ namespace TwainDirect.Support
         [DllImport("kernel32.dll", EntryPoint = "SetStdHandle", SetLastError = true, CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         public static extern bool SetStdHandle(int nStdHandle, IntPtr hHandle);
 
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern IntPtr CreateFile
             (string lpFileName
             , [MarshalAs(UnmanagedType.U4)] DesiredAccess dwDesiredAccess

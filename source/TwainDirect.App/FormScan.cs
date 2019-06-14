@@ -1053,7 +1053,12 @@ namespace TwainDirect.App
         private void Critical()
         {
             SetButtons(EBUTTONSTATE.UNDEFINED);
-            m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
+            if (m_twainlocalscannerclient != null)
+            {
+                m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy(true);
+                m_twainlocalscannerclient.Dispose();
+                m_twainlocalscannerclient = null;
+            }
             if (m_threadClientScan != null)
             {
                 m_threadClientScan.Abort();
@@ -1582,7 +1587,7 @@ namespace TwainDirect.App
                 case EBUTTONSTATE.CLOSED:
                     m_buttonOpen.Enabled = true;
                     m_buttonSelect.Enabled = true;
-                    m_buttonCloud.Enabled = (m_twaincloudtokens == null); // only let the user do this once!
+                    m_buttonCloud.Enabled = true; // (m_twaincloudtokens == null); // only let the user do this once!
                     m_buttonClose.Enabled = false;
                     m_buttonSetup.Enabled = false;
                     m_buttonScan.Enabled = false;
@@ -2466,8 +2471,10 @@ namespace TwainDirect.App
                 m_twaincloudtokens = args.Tokens;
 
                 // Put the authorization bearer token where we can get it...
+                ApiCmd.ClearCloudResponses();
                 var client = new TwainCloudClient(apiRoot, m_twaincloudtokens);
                 await m_twainlocalscannerclient.ConnectToCloud(client);
+                m_twainlocalscannerclient.m_dictionaryExtraHeaders.Clear();
                 m_twainlocalscannerclient.m_dictionaryExtraHeaders.Add("Authorization", m_twaincloudtokens.AuthorizationToken);
 
                 // Fix our buttons...

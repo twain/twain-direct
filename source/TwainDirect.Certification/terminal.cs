@@ -36,7 +36,6 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Windows.Forms;
 using TwainDirect.Support;
 
 namespace TwainDirect.Certification
@@ -269,6 +268,15 @@ namespace TwainDirect.Certification
 
             // Display what we send...
             DisplayApicmd(apicmd);
+
+            // If we have no session, we can cleanup...
+            if (m_twainlocalscannerclient.GetState() == "noSession")
+            {
+                m_twainlocalscannerclient.Dispose();
+                m_twainlocalscannerclient = null;
+                ApiCmd.ClearCloudResponses();
+                GC.Collect();
+            }
 
             // All done...
             return (false);
@@ -811,9 +819,14 @@ namespace TwainDirect.Certification
         /// <returns>true to quit</returns>
         private bool CmdApiSignin(ref Interpreter.FunctionArguments a_functionarguments)
         {
+            string szFunction = "CmdApiSignin";
+            Log.Info("");
+            Log.Info(szFunction + " - enter");
+
             switch (m_cloudimport)
             {
                 default:
+                    Log.Info(szFunction + " - exit (unrecognized cloud + " + m_cloudimport + ")");
                     return (false);
 
                 // Establish our provider, build the URL, and send it off...
@@ -837,15 +850,10 @@ namespace TwainDirect.Certification
                     string szApiRoot = CloudManager.GetCloudApiRoot();
                     string szSigninUrl = $"{szApiRoot}/authentication/signin/" + szSigninProvider;
 
-                    // Cleanup, if we've been here before...
-                    if (m_twainlocalscannerclient != null)
-                    {
-                        m_twainlocalscannerclient.Dispose();
-                        m_twainlocalscannerclient = null;
-                    }
-
                     // Okay, sign us in...
+                    Log.Info(szFunction + " - apiroot:<" + szApiRoot + "> signinurl:<" + szSigninUrl + ">");
                     m_twainlocalscannerclient = m_formmain.Signin(szApiRoot, szSigninUrl);
+                    Log.Info(szFunction + " - exit");
                     return (false);
             }
         }
@@ -2352,11 +2360,18 @@ namespace TwainDirect.Certification
         /// <returns>true to quit</returns>
         private bool CmdList(ref Interpreter.FunctionArguments a_functionarguments)
         {
+            int ii;
             bool blUpdated;
             bool blNoMonitor;
 
-            // Get a snapshot of the TWAIN Local scanners, this will
-            // be sorted...
+            // Make sure we have this...
+            if (m_twainlocalscannerclient == null)
+            {
+                return (false);
+            }
+
+            // Get a snapshot of the TWAIN Local and TWAIN Cloud scanners,
+            // this will be sorted...
             m_ldnssddeviceinfoSnapshot = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
 
             // If the user has identified themselves, look for cloud content,
@@ -2365,6 +2380,21 @@ namespace TwainDirect.Certification
             if (m_formmain.GetTwainCloudTokens() != null)
             {
                 List<Dnssd.DnssdDeviceInfo> ldnssddeviceinfo = new List<Dnssd.DnssdDeviceInfo>();
+
+                // Remove the cloud scanners from the current list,
+                // we're going to rediscover them here...
+                ii = 0;
+                while (ii < m_ldnssddeviceinfoSnapshot.Count)
+                {
+                    if (!m_ldnssddeviceinfoSnapshot[ii].IsCloud())
+                    {
+                        ii += 1;
+                    }
+                    else
+                    {
+                        m_ldnssddeviceinfoSnapshot.RemoveAt(ii);
+                    }
+                }
 
                 // Make the request...
                 m_autoreseteventScannerslist = new AutoResetEvent(false);
@@ -2390,6 +2420,8 @@ namespace TwainDirect.Certification
 
                 // Wait for it to finish (give it ten seconds)...
                 m_autoreseteventScannerslist.WaitOne(10000);
+                m_autoreseteventScannerslist.Dispose();
+                m_autoreseteventScannerslist = null;
             }
 
             // Display TWAIN Local and TWAIN Cloud...
@@ -2873,13 +2905,17 @@ namespace TwainDirect.Certification
             {
                 Interpreter.FunctionArguments functionarguments = default(Interpreter.FunctionArguments);
                 functionarguments.aszCmd = new string[1];
+                functionarguments.aszCmd[0] = "signin";
                 CmdApiSignin(ref functionarguments);
             }
 
             // Clear the last selected scanner...
             m_dnssddeviceinfoSelected = null;
-            TwainLocalScannerClient.CleanAndReallocate(ref m_twainlocalscannerclient);
-            m_formmain.SetTwainLocalScannerClient(m_twainlocalscannerclient);
+            if (!blCloud)
+            {
+                TwainLocalScannerClient.CleanAndReallocate(ref m_twainlocalscannerclient);
+                m_formmain.SetTwainLocalScannerClient(m_twainlocalscannerclient);
+            }
 
             // If we don't have a snapshot, get one...
             if ((m_ldnssddeviceinfoSnapshot == null) || (m_ldnssddeviceinfoSnapshot.Count == 0))
@@ -3840,6 +3876,11 @@ namespace TwainDirect.Certification
                 {
                     m_dnssd.Dispose();
                     m_dnssd = null;
+                }
+                if (m_autoreseteventScannerslist != null)
+                {
+                    m_autoreseteventScannerslist.Dispose();
+                    m_autoreseteventScannerslist = null;
                 }
             }
         }

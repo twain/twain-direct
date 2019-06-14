@@ -832,9 +832,10 @@ namespace TwainDirect.Support
             OutstandingCloudRequests.TryAdd(requestId, new TaskCompletionSource<CloudDeviceResponse>());
         }
 
-        public static void CompleteCloudResponse(string body)
+        public static void CompleteCloudResponse(string a_szBody)
         {
-            var cloudMessage = JsonConvert.DeserializeObject<CloudDeviceResponse>(body, CloudManager.SerializationSettings);
+            Log.Info("CompleteCloudResponse: " + a_szBody);
+            var cloudMessage = JsonConvert.DeserializeObject<CloudDeviceResponse>(a_szBody, CloudManager.SerializationSettings);
             var requestId = cloudMessage.RequestId;
 
             if (OutstandingCloudRequests.TryGetValue(requestId, out var completionSource))
@@ -848,6 +849,11 @@ namespace TwainDirect.Support
                 {
                 }
             }
+        }
+
+        public static void ClearCloudResponses()
+        {
+            OutstandingCloudRequests.Clear();
         }
 
         public async Task<CloudDeviceResponse> WaitCloudResponse()

@@ -564,7 +564,8 @@ namespace TwainDirect.Scanner
             this.Show();
             this.WindowState = FormWindowState.Normal;
             this.Show();
-            m_richtextboxTask.Refresh();
+            this.Invalidate(true);
+            this.Update();
         }
 
         /// <summary>
@@ -884,11 +885,6 @@ namespace TwainDirect.Scanner
         /// </summary>
         private static int WM_QUERYENDSESSION = 0x11;
         private static bool ms_blSystemShutdown = false;
-
-        /// <summary>
-        /// Our list of clouds...
-        /// </summary>
-        private List<string> m_lszCloudApiRoot;
 
         #endregion
     }

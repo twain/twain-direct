@@ -1,15 +1,8 @@
-﻿using HazyBits.Twain.Cloud.Client;
-using HazyBits.Twain.Cloud.Forms;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
+﻿using System;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using HazyBits.Twain.Cloud.Client;
+using HazyBits.Twain.Cloud.Forms;
 using TwainDirect.Support;
 
 namespace TwainDirect.Certification
@@ -29,11 +22,6 @@ namespace TwainDirect.Certification
             }));
         }
 
-        public TwainCloudClient GetTwainCloudClient()
-        {
-            return (m_twaincloudclient);
-        }
-
         public TwainCloudTokens GetTwainCloudTokens()
         {
             return (m_twaincloudtokens);
@@ -44,10 +32,28 @@ namespace TwainDirect.Certification
             m_twainlocalscannerclient = a_twainlocalscannerclient;
         }
 
+        /// <summary>
+        /// Take us through the signin process...
+        /// </summary>
+        /// <param name="a_szApiRoot">our cloud url</param>
+        /// <param name="a_szSigninUrl">our signin url</param>
+        /// <returns></returns>
         public TwainLocalScannerClient Signin(string a_szApiRoot, string a_szSigninUrl)
         {
+            // Cleanup...
+            m_twaincloudclient = null;
+            m_twaincloudtokens = null;
+            if (m_twainlocalscannerclient != null)
+            {
+                m_twainlocalscannerclient.Dispose();
+                m_twainlocalscannerclient = null;
+            }
+
+            // Remember stuff...
             m_szApiRoot = a_szApiRoot;
             m_szSigninUrl = a_szSigninUrl;
+
+            // Signin...
             AutoResetEvent autoresetevent = new AutoResetEvent(false);
             Invoke(new MethodInvoker(delegate {
                 FacebookLoginForm facebookloginform = new FacebookLoginForm(m_szSigninUrl);
@@ -68,6 +74,8 @@ namespace TwainDirect.Certification
                 };
             }));
             autoresetevent.WaitOne();
+
+            // All done...
             return (m_twainlocalscannerclient);
         }
 
