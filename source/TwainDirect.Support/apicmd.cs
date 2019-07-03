@@ -881,19 +881,24 @@ namespace TwainDirect.Support
             {
                 if (m_dnssddeviceinfo.IsCloud())
                 {
-                    var cloudResponse = await WaitCloudResponse();
+                    // Get result of cloud command submission response to handle submission errors.
+                    var cloudResponse = (HttpWebResponse)m_httprequestdata.httpwebrequest.EndGetResponse(a_iasyncresult);
+
+                    // Wait for device response. 
+                    // TODO: add timeout handling
+                    var deviceResponse = await WaitCloudResponse();
 
                     Debug.WriteLine($"Wait completed, starting processing");
                     var headers = new NameValueCollection();
-                    foreach(var pair in cloudResponse.Headers)
+                    foreach(var pair in deviceResponse.Headers)
                         headers.Add(pair.Key, pair.Value);
 
                     // TODO: what the hell with capital letter here?
-                    cloudResponse.Headers.TryGetValue("content-Type", out var contentType);
+                    deviceResponse.Headers.TryGetValue("content-Type", out var contentType);
 
-                    m_httpresponsedata.httpwebresponse = new HttpWebResponseBase(cloudResponse.Body)
+                    m_httpresponsedata.httpwebresponse = new HttpWebResponseBase(deviceResponse.Body)
                     {
-                        StatusCode = (HttpStatusCode)cloudResponse.StatusCode,
+                        StatusCode = (HttpStatusCode)deviceResponse.StatusCode,
                         Headers = headers,
                         ContentType = contentType ?? "application/json"
                     };
