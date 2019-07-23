@@ -1680,9 +1680,10 @@ namespace TwainDirect.Certification
                 Display("The most interesting part of the scripting support is variable expansion.  Variables take the");
                 Display("form ${source:target} with the following available sources:");
                 Display("");
-                Display("  '${arg:target}'");
-                Display("  Expands an argument argument to run, runv, or call.  0 is the name of the script or label, and");
-                Display("  1 - n access the rest of the arguments.");
+                Display("  '${arg:[index.]target}'");
+                Display("  Expands an argument argument to run, runv, or call.  A target of 0 is the name of the script");
+                Display("  or label; 1 - n accesses the rest of the arguments.  An index can be specified to access any");
+                Display("  command in the stack, but only 0 is recommended to look at the last user command.");
                 Display("");
                 Display("  '${ej:target}'");
                 Display("  Accesses the JSON contents of the last event.  For instance, ${ej:results.success} returns a");
@@ -2380,7 +2381,7 @@ namespace TwainDirect.Certification
             // do this as TWAIN Local only...
             if (m_twainlocalscannerclient == null)
             {
-                m_twainlocalscannerclient = m_formmain.Signin(null, null);
+                m_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
             }
 
             // Get a snapshot of the TWAIN Local and TWAIN Cloud scanners,
