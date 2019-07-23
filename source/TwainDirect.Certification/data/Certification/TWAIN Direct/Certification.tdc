@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TWAIN Direct Certification
+; TWAIN Direct Certification Script
 ; This runs all of the tests needed to pass certification for TWAIN Direct.
 ;
 ; Arguments
@@ -16,13 +16,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Run all of our tests, start by assuming success...
 ;
-echo 'TWAIN Direct Certification v1.0 15-Sep-2017'
-echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+report initialize
+echo 'TWAIN Direct Certification Script v1.0 15-Sep-2017'
+echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+echo 'program is ${program:}'
+echo 'started at ${localtime:yyyy-MM-dd/hh:mm:ss}'
 log info '#TWAIN Direct Certification v1.0 15-Sep-2017'
 log info '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-echo
+log info '#program=${program:}'
+log info '#localtime=${localtime:yyyy-MM-dd/hh:mm:ss}'
 set certifyresulttwaindirect pass
+if '${arg:0.1}' !~contains 'local:' goto MAIN.SKIPJSON
 call CERTIFY 'JSON Syntax' '${arg:1}'
+:MAIN.SKIPJSON
 call CERTIFY 'Configure Task Topology' '${arg:1}'
 call CERTIFY 'Exception Handling' '${arg:1}'
 call CERTIFY 'Vendor Handling' '${arg:1}'
@@ -35,24 +41,36 @@ call CERTIFY 'Check Values' '${arg:1}'
 ;
 if '${get:certifyresulttwaindirect}' != 'pass' goto MAIN.FAIL
 echo
-echo '*********************************************'
-echo 'The scanner passed TWAIN Direct Certification'
-echo '*********************************************'
+echo
+echo 'ended at ${localtime:yyyy-MM-dd/hh:mm:ss}'
+echo.green '*********************************************'
+echo.green 'The scanner passed TWAIN Direct Certification'
+echo.green '*********************************************'
 log info '#'
+log info '#'
+log info '#localtime=${localtime:yyyy-MM-dd/hh:mm:ss}'
 log info '#*********************************************'
 log info '#The scanner passed TWAIN Direct Certification'
 log info '#*********************************************'
+report save "TWAIN Direct Self Certification.rtf"
+echo 'report saved to ${report:}'
 return 'pass'
 ;
 :MAIN.FAIL
 echo
-echo '***************************************************'
-echo 'The scanner did not pass TWAIN Direct Certification'
-echo '***************************************************'
+echo
+echo 'ended at ${localtime:yyyy-MM-dd/hh:mm:ss}'
+echo.red '***************************************************'
+echo.red 'The scanner did not pass TWAIN Direct Certification'
+echo.red '***************************************************'
 log info '#'
-log info '#***************************************************'
-log info '#The scanner did not pass TWAIN Direct Certification'
-log info '#***************************************************'
+log info '#'
+log info '#localtime=${localtime:yyyy-MM-dd/hh:mm:ss}'
+log error '#***************************************************'
+log error '#The scanner did not pass TWAIN Direct Certification'
+log error '#***************************************************'
+report save "TWAIN Direct Self Certification.rtf"
+echo 'report saved to ${report:}'
 return 'fail'
 
 

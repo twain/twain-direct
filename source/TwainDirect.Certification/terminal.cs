@@ -32,10 +32,13 @@
 // Helpers...
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Windows.Forms;
 using TwainDirect.Support;
 
 namespace TwainDirect.Certification
@@ -71,6 +74,7 @@ namespace TwainDirect.Certification
             m_lcallstack = new List<CallStack>();
             m_cloudimport = CloudImport.HazyBits;
             m_formmain = a_formmain;
+            m_selfcertreport = new SelfCertReport();
 
             // Set up the base stack with the program arguments, we know
             // this is the base stack for two reasons: first, it has no
@@ -146,6 +150,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdInput,                        new string[] { "input" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdJson2Xml,                     new string[] { "json2xml" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdLog,                          new string[] { "log" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdReport,                       new string[] { "report" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdReturn,                       new string[] { "return" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRun,                          new string[] { "run" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdRunv,                         new string[] { "runv" }));
@@ -1732,6 +1737,12 @@ namespace TwainDirect.Certification
                 Display("  '${localtime:[format]}'");
                 Display("  Returns the current local time using the DateTime format.");
                 Display("");
+                Display("  '${program:}'");
+                Display("  Gets the name of the program running this script, its version, date, and machine word size.");
+                Display("");
+                Display("  '${report:}'");
+                Display("  Full path to the generated self certification report (after 'report save command').");
+                Display("");
                 Display("  '${ret:}'");
                 Display("  The value supplied to the return command that ended the last run, runv, or call.  It's also");
                 Display("  used by the WAITFORSESSIONUPDATE command.");
@@ -1755,8 +1766,8 @@ namespace TwainDirect.Certification
                 Display("  Works like ${txt:target}, but if the target can't be found it expands to '(null)'");
                 Display("");
                 Display("Note that some tricks are allowed, one can do ${hdrkey:${get:index}}, using the set and increment");
-                Display("increment commands to enumerate all of the header keys.  Or ${rj:${arg:1}} to pass a JSON key into");
-                Display("a function.");
+                Display("increment commands to enumerate through all of the header keys.  Or ${rj:${arg:1}} to pass a JSON");
+                Display("key into a function.");
                 return (false);
             }
 
@@ -1939,7 +1950,8 @@ namespace TwainDirect.Certification
                 Display("");
                 Display("Values");
                 Display("Values prefixed with 'rj:' indicate that the item is a JSON");
-                Display("key in the last command's response payload.  For instance:");
+                Display("key in the last command's response payload.  For instance");
+                Display("to set the key success to true or false, based on the JSON:");
                 Display("  set success '${rj:results.success}'");
                 return (false);
             }
@@ -2364,10 +2376,11 @@ namespace TwainDirect.Certification
             bool blUpdated;
             bool blNoMonitor;
 
-            // Make sure we have this...
+            // Make sure we have this, if not, we've not signed in, so let's
+            // do this as TWAIN Local only...
             if (m_twainlocalscannerclient == null)
             {
-                return (false);
+                m_twainlocalscannerclient = m_formmain.Signin(null, null);
             }
 
             // Get a snapshot of the TWAIN Local and TWAIN Cloud scanners,
@@ -2629,6 +2642,65 @@ namespace TwainDirect.Certification
                 case "assert":
                     Log.Assert(szMessage);
                     break;
+            }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
+        /// Manage the self cert report...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdReport(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            // If we have no arguments, then log a complain...
+            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
+            {
+                DisplayError("please specify initialize or save");
+                return (false);
+            }
+
+            // Clear...
+            if (a_functionarguments.aszCmd[1].ToLowerInvariant() == "initialize")
+            {
+                m_selfcertreport.ClearText();
+                m_szSelfCertReportPath = null;
+            }
+
+            // Save file...
+            else if (a_functionarguments.aszCmd[1].ToLowerInvariant() == "save")
+            {
+                string szFolder;
+                if ((a_functionarguments.aszCmd.Length < 3) || (a_functionarguments.aszCmd[2] == null))
+                {
+                    DisplayError("please specify a filename");
+                    return (false);
+                }
+                try
+                {
+                    szFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "TWAIN Direct Self Certification");
+                    szFolder = Path.Combine(szFolder, Regex.Replace(m_dnssddeviceinfoSelected.GetTxtTy(), "[^a-zA-Z0-9]", "_"));
+                    if (!Directory.Exists(szFolder))
+                    {
+                        Directory.CreateDirectory(szFolder);
+                    }
+                    m_szSelfCertReportPath = Path.Combine(szFolder, a_functionarguments.aszCmd[2]);
+                    m_selfcertreport.SaveFile(m_szSelfCertReportPath);
+                }
+                catch (Exception exception)
+                {
+                    DisplayError("save threw exception: " + exception.Message);
+                    m_szSelfCertReportPath = null;
+                    return (false);
+                }
+            }
+
+            // No idea...
+            else
+            {
+                DisplayError("unrecognized commend: " + a_functionarguments.aszCmd[1]);
             }
 
             // All done...
@@ -3732,6 +3804,10 @@ namespace TwainDirect.Certification
             {
                 Console.Out.WriteLine(a_szText);
             }
+            if (m_selfcertreport != null)
+            {
+                m_selfcertreport.AddText(a_szText + Environment.NewLine);
+            }
         }
 
         /// <summary>
@@ -3752,6 +3828,10 @@ namespace TwainDirect.Certification
                 {
                     Console.Out.WriteLine(a_szText);
                 }
+            }
+            if (m_selfcertreport != null)
+            {
+                m_selfcertreport.AddText(a_szText + Environment.NewLine, false, Color.Blue);
             }
         }
 
@@ -3774,6 +3854,10 @@ namespace TwainDirect.Certification
                     Console.Out.WriteLine(a_szText);
                 }
             }
+            if (m_selfcertreport != null)
+            {
+                m_selfcertreport.AddText(a_szText + Environment.NewLine, false, Color.Green);
+            }
         }
 
         /// <summary>
@@ -3795,6 +3879,10 @@ namespace TwainDirect.Certification
                     Console.Out.WriteLine(a_szText);
                 }
             }
+            if (m_selfcertreport != null)
+            {
+                m_selfcertreport.AddText(a_szText + Environment.NewLine, false, Color.Red);
+            }
         }
 
         /// <summary>
@@ -3815,6 +3903,10 @@ namespace TwainDirect.Certification
                 {
                     Console.Out.WriteLine(a_szText);
                 }
+            }
+            if (m_selfcertreport != null)
+            {
+                m_selfcertreport.AddText(a_szText + Environment.NewLine, false, Color.DarkGoldenrod);
             }
         }
 
@@ -3881,6 +3973,11 @@ namespace TwainDirect.Certification
                 {
                     m_autoreseteventScannerslist.Dispose();
                     m_autoreseteventScannerslist = null;
+                }
+                if (m_selfcertreport != null)
+                {
+                    m_selfcertreport.Dispose();
+                    m_selfcertreport = null;
                 }
             }
         }
@@ -4070,6 +4167,8 @@ namespace TwainDirect.Certification
                         || szSymbol.StartsWith("${hdrthumbnailvalue:")
                         || szSymbol.StartsWith("${txt:")
                         || szSymbol.StartsWith("${txtx:")
+                        || szSymbol.StartsWith("${program:")
+                        || szSymbol.StartsWith("${report:")
                         || szSymbol.StartsWith("${localtime:"))
                     {
                         int iSymbolIndexLeft = szSymbol.IndexOf(":") + 1;
@@ -4272,18 +4371,48 @@ namespace TwainDirect.Certification
                         if ((m_lcallstack != null) && (m_lcallstack.Count > 0))
                         {
                             string szTarget = szSymbol.Substring(0, szSymbol.Length - 1).Substring(6);
-                            callstack = m_lcallstack[m_lcallstack.Count - 1];
+                            // If we have an index, use it to find our callstack.  As a general rule
+                            // the only 'safe' index to use is 0, since that'll point to the last
+                            // command entered by the user.  But fancier stuff is possible...
+                            if (szTarget.Contains("."))
+                            {
+                                // Use the index info to get the right data...
+                                int iIndex;
+                                string szIndex = szTarget.Remove(szTarget.IndexOf("."));
+                                if (int.TryParse(szIndex, out iIndex))
+                                {
+                                    iIndex += 1; // so we can have an index origin at 0...
+                                    if (iIndex < 1)
+                                    {
+                                        iIndex = 1;
+                                    }
+                                    else if (iIndex >= m_lcallstack.Count)
+                                    {
+                                        iIndex = m_lcallstack.Count - 1;
+                                    }
+                                }
+                                callstack = m_lcallstack[iIndex];
+                                // Ditch the index info...
+                                szTarget = szTarget.Substring(szTarget.IndexOf(".") + 1);
+                            }
+                            // Use the top of the stack...
+                            else
+                            {
+                                callstack = m_lcallstack[m_lcallstack.Count - 1];
+                            }
+                            // Return the number of arguments, wherever we ended up...
                             if (szTarget == "#")
                             {
                                 // Needs to be -2 to remove "call xxx" or "run xxx" from count...
                                 szValue = (callstack.functionarguments.aszCmd.Length - 2).ToString();
                             }
+                            // Return the requested argument, wherever we ended up, -1 gets the command...
                             else
                             {
                                 int iIndex;
-                                if (int.TryParse(szSymbol.Substring(0, szSymbol.Length - 1).Substring(6), out iIndex))
+                                if (int.TryParse(szTarget, out iIndex))
                                 {
-                                    if ((callstack.functionarguments.aszCmd != null) && (iIndex >= 0) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
+                                    if ((callstack.functionarguments.aszCmd != null) && (iIndex >= -1) && ((iIndex + 1) < callstack.functionarguments.aszCmd.Length))
                                     {
                                         szValue = callstack.functionarguments.aszCmd[iIndex + 1];
                                     }
@@ -4399,6 +4528,33 @@ namespace TwainDirect.Certification
                         catch
                         {
                             szValue = datetime.ToString();
+                        }
+                    }
+
+                    // Get the program, version, and machine word size (meant for display only)...
+                    else if (szSymbol.StartsWith("${program:"))
+                    {
+                        Assembly assembly = typeof(Terminal).Assembly;
+                        AssemblyName assemblyname = assembly.GetName();
+                        Version version = assemblyname.Version;
+                        DateTime datetime = new DateTime(2000, 1, 1).AddDays(version.Build).AddSeconds(version.MinorRevision * 2);
+                        szValue = assemblyname.Name +" v" + version.Major + "." + version.Minor + " " + datetime.Day + "-" + datetime.ToString("MMM") + "-" + datetime.Year + " " + ((IntPtr.Size == 4) ? "(32-bit)" : "(64-bit)");
+                    }
+
+                    // Full path to the self cert report (meant for display only)...
+                    else if (szSymbol.StartsWith("${report:"))
+                    {
+                        if (string.IsNullOrEmpty(m_szSelfCertReportPath))
+                        {
+                            szValue = "(self cert file not specified)";
+                        }
+                        else if (!File.Exists(m_szSelfCertReportPath))
+                        {
+                            szValue = m_szSelfCertReportPath + " (not found)";
+                        }
+                        else
+                        {
+                            szValue = m_szSelfCertReportPath;
                         }
                     }
 
@@ -4542,10 +4698,10 @@ namespace TwainDirect.Certification
     // Private Attributes
     #region Private Attributes
 
-    /// <summary>
-    /// Map commands to functions...
-    /// </summary>
-    private List<Interpreter.DispatchTable> m_ldispatchtable;
+        /// <summary>
+        /// Map commands to functions...
+        /// </summary>
+        private List<Interpreter.DispatchTable> m_ldispatchtable;
 
         /// <summary>
         /// Our console input...embiggened...
@@ -4625,6 +4781,161 @@ namespace TwainDirect.Certification
         /// </summary>
         private FormMain m_formmain;
 
+        /// <summary>
+        /// Our report object...
+        /// </summary>
+        private SelfCertReport m_selfcertreport;
+
+        /// <summary>
+        /// Full path to the self cert report...
+        /// </summary>
+        private string m_szSelfCertReportPath;
+
         #endregion
     }
+
+
+
+    /// <summary>
+    /// Something to help with generating the self certification report...
+    /// </summary>
+    internal sealed class SelfCertReport : IDisposable
+    {
+        /// <summary>
+        /// Initialize us...
+        /// </summary>
+        public SelfCertReport()
+        {
+            m_richtextboxSelfCertReport = new RichTextBox();
+            m_fontNormal = new Font("Courier New", 8, FontStyle.Regular);
+            m_fontBold = new Font("Courier New", 8, FontStyle.Bold | FontStyle.Underline);
+        }
+
+        /// <summary>
+        /// Destructor...
+        /// </summary>
+        ~SelfCertReport()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        public void AddText
+        (
+            string a_szText,
+            bool a_blFontBold = false,
+            Color? a_color = null
+        )
+        {
+            // Let us be called from any thread...
+            if (m_richtextboxSelfCertReport.InvokeRequired)
+            {
+                m_richtextboxSelfCertReport.Invoke(new MethodInvoker(delegate () { AddText(a_szText, a_blFontBold, a_color); }));
+                return;
+            }
+
+            // Do the work...
+            m_richtextboxSelfCertReport.SelectionColor = (a_color ?? Color.Black);
+            m_richtextboxSelfCertReport.SelectionFont = (a_blFontBold ? m_fontBold : m_fontNormal);
+            m_richtextboxSelfCertReport.SelectedText = a_szText;
+            m_richtextboxSelfCertReport.SelectionColor = Color.Black;
+        }
+
+        public void ClearText()
+        {
+            // Let us be called from any thread...
+            if (m_richtextboxSelfCertReport.InvokeRequired)
+            {
+                m_richtextboxSelfCertReport.Invoke(new MethodInvoker(delegate () { ClearText(); }));
+                return;
+            }
+
+            // Do the work...
+            m_richtextboxSelfCertReport.Clear();
+        }
+
+        public void SaveFile(string a_szSelfCertReportFile)
+        {
+            // Let us be called from any thread...
+            if (m_richtextboxSelfCertReport.InvokeRequired)
+            {
+                m_richtextboxSelfCertReport.Invoke(new MethodInvoker(delegate () { SaveFile(a_szSelfCertReportFile); }));
+                return;
+            }
+
+            // Do the work...
+            try
+            {
+                // Get the file...
+                m_richtextboxSelfCertReport.SaveFile(a_szSelfCertReportFile, RichTextBoxStreamType.RichText);
+
+                // Flip it to landscape...
+                string szRtf = File.ReadAllText(a_szSelfCertReportFile);
+                int iIndex = szRtf.IndexOf("{\\colortbl");
+                iIndex = szRtf.IndexOf("\r\n", iIndex);
+                szRtf = szRtf.Insert
+                (
+                    iIndex + 2,
+                    "\\landscape\r\n" +
+                    "\\paperw15840\\paperh12240\\margl720\\margr720\\margt720\\margb720\r\n" +
+                    "\\tx720\\tx1440\\tx2880\\tx5760"
+                );
+                File.WriteAllText(a_szSelfCertReportFile, szRtf);
+            }
+            catch
+            {
+            }
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        /// <param name="a_blDisposing">true if we need to clean up managed resources</param>
+        internal void Dispose(bool a_blDisposing)
+        {
+            // Free managed resources...
+            if (a_blDisposing)
+            {
+                if (m_fontNormal != null)
+                {
+                    m_fontNormal.Dispose();
+                    m_fontNormal = null;
+                }
+                if (m_fontBold != null)
+                {
+                    m_fontBold.Dispose();
+                    m_fontBold = null;
+                }
+                if (m_richtextboxSelfCertReport != null)
+                {
+                    m_richtextboxSelfCertReport.Dispose();
+                    m_richtextboxSelfCertReport = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Used for our self-cert report...
+        /// </summary>
+        private RichTextBox m_richtextboxSelfCertReport;
+
+        /// <summary>
+        /// Our normal font...
+        /// </summary>
+        private Font m_fontNormal;
+
+        /// <summary>
+        /// Our bold font...
+        /// </summary>
+        private Font m_fontBold;
+    }
+
 }

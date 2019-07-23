@@ -1,5 +1,5 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TWAIN Local Certification
+; TWAIN Local Certification Script
 ; This runs all of the tests needed to pass certification for TWAIN Local.
 ;
 ; Arguments
@@ -16,11 +16,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Run all of our tests, start by assuming success...
 ;
-echo 'TWAIN Local Certification v1.0 15-Sep-2017'
-echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+report initialize
+echo 'TWAIN Local Certification Script v1.0 15-Sep-2017'
+echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+echo 'program is ${program:}'
+echo 'started at ${localtime:yyyy-MM-dd/hh:mm:ss}'
 log info '#TWAIN Direct Certification v1.0 15-Sep-2017'
 log info '#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-echo
+log info '#program=${program:}'
+log info '#localtime=${localtime:yyyy-MM-dd/hh:mm:ss}'
 set certifyresulttwainlocal pass
 call CERTIFY 'Discovery' '${arg:1}'
 call CERTIFY 'Critical' '${arg:1}'
@@ -36,24 +40,36 @@ call CERTIFY 'SessionTimedOut' '${arg:1}'
 ;
 if '${get:certifyresulttwainlocal}' != 'pass' goto MAIN.FAIL
 echo
-echo '*********************************************'
-echo 'The scanner passed TWAIN Local Certification'
-echo '*********************************************'
+echo
+echo 'ended at ${localtime:yyyy-MM-dd/hh:mm:ss}'
+echo.green '*********************************************'
+echo.green 'The scanner passed TWAIN Local Certification'
+echo.green '*********************************************'
 log info '#'
+log info '#'
+log info '#localtime=${localtime:yyyy-MM-dd/hh:mm:ss}'
 log info '#*********************************************'
 log info '#The scanner passed TWAIN Local Certification'
 log info '#*********************************************'
+report save "TWAIN Local Self Certification.rtf"
+echo 'report saved to ${report:}'
 return 'pass'
 ;
 :MAIN.FAIL
 echo
-echo '***************************************************'
-echo 'The scanner did not pass TWAIN Local Certification'
-echo '***************************************************'
+echo
+echo 'ended at ${localtime:yyyy-MM-dd/hh:mm:ss}'
+echo.red '***************************************************'
+echo.red 'The scanner did not pass TWAIN Local Certification'
+echo.red '***************************************************'
 log info '#'
-log info '#***************************************************'
-log info '#The scanner did not pass TWAIN Localt Certification'
-log info '#***************************************************'
+log info '#'
+log info '#localtime=${localtime:yyyy-MM-dd/hh:mm:ss}'
+log error '#***************************************************'
+log error '#The scanner did not pass TWAIN Localt Certification'
+log error '#***************************************************'
+report save "TWAIN Local Self Certification.rtf"
+echo 'report saved to ${report:}'
 return 'fail'
 
 
