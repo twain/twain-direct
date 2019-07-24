@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?include Details.wxi ?>
+  
+  <Fragment>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)">
+          <Component Id="applicationShortcut" Guid="{D5E2BA02-109A-4608-9108-9A76B01A6528}">
+            <Shortcut Id="ApplicationStartMenuShortcut"
+                      Name="$(var.ProductName)"
+                      Description="$(var.ProductName)"
+                      Target="[!TwainDirect.Certification.exe]"
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon ="twain.ico" />
+            <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
+            <RegistryValue Root="HKCU" Key="Software\$(var.Manufacturer)\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+
+      <Directory Id="$(var.PlatformProgramFilesFolder)">
+        <Directory Id="INSTALLFOLDER" Name="TWAIN Direct Certification">
+
+          <Component Id="HazyBits.Twain.Cloud.dll" Guid="{AD79632B-A2EF-4D5B-B321-D9137C14CF7E}">
+            <File Id="HazyBits.Twain.Cloud.dll" Source="$(var.TwainDirect.Certification.TargetDir)\HazyBits.Twain.Cloud.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="HazyBits.Twain.Cloud.Forms.dll" Guid="{88247762-61CE-4CFF-B188-802791560737}">
+            <File Id="HazyBits.Twain.Cloud.Forms.dll" Source="$(var.TwainDirect.Certification.TargetDir)\HazyBits.Twain.Cloud.Forms.dll" KeyPath="yes" />
+          </Component>
+
+          <?if $(var.Platform) = x64 ?>
+          <Component Id="libcrypto_1_1.dll" Guid="{1C4D9168-E6AC-4BF0-864E-4EE85B2398DF}">
+            <File Id="libcrypto_1_1_x64.dll" Source="$(var.TwainDirect.Certification.TargetDir)\libcrypto-1_1-x64.dll" KeyPath="yes" />
+          </Component>
+          <?else ?>
+          <Component Id="libcrypto_1_1.dll" Guid="{E75DD4FD-4CA5-49C6-BA91-D4AE8175CD78}">
+            <File Id="libcrypto_1_1.dll" Source="$(var.TwainDirect.Certification.TargetDir)\libcrypto-1_1.dll" KeyPath="yes" />
+          </Component>
+          <?endif ?>
+
+          <?if $(var.Platform) = x64 ?>
+          <Component Id="libssl_1_1.dll" Guid="{574682C1-03D1-4D31-ACDB-572337B56AE0}">
+            <File Id="libssl_1_1_x64.dll" Source="$(var.TwainDirect.Certification.TargetDir)\libssl-1_1-x64.dll" KeyPath="yes" />
+          </Component>
+          <?else ?>
+          <Component Id="libssl_1_1.dll" Guid="{D292C1C8-9F65-45ED-8895-387B30EB73BC}">
+            <File Id="libssl_1_1.dll" Source="$(var.TwainDirect.Certification.TargetDir)\libssl-1_1.dll" KeyPath="yes" />
+          </Component>
+          <?endif ?>
+
+          <Component Id="MQTTnet.dll" Guid="{67B85E7D-4351-4FF6-AFB8-1D0E181255E0}">
+            <File Id="MQTTnet.dll" Source="$(var.TwainDirect.Certification.TargetDir)\MQTTnet.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="Newtonsoft.Json.dll" Guid="{C343F2C0-CBA1-4DA4-8043-7B3F82D59B5C}">
+            <File Id="Newtonsoft.Json.dll" Source="$(var.TwainDirect.Certification.TargetDir)\Newtonsoft.Json.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_digitalsignature.dll" Guid="{43F461B7-1995-4D09-A2D2-757DA39DC58F}">
+            <File Id="pdfras_digitalsignature.dll" Source="$(var.TwainDirect.Certification.TargetDir)\pdfras_digitalsignature.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_encryption.dll" Guid="{706F2114-B6FE-4328-A4E3-CC3A3999E623}">
+            <File Id="pdfras_encryption.dll" Source="$(var.TwainDirect.Certification.TargetDir)\pdfras_encryption.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_reader_managed.dll" Guid="{0361A844-9D87-4C80-B95A-C4700729A77B}">
+            <File Id="pdfras_reader_managed.dll" Source="$(var.TwainDirect.Certification.TargetDir)\pdfras_reader_managed.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="pdfras_writer_managed.dll" Guid="{93A258D4-F2E7-4491-8087-AFCBC9A7BD04}">
+            <File Id="pdfras_writer_managed.dll" Source="$(var.TwainDirect.Certification.TargetDir)\pdfras_writer_managed.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="System.Net.Http.Formatting.dll" Guid="{AEFEEE4F-EDC3-4AB2-80FA-264DE3FF92F4}">
+            <File Id="System.Net.Http.Formatting.dll" Source="$(var.TwainDirect.Certification.TargetDir)\System.Net.Http.Formatting.dll" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Certification.exe" Guid="{04DB062C-B85F-491A-8A19-635CDF8970DD}">
+            <File Id="TwainDirect.Certification.exe" Source="$(var.TwainDirect.Certification.TargetDir)\TwainDirect.Certification.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Certification.exe.config" Guid="{D3FAD221-C040-4C7D-882A-5AD6325B1483}">
+            <File Id="TwainDirect.Certification.exe.config" Source="$(var.TwainDirect.Certification.TargetDir)\TwainDirect.Certification.exe.config" KeyPath="yes" />
+          </Component>
+
+          <Component Id="TwainDirect.Support.dll" Guid="{0D2E9583-2205-4413-82CC-55D897B6369A}">
+            <File Id="TwainDirect.Support.dll" Source="$(var.TwainDirect.Certification.TargetDir)\TwainDirect.Support.dll" KeyPath="yes" />
+          </Component>
+
+          <?if $(var.Platform) = x64 ?>
+          <Component Id="vcruntime140.dll" Guid="{97D60500-F26C-4BD6-8881-E22F9D166CE7}">
+            <File Id="vcruntime140.dll.x64" Source="$(var.LibFolder)\Runtime\x64\vcruntime140.dll" KeyPath="yes" />
+          </Component>
+          <?else ?>
+          <Component Id="vcruntime140.dll" Guid="{0B82614C-A715-47DA-978C-4663BB739B5F}">
+            <File Id="vcruntime140.dll.x86" Source="$(var.LibFolder)\Runtime\x86\vcruntime140.dll" KeyPath="yes" />
+          </Component>
+          <?endif ?>
+
+          <Component Id="VC_redist.x64.exe" Guid="{8C7B5ABF-59CF-4629-876B-82534E5F79B9}">
+            <File Id="VC_redist.x64.exe" Source="$(var.LibFolder)\Runtime\x64\VC_redist.x64.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="VC_redist.x86.exe" Guid="{E0FF4EE3-80A8-47A0-A741-37AE215CA0A2}">
+            <File Id="VC_redist.x86.exe" Source="$(var.LibFolder)\Runtime\x86\VC_redist.x86.exe" KeyPath="yes" />
+          </Component>
+
+        </Directory>
+      </Directory>
+    </Directory>
+    
+	</Fragment>
+</Wix>

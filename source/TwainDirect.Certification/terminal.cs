@@ -1406,6 +1406,11 @@ namespace TwainDirect.Certification
             {
                 Display(m_szBanner);
                 Display("");
+                DisplayRed("Overview");
+                Display("help intro...................................introduction to this program");
+                Display("help certification...........................certifying a scanner");
+                Display("help scripting...............................general discussion of scripting");
+                Display("");
                 DisplayRed("Discovery and Selection");
                 Display("help [command]...............................this text or info about a command");
                 Display("list.........................................list scanners");
@@ -1431,7 +1436,6 @@ namespace TwainDirect.Certification
                 Display("closeSession.................................close the current session");
                 Display("");
                 DisplayRed("Scripting");
-                Display("help scripting...............................general discussion");
                 Display("call {label}.................................call function");
                 Display("cd [path]....................................shows or sets the current directory");
                 Display("checkpdfraster [path]........................validate PDF/raster files");
@@ -1456,6 +1460,171 @@ namespace TwainDirect.Certification
 
             // Get the command...
             szCommand = a_functionarguments.aszCmd[1].ToLower();
+
+            // Overview
+            #region Overview
+
+            // Scripting...
+            if ((szCommand == "intro"))
+            {
+                /////////0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+                DisplayRed("INTRODUCTION TO THIS PROGRAM");
+                Display("The TWAIN Direct Certification program is an interpreter that interacts with TWAIN Direct");
+                Display("scanners.  It's main purpose is to run certification scripts testing compliance with the");
+                Display("TWAIN Direct Specification.  It can also be used to test individual TWAIN Direct commands");
+                Display("with a high degree of granularity.  At this writing (2017-07-24) the only way to change");
+                Display("which cloud will is used is by renaming the TwainDirect.Certification.appdata.installed.txt");
+                Display("file to be TwainDirect.Certification.appdata.txt, and edit the 'cloudApiRoot' property.");
+                Display("");
+                Display("For help with scripting enter 'help scripting'.  It will also be instructive to look at the");
+                Display("certification scripts, which are extensive, and exercise most of this program's features.");
+                Display("");
+                Display("For information about certifying scanners enter 'help certification'.");
+                Display("");
+                Display("Commands that may be of special interest are (use help for more info):");
+                Display("  signin - sign in to the cloud indicated in TwainDirect.Certification.appdata.txt");
+                Display("  list - list the available TWAIN Local and TWAIN Cloud scanners");
+                Display("  select - select a TWAIN Cloud or a TWAIN Local scanner");
+                Display("  infoex - report information about the selected scanner");
+                Display("  createSession - connect to the selected scanner");
+                Display("  closeSession - disconnect from the selected scanner");
+                Display("  quit - exit from this program");
+                Display("  cd - change the current folder");
+                Display("  run [script] - with no arguments lists scripts, or run a script");
+                return (false);
+            }
+
+            // Scripting...
+            if ((szCommand == "certification"))
+            {
+                /////////0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+                DisplayRed("CERTIFYING A SCANNER");
+                Display("Certification is accomplished using scripts contained in the data/certification folder.  These");
+                Display("need to be run for the protocols supported by the scanner (TWAIN Local, TWAIN Cloud, or both).");
+                Display("");
+                Display("The following commands can be used to locate the scanner, and run certification:");
+                Display("  signin - signs in to TWAIN Cloud");
+                Display("  list - list available TWAIN Local and TWAIN Cloud scanners");
+                Display("  cd data/certification - change to the certification folder");
+                Display("  run certification \"protocol:scanner\"");
+                Display("    where protocol is one of the following:");
+                Display("      signin - for TWAIN Cloud");
+                Display("      local - for TWAIN Local");
+                Display("    and where scanner is the unique name of the scanner shown by the list command");
+                return (false);
+            }
+
+            // Scripting...
+            if ((szCommand == "scripting"))
+            {
+                /////////0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+                DisplayRed("GENERAL DISCUSSION OF SCRIPTING");
+                Display("The TWAIN Direct Certification program is designed to test scanners.  It looks at HTTP header");
+                Display("information, JSONS payloads, and image data.  It's script based to make it easier to manage the");
+                Display("tests.  Users can create and run their own tests, such as extracting key items from an existing");
+                Display("test to make it easier to debug.");
+                Display("");
+                Display("The 'language' is not sophisticated.  It supports a goto, a conditional goto, and a call");
+                Display("function.  The set and increment commands manage variables.  All of the TWAIN Direct calls are");
+                Display("accessible, including some extras used to stress the system.  The semicolon ';' is the comment");
+                Display("indicator.  At this time it must appear on a line by itself.");
+                Display("");
+                Display("The most interesting part of the scripting support is variable expansion.  Variables take the");
+                Display("form ${source:target} with the following available sources:");
+                Display("");
+                Display("  '${arg:[index.]target}'");
+                Display("  Expands an argument argument to run, runv, or call.  A target of 0 is the name of the script");
+                Display("  or label; 1 - n accesses the rest of the arguments.  An index can be specified to access any");
+                Display("  command in the stack, but only 0 is recommended to look at the last user command.");
+                Display("");
+                Display("  '${ej:target}'");
+                Display("  Accesses the JSON contents of the last event.  For instance, ${ej:results.success} returns a");
+                Display("  value of true or false for the last event, or an empty string if communication failed.  If");
+                Display("  the target is #, then it expands to the number of UTF-8 bytes in the JSON payload.  If the");
+                Display("  value can't be found it expands to an empty string.  Use this in the WAITFOREVENTS script.");
+                Display("");
+                Display("  '${ejx:target}'");
+                Display("  Works like ${ej:target}, but if the target can't be found it expands to '(null)'.  Use this");
+                Display("  in the WAITFOREVENTS script.");
+                Display("");
+                Display("  '${ests:}'");
+                Display("  The HTTP status from the last waitForEvents command.  Use this in the WAITFOREVENTS script.");
+                Display("");
+                Display("  '${get:target}'");
+                Display("  The value last assigned to the target using the set command.");
+                Display("");
+                Display("  '${hdrkey:target}'");
+                Display("  Accesses the header keys in the response from the last command.  Target can be # for the number");
+                Display("  of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrvalue:target}'");
+                Display("  Accesses the header values in the response from the last command.  Target can be # for the number");
+                Display("  of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrjsonkey:target}'");
+                Display("  Accesses the header keys in the JSON multipart response from the last command.  Target can be #");
+                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrjsonvalue:target}'");
+                Display("  Accesses the header values in the JSON multipart response from the last command.  Target can be #");
+                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrimagekey:target}'");
+                Display("  Accesses the header keys in the image multipart response from the last command.  Target can be #");
+                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrimagevalue:target}'");
+                Display("  Accesses the header values in the image multipart response from the last command.  Target can be");
+                Display("  # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
+                Display("");
+                Display("  '${hdrthumbnailkey:target}'");
+                Display("  Accesses the header keys in the thumbnail multipart response from the last command.  Target can");
+                Display("  be # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular");
+                Display("  header.");
+                Display("");
+                Display("  '${hdrthumbnailvalue:target}'");
+                Display("  Accesses the header values in the thumbnail multipart response from the last command.  Target");
+                Display("  can be # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular");
+                Display("  header.");
+                Display("");
+                Display("  '${localtime:[format]}'");
+                Display("  Returns the current local time using the DateTime format.");
+                Display("");
+                Display("  '${program:}'");
+                Display("  Gets the name of the program running this script, its version, date, and machine word size.");
+                Display("");
+                Display("  '${report:}'");
+                Display("  Full path to the generated self certification report (after 'report save command').");
+                Display("");
+                Display("  '${ret:}'");
+                Display("  The value supplied to the return command that ended the last run, runv, or call.  It's also");
+                Display("  used by the WAITFORSESSIONUPDATE command.");
+                Display("");
+                Display("  '${rj:target}'");
+                Display("  Accesses the JSON contents of the last command.  For instance, ${rj:results.success} returns a");
+                Display("  value of true or false for the last command, or an empty string if communication failed.  If");
+                Display("  the target is #, then it expands to the number of UTF-8 bytes in the JSON payload.  If the");
+                Display("  value can't be found it expands to an empty string.");
+                Display("");
+                Display("  '${rjx:target}'");
+                Display("  Works like ${rj:target}, but if the target can't be found it expands to '(null)'");
+                Display("");
+                Display("  '${rsts:}'");
+                Display("  The HTTP status from the last command.");
+                Display("");
+                Display("  '${txt:target}'");
+                Display("  Access the mDNS TXT fields.  If a target can't be found, it expands to an empty string.");
+                Display("");
+                Display("  '${txtx:target}'");
+                Display("  Works like ${txt:target}, but if the target can't be found it expands to '(null)'");
+                Display("");
+                Display("Note that some tricks are allowed, one can do ${hdrkey:${get:index}}, using the set and increment");
+                Display("increment commands to enumerate through all of the header keys.  Or ${rj:${arg:1}} to pass a JSON");
+                Display("key into a function.");
+                return (false);
+            }
+
+            #endregion
 
             // Discovery and Selection
             #region Discovery and Selection
@@ -1661,116 +1830,6 @@ namespace TwainDirect.Certification
 
             // Scripting
             #region Scripting
-
-            // Scripting...
-            if ((szCommand == "scripting"))
-            {
-                /////////0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
-                DisplayRed("GENERAL DISCUSSION OF SCRIPTING");
-                Display("The TWAIN Direct Certification program is designed to test scanners and applications.  It looks");
-                Display("at header information, JSONS payloads, and image data.  It's script based to make it easier to");
-                Display("manage the tests.  Users can create and run their own tests, such as extracting key items from an");
-                Display("existing test to make it easier to debug.");
-                Display("");
-                Display("The 'language' is not sophisticated.  It supports a goto, a conditional goto, and a call");
-                Display("function.  The set and increment commands manage variables.  All of the TWAIN Direct calls are");
-                Display("accessible, including some extras used to stress the system.  The semicolon ';' is the comment");
-                Display("indicator.  At this time it must appear on a line by itself.");
-                Display("");
-                Display("The most interesting part of the scripting support is variable expansion.  Variables take the");
-                Display("form ${source:target} with the following available sources:");
-                Display("");
-                Display("  '${arg:[index.]target}'");
-                Display("  Expands an argument argument to run, runv, or call.  A target of 0 is the name of the script");
-                Display("  or label; 1 - n accesses the rest of the arguments.  An index can be specified to access any");
-                Display("  command in the stack, but only 0 is recommended to look at the last user command.");
-                Display("");
-                Display("  '${ej:target}'");
-                Display("  Accesses the JSON contents of the last event.  For instance, ${ej:results.success} returns a");
-                Display("  value of true or false for the last event, or an empty string if communication failed.  If");
-                Display("  the target is #, then it expands to the number of UTF-8 bytes in the JSON payload.  If the");
-                Display("  value can't be found it expands to an empty string.  Use this in the WAITFOREVENTS script.");
-                Display("");
-                Display("  '${ejx:target}'");
-                Display("  Works like ${ej:target}, but if the target can't be found it expands to '(null)'.  Use this");
-                Display("  in the WAITFOREVENTS script.");
-                Display("");
-                Display("  '${ests:}'");
-                Display("  The HTTP status from the last waitForEvents command.  Use this in the WAITFOREVENTS script.");
-                Display("");
-                Display("  '${get:target}'");
-                Display("  The value last assigned to the target using the set command.");
-                Display("");
-                Display("  '${hdrkey:target}'");
-                Display("  Accesses the header keys in the response from the last command.  Target can be # for the number");
-                Display("  of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
-                Display("");
-                Display("  '${hdrvalue:target}'");
-                Display("  Accesses the header values in the response from the last command.  Target can be # for the number");
-                Display("  of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
-                Display("");
-                Display("  '${hdrjsonkey:target}'");
-                Display("  Accesses the header keys in the JSON multipart response from the last command.  Target can be #");
-                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
-                Display("");
-                Display("  '${hdrjsonvalue:target}'");
-                Display("  Accesses the header values in the JSON multipart response from the last command.  Target can be #");
-                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
-                Display("");
-                Display("  '${hdrimagekey:target}'");
-                Display("  Accesses the header keys in the image multipart response from the last command.  Target can be #");
-                Display("  for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
-                Display("");
-                Display("  '${hdrimagevalue:target}'");
-                Display("  Accesses the header values in the image multipart response from the last command.  Target can be");
-                Display("  # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular header.");
-                Display("");
-                Display("  '${hdrthumbnailkey:target}'");
-                Display("  Accesses the header keys in the thumbnail multipart response from the last command.  Target can");
-                Display("  be # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular");
-                Display("  header.");
-                Display("");
-                Display("  '${hdrthumbnailvalue:target}'");
-                Display("  Accesses the header values in the thumbnail multipart response from the last command.  Target");
-                Display("  can be # for the number of headers, or a value from 0 - (${hdrkey:#} - 1) to access a particular");
-                Display("  header.");
-                Display("");
-                Display("  '${localtime:[format]}'");
-                Display("  Returns the current local time using the DateTime format.");
-                Display("");
-                Display("  '${program:}'");
-                Display("  Gets the name of the program running this script, its version, date, and machine word size.");
-                Display("");
-                Display("  '${report:}'");
-                Display("  Full path to the generated self certification report (after 'report save command').");
-                Display("");
-                Display("  '${ret:}'");
-                Display("  The value supplied to the return command that ended the last run, runv, or call.  It's also");
-                Display("  used by the WAITFORSESSIONUPDATE command.");
-                Display("");
-                Display("  '${rj:target}'");
-                Display("  Accesses the JSON contents of the last command.  For instance, ${rj:results.success} returns a");
-                Display("  value of true or false for the last command, or an empty string if communication failed.  If");
-                Display("  the target is #, then it expands to the number of UTF-8 bytes in the JSON payload.  If the");
-                Display("  value can't be found it expands to an empty string.");
-                Display("");
-                Display("  '${rjx:target}'");
-                Display("  Works like ${rj:target}, but if the target can't be found it expands to '(null)'");
-                Display("");
-                Display("  '${rsts:}'");
-                Display("  The HTTP status from the last command.");
-                Display("");
-                Display("  '${txt:target}'");
-                Display("  Access the mDNS TXT fields.  If a target can't be found, it expands to an empty string.");
-                Display("");
-                Display("  '${txtx:target}'");
-                Display("  Works like ${txt:target}, but if the target can't be found it expands to '(null)'");
-                Display("");
-                Display("Note that some tricks are allowed, one can do ${hdrkey:${get:index}}, using the set and increment");
-                Display("increment commands to enumerate through all of the header keys.  Or ${rj:${arg:1}} to pass a JSON");
-                Display("key into a function.");
-                return (false);
-            }
 
             // Call...
             if ((szCommand == "call"))

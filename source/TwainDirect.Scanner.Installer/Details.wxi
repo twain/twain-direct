@@ -32,7 +32,7 @@
   this version info when doing version updates)
   -->
   <?define MajorVersion="1" ?>
-  <?define MinorVersion="12" ?>
+  <?define MinorVersion="13" ?>
   <?define BuildVersion="0" ?>
   <?define Revision="0" ?>
 

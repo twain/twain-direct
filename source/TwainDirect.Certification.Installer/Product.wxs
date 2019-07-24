@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?include Details.wxi ?>
+
+  <Product Id="$(var.ProductId)"
+           Name="$(var.ProductName)"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="$(var.Manufacturer)"
+           UpgradeCode="$(var.UpgradeCode)">
+
+    <Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine" />
+    <Media Id="1" Cabinet="twaindirect.certification.cab" EmbedCab="yes" />
+    <Icon Id="twain.ico" SourceFile="$(var.ProductIcon)" />
+
+    <Property Id="ARPPRODUCTICON" Value="twain.ico" />
+    <Property Id="ARPHELPLINK" Value="$(var.SupportUrl)" />
+
+    <MajorUpgrade DowngradeErrorMessage="!(loc.Error.DowngradeMessage)" />
+  
+    <Feature Id="ProductFeature" Title="TwainDirectProxy.Installer" Level="1">
+      <ComponentRef Id="applicationShortcut"/>
+
+      <ComponentRef Id="TwainDirect.Certification.exe"/>
+      <ComponentRef Id="TwainDirect.Certification.exe.config"/>
+      <ComponentRef Id="TwainDirect.Support.dll"/>
+
+      <ComponentRef Id="HazyBits.Twain.Cloud.dll"/>
+      <ComponentRef Id="HazyBits.Twain.Cloud.Forms.dll"/>
+      <ComponentRef Id="MQTTnet.dll"/>
+      <ComponentRef Id="Newtonsoft.Json.dll"/>
+      <ComponentRef Id="System.Net.Http.Formatting.dll"/>
+
+      <ComponentRef Id="pdfras_reader_managed.dll"/>
+      <ComponentRef Id="pdfras_writer_managed.dll"/>
+      <ComponentRef Id="pdfras_digitalsignature.dll"/>
+      <ComponentRef Id="pdfras_encryption.dll"/>
+      <ComponentRef Id="libcrypto_1_1.dll"/>
+      <ComponentRef Id="libssl_1_1.dll"/>
+
+      <ComponentRef Id="vcruntime140.dll"/>
+      <ComponentRef Id="VC_redist.x86.exe"/>
+      <ComponentRef Id="VC_redist.x64.exe"/>
+
+      <!-- Resource files -->
+      <ComponentGroupRef Id="DataFolder"/>
+
+    </Feature>
+
+    <!-- UI -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ProductBannerBitmap)" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ProductDialogBitmap)" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProductLicense)" />
+    
+    <UI>
+      <UIRef Id="WixUI_InstallDir" />
+    </UI>
+
+  </Product>
+</Wix>

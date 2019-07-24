@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include>
+
+  <?define ProductId="*" ?>
+
+  <!-- Product name as you want it to appear in Add/Remove Programs-->
+  <?if $(var.Platform) = x64 ?>
+    <?define ShortProductName = "!(loc.ApplicationName) (!(loc.Platform.x64))" ?>
+    <?define ProductName = "!(loc.ApplicationName) (!(loc.Platform.x64))" ?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?else ?>
+    <?define ShortProductName = "!(loc.ApplicationName) (!(loc.Platform.x86))" ?>
+    <?define ProductName = "!(loc.ApplicationName) (!(loc.Platform.x86))" ?>
+    <?define Win64 = "no" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?endif ?>
+  
+  <?define Manufacturer="!(loc.Manufacturer)" ?>
+  <?define SupportUrl="http://www.twain.org" ?>
+    
+  <!-- 
+    Upgrade code HAS to be the same for all updates.
+    Once you've chosen it don't change it. 
+    -->
+  <?define UpgradeCode="7CD3AF55-9C92-4426-AB8E-D804C4B09624" ?>
+  
+  <!--
+  Versioning. These have to be changed for upgrades.
+  It's not enough to just include newer files.
+  [assembly: AssemblyVersion( (this is just here to help find
+  this version info when doing version updates)
+  -->
+  <?define MajorVersion="1" ?>
+  <?define MinorVersion="13" ?>
+  <?define BuildVersion="0" ?>
+  <?define Revision="0" ?>
+
+  <!-- Full version number to display -->
+  <?if $(var.ProductVersion) = "" ?>
+    <?undef ProductVersion?>
+    <?define ProductVersion="$(var.MajorVersion).$(var.MinorVersion).$(var.BuildVersion).$(var.Revision)" ?>
+  <?endif?>
+
+  <!-- Resources -->
+  <?define LibFolder="$(var.ProjectDir)..\..\lib" ?>
+  <?define ResourceFolder="$(var.ProjectDir)..\..\common" ?>
+  <?define ProductIcon="$(var.ResourceFolder)\twain.ico" ?>
+  <?define ProductDialogBitmap="$(var.ResourceFolder)\dialog.bmp" ?>
+  <?define ProductBannerBitmap="$(var.ResourceFolder)\banner.bmp" ?>
+  <?define ProductLicense="$(var.ResourceFolder)\license.rtf" ?>
+  <?define DataFolder="$(var.ProjectDir)\..\TwainDirect.Certification\bin\$(var.Platform)\$(var.Configuration)\data" ?>
+
+</Include>
