@@ -23,9 +23,22 @@ set pdfrasterresult 'pass'
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Do the check...
+; Figure out if we are TWAIN Local or TWAIN Cloud
 ;
+if '${arg:0.1}' !~contains 'local:' goto MAIN.CHECKPDFRASTERLOCAL
+goto MAIN.CHECKPDFRASTERCLOUD
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Do the check in the image folder, cloud also checks for encryption
+;
+:MAIN.CHECKPDFRASTERLOCAL
 checkpdfraster
+goto MAIN.CHECKPDFRASTERRESULT
+:MAIN.CHECKPDFRASTERCLOUD
+checkpdfraster '' checkforencryption
+:MAIN.CHECKPDFRASTERRESULT
 set pdfrasterresult '${ret:}'
 echopassfail 'TL.PDFR.FILE.001: checkpdfraster' '${get:pdfrasterresult}'
 echopassfail 'SUMMARY' '${get:pdfrasterresult}'

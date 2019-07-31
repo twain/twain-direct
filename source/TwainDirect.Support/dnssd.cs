@@ -870,6 +870,17 @@ namespace TwainDirect.Support
             /// <returns>https flag</returns>
             public bool GetTxtHttps()
             {
+                // If we're a cloud, get the info from the cloud setting...
+                if (IsCloud())
+                {
+                    CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
+                    if (cloudinfo != null)
+                    {
+                        return (cloudinfo.szUseHttps.ToLowerInvariant() == "yes");
+                    }
+                }
+
+                // Otherwise use the local method...
                 return (m_blTxtHttps);
             }
 

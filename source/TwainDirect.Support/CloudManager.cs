@@ -13,11 +13,12 @@ namespace TwainDirect.Support
     {
         public class CloudInfo
         {
-            public CloudInfo(string a_szName, string a_szUrl, string a_szManager, string a_szFolderName, string a_szUseHttps, string a_szTwainCloudExpressFolder)
+            public CloudInfo(string a_szName, string a_szUrl, string a_szManager, string a_szSignin, string a_szFolderName, string a_szUseHttps, string a_szTwainCloudExpressFolder)
             {
                 szName = a_szName;
                 szUrl = a_szUrl;
                 szManager = a_szManager;
+                szSignin = a_szSignin;
                 szFolderName = a_szFolderName;
                 szUseHttps = a_szUseHttps;
                 szTwainCloudExpressFolder = a_szTwainCloudExpressFolder;
@@ -25,6 +26,7 @@ namespace TwainDirect.Support
             public string szName;
             public string szUrl;
             public string szManager;
+            public string szSignin;
             public string szFolderName;
             public string szUseHttps;
             public string szTwainCloudExpressFolder;
@@ -54,13 +56,13 @@ namespace TwainDirect.Support
             {
                 if (m_lcloudinfo[ii].szName == a_szCloudName)
                 {
-                    m_cloudinfoCurrent = new CloudInfo(m_lcloudinfo[ii].szName, m_lcloudinfo[ii].szUrl, m_lcloudinfo[ii].szManager, m_lcloudinfo[ii].szFolderName, m_lcloudinfo[ii].szUseHttps, m_lcloudinfo[ii].szTwainCloudExpressFolder);
+                    m_cloudinfoCurrent = new CloudInfo(m_lcloudinfo[ii].szName, m_lcloudinfo[ii].szUrl, m_lcloudinfo[ii].szManager, m_lcloudinfo[ii].szSignin, m_lcloudinfo[ii].szFolderName, m_lcloudinfo[ii].szUseHttps, m_lcloudinfo[ii].szTwainCloudExpressFolder);
                     return;
                 }
             }
 
             // No joy, so make an entry...
-            m_cloudinfoCurrent = new CloudInfo(a_szCloudName, a_szCloudName, "", "mycloud", "yes", "");
+            m_cloudinfoCurrent = new CloudInfo(a_szCloudName, a_szCloudName, "", "", "mycloud", "yes", "");
         }
 
         /// <summary>
@@ -74,7 +76,7 @@ namespace TwainDirect.Support
             {
                 return (null);
             }
-            return (new CloudInfo(m_cloudinfoCurrent.szName, m_cloudinfoCurrent.szUrl, m_cloudinfoCurrent.szManager, m_cloudinfoCurrent.szFolderName, m_cloudinfoCurrent.szUseHttps, m_cloudinfoCurrent.szTwainCloudExpressFolder));
+            return (new CloudInfo(m_cloudinfoCurrent.szName, m_cloudinfoCurrent.szUrl, m_cloudinfoCurrent.szManager, m_cloudinfoCurrent.szSignin, m_cloudinfoCurrent.szFolderName, m_cloudinfoCurrent.szUseHttps, m_cloudinfoCurrent.szTwainCloudExpressFolder));
         }
 
         /// <summary>
@@ -94,7 +96,7 @@ namespace TwainDirect.Support
             {
                 return (null);
             }
-            return (new CloudInfo(m_lcloudinfo[a_iIndex].szName, m_lcloudinfo[a_iIndex].szUrl, m_lcloudinfo[a_iIndex].szManager, m_lcloudinfo[a_iIndex].szFolderName, m_lcloudinfo[a_iIndex].szUseHttps, m_lcloudinfo[a_iIndex].szTwainCloudExpressFolder));
+            return (new CloudInfo(m_lcloudinfo[a_iIndex].szName, m_lcloudinfo[a_iIndex].szUrl, m_lcloudinfo[a_iIndex].szManager, m_lcloudinfo[a_iIndex].szSignin, m_lcloudinfo[a_iIndex].szFolderName, m_lcloudinfo[a_iIndex].szUseHttps, m_lcloudinfo[a_iIndex].szTwainCloudExpressFolder));
         }
 
         /// <summary>
@@ -116,6 +118,7 @@ namespace TwainDirect.Support
             string szCloudName;
             string szCloudUrl;
             string szCloudManager;
+            string szCloudSignin;
             string szCloudFolderName;
             string szCloudUseHttps;
             string szTwainCloudExpressFolder;
@@ -125,6 +128,7 @@ namespace TwainDirect.Support
             {
                 szCloudName = Config.Get("cloudApiRoot[" + ii + "].name", szCloudUrl);
                 szCloudManager = Config.Get("cloudApiRoot[" + ii + "].manager", "");
+                szCloudSignin = Config.Get("cloudApiRoot[" + ii + "].signin", "");
                 szCloudFolderName = Config.Get("cloudApiRoot[" + ii + "].folderName", "mycloud");
                 szCloudUseHttps = Config.Get("cloudApiRoot[" + ii + "].useHttps", Config.Get("useHttps", "yes"));
                 szTwainCloudExpressFolder = Config.Get("cloudApiRoot[" + ii + "].twainCloudExpressFolder", "");
@@ -133,19 +137,19 @@ namespace TwainDirect.Support
                     Log.Error("Unable to locate twainCloudExpressFolder, so ignoring this setting: " + szTwainCloudExpressFolder);
                     szTwainCloudExpressFolder = "";
                 }
-                m_lcloudinfo.Add(new CloudInfo(szCloudName, szCloudUrl, szCloudManager, szCloudFolderName, szCloudUseHttps, szTwainCloudExpressFolder));
+                m_lcloudinfo.Add(new CloudInfo(szCloudName, szCloudUrl, szCloudManager, szCloudSignin, szCloudFolderName, szCloudUseHttps, szTwainCloudExpressFolder));
             }
 
             // Use whatever has been baked into the app...
             if (m_lcloudinfo.Count == 0)
             {
-                m_lcloudinfo.Add(new CloudInfo(ConfigurationManager.AppSettings["CloudName"], ConfigurationManager.AppSettings["CloudApiRoot"], ConfigurationManager.AppSettings["CloudManager"], ConfigurationManager.AppSettings["CloudFolderName"], ConfigurationManager.AppSettings["CloudUseHttps"], ""));
+                m_lcloudinfo.Add(new CloudInfo(ConfigurationManager.AppSettings["CloudName"], ConfigurationManager.AppSettings["CloudApiRoot"], ConfigurationManager.AppSettings["CloudManager"], ConfigurationManager.AppSettings["CloudSignin"], ConfigurationManager.AppSettings["CloudFolderName"], ConfigurationManager.AppSettings["CloudUseHttps"], ""));
             }
 
             // Grab the first value, if the user's configured us...
             if ((m_lcloudinfo.Count > 0) && !string.IsNullOrEmpty(m_lcloudinfo[0].szUrl))
             {
-                m_cloudinfoCurrent = new CloudInfo(m_lcloudinfo[0].szName, m_lcloudinfo[0].szUrl, m_lcloudinfo[0].szManager, m_lcloudinfo[0].szFolderName, m_lcloudinfo[0].szUseHttps, m_lcloudinfo[0].szTwainCloudExpressFolder);
+                m_cloudinfoCurrent = new CloudInfo(m_lcloudinfo[0].szName, m_lcloudinfo[0].szUrl, m_lcloudinfo[0].szManager, m_lcloudinfo[0].szSignin, m_lcloudinfo[0].szFolderName, m_lcloudinfo[0].szUseHttps, m_lcloudinfo[0].szTwainCloudExpressFolder);
                 return (m_cloudinfoCurrent.szUrl);
             }
 

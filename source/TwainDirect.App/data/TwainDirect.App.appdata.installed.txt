@@ -86,6 +86,7 @@
         "  name - friendly name to show the user in dropdowns",
         "  url - endpoint for talking to the cloud",
         "  manage - web page to bring up for managing this cloud",
+        "  signin - authentication to use"
         "  folderName - name under Twain.Scanner where we keep data for this cloud",
         "  useHttps - default is 'yes', specify 'no' if using twain-cloud-express",
         " ",
@@ -96,6 +97,7 @@
             "name": "Local Cloud",
             "url": "http://localhost:3000/api",
             "manager": "http://localhost:3000",
+            "signin": "google",
             "folderName": "localcloud",
             "useHttps": "no"
         },
@@ -106,6 +108,7 @@
             "name": "HazyBits",
             "url": "https://twain.hazybits.com/api",
             "manager": "https://twain.hazybits.com",
+            "signin": "google",
             "folderName": "hazybits",
             "useHttps": "yes"
         }

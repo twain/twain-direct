@@ -123,6 +123,7 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiWaitforevents,             new string[] { "wait", "waitforevents", "waitForEvents" }));
 
             // Api commands (Cloud)...
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiCloud,                     new string[] { "cloud" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiSignin,                    new string[] { "signin" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiInvite,                    new string[] { "invite" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdApiClaim,                     new string[] { "claim" }));
@@ -158,6 +159,13 @@ namespace TwainDirect.Certification
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSleep,                        new string[] { "sleep" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdTwainlocalsession,            new string[] { "twainlocalsession" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdWaitForSessionUpdate,         new string[] { "waitforsessionupdate" }));
+
+            // First listed cloud wins for now...
+            CloudManager.CloudInfo cloudinfo = CloudManager.GetCloudInfo(0);
+            if ((cloudinfo != null) && !string.IsNullOrEmpty(cloudinfo.szName))
+            {
+                CloudManager.SetCloudApiRoot(cloudinfo.szName);
+            }
 
             // Say hi...
             Assembly assembly = typeof(Terminal).Assembly;
@@ -818,6 +826,68 @@ namespace TwainDirect.Certification
         #region Private Methods (api - Cloud)
 
         /// <summary>
+        /// Pick a cloud...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdApiCloud(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            int ii = 0;
+            CloudManager.CloudInfo cloudinfo = null;
+            CloudManager.CloudInfo cloudinfoCurrent = null;
+
+            // If no argument, list the clouds, tagging the current one...
+            if ((a_functionarguments.aszCmd.Length < 2) || string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
+            {
+                // Our current cloud...
+                cloudinfoCurrent = CloudManager.GetCurrentCloudInfo();
+
+                // List the clouds...
+                for (cloudinfo = CloudManager.GetCloudInfo(ii);
+                     cloudinfo != null;
+                     cloudinfo = CloudManager.GetCloudInfo(++ii))
+                {
+                    Display
+                    (
+                        (((cloudinfoCurrent != null) && (cloudinfo.szName == cloudinfoCurrent.szName) && (cloudinfo.szUrl == cloudinfoCurrent.szUrl)) ? "==> " : "    ") +
+                        string.Format("{0,-30}", cloudinfo.szName) +
+                        cloudinfo.szManager
+                    );
+                }
+            }
+
+            // Pick a cloud...
+            else
+            {
+                // Pick a cloud...
+                for (cloudinfo = CloudManager.GetCloudInfo(ii);
+                     cloudinfo != null;
+                     cloudinfo = CloudManager.GetCloudInfo(++ii))
+                {
+                    if (cloudinfo.szName == a_functionarguments.aszCmd[1])
+                    {
+                        CloudManager.SetCloudApiRoot(cloudinfo.szName);
+                        break;
+                    }
+                }
+                if (cloudinfo == null)
+                {
+                    DisplayError("Requested cloud not found, current selection is unchanged...");
+                }
+                cloudinfo = CloudManager.GetCurrentCloudInfo();
+                Display
+                (
+                    "==> " +
+                    string.Format("{0,-30}", cloudinfo.szName) +
+                    cloudinfo.szManager
+                );
+            }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Signin to a cloud...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -836,7 +906,13 @@ namespace TwainDirect.Certification
 
                 // Establish our provider, build the URL, and send it off...
                 case CloudImport.HazyBits:
+                    string szApiRoot = CloudManager.GetCloudApiRoot();
                     string szSigninProvider = "google";
+                    CloudManager.CloudInfo cloudinfo = CloudManager.GetCurrentCloudInfo();
+                    if ((cloudinfo != null) && !string.IsNullOrEmpty(cloudinfo.szSignin))
+                    {
+                        szSigninProvider = cloudinfo.szSignin;
+                    }
                     if ((a_functionarguments.aszCmd.Length >= 2) && !string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
                     {
                         switch (a_functionarguments.aszCmd[1])
@@ -852,7 +928,6 @@ namespace TwainDirect.Certification
                                 break;
                         }
                     }
-                    string szApiRoot = CloudManager.GetCloudApiRoot();
                     string szSigninUrl = $"{szApiRoot}/authentication/signin/" + szSigninProvider;
 
                     // Okay, sign us in...
@@ -1008,6 +1083,7 @@ namespace TwainDirect.Certification
         private bool CmdCheckpdfraster(ref Interpreter.FunctionArguments a_functionarguments)
         {
             bool blSuccess;
+            bool blCheckForEncryption = false;
             string szError = "";
             string szImagesFolder = "";
             CHECKPDFRASTERRESULT checkpdfrasterresult;
@@ -1020,7 +1096,23 @@ namespace TwainDirect.Certification
             // The user can overrride this...
             else
             {
-                szImagesFolder = a_functionarguments.aszCmd[1];
+                if (a_functionarguments.aszCmd[1] == "checkforencryption")
+                {
+                    blCheckForEncryption = true;
+                }
+                else
+                {
+                    szImagesFolder = a_functionarguments.aszCmd[1];
+                }
+            }
+
+            // Check for encryption in the second argument...
+            if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 2) && (a_functionarguments.aszCmd[2] != null))
+            {
+                if (a_functionarguments.aszCmd[2] == "checkforencryption")
+                {
+                    blCheckForEncryption = true;
+                }
             }
 
             // If we don't have an images folder, then we didn't pass
@@ -1040,7 +1132,7 @@ namespace TwainDirect.Certification
                 DirectoryInfo directoryinfo = new DirectoryInfo(szImagesFolder);
                 foreach (System.IO.FileInfo file in directoryinfo.GetFiles("*.pdf"))
                 {
-                    blSuccess = PdfRaster.ValidPdfRaster(file.FullName, out szError);
+                    blSuccess = PdfRaster.ValidPdfRaster(file.FullName, blCheckForEncryption, out szError);
                     if (blSuccess)
                     {
                         // Only keep marking as pass if we've not seen a fail...
@@ -1415,8 +1507,9 @@ namespace TwainDirect.Certification
                 Display("help [command]...............................this text or info about a command");
                 Display("list.........................................list scanners");
                 Display("quit.........................................exit the program");
+                Display("cloud........................................pick which cloud to use");
                 Display("select [cloud:|local:|signin:]{pattern}......select a cloud (signin) or local scanner");
-                Display("signin.......................................sign in to a cloud");
+                Display("signin.......................................sign in to the current cloud");
                 Display("status.......................................status of the program");
                 Display("");
                 DisplayRed("Image Capture APIs (in order of use)");
@@ -1482,7 +1575,8 @@ namespace TwainDirect.Certification
                 Display("For information about certifying scanners enter 'help certification'.");
                 Display("");
                 Display("Commands that may be of special interest are (use help for more info):");
-                Display("  signin - sign in to the cloud indicated in TwainDirect.Certification.appdata.txt");
+                Display("  cloud - pick which cloud to use");
+                Display("  signin - sign in to the currently selected cloud");
                 Display("  list - list the available TWAIN Local and TWAIN Cloud scanners");
                 Display("  select - select a TWAIN Cloud or a TWAIN Local scanner");
                 Display("  infoex - report information about the selected scanner");
@@ -1503,7 +1597,8 @@ namespace TwainDirect.Certification
                 Display("need to be run for the protocols supported by the scanner (TWAIN Local, TWAIN Cloud, or both).");
                 Display("");
                 Display("The following commands can be used to locate the scanner, and run certification:");
-                Display("  signin - signs in to TWAIN Cloud");
+                Display("  cloud - pick which cloud to use");
+                Display("  signin - signs in to current TWAIN Cloud");
                 Display("  list - list available TWAIN Local and TWAIN Cloud scanners");
                 Display("  cd data/certification - change to the certification folder");
                 Display("  run certification \"protocol:scanner\"");
@@ -1657,6 +1752,25 @@ namespace TwainDirect.Certification
             {
                 DisplayRed("QUIT");
                 Display("Exit from this program.");
+                return (false);
+            }
+
+            // Cloud...
+            if ((szCommand == "cloud"))
+            {
+                DisplayRed("CLOUD [cloud name]");
+                Display("Pick which cloud to use.  If a cloud name isn't provided then the");
+                Display("command list all of the available clouds.  The cloud names are in");
+                Display("the first column.  To manage the list of available clouds, edit the");
+                Display("cloud property in the TwainDirect.Certification.appdata.txt file.");
+                return (false);
+            }
+
+            // Cloud...
+            if ((szCommand == "signin"))
+            {
+                DisplayRed("SIGNIN");
+                Display("Sign in to the current selected cloud.");
                 return (false);
             }
 

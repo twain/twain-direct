@@ -782,11 +782,12 @@ namespace TwainDirect.Support
         /// <param name="a_szPdf">file to check</param>
         /// <param name="a_szError">text if we hit an error</param>
         /// <returns>true if it's a valid PDF/raster file</returns>
-        public static bool ValidPdfRaster(string a_szPdf, out string a_szError)
+        public static bool ValidPdfRaster(string a_szPdf, bool a_blCheckForEncryption, out string a_szError)
         {
             int iDecoder;
             byte[] abStripData;
             PdfRasterReader.Reader pdfRasRd;
+            PdfRasterReader.Reader.PdfRasterReaderSecurityType pdfrasterreadersecuritytype;
             string szFunction = "";
             string szXmpdata;
             string szXmpMetadata;
@@ -964,6 +965,23 @@ namespace TwainDirect.Support
                         return (false);
                     }
                     if ((iValidate & 0x2) != 0x2 /*DS_CERT_VERIFIED*/)
+                    {
+                        a_szError = szFunction + ": we can't validate, is the certificate in the store?";
+                        pdfRasRd.decoder_destroy(iDecoder);
+                        return (false);
+                    }
+                }
+
+                #endregion
+
+                // Check Encrption
+                #region Check Encryption
+
+                // Check for encryption, if requested...
+                if (a_blCheckForEncryption)
+                {
+                    pdfrasterreadersecuritytype = pdfRasRd.decoder_get_security_type(a_szPdf);
+                    if (pdfrasterreadersecuritytype == PdfRasterReader.Reader.PdfRasterReaderSecurityType.PDFRASREAD_UNENCRYPTED)
                     {
                         a_szError = szFunction + ": we can't validate, is the certificate in the store?";
                         pdfRasRd.decoder_destroy(iDecoder);
