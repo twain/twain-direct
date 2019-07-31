@@ -86,7 +86,7 @@
         "  name - friendly name to show the user in dropdowns",
         "  url - endpoint for talking to the cloud",
         "  manage - web page to bring up for managing this cloud",
-        "  signin - authentication to use"
+        "  signin - authentication to use",
         "  folderName - name under Twain.Scanner where we keep data for this cloud",
         "  useHttps - default is 'yes', specify 'no' if using twain-cloud-express",
         " ",
