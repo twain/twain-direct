@@ -8,6 +8,7 @@
 ; arg:2 - [OUT] set tag to first imaage block, if we have one
 ; arg:3 - state to test for
 ; arg:4 - state to test for
+; arg:5 - state to test for
 ;
 ; Locals
 ; getsessionresult - result of the test
@@ -29,7 +30,7 @@ set getsessionresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Call getSession, and check the return properties...
 ;
-call GETSESSION '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}'
+call GETSESSION '${arg:1}' '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}'
 
 
 
@@ -47,6 +48,7 @@ return '${get:getsessionresult}'
 ; arg:2 - [OUT] set tag to first imaage block, if we have one
 ; arg:3 - state to test for
 ; arg:4 - state to test for
+; arg:5 - state to test for
 ; returns pass or fail
 ;
 :GETSESSION
@@ -67,7 +69,7 @@ run 'function CheckJsonProperty' 'TL.NSCN.GETS.007' 'getsessionresult' 'results.
 run 'function CheckJsonProperty' 'TL.NSCN.GETS.008' 'getsessionresult' 'results.session'
 run 'function CheckJsonProperty' 'TL.NSCN.GETS.009' 'getsessionresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.GETS.010' 'getsessionresult' 'results.session.revision' != ''
-run 'function CheckJsonProperty' 'TL.NSCN.GETS.011' 'getsessionresult' 'results.session.state' == '${arg:3}' '${arg:4}'
+run 'function CheckJsonProperty' 'TL.NSCN.GETS.011' 'getsessionresult' 'results.session.state' == '${arg:3}' '${arg:4}' '${arg:5}'
 if '${get:getsessionresult}' != 'pass' goto GETSESSION.FAIL
 ;
 ; We're good, check if we need to output values...

@@ -3,7 +3,7 @@
 ; Go into the images folder and validate every .pdf file...
 ;
 ; Arguments
-; (none)
+; arg:1 - scanner to use
 ;
 ; Locals
 ; pdfrasterresult - result of the test
@@ -25,7 +25,7 @@ set pdfrasterresult 'pass'
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Figure out if we are TWAIN Local or TWAIN Cloud
 ;
-if '${arg:0.1}' !~contains 'local:' goto MAIN.CHECKPDFRASTERLOCAL
+if '${arg:1}' ~contains 'local:' goto MAIN.CHECKPDFRASTERLOCAL
 goto MAIN.CHECKPDFRASTERCLOUD
 
 

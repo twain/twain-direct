@@ -94,11 +94,13 @@ twainlocalsession 'create'
 '${arg:2}' '${arg:3}' '${arg:4}' '${arg:5}' '${arg:6}'
 twainlocalsession 'destroy'
 ;
-; Check the result...
+; Check the result (empty string means we had no session)...
+if '${rj:results.success}' == '' goto CHECKINVALIDSESSIONID.PASSSTATUS
 if '${rj:results.success}' != 'false' goto CHECKINVALIDSESSIONID.FAILSTATUS
 if '${rj:results.code}' != 'invalidSessionId' goto CHECKINVALIDSESSIONID.FAILCODE
 ;
 ; We're good...
+:CHECKINVALIDSESSIONID.PASSSTATUS
 echopassfail '${arg:1}: invalidSessionId ${arg:2}' 'pass'
 return 'pass'
 ;

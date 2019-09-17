@@ -197,7 +197,7 @@ if '${ret:}' != 'pass' goto MAIN.FAIL
 ; Test PDF/raster, this command goes into the images folder and
 ; validated every .pdf file...
 ;
-run 'test pdfraster'
+run 'test pdfraster' '${arg:1}'
 if '${ret:}' != 'pass' goto MAIN.FAIL
 
 

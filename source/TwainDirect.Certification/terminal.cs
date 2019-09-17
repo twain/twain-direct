@@ -101,6 +101,7 @@ namespace TwainDirect.Certification
 
             // Discovery and Selection...
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdHelp,                         new string[] { "help", "?" }));
+            m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdCertify,                      new string[] { "certify" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdList,                         new string[] { "list" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdQuit,                         new string[] { "ex", "exit", "q", "quit" }));
             m_ldispatchtable.Add(new Interpreter.DispatchTable(CmdSelect,                       new string[] { "select" }));
@@ -174,6 +175,7 @@ namespace TwainDirect.Certification
             DateTime datetime = new DateTime(2000, 1, 1).AddDays(version.Build).AddSeconds(version.MinorRevision * 2);
             m_szBanner = "TWAIN Direct Certification v" + version.Major + "." + version.Minor + " " + datetime.Day + "-" + datetime.ToString("MMM") + "-" + datetime.Year + " " + ((IntPtr.Size == 4) ? "(32-bit)" : "(64-bit)");
             Display(m_szBanner);
+            Display("Enter \"certify\" to certify a scanner.");
             Display("Enter \"help\" for more info.");
         }
 
@@ -263,13 +265,21 @@ namespace TwainDirect.Certification
         /// <returns>true to quit</returns>
         private bool CmdApiClosesession(ref Interpreter.FunctionArguments a_functionarguments)
         {
+            bool blNoSession = false;
             ApiCmd apicmd;
 
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
+            }
+
+            // Where are we now?
+            if (m_twainlocalscannerclient.GetState() == "noSession")
+            {
+                blNoSession = true;
             }
 
             // Make the call...
@@ -283,7 +293,7 @@ namespace TwainDirect.Certification
             DisplayApicmd(apicmd);
 
             // If we have no session, we can cleanup...
-            if (m_twainlocalscannerclient.GetState() == "noSession")
+            if (!blNoSession && (m_twainlocalscannerclient.GetState() == "noSession"))
             {
                 m_twainlocalscannerclient.Dispose();
                 m_twainlocalscannerclient = null;
@@ -307,6 +317,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -337,6 +348,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -367,6 +379,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -397,6 +410,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -428,7 +442,8 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
-                DisplayError("must first select a scanner...");
+                a_functionarguments.szReturnError = "must first select a scanner...";
+                //DisplayError("must first select a scanner...");
                 return (false);
             }
 
@@ -458,6 +473,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -490,6 +506,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -547,6 +564,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -604,6 +622,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -678,6 +697,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -733,6 +753,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -763,6 +784,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -793,6 +815,7 @@ namespace TwainDirect.Certification
             // Validate...
             if ((m_dnssddeviceinfoSelected == null) || (m_twainlocalscannerclient == null))
             {
+                a_functionarguments.szReturnError = "must first select a scanner...";
                 DisplayError("must first select a scanner...");
                 return (false);
             }
@@ -1089,18 +1112,16 @@ namespace TwainDirect.Certification
             CHECKPDFRASTERRESULT checkpdfrasterresult;
 
             // The default is to use our images folder...
-            if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
-            {
-                szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
-            }
-            // The user can overrride this...
-            else
+            szImagesFolder = Path.Combine(Config.Get("writeFolder", null), "images");
+
+            // The user can override this...
+            if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 1) && (a_functionarguments.aszCmd[1] != null))
             {
                 if (a_functionarguments.aszCmd[1] == "checkforencryption")
                 {
                     blCheckForEncryption = true;
                 }
-                else
+                else if (!string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
                 {
                     szImagesFolder = a_functionarguments.aszCmd[1];
                 }
@@ -1132,7 +1153,8 @@ namespace TwainDirect.Certification
                 DirectoryInfo directoryinfo = new DirectoryInfo(szImagesFolder);
                 foreach (System.IO.FileInfo file in directoryinfo.GetFiles("*.pdf"))
                 {
-                    blSuccess = PdfRaster.ValidPdfRaster(file.FullName, blCheckForEncryption, out szError);
+                    // Check for modification, and verify the certificate...
+                    blSuccess = PdfRaster.ValidPdfRaster(file.FullName, true, blCheckForEncryption, out szError);
                     if (blSuccess)
                     {
                         // Only keep marking as pass if we've not seen a fail...
@@ -1141,11 +1163,25 @@ namespace TwainDirect.Certification
                             checkpdfrasterresult = CHECKPDFRASTERRESULT.pass;
                         }
                     }
+                    // No joy, maybe the certificate is self-signed...
                     else
                     {
-                        // Oh well...
-                        DisplayError("error in <" + file.FullName + "> - " + szError);
-                        checkpdfrasterresult = CHECKPDFRASTERRESULT.fail;
+                        blSuccess = PdfRaster.ValidPdfRaster(file.FullName, false, blCheckForEncryption, out szError);
+                        if (blSuccess)
+                        {
+                            // Only keep marking as pass if we've not seen a fail...
+                            if (checkpdfrasterresult > CHECKPDFRASTERRESULT.fail)
+                            {
+                                DisplayYellow("passes with warning in <" + file.FullName + "> - is the certificate self-signed?");
+                                checkpdfrasterresult = CHECKPDFRASTERRESULT.pass;
+                            }
+                        }
+                        else
+                        {
+                            // Oh well...
+                            DisplayError("error in <" + file.FullName + "> - " + szError);
+                            checkpdfrasterresult = CHECKPDFRASTERRESULT.fail;
+                        }
                     }
                 }
             }
@@ -2168,6 +2204,192 @@ namespace TwainDirect.Certification
         }
 
         /// <summary>
+        /// Certify a scanner...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        private bool CmdCertify(ref Interpreter.FunctionArguments a_functionarguments)
+        {
+            bool blTwainDirectSuccess = false;
+            bool blTwainProtocolSuccess = false;
+            string szProtocol = "";
+            string szScanner = "";
+            Interpreter interpreter = new Interpreter("");
+
+            // If we have arguments, drop them in...
+            if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 1) && (a_functionarguments.aszCmd[1] != null))
+            {
+                szProtocol = a_functionarguments.aszCmd[1];
+                if ((a_functionarguments.aszCmd.Length > 2) && (a_functionarguments.aszCmd[2] != null))
+                {
+                    szScanner = a_functionarguments.aszCmd[2];
+                }
+            }
+
+            // Tell the user the plan...
+            DisplayYellow("TWAIN Direct Certification");
+            Display("  This tool certifies native TWAIN Direct scanners using the TWAIN Cloud or TWAIN");
+            Display("  Local protocols.  It also certifies classic TWAIN 2.4 drivers that have implemented");
+            Display("  TWAIN Direct support in concert with a TWAIN Bridge.");
+            Display("");
+            Display("  The tool will ask for some information, and begin the test, which only takes a");
+            Display("  couple of minutes to complete.  On success the tool will provide instructions on");
+            Display("  how to register a scanner that has passed certification.");
+
+            // Choose local or cloud...
+            if (string.IsNullOrEmpty(szProtocol))
+            {
+                Display("");
+                Display("");
+                Display("");
+
+                // Ask for a protocol...
+                while (true)
+                {
+                    Display("Please enter local or cloud (or quit to get out):");
+                    interpreter.SetPrompt("certify protocol>>> ");
+                    szProtocol = interpreter.Prompt(m_streamreaderConsole);
+                    if (   (szProtocol.ToLowerInvariant() == "quit")
+                        || (szProtocol.ToLowerInvariant() == "q"))
+                    {
+                        return (false);
+                    }
+                    if (   (szProtocol.ToLowerInvariant() == "cloud")
+                        || (szProtocol.ToLowerInvariant() == "local"))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // Show the available scanners, so the user can pick one...
+            if (string.IsNullOrEmpty(szScanner))
+            {
+                Display("");
+                Display("");
+                Display("");
+
+                // Show the local scanners...
+                if (szProtocol == "local")
+                {
+                    // List the local scanners...
+                    Interpreter.FunctionArguments functionarguments = new Interpreter.FunctionArguments();
+                    functionarguments.aszCmd = new string[2] { "list", "local" };
+                    CmdList(ref functionarguments);
+                }
+
+                // Show the cloud scanners...
+                else
+                {
+                    // Sign in...
+                    Interpreter.FunctionArguments functionarguments = new Interpreter.FunctionArguments();
+                    functionarguments.aszCmd = new string[1] { "signin" };
+                    CmdApiSignin(ref functionarguments);
+
+                    // List the cloud scanners...
+                    functionarguments = new Interpreter.FunctionArguments();
+                    functionarguments.aszCmd = new string[2] { "list", "cloud" };
+                    CmdList(ref functionarguments);
+                }
+
+                // Ask for a scanner...
+                while (true)
+                {
+                    Display("");
+                    Display("Please enter the name of a scanner from the list above (or quit to get out):");
+                    Display("(partial names are okay, as long as they are unique)");
+                    interpreter.SetPrompt("certify scanner>>> ");
+                    szScanner = interpreter.Prompt(m_streamreaderConsole);
+                    if (   (szScanner.ToLowerInvariant() == "quit")
+                        || (szScanner.ToLowerInvariant() == "q"))
+                    {
+                        return (false);
+                    }
+                    if (szScanner.Length > 0)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // Confirmation to proceed...
+            Display("");
+            Display("");
+            Display("");
+            while (true)
+            {
+                interpreter.SetPrompt("Cerify '" + szScanner + "' on 'TWAIN " + ((szProtocol == "local") ? "Local'" : "Cloud'") + " (yes/no)? ");
+                string szAnswer = interpreter.Prompt(m_streamreaderConsole);
+                if (szAnswer.ToLowerInvariant().StartsWith("y"))
+                {
+                    break;
+                }
+                else if (szAnswer.ToLowerInvariant().StartsWith("n"))
+                {
+                    return (false);
+                }
+            }
+
+
+            // Certify TWAIN Direct (local or cloud)...
+            {
+                Display("");
+                Display("");
+                Display("");
+
+                string szCurrentDirectory = Directory.GetCurrentDirectory();
+                Directory.SetCurrentDirectory("data/Certification/TWAIN Direct");
+                Interpreter.FunctionArguments functionarguments = new Interpreter.FunctionArguments();
+                functionarguments = new Interpreter.FunctionArguments();
+                functionarguments.aszCmd = new string[3] { "run", "certification", ((szProtocol == "local" ) ? "local:" : "signin:") + szScanner };
+                CmdRun(ref functionarguments);
+                blTwainDirectSuccess = (functionarguments.szReturnValue == "pass");
+                Directory.SetCurrentDirectory(szCurrentDirectory);
+            }
+
+            // Certify TWAIN Local or TWAIN Cloud...
+            if (blTwainDirectSuccess)
+            {
+                Display("");
+                Display("");
+                Display("");
+
+                string szCurrentDirectory = Directory.GetCurrentDirectory();
+                Directory.SetCurrentDirectory("data/Certification/TWAIN Local");
+                Interpreter.FunctionArguments functionarguments = new Interpreter.FunctionArguments();
+                functionarguments.aszCmd = new string[3] { "run", "certification", ((szProtocol == "local") ? "local:" : "signin:") + szScanner };
+                CmdRun(ref functionarguments);
+                blTwainProtocolSuccess = (functionarguments.szReturnValue == "pass");
+                Directory.SetCurrentDirectory(szCurrentDirectory);
+            }
+
+            // Report successful results, and point the user to twaindirect.org...
+            if (blTwainDirectSuccess && blTwainProtocolSuccess)
+            {
+                Display("");
+                Display("");
+                Display("");
+                DisplayGreen("TWAIN Direct Certification passed...");
+                Display("If you are the manufacturer of this device, please go to the TWAIN Direct");
+                Display("website at https://twaindirect.org to register your scanner.");
+            }
+
+            // Report unsuccessful results, and point the user to twaindirect.org...
+            else
+            {
+                Display("");
+                Display("");
+                Display("");
+                DisplayRed("TWAIN Direct Certification failed...");
+                Display("Please refer to the log files in the TWAIN Direct Self Certification on your");
+                Display("desktop for additional information.");
+            }
+
+            // All done...
+            return (false);
+        }
+
+        /// <summary>
         /// Process an if-statement...
         /// </summary>
         /// <param name="a_functionarguments">tokenized command and anything needed</param>
@@ -2547,6 +2769,7 @@ namespace TwainDirect.Certification
         private bool CmdList(ref Interpreter.FunctionArguments a_functionarguments)
         {
             int ii;
+            int iProtocol = 0x3; // 0x1-cloud, 0x2-local
             bool blUpdated;
             bool blNoMonitor;
 
@@ -2555,6 +2778,19 @@ namespace TwainDirect.Certification
             if (m_twainlocalscannerclient == null)
             {
                 m_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
+            }
+
+            // Filter for the protocol...
+            if ((a_functionarguments.aszCmd != null) && (a_functionarguments.aszCmd.Length > 1) && (a_functionarguments.aszCmd[1] != null))
+            {
+                if (a_functionarguments.aszCmd[1].ToLowerInvariant() == "cloud")
+                {
+                    iProtocol = 0x1;
+                }
+                else if (a_functionarguments.aszCmd[1].ToLowerInvariant() == "local")
+                {
+                    iProtocol = 0x2;
+                }
             }
 
             // Get a snapshot of the TWAIN Local and TWAIN Cloud scanners,
@@ -2624,44 +2860,53 @@ namespace TwainDirect.Certification
                     {
                         if (dnssddeviceinfo.IsCloud())
                         {
-                            Display
-                            (
-                                string.Format
+                            if ((iProtocol & 0x1) == 0x1)
+                            {
+                                Display
                                 (
-                                    "TWAIN Cloud:  {0,-30}  {1,-30}  {2}",
-                                    dnssddeviceinfo.GetTxtTy(),
-                                    dnssddeviceinfo.GetTxtNote(),
-                                    dnssddeviceinfo.GetLinkLocal()
-                                )
-                            );
+                                    string.Format
+                                    (
+                                        "TWAIN Cloud:  {0,-30}  {1,-30}  {2}",
+                                        dnssddeviceinfo.GetTxtTy(),
+                                        dnssddeviceinfo.GetTxtNote(),
+                                        dnssddeviceinfo.GetLinkLocal()
+                                    )
+                                );
+                            }
                         }
                         else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv4()))
                         {
-                            Display
-                            (
-                                string.Format
+                            if ((iProtocol & 0x2) == 0x2)
+                            {
+                                Display
                                 (
-                                    "TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
-                                    dnssddeviceinfo.GetTxtTy(),
-                                    dnssddeviceinfo.GetTxtNote(),
-                                    dnssddeviceinfo.GetLinkLocal(),
-                                    dnssddeviceinfo.GetIpv4()
-                                )
-                            );
+                                    string.Format
+                                    (
+                                        "TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
+                                        dnssddeviceinfo.GetTxtTy(),
+                                        dnssddeviceinfo.GetTxtNote(),
+                                        dnssddeviceinfo.GetLinkLocal(),
+                                        dnssddeviceinfo.GetIpv4()
+                                    )
+                                );
+                            }
                         }
                         else if (!string.IsNullOrEmpty(dnssddeviceinfo.GetIpv6()))
                         {
-                            Display
-                            (
-                                string.Format
+                            if ((iProtocol & 0x2) == 0x2)
+                            {
+                                Display
                                 (
-                                    "TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
-                                    dnssddeviceinfo.GetTxtTy(),
-                                    dnssddeviceinfo.GetTxtNote(),
-                                    dnssddeviceinfo.GetLinkLocal(),
-                                    dnssddeviceinfo.GetIpv6()
-                                )
-                            );
+                                    string.Format
+                                    (
+                                        "TWAIN Local:  {0,-30}  {1,-30}  {2} ({3})",
+                                        dnssddeviceinfo.GetTxtTy(),
+                                        dnssddeviceinfo.GetTxtNote(),
+                                        dnssddeviceinfo.GetLinkLocal(),
+                                        dnssddeviceinfo.GetIpv6()
+                                    )
+                                );
+                            }
                         }
                     }
                 }
@@ -3106,6 +3351,12 @@ namespace TwainDirect.Certification
                 m_lcallstack[m_lcallstack.Count - 1] = callstack;
             }
 
+            // Handle the last item on the stack, so we can report how things turned out...
+            else if (m_lcallstack.Count == 1)
+            {
+                a_functionarguments.szReturnValue = m_lcallstack[m_lcallstack.Count - 1].functionarguments.szReturnValue;
+            }
+
             // All done...
             return (false);
         }
@@ -3464,6 +3715,10 @@ namespace TwainDirect.Certification
             // Create a session...
             if (a_functionarguments.aszCmd[1] == "create")
             {
+                if (m_twainlocalscannerclient == null)
+                {
+                    m_twainlocalscannerclient = new TwainLocalScannerClient(null, null, false);
+                }
                 if ((a_functionarguments.aszCmd.Length < 3) || string.IsNullOrEmpty(a_functionarguments.aszCmd[2]))
                 {
                     m_twainlocalscannerclient.ClientCertificationTwainLocalSessionCreate();
@@ -3478,7 +3733,10 @@ namespace TwainDirect.Certification
             // Destroy a session...
             if (a_functionarguments.aszCmd[1] == "destroy")
             {
-                m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy();
+                if (m_twainlocalscannerclient != null)
+                {
+                    m_twainlocalscannerclient.ClientCertificationTwainLocalSessionDestroy();
+                }
                 return (false);
             }
 

@@ -103,7 +103,7 @@ if '${ret:}' ~~ 'A' goto MAIN.FAIL
 ;
 set tt 0
 :MAIN.WAIT
-	if '${get:tt}' > 60000 goto MAIN.WAITFAIL
+	if '${get:tt}' > 60000 goto MAIN.FAIL
 	if '${get:criticalwaitforeventsresult}' == 'pass' goto MAIN.WAITDONE
 	if '${get:criticalwaitforeventsresult}' == 'fail' goto MAIN.WAITDONE
 	increment tt '${get:tt}' 5000

@@ -324,7 +324,7 @@ namespace TwainDirect.Support
 
             // No joy, make sure to lose the last transaction if the
             // user enters a bad command, so that we reduce the risk
-            // of it be badlu interpreted later on...
+            // of it be badly interpreted later on...
             Console.Out.WriteLine("command not found: " + a_functionarguments.aszCmd[0]);
             a_functionarguments.transaction = null;
             return (false);
@@ -360,6 +360,11 @@ namespace TwainDirect.Support
             /// The function value when returning from a call...
             /// </summary>
             public string szReturnValue;
+
+            /// <summary>
+            /// Optional error information...
+            /// </summary>
+            public string szReturnError;
 
             /// <summary>
             /// The current line in the script...

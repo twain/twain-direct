@@ -295,7 +295,7 @@ namespace TwainDirect.Scanner {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The program is being minimized to the system tray.  Please right-click on its icon there to close it..
+        ///   Looks up a localized string similar to On OK the program will be minimized to the system tray, right-click its icon there to access it. Canceling this dialog will exit..
         /// </summary>
         public static string strTextNotClosing {
             get {

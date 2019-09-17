@@ -722,11 +722,14 @@ namespace TwainDirect.Scanner
             // Reeeeeeeeejected!
             if (!ms_blSystemShutdown && !m_blAllowFormToClose && (e.CloseReason == CloseReason.UserClosing))
             {
-                MessageBox.Show(Config.GetResource(m_resourcemanager, "strTextNotClosing"), Config.GetResource(m_resourcemanager, "strFormMainTitle"));
-                e.Cancel = true;
-                WindowState = FormWindowState.Minimized;
-                this.Hide();
-                return;
+                DialogResult dialogresult = MessageBox.Show(Config.GetResource(m_resourcemanager, "strTextNotClosing"), Config.GetResource(m_resourcemanager, "strFormMainTitle"), MessageBoxButtons.OKCancel);
+                if (dialogresult == DialogResult.OK)
+                {
+                    e.Cancel = true;
+                    WindowState = FormWindowState.Minimized;
+                    this.Hide();
+                    return;
+                }
             }
 
             // Okay, fine, clean house...

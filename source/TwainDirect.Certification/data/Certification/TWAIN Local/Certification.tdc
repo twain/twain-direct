@@ -27,6 +27,7 @@ set protocol Cloud
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Run all of our tests, start by assuming success...
 ;
+:MAIN.REPORTINITIALIZE
 report initialize
 echo 'TWAIN ${get:protocol} Certification Script v1.0 15-Sep-2017'
 echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'

@@ -208,7 +208,7 @@
     <comment>Couldn't find any scanners...</comment>
   </data>
   <data name="strTextNotClosing" xml:space="preserve">
-    <value>The program is being minimized to the system tray.  Please right-click on its icon there to close it.</value>
+    <value>On OK the program will be minimized to the system tray, right-click its icon there to access it. Canceling this dialog will exit.</value>
   </data>
   <data name="strTextNpmFailed" xml:space="preserve">
     <value>Failed to start npm</value>
