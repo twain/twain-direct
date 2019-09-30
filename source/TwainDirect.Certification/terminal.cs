@@ -2794,8 +2794,15 @@ namespace TwainDirect.Certification
             }
 
             // Get a snapshot of the TWAIN Local and TWAIN Cloud scanners,
-            // this will be sorted...
-            m_ldnssddeviceinfoSnapshot = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
+            // this will be sorted.  If we can't get this, give us an empty list...
+            if (m_dnssd != null)
+            {
+                m_ldnssddeviceinfoSnapshot = m_dnssd.GetSnapshot(null, out blUpdated, out blNoMonitor);
+            }
+            else
+            {
+                m_ldnssddeviceinfoSnapshot = new List<Dnssd.DnssdDeviceInfo>();
+            }
 
             // If the user has identified themselves, look for cloud content,
             // this will be sorted, and then merged with the TWAIN Local items,

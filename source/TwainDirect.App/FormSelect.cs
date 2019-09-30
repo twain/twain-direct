@@ -233,7 +233,9 @@ namespace TwainDirect.App
                 blNoMonitor = true;
                 blUpdated = false;
             // Take a snapshot...
-            } else {
+            }
+            else
+            {
                 ldnssddeviceinfo = m_dnssd.GetSnapshot(a_blCompare ? m_ldnssddeviceinfoCompare : null, out blUpdated, out blNoMonitor);
             }
 
