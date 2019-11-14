@@ -3463,8 +3463,8 @@ namespace TwainDirect.Support
                                     // each one with its correct imageBlock value...
                                     for (long ll = 0; ll < (lImageBlocks - 1); ll++)
                                     {
-                                        //jsonlookupMetadataAddress.Override("metadata.address.imageNumber", (m_lImageBlockNumber + 1 + ll).ToString());
-                                        //jsonlookupMetadataAddress.Override("metadata.address.imagePart", (ll + 1).ToString());
+                                        jsonlookupMetadataAddress.Override("metadata.address.imageNumber", (m_lImageBlockNumber + 1 + ll).ToString());
+                                        jsonlookupMetadataAddress.Override("metadata.address.imagePart", (ll + 1).ToString());
                                         jsonlookupMetadataAddress.Override("metadata.address.moreParts", "morePartsPending");
                                         szMetadataAddress = jsonlookupMetadataAddress.Dump();
                                         szImageBlockName = Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".meta");
@@ -3476,8 +3476,8 @@ namespace TwainDirect.Support
                                     // already accounted for in the lImageBlocks number.  Also
                                     // we don't have to touch moreParts, it should already have
                                     // the value we want...
-                                    //jsonlookup.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
-                                    //jsonlookup.Override("metadata.address.imagePart", lImageBlocks.ToString());
+                                    jsonlookup.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
+                                    jsonlookup.Override("metadata.address.imagePart", lImageBlocks.ToString());
                                     szMeta = jsonlookupMetadataAddress.Dump();
                                 }
 
@@ -3495,8 +3495,8 @@ namespace TwainDirect.Support
                                 // Write out the .meta for the final image block, this
                                 // triggers processing of the last block...
                                 szImageBlockName = Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + ".meta");
-                                //jsonlookupLast.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
-                                //jsonlookupLast.Override("metadata.address.imagePart", lImageBlocks.ToString());
+                                jsonlookupLast.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
+                                jsonlookupLast.Override("metadata.address.imagePart", lImageBlocks.ToString());
                                 jsonlookupLast.Override("metadata.address.moreParts", "lastPartInFile");
                                 szMeta = jsonlookupLast.Dump();
                                 File.WriteAllText(szImageBlockName, szMeta);

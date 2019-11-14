@@ -50,6 +50,8 @@
     ],
     "XimageBlockSize": 0,
 
+
+
     "commentSessionTimeout": [
         "******************************************************************************",
         "default: 300000 (5 minutes)",
@@ -97,7 +99,7 @@
         " ",
         "If you fill in twainCloudExpressFolder with the full path (using forward",
         "slashes) to your twain-cloud-express folder, the bridge will start npm i",
-        "for you when you register or manage your local cloud."
+        "for you when you register or manage your local cloud.",
         "***BEGIN STARTING FROM THE NEXT LINE***",
         {
             "name": "Local Cloud",
