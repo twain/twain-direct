@@ -3389,7 +3389,19 @@ namespace TwainDirect.Support
                             Array.Sort(aszBase);
 
                             // Walk all the .twpdf files, skipping any thumbnails, we'll
-                            // sort them further down in this loop...
+                            // sort them further down in this loop.
+                            //
+                            // KEYWORD:HISTORY
+                            // Note that this section was messed up until 2020/01/28 due to a
+                            // rush job to get the imageBlockSize code working.  The imageNumber
+                            // and imagePart were being updated when they should not have been
+                            // touched.  imagePartNum was added to take care of this.
+                            //
+                            // However, there is also a path using commandId, to demonstragte
+                            // a backwards compatible fix.
+                            //
+                            // This problem only occurs with chunking (but that's bad enough).
+                            //
                             foreach (string szFile in aszBase)
                             {
                                 // Skip .twpdf thumbnails...
@@ -3429,8 +3441,13 @@ namespace TwainDirect.Support
                                 // We don't need this .twmeta file anymore...
                                 File.Delete(szMetatmp);
 
-                                // We only need to do this bit if we have more than
-                                // one imageBlock...
+                                // We only need to do this bit if we're splitting the
+                                // file across multiple image blocks.  We're going to
+                                // szMorePartsFromTwain to determine if we need to
+                                // override moreParts for the last block, and if so
+                                // use whatever we got from OnTwain.  This should allow
+                                // us to support segments...
+                                string szMorePartsFromOnTwain = "";
                                 if (lImageBlocks > 1)
                                 {
                                     // Load the JSON from the .twmeta we got from the TWAIN driver...
@@ -3455,29 +3472,29 @@ namespace TwainDirect.Support
                                         "}"; // root
 
                                     // Get an object for this data, so we can override the bits
-                                    // we care about...
+                                    // we care about.  Make a note of the moreParts sent to us...
                                     JsonLookup jsonlookupMetadataAddress = new JsonLookup();
                                     jsonlookupMetadataAddress.Load(szMetadataAddress, out lJsonErrorIndex);
+                                    if (string.IsNullOrEmpty(szMorePartsFromOnTwain))
+                                    {
+                                        szMorePartsFromOnTwain = jsonlookupMetadataAddress.Get("moreParts");
+                                    }
 
-                                    // Now loop through the intermediate .meta files, making
-                                    // each one with its correct imageBlock value...
+                                    // Loop through the intermediate .meta files, making
+                                    // each one with its correct imagePartNum and moreParts
+                                    // value.  The szImageBlockName we make here will be
+                                    // in sequence from 1 - n for all the imageBlocks that
+                                    // we need for the scanning session...
                                     for (long ll = 0; ll < (lImageBlocks - 1); ll++)
                                     {
-                                        jsonlookupMetadataAddress.Override("metadata.address.imageNumber", (m_lImageBlockNumber + 1 + ll).ToString());
-                                        jsonlookupMetadataAddress.Override("metadata.address.imagePart", (ll + 1).ToString());
+                                        jsonlookupMetadataAddress.Override("metadata.address.imagePartNum", (ll + 1).ToString());
                                         jsonlookupMetadataAddress.Override("metadata.address.moreParts", "morePartsPending");
                                         szMetadataAddress = jsonlookupMetadataAddress.Dump();
                                         szImageBlockName = Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + 1 + ll).ToString("D6") + ".meta");
                                         File.WriteAllText(szImageBlockName, szMetadataAddress);
                                     }
 
-                                    // Override the imageNumber and imagePart, note that we
-                                    // don't want the +1 on m_lImageBlockNumber, because that's
-                                    // already accounted for in the lImageBlocks number.  Also
-                                    // we don't have to touch moreParts, it should already have
-                                    // the value we want...
-                                    jsonlookup.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
-                                    jsonlookup.Override("metadata.address.imagePart", lImageBlocks.ToString());
+                                    // Get back the updated JSON...
                                     szMeta = jsonlookupMetadataAddress.Dump();
                                 }
 
@@ -3493,11 +3510,16 @@ namespace TwainDirect.Support
                                 }
 
                                 // Write out the .meta for the final image block, this
-                                // triggers processing of the last block...
+                                // triggers processing of the last block.  We always
+                                // have to update imagePartNum, but we should only update
+                                // moreParts if we split the file up.  OnTwain will tell
+                                // us if it's lastPartInFile or lastPartInFileMorePartsPending...
                                 szImageBlockName = Path.Combine(m_szTdImagesFolder, "img" + (m_lImageBlockNumber + lImageBlocks).ToString("D6") + ".meta");
-                                jsonlookupLast.Override("metadata.address.imageNumber", (m_lImageBlockNumber + lImageBlocks).ToString());
-                                jsonlookupLast.Override("metadata.address.imagePart", lImageBlocks.ToString());
-                                jsonlookupLast.Override("metadata.address.moreParts", "lastPartInFile");
+                                jsonlookupLast.Override("metadata.address.imagePartNum", lImageBlocks.ToString());
+                                if (!string.IsNullOrEmpty(szMorePartsFromOnTwain))
+                                {
+                                    jsonlookupLast.Override("metadata.address.moreParts", szMorePartsFromOnTwain);
+                                }
                                 szMeta = jsonlookupLast.Dump();
                                 File.WriteAllText(szImageBlockName, szMeta);
 
@@ -4329,13 +4351,14 @@ namespace TwainDirect.Support
         /// <param name="a_szImageBlockBasename">basename using this imageBlock</param>
         /// <param name="a_szFinishedImageBasename">the finished image basename</param>
         /// <returns></returns>
-        public bool ClientFinishImage(string a_szImageBlockBasename, out string a_szFinishedImageBasename)
+        public bool ClientFinishImage(int a_iImageBlockNum, string a_szImageBlockBasename, out string a_szFinishedImageBasename)
         {
             int ii;
             bool blSuccess;
             long lJsonErrorIndex;
             long iImageNumber;
             long iImagePart;
+            long iImagePartNum;
             long[] alImageBlocks;
             string szMetadata = "";
             string szMoreParts;
@@ -4343,9 +4366,15 @@ namespace TwainDirect.Support
             string szTdMetadataFile = a_szImageBlockBasename + ".tdmeta";
             string szTdImageBlockFile = a_szImageBlockBasename + ".tdpdf";
             JsonLookup jsonlookup;
+            MapCommandIdToImageBlockNum mapcommandidtoimageblocknum;
+            string szDirectoryName = Path.GetDirectoryName(a_szImageBlockBasename);
 
             // Init stuff...
             a_szFinishedImageBasename = "";
+            lock (m_lmapcommandidtoimageblocknum)
+            {
+
+            }
 
             // It's possible for this function to be called in response
             // to one or more readImageBlock calls completing.  We don't
@@ -4396,11 +4425,14 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Collect the relevant address information...
+                // Collect the relevant address information, this is what
+                // will allow us to stitch the image back together in the
+                // correct order...
                 try
                 {
                     iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
                     iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
+                    iImagePartNum = int.Parse(jsonlookup.Get("metadata.address.imagePartNum"));
                     szMoreParts = jsonlookup.Get("metadata.address.moreParts");
                     if (iImageNumber > m_iLastImageNumberSinceCurrentStartCapturing)
                     {
@@ -4442,12 +4474,12 @@ namespace TwainDirect.Support
                 }
 
                 // If the imageNumber in the metadata matches the first imageBlock, if
-                // its imagePart is 1, and moreParts is lastPartInFile, then we can
+                // its imagePartNum is 1, and moreParts is lastPartInFile, then we can
                 // accomplish our task with simple renames.  I have this in place to allow
                 // for a simplier code path when the config setting imageBlockSize is set
                 // to 0, meaning that we don't want to split up images across multiple
                 // imageBlocks.
-                if ((m_llPendingImageBlocks.Count > 0) && (iImageNumber == m_llPendingImageBlocks[0]) && (iImagePart == 1) && (szMoreParts == "lastPartInFile"))
+                if ((m_llPendingImageBlocks.Count > 0) && (iImageNumber == m_llPendingImageBlocks[0]) && (iImagePartNum == 1) && ((szMoreParts == "lastPartInFile") || (szMoreParts == "lastPartInFileMorePartsPending")))
                 {
                     // Rename the .tdpdf file...
                     try
@@ -4495,6 +4527,35 @@ namespace TwainDirect.Support
                     return (true);
                 }
 
+                // Only continue if we're the last imageBlock...
+                string szTdmetaFile = Path.Combine(szDirectoryName, "img" + a_iImageBlockNum.ToString("D6") + ".tdmeta");
+                if (!File.Exists(szTdmetaFile))
+                {
+                    return (false);
+                }
+
+                // Read the beastie...
+                string szTdmeta = File.ReadAllText(szTdmetaFile);
+                jsonlookup.Load(szTdmeta, out lJsonErrorIndex);
+
+                // Get moreParts...
+                szMoreParts = "";
+                try
+                {
+                    szMoreParts = jsonlookup.Get("metadata.address.moreParts");
+                }
+                catch (Exception exception)
+                {
+                    Log.Error("metadata error - " + exception.Message);
+                    return (false);
+                }
+
+                // If this isn't the last bit in this image, we're done...
+                if ((szMoreParts != "lastPartInFile") && (szMoreParts != "lastPartInFileMorePartsPending"))
+                {
+                    return (false);
+                }
+
                 // Otherwise life is a bit more complicated.  We walk through the
                 // list of imageBlocks we got from the session object to see if
                 // we can build a complete image, and if so, we do that.  If there
@@ -4506,27 +4567,35 @@ namespace TwainDirect.Support
                 // Doing it this way allows us to generate finished images in order,
                 // and with the caller controlling the basename of the finished
                 // files...
+                int iImagePartNumCount = 0;
                 List<string> lszBasenames = new List<string>();
-                string szDirectoryName = Path.GetDirectoryName(a_szImageBlockBasename);
                 foreach (long lImageBlock in m_llPendingImageBlocks)
                 {
+                    // Don't process stuff beyond us...
+                    if (lImageBlock > a_iImageBlockNum)
+                    {
+                        return (false);
+                    }
+
                     // Check for a .tdmeta file, if we don't have
                     // it, we're done...
-                    string szTdmetaFile = Path.Combine(szDirectoryName, "img" + lImageBlock.ToString("D6") + ".tdmeta");
+                    szTdmetaFile = Path.Combine(szDirectoryName, "img" + lImageBlock.ToString("D6") + ".tdmeta");
                     if (!File.Exists(szTdmetaFile))
                     {
                         return (false);
                     }
 
                     // Read the beastie...
-                    string szTdmeta = File.ReadAllText(szTdmetaFile);
+                    szTdmeta = File.ReadAllText(szTdmetaFile);
                     jsonlookup.Load(szTdmeta, out lJsonErrorIndex);
 
-                    // Collect the relevant address information...
+                    // Collect the address information, we use this to look for gaps...
+                    iImagePartNumCount += 1;
                     try
                     {
                         iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
                         iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
+                        iImagePartNum = int.Parse(jsonlookup.Get("metadata.address.imagePartNum"));
                         szMoreParts = jsonlookup.Get("metadata.address.moreParts");
                     }
                     catch (Exception exception)
@@ -4538,10 +4607,19 @@ namespace TwainDirect.Support
                     // Add it to our list...
                     lszBasenames.Add(Path.Combine(szDirectoryName, Path.GetFileNameWithoutExtension(szTdmetaFile)));
 
-                    // If this isn't the last bit, go up and look for more...
-                    if (szMoreParts != "lastPartInFile")
+                    // If this isn't the last bit, go up and look for more.  We have two
+                    // kinds of last parts.  One for a PDF/raster that represents a complete
+                    // sheet of paper, and one that's a segment from a sheet of paper...
+                    if ((szMoreParts != "lastPartInFile") && (szMoreParts != "lastPartInFileMorePartsPending"))
                     {
                         continue;
+                    }
+
+                    // If it was the last bit, make sure we got the right number
+                    // of imagePartNum's.  If they don't match, we have a gap...
+                    if (iImagePartNum != iImagePartNumCount)
+                    {
+                        return (false);
                     }
 
                     // If we got this far, we've found all of the imageBlocks for an image...
@@ -5062,6 +5140,12 @@ namespace TwainDirect.Support
                     }
                 }
 
+                // Add this to our map to help put image chunks back together...
+                lock (m_lmapcommandidtoimageblocknum)
+                {
+                    m_lmapcommandidtoimageblocknum.Add(new MapCommandIdToImageBlockNum(a_apicmd.GetCommandId(), (int)a_lImageBlockNum));
+                }
+
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -5184,6 +5268,12 @@ namespace TwainDirect.Support
                     }
                 }
 
+                // Add this to our map to help put image chunks back together...
+                lock (m_lmapcommandidtoimageblocknum)
+                {
+                    m_lmapcommandidtoimageblocknum.Add(new MapCommandIdToImageBlockNum(a_apicmd.GetCommandId(), (int)a_lImageBlockNum));
+                }
+
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -5275,6 +5365,19 @@ namespace TwainDirect.Support
                 {
                     a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
+                }
+
+                // Remove any content matching these image blocks...
+                lock (m_lmapcommandidtoimageblocknum)
+                {
+                    for (int mm = m_lmapcommandidtoimageblocknum.Count - 1; mm >= 0; mm--)
+                    {
+                        if (   (m_lmapcommandidtoimageblocknum[mm].GetImageBlockNum() >= (int)a_lImageBlockNum)
+                            && (m_lmapcommandidtoimageblocknum[mm].GetImageBlockNum() <= (int)a_lLastImageBlockNum))
+                        {
+                            m_lmapcommandidtoimageblocknum.RemoveAt(mm);
+                        }
+                    }
                 }
 
                 // Send the RESTful API command...
@@ -5670,6 +5773,28 @@ namespace TwainDirect.Support
         /// <param name="a_object">caller's object</param>
         /// <param name="a_szEvent">event</param>
         public delegate void EventCallback(object a_object, string a_szEvent);
+
+        /// <summary>
+        /// Map a commandId to an imageBlockNum...
+        /// </summary>
+        public class MapCommandIdToImageBlockNum
+        {
+            public MapCommandIdToImageBlockNum(string a_szCommandId, int a_iImageBlockNum)
+            {
+                m_szCommandId = a_szCommandId;
+                m_iImageBlockNum = a_iImageBlockNum;
+            }
+            public string GetCommandId()
+            {
+                return (m_szCommandId);
+            }
+            public int GetImageBlockNum()
+            {
+                return (m_iImageBlockNum);
+            }
+            private string m_szCommandId;
+            private int m_iImageBlockNum;
+        }
 
         #endregion
 
@@ -6674,6 +6799,14 @@ namespace TwainDirect.Support
         public Dictionary<string, string> m_dictionaryExtraHeaders = new Dictionary<string, string>();
         private ApplicationManager m_applicationmanager;
 
+        /// <summary>
+        /// We need this to help with the imageBlockSize when the
+        /// contents of the metadata's address object is ambiguous.
+        /// This is done for backwards compatibility.  What's really
+        /// needed are additional properties to resolve things...
+        /// </summary>
+        private List<MapCommandIdToImageBlockNum> m_lmapcommandidtoimageblocknum = new List<MapCommandIdToImageBlockNum>();
+         
         #endregion
 
 

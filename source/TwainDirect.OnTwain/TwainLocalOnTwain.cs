@@ -751,6 +751,9 @@ namespace TwainDirect.OnTwain
                 // Segmentcount (long document or huge document)...
                 szMeta += "\"imagePart\":" + "1" + ",";
 
+                // Counts instant of an imageBlock used to build an imagePart...
+                szMeta += "\"imagePartNum\":" + "1" + ",";
+
                 // Segmentlast (long document or huge document)...
                 szMeta += "\"moreParts\":" + "\"lastPartInFile\",";
 

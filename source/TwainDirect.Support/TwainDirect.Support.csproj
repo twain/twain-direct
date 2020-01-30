@@ -115,10 +115,8 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>echo Post-build actions...
-XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-*.dll" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\libssl-*.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\pdfras_digitalsignature.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\pdfras_encryption.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\pdfraster\bin\$(PlatformName)\$(ConfigurationName)\certificate.p12" "$(TargetDir)" /i /e /y /q</PostBuildEvent>

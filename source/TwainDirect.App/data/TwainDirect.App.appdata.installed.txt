@@ -29,6 +29,17 @@
 
 
 
+    "commentClientScanParallel": [
+        "******************************************************************************",
+        "default: true",
+        "use threads to capture imageBlocks received from the scanner, if set to",
+        "false imageBlocks are transferred one at a time, which may be easier to",
+        "debug, if having problems"
+    ],
+    "XclientScanParallel": "true",
+
+
+
     "commentHttpTimeoutCommand": [
         "******************************************************************************",
         "default: 30000",

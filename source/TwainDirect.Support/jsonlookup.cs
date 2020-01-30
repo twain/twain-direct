@@ -952,6 +952,7 @@ namespace TwainDirect.Support
         ///             "address": {
         ///	                "imageNumber": 1,
         ///	                "imagePart": 1,
+        ///	                "imagePartNum": 1,
         ///	                "moreParts": lastPartInFile,
         ///	                "sheetNumber": 1,
         ///	                "source": "feederFront",
@@ -981,6 +982,7 @@ namespace TwainDirect.Support
         ///             <o:address>
         ///	                <n:imageNumber>1</n:imageNumber>
         ///	                <n:imagePart>1</n:imagePart>
+        ///	                <n:imagePartNum>1</n:imagePartNum>
         ///	                <s:moreParts>lastPartInFile</s:moreParts>
         ///	                <n:sheetNumber>1</n:sheetNumber>
         ///	                <s:source>feederFront</s:source>

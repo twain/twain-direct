@@ -505,14 +505,28 @@ namespace TwainDirect.Support
                             default:
                                 break;
                             case "password":
-                                pdfRasWr.encoder_set_AES256_encrypter
-                                (
-                                    enc,
-                                    Config.Get("encryptionProfiles[" + iProfile + "].passwordUser", ""),
-                                    Config.Get("encryptionProfiles[" + iProfile + "].passwordOwner", ""),
-                                    PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT,
-                                    ((Config.Get("encryptMetadata", "true") == "true") ? (uint)1 : (uint)0)
-                                );
+                                if (Config.Get("encryptMetadata", "true") == "true")
+                                {
+                                    pdfRasWr.encoder_set_AES256_encrypter
+                                    (
+                                        enc,
+                                        Config.Get("encryptionProfiles[" + iProfile + "].passwordUser", ""),
+                                        Config.Get("encryptionProfiles[" + iProfile + "].passwordOwner", ""),
+                                        PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT,
+                                        1
+                                    );
+                                }
+                                else
+                                {
+                                    pdfRasWr.encoder_set_AES256_encrypter
+                                    (
+                                        enc,
+                                        Config.Get("encryptionProfiles[" + iProfile + "].passwordUser", ""),
+                                        Config.Get("encryptionProfiles[" + iProfile + "].passwordOwner", ""),
+                                        PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT,
+                                        0
+                                    );
+                                }
                                 break;
                             case "publicKey":
                                 listpdfrasterrubsecrecipient = new List<PdfRasterWriter.Writer.PdfRasterPubSecRecipient>();
@@ -523,15 +537,31 @@ namespace TwainDirect.Support
                                         Log.Error("Unsupported publicKeyType: <" + Config.Get("encryptionProfiles[" + iProfile + "].publicKeyType", "") + ">");
                                         break;
                                     case "aes256":
-                                        pdfrasterpubsecrecipient.public_key = Config.Get("encryptionProfiles[" + iProfile + "].publicKey", "");
-                                        pdfrasterpubsecrecipient.perms = PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT;
-                                        listpdfrasterrubsecrecipient.Add(pdfrasterpubsecrecipient);
-                                        pdfRasWr.encoder_set_pubsec_AES256_encrypter
-                                        (
-                                            enc,
-                                            listpdfrasterrubsecrecipient,
-                                            ((Config.Get("encryptMetadata", "true") == "true") ? (uint)1 : (uint)0)
-                                        );
+                                        if (Config.Get("encryptMetadata", "true") == "true")
+                                        {
+                                            pdfrasterpubsecrecipient.public_key = Config.Get("encryptionProfiles[" + iProfile + "].publicKey", "");
+                                            pdfrasterpubsecrecipient.perms = PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT;
+                                            listpdfrasterrubsecrecipient.Add(pdfrasterpubsecrecipient);
+                                            pdfRasWr.encoder_set_pubsec_AES256_encrypter
+                                            (
+                                                enc,
+                                                listpdfrasterrubsecrecipient,
+                                                1
+                                            );
+                                        }
+                                        else
+                                        {
+                                            pdfrasterpubsecrecipient.public_key = Config.Get("encryptionProfiles[" + iProfile + "].publicKey", "");
+                                            pdfrasterpubsecrecipient.perms = PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_FILL_FORMS | PdfRasterWriter.Writer.PdfRasterPermissions.PDFRASWR_PERM_PRINT_DOCUMENT;
+                                            listpdfrasterrubsecrecipient.Add(pdfrasterpubsecrecipient);
+                                            pdfRasWr.encoder_set_pubsec_AES256_encrypter
+                                            (
+                                                enc,
+                                                listpdfrasterrubsecrecipient,
+                                                0
+                                            );
+                                        }
+
                                         break;
                                 }
                                 break;

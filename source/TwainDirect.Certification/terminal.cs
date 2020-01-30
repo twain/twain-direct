@@ -1452,7 +1452,7 @@ namespace TwainDirect.Certification
 
             // This function creates a finished image, metadata, and thumbnail
             // from the imageBlocks, and gives us the basename to it...
-            if (!m_twainlocalscannerclient.ClientFinishImage(szBasename, out szFinishedImageBasename))
+            if (!m_twainlocalscannerclient.ClientFinishImage(iImageBlock, szBasename, out szFinishedImageBasename))
             {
                 // We don't have a complete image, so scoot...
                 SetReturnValue("skip");

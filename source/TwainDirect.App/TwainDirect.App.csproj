@@ -226,10 +226,8 @@ XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)
 XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\TwainDirect.Scanner.TwainLocalManager.exe" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\TwainDirect.Scanner.TwainLocalManager.exe.config" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Scanner.TwainLocalManager\bin\$(PlatformName)\$(ConfigurationName)\BouncyCastle.Crypto.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1.dll" "$(TargetDir)" /i /e /y /q
-XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libssl-1_1-x64.dll" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libcrypto-*.dll" "$(TargetDir)" /i /e /y /q
+XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\libssl-*.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\pdfras_digitalsignature.dll" "$(TargetDir)" /i /e /y /q
 XCOPY "$(ProjectDir)..\TwainDirect.Support\bin\$(PlatformName)\$(ConfigurationName)\pdfras_encryption.dll" "$(TargetDir)" /i /e /y /q</PostBuildEvent>
   </PropertyGroup>

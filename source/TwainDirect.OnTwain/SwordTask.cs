@@ -2923,14 +2923,20 @@ namespace TwainDirect.OnTwain
                 ////////////////////////////////////////////////////////////////////////////////////////////////
                 // Switch to an ADF.  If this fails we'll skip checks for MSG_STOPFEEDER
                 // and CAP_PAPERDETECTABLE.  If it succeeds, then these items are required
-                // for use to proceed.  If it doesn't succeed then we're assuming that we
+                // for us to proceed.  If it doesn't succeed then we're assuming that we
                 // have a flatbed, and these capabilities have no meaning...
                 #region Switch to ADF for more tests
 
                 // CAP_FEEDERENABLED...
                 szStatus = "";
-                szCapability = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                szCapability = "CAP_FEEDERENABLED,0,0,0";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                if ((sts != TWAIN.STS.SUCCESS) || (szCapability.ToLowerInvariant().EndsWith(",true") && szCapability.ToLowerInvariant().EndsWith(",1")))
+                {
+                    szStatus = "";
+                    szCapability = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                }
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     m_twaininquirydata.SetPendingXfersStopFeeder(false);
