@@ -1452,7 +1452,7 @@ namespace TwainDirect.Certification
 
             // This function creates a finished image, metadata, and thumbnail
             // from the imageBlocks, and gives us the basename to it...
-            if (!m_twainlocalscannerclient.ClientFinishImage(iImageBlock, szBasename, out szFinishedImageBasename))
+            if (!m_twainlocalscannerclient.ClientFinishImage(new ApiCmd(), iImageBlock, TwainLocalScanner.LastPartFlag.Unknown, szBasename, out szFinishedImageBasename))
             {
                 // We don't have a complete image, so scoot...
                 SetReturnValue("skip");
@@ -3770,6 +3770,7 @@ namespace TwainDirect.Certification
             bool blSignaled;
             long lTimeout = long.MaxValue;
             CallStack callstack;
+            ApiCmd apicmdEvent;
 
             // Validate...
             if ((a_functionarguments.aszCmd != null) || (a_functionarguments.aszCmd.Length > 1) || !string.IsNullOrEmpty(a_functionarguments.aszCmd[1]))
@@ -3782,7 +3783,7 @@ namespace TwainDirect.Certification
             }
 
             // Wait...
-            blSignaled = m_twainlocalscannerclient.ClientWaitForSessionUpdate(lTimeout);
+            blSignaled = m_twainlocalscannerclient.ClientWaitForSessionUpdate(lTimeout, out apicmdEvent);
 
             // Update the return value...
             callstack = m_lcallstack[m_lcallstack.Count - 1];
@@ -4743,11 +4744,17 @@ namespace TwainDirect.Certification
                                 }
                                 else
                                 {
-                                    long[] lImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
-                                    if ((lImageBlocks != null) && (iIndex >= 0) && (iIndex < lImageBlocks.Length))
+                                    DisplayError("fix this code!!!");
+                                    // mlm
+                                    // we need a variable that holds the imageBlocks from the last command!!!
+                                    /*
+                                    apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
+                                    m_twainlocalscannerclient.ClientScannerGetSession(ref apicmd);
+                                    if ((iIndex >= 0) && (iIndex < lImageBlocks.Count))
                                     {
                                         szValue = lImageBlocks[iIndex].ToString();
                                     }
+                                    */
                                 }
                             }
                         }

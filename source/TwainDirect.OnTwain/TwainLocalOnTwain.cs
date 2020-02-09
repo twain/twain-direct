@@ -751,9 +751,6 @@ namespace TwainDirect.OnTwain
                 // Segmentcount (long document or huge document)...
                 szMeta += "\"imagePart\":" + "1" + ",";
 
-                // Counts instant of an imageBlock used to build an imagePart...
-                szMeta += "\"imagePartNum\":" + "1" + ",";
-
                 // Segmentlast (long document or huge document)...
                 szMeta += "\"moreParts\":" + "\"lastPartInFile\",";
 
@@ -1270,7 +1267,9 @@ namespace TwainDirect.OnTwain
             // the final form, though it's close.
             a_szSession = "\"session\":{";
 
-            // Tack on the image blocks, if we have any...
+            // Tack on the image blocks, if we have any, note that we don't need to
+            // have imageBlocksComplete here, since every block will always
+            // represent a complete image or image segment...
             if (!string.IsNullOrEmpty(szImageBlocks))
             {
                 a_szSession += "\"imageBlocks\":[" + szImageBlocks + "]";

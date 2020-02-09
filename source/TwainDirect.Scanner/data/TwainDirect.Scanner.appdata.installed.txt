@@ -48,7 +48,7 @@
         "program pick the size; use this to force the creation of multiple imageBlock",
         "for an image."
     ],
-    "XimageBlockSize": 0,
+    "imageBlockSize": 65536,
 
 
 

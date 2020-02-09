@@ -217,7 +217,7 @@ namespace TwainDirect.App
             // This does all the interesting bits.  The next change
             // to the buttons will occur in this function, if we
             // successfully transition to the capturing state...
-            if (Config.Get("clientScanParallel", "true") == "true")
+            if (Config.Get("clientScanParallel", "false") == "true")
             {
                 blSuccess = ClientScanParallel
                 (
@@ -354,26 +354,23 @@ namespace TwainDirect.App
         /// If bad things happen, a_apicmd will return information on the first
         /// command that ran into issues.
         /// </summary>
-        /// <param name="a_blStopCapturing">a flag if capturing has been stopped</param>
         /// <param name="a_blGetThumbnails">the caller would like thumbnails</param>
         /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
         /// <param name="a_apicmd">if errors occur, this has information</param>
         /// <returns>true on success</returns>
-        private bool ClientScanSerial
-        (
-            bool a_blGetThumbnails,
-            bool a_blGetMetadataWithImage,
-            out ApiCmd a_apicmd
-        )
+        private bool ClientScanSerial(bool a_blGetThumbnails, bool a_blGetMetadataWithImage, out ApiCmd a_apicmd)
         {
             bool blSuccess;
             bool blSuccessClientScan;
             bool blStopCapturing;
-            long[] alImageBlocks;
+            List<long> llImageBlocks;
+            List<ApiCmd.ImageBlocksComplete> limageblockscomplete;
             ApiCmd apicmd;
+            ApiCmd apicmdEvent;
 
             // Init stuff...
-            alImageBlocks = null;
+            llImageBlocks = new List<long>();
+            limageblockscomplete = new List<ApiCmd.ImageBlocksComplete>();
             blStopCapturing = true;
 
             // We want to return the first apicmd that has a problem, to do that we
@@ -434,20 +431,38 @@ namespace TwainDirect.App
                 }
 
                 // Wait for the session object to be updated, after that we'll
-                // only need to wait for more events if we drain the scanner
+                // only come back up here again if we completely drain the scanner
                 // of images...
                 while (true)
                 {
                     // Wait for the session object to be updated.  If this command
-                    // returns false, it means that somebody wants us to stop
-                    // scanning...
-                    blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue);
+                    // returns false, it means that somebody wants us to abort without
+                    // collecting any pending images...
+                    blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue, out apicmdEvent);
                     if (m_blAbortCapturing)
                     {
                         Log.Info("ClientScanSerial: break on abort...");
                         break;
                     }
-                    else if (m_blStopCapturing)
+
+                    // Our command failed, possibly due to a communication error,
+                    // we need to scoot...
+                    if (!blSuccess)
+                    {
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        Log.Info("ClientScanSerial: break not success...");
+                        break;
+                    }
+
+                    // We've been asked to stop capturing, in this case we send a
+                    // command to the scanner, which causes it to gracefully stop
+                    // allowing us to drain any pending images...
+                    if (m_blStopCapturing)
                     {
                         // Stop capturing...
                         if (blStopCapturing)
@@ -465,24 +480,13 @@ namespace TwainDirect.App
                                     apicmd = new ApiCmd(m_dnssddeviceinfo);
                                 }
                                 blSuccessClientScan = false;
+                                break;
                             }
                         }
                     }
-                    else if (!blSuccess)
-                    {
-                        if (blSuccessClientScan)
-                        {
-                            a_apicmd = apicmd;
-                            apicmd = new ApiCmd(m_dnssddeviceinfo);
-                        }
-                        blSuccessClientScan = false;
-                        Log.Info("ClientScanSerial: break not success...");
-                        break;
-                    }
 
                     // If we have an imageBlock pop out, we're going to transfer it...
-                    alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
-                    if (m_twainlocalscannerclient.ClientGetImageBlocksDrained() || ((alImageBlocks != null) && (alImageBlocks.Length > 0)))
+                    if (m_twainlocalscannerclient.ClientGetImageBlocksDrained() || (apicmdEvent.GetImageBlocksList().Count > 0))
                     {
                         break;
                     }
@@ -496,7 +500,10 @@ namespace TwainDirect.App
                     break;
                 }
 
-                // Loop on each imageBlock until we exhaust the imageBlocks array...
+                // Loop on each imageBlock until we exhaust the imageBlocks array, we'll
+                // refresh llImageBlocks inside of this loop, and stay here until scanning
+                // ends, or if we drain the scanner (end up with an empty imageBlocks array)...
+                llImageBlocks = apicmdEvent.GetImageBlocksList();
                 while (true)
                 {
                     // We have the option to skip getting the metadata with this
@@ -508,38 +515,88 @@ namespace TwainDirect.App
                     // If the caller doesn't get the metadata with this call,
                     // then they must get it with the image data.  This is because
                     // the metadata is the only place where address information is
-                    // reported, such as the imageNumber, imagePart, and moreParts...
+                    // reported, such as the imageNumber, imagePart, and moreParts.
+                    // However, that includes the option of getting it from the
+                    // contents of the PDF/raster file.
                     if (!a_blGetMetadataWithImage)
                     {
-                        m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(alImageBlocks[0], a_blGetThumbnails, ref apicmd);
+                        // Ask for the first image block, check the reply for errors...
+                        m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(llImageBlocks[0], a_blGetThumbnails, ref apicmd);
                         blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref apicmd);
+
+                        // Abort without transferring pending images...
                         if (m_blAbortCapturing)
                         {
                             break;
                         }
-                        else if (m_blStopCapturing)
+
+                        // Well, that command didn't go well.  we may have
+                        // a communication problem, so bail...
+                        if (!blSuccess)
                         {
-                            // Stop capturing...
-                            if (blStopCapturing)
+                            if (blSuccessClientScan)
                             {
-                                // If this doesn't work, then abort...
-                                blStopCapturing = false;
-                                m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
-                                blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
-                                if (!blSuccess)
+                                a_apicmd = apicmd;
+                                apicmd = new ApiCmd(m_dnssddeviceinfo);
+                            }
+                            blSuccessClientScan = false;
+                            break;
+                        }
+
+                        // Ask the scanner to stop capturing, we'll transfer any pending images...
+                        if (m_blStopCapturing && blStopCapturing)
+                        {
+                            // If this doesn't work, then abort...
+                            blStopCapturing = false;
+                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                            if (!blSuccess)
+                            {
+                                m_blAbortCapturing = true;
+                                if (blSuccessClientScan)
                                 {
-                                    m_blAbortCapturing = true;
-                                    if (blSuccessClientScan)
-                                    {
-                                        a_apicmd = apicmd;
-                                        apicmd = new ApiCmd(m_dnssddeviceinfo);
-                                    }
-                                    blSuccessClientScan = false;
+                                    a_apicmd = apicmd;
+                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
                                 }
+                                blSuccessClientScan = false;
+                                break;
                             }
                         }
-                        else if (!blSuccess)
+                    }
+
+                    // Get the corresponding image block in the array, check
+                    // for any errors...
+                    m_twainlocalscannerclient.ClientScannerReadImageBlock(llImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
+
+                    // Abort without transferring pending images...
+                    if (m_blAbortCapturing)
+                    {
+                        break;
+                    }
+
+                    // We may have a communication problem, so run away...
+                    if (!blSuccess)
+                    {
+                        if (blSuccessClientScan)
                         {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        break;
+                    }
+
+                    // Ask the scanner to stop capturing, we'll transfer any pending images...
+                    if (m_blStopCapturing && blStopCapturing)
+                    {
+                        // If this doesn't work, then abort...
+                        blStopCapturing = false;
+                        m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                        blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                        if (!blSuccess)
+                        {
+                            m_blAbortCapturing = true;
                             if (blSuccessClientScan)
                             {
                                 a_apicmd = apicmd;
@@ -550,35 +607,18 @@ namespace TwainDirect.App
                         }
                     }
 
-                    // Get the corresponding image block in the array...
-                    m_twainlocalscannerclient.ClientScannerReadImageBlock(alImageBlocks[0], a_blGetMetadataWithImage, ImageBlockCallback, ref apicmd);
-                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref apicmd);
+                    // Release the image block, check for any errors...
+                    m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(llImageBlocks[0], llImageBlocks[0], ref apicmd);
+                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
+
+                    // Abort without transferring pending images...
                     if (m_blAbortCapturing)
                     {
                         break;
                     }
-                    else if (m_blStopCapturing)
-                    {
-                        // Stop capturing...
-                        if (blStopCapturing)
-                        {
-                            // If this doesn't work, then abort...
-                            blStopCapturing = false;
-                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
-                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
-                            if (!blSuccess)
-                            {
-                                m_blAbortCapturing = true;
-                                if (blSuccessClientScan)
-                                {
-                                    a_apicmd = apicmd;
-                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
-                                }
-                                blSuccessClientScan = false;
-                            }
-                        }
-                    }
-                    else if (!blSuccess)
+
+                    // Possible communication problem, skedaddle...
+                    if (!blSuccess)
                     {
                         if (blSuccessClientScan)
                         {
@@ -589,55 +629,38 @@ namespace TwainDirect.App
                         break;
                     }
 
-                    // Release the image block...
-                    m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[0], ref apicmd);
-                    blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
-                    if (m_blAbortCapturing)
+                    // Ask the scanner to stop capturing, we'll transfer any pending images...
+                    if (m_blStopCapturing && blStopCapturing)
                     {
-                        break;
-                    }
-                    else if (m_blStopCapturing)
-                    {
-                        // Stop capturing...
-                        if (blStopCapturing)
+                        // If this doesn't work, then abort...
+                        blStopCapturing = false;
+                        m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
+                        blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
+                        if (!blSuccess)
                         {
-                            // If this doesn't work, then abort...
-                            blStopCapturing = false;
-                            m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
-                            blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerStopCapturing", ref apicmd);
-                            if (!blSuccess)
+                            m_blAbortCapturing = true;
+                            if (blSuccessClientScan)
                             {
-                                m_blAbortCapturing = true;
-                                if (blSuccessClientScan)
-                                {
-                                    a_apicmd = apicmd;
-                                    apicmd = new ApiCmd(m_dnssddeviceinfo);
-                                }
-                                blSuccessClientScan = false;
+                                a_apicmd = apicmd;
+                                apicmd = new ApiCmd(m_dnssddeviceinfo);
                             }
+                            blSuccessClientScan = false;
+                            break;
                         }
                     }
-                    else if (!blSuccess)
-                    {
-                        if (blSuccessClientScan)
-                        {
-                            a_apicmd = apicmd;
-                            apicmd = new ApiCmd(m_dnssddeviceinfo);
-                        }
-                        blSuccessClientScan = false;
-                        break;
-                    }
+
+                    // Refresh our imageBlocks from the last successful command...
+                    llImageBlocks = apicmd.GetImageBlocksList();
 
                     // If we're out of imageBlocks, exit this loop...
-                    alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
-                    if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
+                    if (llImageBlocks.Count == 0)
                     {
                         break;
                     }
                 }
             }
 
-            // Stop capturing...
+            // Stop capturing, if we haven't already done so...
             if (blStopCapturing)
             {
                 m_twainlocalscannerclient.ClientScannerStopCapturing(ref apicmd);
@@ -666,8 +689,8 @@ namespace TwainDirect.App
                 }
 
                 // Do we have anything to release?
-                alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
-                if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
+                llImageBlocks = apicmd.GetImageBlocksList();
+                if (llImageBlocks.Count == 0)
                 {
                     Thread.Sleep(100);
                     m_twainlocalscannerclient.ClientScannerGetSession(ref apicmd);
@@ -675,7 +698,7 @@ namespace TwainDirect.App
                 }
 
                 // Release them...
-                m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[alImageBlocks.Length - 1], ref apicmd);
+                m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(llImageBlocks[0], llImageBlocks[llImageBlocks.Count - 1], ref apicmd);
                 blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
                 if (!blSuccess)
                 {
@@ -741,11 +764,13 @@ namespace TwainDirect.App
             {
                 m_twainlocalscannerclient.ClientScannerReadImageBlockMetadata(clientscanparallelhelper.m_lImageBlock, clientscanparallelhelper.m_blGetThumbnails, ref clientscanparallelhelper.m_apicmd);
                 blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlockMetadata", ref clientscanparallelhelper.m_apicmd);
+                m_twainlocalscannerclient.ApiCmdClientScanParallelAdd(clientscanparallelhelper.m_apicmd);
             }
 
             // Get the corresponding image block in the array...
             m_twainlocalscannerclient.ClientScannerReadImageBlock(clientscanparallelhelper.m_lImageBlock, clientscanparallelhelper.m_blGetMetadataWithImage, ImageBlockCallback, ref clientscanparallelhelper.m_apicmd);
             blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReadImageBlock", ref clientscanparallelhelper.m_apicmd);
+            m_twainlocalscannerclient.ApiCmdClientScanParallelAdd(clientscanparallelhelper.m_apicmd);
             if (!blSuccess)
             {
                 return;
@@ -754,6 +779,7 @@ namespace TwainDirect.App
             // Release the image block...
             m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(clientscanparallelhelper.m_lImageBlock, clientscanparallelhelper.m_lImageBlock, ref clientscanparallelhelper.m_apicmd);
             blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref clientscanparallelhelper.m_apicmd);
+            m_twainlocalscannerclient.ApiCmdClientScanParallelAdd(clientscanparallelhelper.m_apicmd);
         }
 
         /// <summary>
@@ -766,31 +792,26 @@ namespace TwainDirect.App
         /// If bad things happen, a_apicmd will return information on the first
         /// command that ran into issues.
         /// </summary>
-        /// <param name="a_blStopCapturing">a flag if capturing has been stopped</param>
         /// <param name="a_blGetThumbnails">the caller would like thumbnails</param>
         /// <param name="a_blGetMetadataWithImage">skip the standalone metadata call</param>
         /// <param name="a_apicmd">if errors occur, this has information</param>
         /// <returns>true on success</returns>
-        private bool ClientScanParallel
-        (
-            bool a_blGetThumbnails,
-            bool a_blGetMetadataWithImage,
-            out ApiCmd a_apicmd
-        )
+        private bool ClientScanParallel(bool a_blGetThumbnails, bool a_blGetMetadataWithImage, out ApiCmd a_apicmd)
         {
             bool blSuccess;
             bool blSuccessClientScan;
             bool blStopCapturing;
-            List<long> listlImageBlocksWithThreads;
-            long[] alImageBlocks;
+            List<long> llImageBlocks;
+            List<ApiCmd.ImageBlocksComplete> limageblockscomplete;
             ApiCmd apicmd;
-            List<Thread> listThreadsToRemove;
+            ApiCmd apicmdEvent;
+            long lMaxScanThreads = Config.Get("maxScanThreads", 1);
 
             // Init stuff...
-            alImageBlocks = null;
+            llImageBlocks = new List<long>();
+            limageblockscomplete = new List<ApiCmd.ImageBlocksComplete>();
             blStopCapturing = true;
-            m_listThreadClientScanParallel = new List<Thread>();
-            listlImageBlocksWithThreads = new List<long>();
+            m_limageblockthreadClientScanParallel = new List<ImageBlockThread>();
 
             // We want to return the first apicmd that has a problem, to do that we
             // need a bait-and-switch scheme that starts with making an object that
@@ -840,7 +861,7 @@ namespace TwainDirect.App
             // have work to do; second, we do work.  Make sure we wait the
             // first time we come in here...
             blSuccess = true;
-            bool blClientWaitForSessionUpdate = true;
+            m_twainlocalscannerclient.ApiCmdClientScanParallelClear();
             while (true)
             {
                 // Scoot if the scanner says it's done sending images, or if
@@ -853,19 +874,39 @@ namespace TwainDirect.App
 
                 // Wait for the session object to be updated, after that we'll
                 // only need to wait for more events if we drain the scanner
-                // of images...      
+                // of images...
+                llImageBlocks.Clear();
                 while (true)
                 {
-                    // Wait for the session object to be updated.  If this command
-                    // returns false, it means that somebody wants us to stop
-                    // scanning.  Skip this step for the first interation of this loop
-                    // except for the very first time we're called.  This is because
-                    // in most cases the session object will have been updated, and
-                    // we won't have a pending signal...
-                    if (blClientWaitForSessionUpdate)
+                    bool blTimeout = false;
+
+                    // Wait for the session object to be updated.  We need this to prime
+                    // the pump, and when we have no threads...
+                    if (m_limageblockthreadClientScanParallel.Count == 0)
                     {
-                        blClientWaitForSessionUpdate = true;
-                        blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue);
+                        blSuccess = m_twainlocalscannerclient.ClientWaitForSessionUpdate(long.MaxValue, out apicmdEvent);
+                    }
+
+                    // The rest of the time we want to get our session object information from the
+                    // commands that have been issued by the threads...
+                    else
+                    {
+                        // Always indicate success on this path...
+                        blSuccess = true;
+
+                        // See if the threads have anything for us...
+                        List<ApiCmd> lapicmd = m_twainlocalscannerclient.ApiCmdClientScanParallelGetAndClear(1000);
+                        if (lapicmd.Count > 0)
+                        {
+                            // We're good, grab the latest data...
+                            apicmdEvent = lapicmd[lapicmd.Count - 1];
+                        }
+                        else
+                        {
+                            // We've timed out, but keep going, so we can detect attempts to stop...
+                            blTimeout = true;
+                            apicmdEvent = new ApiCmd();
+                        }
                     }
 
                     // Handle aborting as soon as possible...
@@ -875,8 +916,21 @@ namespace TwainDirect.App
                         break;
                     }
 
+                    // Ruh-roh...
+                    if (!blSuccess)
+                    {
+                        if (blSuccessClientScan)
+                        {
+                            a_apicmd = apicmd;
+                            apicmd = new ApiCmd(m_dnssddeviceinfo);
+                        }
+                        blSuccessClientScan = false;
+                        Log.Info("ClientScanParallel: break not success...");
+                        break;
+                    }
+
                     // Handle a request to stop capturing...
-                    else if (m_blStopCapturing && blStopCapturing)
+                    if (m_blStopCapturing && blStopCapturing)
                     {
                         // If this doesn't work, then abort...
                         blStopCapturing = false;
@@ -894,29 +948,19 @@ namespace TwainDirect.App
                         }
                     }
 
-                    // Ruh-roh...
-                    else if (!blSuccess)
+                    // If we timed out, loop back...
+                    if (blTimeout)
                     {
-                        if (blSuccessClientScan)
-                        {
-                            a_apicmd = apicmd;
-                            apicmd = new ApiCmd(m_dnssddeviceinfo);
-                        }
-                        blSuccessClientScan = false;
-                        Log.Info("ClientScanParallel: break not success...");
-                        break;
+                        continue;
                     }
 
-                    // If we have an imageBlock pop out, we're going to transfer it...
-                    alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
-                    if (m_twainlocalscannerclient.ClientGetImageBlocksDrained() || ((alImageBlocks != null) && (alImageBlocks.Length > 0)))
+                    // If we have an imageBlock pop out, we're going to transfer from it...
+                    llImageBlocks = apicmdEvent.GetImageBlocksList();
+                    if (m_twainlocalscannerclient.ClientGetImageBlocksDrained() || (llImageBlocks.Count > 0))
                     {
                         break;
                     }
                 }
-
-                // Next time we hit the loop above make sure we skip the wait...
-                blClientWaitForSessionUpdate = false;
 
                 // Scoot if the scanner says it's done sending images, or if
                 // we've received a failure status...
@@ -927,34 +971,53 @@ namespace TwainDirect.App
                 }
 
                 // Cleanup anything that's done...
-                listThreadsToRemove = new List<Thread>();
-                foreach (Thread thread in m_listThreadClientScanParallel)
+                for (int tt = 0; tt < m_limageblockthreadClientScanParallel.Count; tt++)
                 {
-                    if (!thread.IsAlive)
+                    if (!m_limageblockthreadClientScanParallel[tt].thread.IsAlive)
                     {
-                        listThreadsToRemove.Add(thread);
+                        m_limageblockthreadClientScanParallel.RemoveAt(tt);
+                        tt -= 1;
                     }
                 }
-                foreach (Thread thread in listThreadsToRemove)
+
+                // If we have too many threads running, go back
+                // up and wait for some to finish...
+                if (m_limageblockthreadClientScanParallel.Count >= lMaxScanThreads)
                 {
-                    m_listThreadClientScanParallel.Remove(thread);
+                    continue;
                 }
 
+                // Number of new threads we're willing to add...
+                long lScanThreads = lMaxScanThreads - m_limageblockthreadClientScanParallel.Count;
+
                 // Kick off a thread for each image block...
-                foreach (long lImageBlock in alImageBlocks)
+                for (int bb = 0; (bb < llImageBlocks.Count) && (lScanThreads > 0); bb++)
                 {
-                    // We've already done this one...
-                    if (listlImageBlocksWithThreads.Contains(lImageBlock))
+                    int tt;
+                    ImageBlockThread imageblockthread;
+
+                    // Do we already have a thread for this image block?  If so, skip it...
+                    for (tt = 0; tt < m_limageblockthreadClientScanParallel.Count; tt++)
+                    {
+                        if (m_limageblockthreadClientScanParallel[tt].lImageBlock == llImageBlocks[bb])
+                        {
+                            break;
+                        }
+                    }
+                    if (tt < m_limageblockthreadClientScanParallel.Count)
                     {
                         continue;
                     }
 
                     // We're doing it now!
-                    listlImageBlocksWithThreads.Add(lImageBlock);
-                    ClientScanParallelHelper clientscanparallelhelper = new ClientScanParallelHelper(this, apicmd, lImageBlock, a_blGetMetadataWithImage, a_blGetThumbnails);
-                    Thread thread = new Thread(clientscanparallelhelper.ClientScanParallelThreadLaunchpad);
-                    thread.Start();
-                    m_listThreadClientScanParallel.Add(thread);
+                    ClientScanParallelHelper clientscanparallelhelper = new ClientScanParallelHelper(this, apicmdEvent, llImageBlocks[bb], a_blGetMetadataWithImage, a_blGetThumbnails);
+                    imageblockthread.thread = new Thread(clientscanparallelhelper.ClientScanParallelThreadLaunchpad);
+                    imageblockthread.thread.Start();
+                    imageblockthread.lImageBlock = llImageBlocks[bb];
+                    m_limageblockthreadClientScanParallel.Add(imageblockthread);
+
+                    // Decrement our thread counter...
+                    lScanThreads -= 1;
                 }
             }
 
@@ -974,22 +1037,18 @@ namespace TwainDirect.App
                 }
             }
 
-            // Cleanup any threads we ran...
-            while (m_listThreadClientScanParallel.Count > 0)
+            // Cleanup any remaining threads...
+            while (m_limageblockthreadClientScanParallel.Count > 0)
             {
-                listThreadsToRemove = new List<Thread>();
-                foreach (Thread thread in m_listThreadClientScanParallel)
+                for (int tt = 0; tt < m_limageblockthreadClientScanParallel.Count; tt++)
                 {
-                    if (!thread.IsAlive)
+                    if (!m_limageblockthreadClientScanParallel[tt].thread.IsAlive)
                     {
-                        listThreadsToRemove.Add(thread);
+                        m_limageblockthreadClientScanParallel.RemoveAt(tt);
+                        tt -= 1;
                     }
                 }
-                foreach (Thread thread in listThreadsToRemove)
-                {
-                    m_listThreadClientScanParallel.Remove(thread);
-                }
-                Thread.Sleep(1000);
+                Thread.Sleep(100);
             }
 
             // As long as we're in the capturing or draining states, we need to
@@ -1005,8 +1064,8 @@ namespace TwainDirect.App
                 }
 
                 // Do we have anything to release?
-                alImageBlocks = m_twainlocalscannerclient.ClientGetImageBlocks();
-                if ((alImageBlocks == null) || (alImageBlocks.Length == 0))
+                llImageBlocks = apicmd.GetImageBlocksList();
+                if (llImageBlocks.Count == 0)
                 {
                     Thread.Sleep(100);
                     m_twainlocalscannerclient.ClientScannerGetSession(ref apicmd);
@@ -1014,7 +1073,7 @@ namespace TwainDirect.App
                 }
 
                 // Release them...
-                m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(alImageBlocks[0], alImageBlocks[alImageBlocks.Length - 1], ref apicmd);
+                m_twainlocalscannerclient.ClientScannerReleaseImageBlocks(llImageBlocks[0], llImageBlocks[llImageBlocks.Count - 1], ref apicmd);
                 blSuccess = m_twainlocalscannerclient.ClientCheckForApiErrors("ClientScannerReleaseImageBlocks", ref apicmd);
                 if (!blSuccess)
                 {
@@ -1385,10 +1444,10 @@ namespace TwainDirect.App
         /// <summary>
         /// Our scan callback, used to display images...
         /// </summary>
-        /// <param name="a_szMetadata">metadata for this imageBlock</param>
         /// <param name="a_szImageBlock">file for this imageBlock</param>
+        /// <param name="a_morepartsflag">are we a lastpart</param>
         /// <returns>true on success</returns>
-        public bool ImageBlockCallback(long a_lImageBlockNum)
+        public bool ImageBlockCallback(ApiCmd a_apicmd, long a_lImageBlockNum, TwainLocalScanner.LastPartFlag a_lastpartflag)
         {
             string szBasename;
             string szPdf;
@@ -1400,7 +1459,7 @@ namespace TwainDirect.App
             // This function creates a finished image, metadata, and thumbnail
             // from the imageBlocks...
             szBasename = Path.Combine(Path.Combine(m_szWriteFolder, "images"), "img" + a_lImageBlockNum.ToString("D6"));
-            if (!m_twainlocalscannerclient.ClientFinishImage((int)a_lImageBlockNum, szBasename, out szFinishedImageBasename))
+            if (!m_twainlocalscannerclient.ClientFinishImage(a_apicmd, (int)a_lImageBlockNum, a_lastpartflag, szBasename, out szFinishedImageBasename))
             {
                 // We don't have a complete image, so scoot...
                 return (blGotImage);
@@ -2411,6 +2470,7 @@ namespace TwainDirect.App
                     {
                         m_textboxSummary.Text =
                             "state=" + m_twainlocalscannerclient.GetState() +
+                            "; " + ((Config.Get("clientScanParallel", "true") == "true") ? "parallel" : "serial") +
                             "; task='" + m_formsetup.GetTaskName() + "'" +
                             "; getthumbnails=" + m_formsetup.GetThumbnails().ToString().ToLowerInvariant() +
                             "; getmetadatawithimage=" + m_formsetup.GetMetadataWithImage().ToString().ToLowerInvariant();
@@ -2535,6 +2595,15 @@ namespace TwainDirect.App
             SCANNING
         }
 
+        /// <summary>
+        /// Pair a thread with an image block...
+        /// </summary>
+        private struct ImageBlockThread
+        {
+            public long lImageBlock;
+            public Thread thread;
+        }
+
         #endregion
 
 
@@ -2592,7 +2661,7 @@ namespace TwainDirect.App
         /// <summary>
         /// Our list of threads for ClientScanParallel...
         /// </summary>
-        private List<Thread> m_listThreadClientScanParallel;
+        private List<ImageBlockThread> m_limageblockthreadClientScanParallel;
 
         /// <summary>
         /// Setup information...

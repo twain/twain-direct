@@ -452,6 +452,42 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// Returns the array of image block numbers...
+        /// </summary>
+        /// <returns>image block numbers (ex: 1, 2)</returns>
+        public List<long> GetImageBlocksList()
+        {
+            // We have no images...
+            if (m_sessiondata.lImageBlocks == null)
+            {
+                return (new List<long>());
+            }
+
+            // Return a copy of the list...
+            return (new List<long>(m_sessiondata.lImageBlocks));
+        }
+
+        /// <summary>
+        /// Returns the array of image block numbers that are
+        /// either lastPartInFile or lastPartInFileMorePartsPending...
+        /// </summary>
+        /// <returns>image block numbers (ex: 1, 2)</returns>
+        public List<ImageBlocksComplete> GetImageBlocksComplete(out bool a_blDetected)
+        {
+            // Set if we detected in in the session object...
+            a_blDetected = m_sessiondata.blImageBlocksRangeDetected;
+
+            // We have no images...
+            if (m_sessiondata.limageblockscomplete == null)
+            {
+                return (new List<ImageBlocksComplete>());
+            }
+
+            // Return a copy of the list...
+            return (new List<ImageBlocksComplete>(m_sessiondata.limageblockscomplete));
+        }
+
+        /// <summary>
         /// Our session revision number...
         /// </summary>
         /// <returns>session revision number</returns>
@@ -513,14 +549,32 @@ namespace TwainDirect.Support
             // if we've drained all of the umages...
             if (    (a_szSessionState == "noSession")
                 ||  (a_szSessionState == "ready")
-                || m_blSessionImageBlocksDrained)
+                ||  m_blSessionImageBlocksDrained)
             {
                 return
                 (
                     "\"doneCapturing\":true," +
                     "\"imageBlocksDrained\":true," +
-                    "\"imageBlocks\":[],"
-                );
+                    "\"imageBlockNum\":0," +
+                    "\"imageBlocks\":[]," +
+                    "\"imageBlocksComplete\":[],"
+               );
+            }
+
+            // Build the imageBlocksComplete...
+            string szImageblockscomplete = "[],";
+            if (m_sessiondata.limageblockscomplete != null)
+            {
+                szImageblockscomplete = "[";
+                foreach (ImageBlocksComplete imageblockscomplete in m_sessiondata.limageblockscomplete)
+                {
+                    if (szImageblockscomplete != "[")
+                    {
+                        szImageblockscomplete += ",";
+                    }
+                    szImageblockscomplete += "{\"f\":" + imageblockscomplete.lFirst + ",\"l\":" + imageblockscomplete.lLast + "}";
+                }
+                szImageblockscomplete += "],";
             }
 
             // We may have more images coming...
@@ -528,7 +582,9 @@ namespace TwainDirect.Support
             (
                 "\"doneCapturing\":" + ((m_sessiondata.blSessionDoneCapturing) ? "true," : "false,") +
                 "\"imageBlocksDrained\":false," +
-                "\"imageBlocks\":" + (string.IsNullOrEmpty(m_szImageBlocks) ? "[]" : m_szImageBlocks) + ","
+                "\"imageBlockNum\":" + m_sessiondata.lImageBlockNum + "," +
+                "\"imageBlocks\":" + ((m_sessiondata.lImageBlocks == null) ? "[]," : "[" + string.Join(",", m_sessiondata.lImageBlocks) + "],") +
+                "\"imageBlocksComplete\":" + szImageblockscomplete
             );
         }
 
@@ -630,6 +686,58 @@ namespace TwainDirect.Support
             m_szEventName = a_szEventName;
             m_szSessionState = a_szSessionState;
             m_lSessionRevision = a_lSessionRevision;
+        }
+
+        /// <summary>
+        /// Squirrel away the current value of imageBlocks and imageBlocksComplete...
+        /// </summary>
+        /// <param name="a_szImageBlocks">image blocks or nothing</param>
+        /// <param name="a_szImageBlocksComplete">image blocks last part or nothing</param>
+        public void SetSessionImageBlocks(string a_szImageBlockNum, string a_szImageBlocks, string a_szImageBlocksComplete)
+        {
+            int ii;
+
+            // Get the image block number.  The only applied to commands like
+            // readImageBlockMetadata and readImageBlock.  We need it to help
+            // stitch together image and image segments that were decomposed
+            // into multiple imageBlocks.  If this value is 0, then it does not
+            // apply (imageBlocks are always numbered 1 and higher)...
+            m_sessiondata.lImageBlockNum = 0;
+            long.TryParse(a_szImageBlockNum, out m_sessiondata.lImageBlockNum);
+
+            // Get the image blocks...
+            m_sessiondata.lImageBlocks = new List<long>();
+            if (!string.IsNullOrEmpty(a_szImageBlocks))
+            {
+                string[] aszImageBlocks = a_szImageBlocks.Split(new char[] { '[', ' ', ',', ']', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (aszImageBlocks != null)
+                {
+                    for (ii = 0; ii < aszImageBlocks.Length; ii++)
+                    {
+                        m_sessiondata.lImageBlocks.Add(long.Parse(aszImageBlocks[ii]));
+                    }
+                }
+            }
+
+            // Get the image blocks range last part...
+            m_sessiondata.limageblockscomplete = new List<ImageBlocksComplete>();
+            m_sessiondata.blImageBlocksRangeDetected = false;
+            if (!string.IsNullOrEmpty(a_szImageBlocksComplete))
+            {
+                // They're pairs [{"f":#,"l":#},{"f":#,"l":#},...]
+                m_sessiondata.blImageBlocksRangeDetected = true;
+                string[] aszImageBlocksComplete = a_szImageBlocksComplete.Replace("\"f\":","").Replace("\"l\":","").Split(new char[] { '[', '{', ' ', ',', '}', ']', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (aszImageBlocksComplete != null)
+                {
+                    for (ii = 0; ii < aszImageBlocksComplete.Length; ii += 2)
+                    {
+                        ImageBlocksComplete imageblockscomplete = default(ImageBlocksComplete);
+                        imageblockscomplete.lFirst = long.Parse(aszImageBlocksComplete[ii]);
+                        imageblockscomplete.lLast = long.Parse(aszImageBlocksComplete[ii + 1]);
+                        m_sessiondata.limageblockscomplete.Add(imageblockscomplete);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -810,9 +918,25 @@ namespace TwainDirect.Support
             var task = Task.Run(async () => { await apicmd.ResponseCallBack(a_iasyncresult); });
             task.Wait();
         }
+
+        /// <summary>
+        /// Set the client's commandid...
+        /// </summary>
+        /// <param name="a_szClientCommandid"></param>
         public void SetClientCommandId(string a_szClientCommandid)
         {
             m_szClientCommandId = a_szClientCommandid;
+        }
+
+        /// <summary>
+        /// Reset this as part of startCapturing, we always start with
+        /// imageBlock 1, and increment anytime we see an imageBlock that's 
+        /// lastPartInFile or lastPartInFileMorePartsPending...
+        /// </summary>
+        public static void ResetImageBlockFirst()
+        {
+            ms_lImageBlockFirst = 1;
+            ms_limageblockscomplete = new List<ImageBlocksComplete>();
         }
 
         /// <summary>
@@ -2178,7 +2302,7 @@ namespace TwainDirect.Support
             m_szImageBlocks = "";
             if (a_blCapturing)
             {
-                // We used to get this from TwainDirect.OnTwain, and we could
+                // We use to get this from TwainDirect.OnTwain, and we could
                 // get away with that when there was a 1:1 correspondence
                 // between images and imageBlocks.  But that doesn't fly when
                 // we're splitting things up.  So we have to look at our
@@ -2201,12 +2325,30 @@ namespace TwainDirect.Support
                 // Build our imageBlocks array...
                 if ((aszImageBlocks != null) && (aszImageBlocks.Length > 0))
                 {
+                    // Clean ms_limageblockscomplete of any stuff that's
+                    // older than the first image block we have.  We do this
+                    // so the list doesn't endlessly grow...
+                    if (int.TryParse(Path.GetFileNameWithoutExtension(aszImageBlocks[0]).Replace("img", ""), out iImageBlock))
+                    {
+                        for (int iIndex = 0; iIndex < ms_limageblockscomplete.Count; iIndex++)
+                        {
+                            if (ms_limageblockscomplete[iIndex].lLast < iImageBlock)
+                            {
+                                ms_limageblockscomplete.RemoveAt(iIndex);
+                                iIndex -= 1;
+                            }
+                        }
+                    }
+
+                    // Okay, we're ready to do work...
                     m_szImageBlocks = "[";
+                    m_sessiondata.lImageBlocks = new List<long>();
+                    m_sessiondata.limageblockscomplete = new List<ImageBlocksComplete>();
+                    long lJsonErrorIndex = 0;
+                    JsonLookup jsonlookup = new JsonLookup();
                     foreach (string szImageBlock in aszImageBlocks)
                     {
-                        // Get the image number from the name, if this proves to
-                        // be a stupid idea, then open the file, JSON parse it,
-                        // and get it that way...
+                        // Get the image number from the name...
                         if (!int.TryParse(Path.GetFileNameWithoutExtension(szImageBlock).Replace("img", ""), out iImageBlock))
                         {
                             Log.Error("UpdateUsingIpcData: parsing failed..." + szImageBlock);
@@ -2215,6 +2357,66 @@ namespace TwainDirect.Support
 
                         // Tack it on, we're making [1,2,3...]
                         m_szImageBlocks += (m_szImageBlocks == "[") ? iImageBlock.ToString() : "," + iImageBlock;
+                        m_sessiondata.lImageBlocks.Add(iImageBlock);
+
+                        // Okay, do we have a record of this item in our list?  We need this
+                        // because we can't guarantee the ability to reconstruct the list from
+                        // the stuff we currently have on hand, since some of it may already
+                        // have been released.  Note that for the bridge this scheme only
+                        // works because the imageBlocks are filled in a full image at a time,
+                        // a real scanner will need a data structure to track this info...
+                        int iIndex = -1;
+                        for (iIndex = 0; iIndex < ms_limageblockscomplete.Count; iIndex++)
+                        {
+                            if ((iImageBlock >= ms_limageblockscomplete[iIndex].lFirst) && (iImageBlock <= ms_limageblockscomplete[iIndex].lLast))
+                            {
+                                // Found a match, since we need to do a continue
+                                // we'll just bust out here, and take care of
+                                // business in the if-statement...
+                                break;
+                            }
+                        }
+
+                        // We have a copy...
+                        if (iIndex < ms_limageblockscomplete.Count)
+                        {
+                            // Only add it if it's not already in our list...
+                            if (!m_sessiondata.limageblockscomplete.Contains(ms_limageblockscomplete[iIndex]))
+                            {
+                                m_sessiondata.limageblockscomplete.Add(ms_limageblockscomplete[iIndex]);
+                            }
+                            continue;
+                        }
+
+                        // This is new to us, read it to see if we're the last part...
+                        szMeta = "";
+                        try
+                        {
+                            FileStream filestream = new FileStream(szImageBlock, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                            StreamReader streamreader = new StreamReader(filestream);
+                            szMeta = streamreader.ReadToEnd();
+                            streamreader.Close();
+                        }
+                        catch (Exception exception)
+                        {
+                            Log.Error("UpdateUsingIpcData: error reading <" + szImageBlock + "> - " + exception.Message);
+                            return;
+                        }
+                        jsonlookup.Load(szMeta, out lJsonErrorIndex);
+                        szMeta = jsonlookup.Get("metadata.address.moreParts");
+
+                        // Yes, apparently we are, so add it...
+                        if ((szMeta == "lastPartInFile") || (szMeta == "lastPartInFileMorePartsPending"))
+                        {
+                            ImageBlocksComplete imageblockscomplete = default(ImageBlocksComplete);
+                            imageblockscomplete.lFirst = ms_lImageBlockFirst;
+                            imageblockscomplete.lLast = iImageBlock;
+                            m_sessiondata.limageblockscomplete.Add(imageblockscomplete);
+                            ms_limageblockscomplete.Add(imageblockscomplete);
+
+                            // This will be the first image block in a new range, if we have one...
+                            ms_lImageBlockFirst = iImageBlock + 1;
+                        }
                     }
                     m_szImageBlocks += "]";
                 }
@@ -2244,7 +2446,7 @@ namespace TwainDirect.Support
             m_szTaskReply = a_jsonlookup.Get("taskReply", false);
 
             // Get the metadata (if we have any)...
-            szMeta = a_jsonlookup.Get("meta",false);
+            szMeta = a_jsonlookup.Get("meta", false);
             if (!string.IsNullOrEmpty(szMeta))
             {
                 try
@@ -2258,16 +2460,16 @@ namespace TwainDirect.Support
                 }
             }
 
-            // End of job...
-            // - we must be capturing -and-
-            // - if we have imageBlocks, we're not done -or-
-            // - if we have intermediate *.tw* files, we're not done -or-
-            // - if we don't have imageBlocksDrained.meta, we're not done
+            // Draining is complete if...
+            // - we've been told we're not capturing -or-
+            // - we have no imageBlocks -and-
+            // - we have no intermediate *.tw* files -and-
+            // - our session state says we're done capturing
             m_sessiondata.blSessionDoneCapturing = File.Exists(Path.Combine(a_szTdImagesFolder, "imageBlocksDrained.meta"));
-            if (!a_blCapturing
+            if (   !a_blCapturing
                 || (string.IsNullOrEmpty(m_szImageBlocks)
-                && ((aszTw == null) || (aszTw.Length == 0))
-                && m_sessiondata.blSessionDoneCapturing))
+                &&  ((aszTw == null) || (aszTw.Length == 0))
+                &&  m_sessiondata.blSessionDoneCapturing))
             {
                 m_blSessionImageBlocksDrained = true;
             }
@@ -2334,6 +2536,16 @@ namespace TwainDirect.Support
             SimpleReply,
             SimpleReplyWithSessionInfo,
             Event
+        }
+
+        /// <summary>
+        /// Allow us to describe a complete range of imageblocks from
+        /// first to last, inclusive...
+        /// </summary>
+        public struct ImageBlocksComplete
+        {
+            public long lFirst;
+            public long lLast;
         }
 
         /// <summary>
@@ -2956,6 +3168,27 @@ namespace TwainDirect.Support
             /// We have a problem, like a paper jam...
             /// </summary>
             public string szSessionStatusDetected;
+
+            /// <summary>
+            /// If this command specified an imageBlock, then this
+            /// value is included in the response.  If 0 then there
+            /// is no imageBlock...
+            /// </summary>
+            public long lImageBlockNum;
+
+            /// <summary>
+            /// List of image blocks reported for this command...
+            /// </summary>
+            public List<long> lImageBlocks;
+
+            /// <summary>
+            /// List of image blocks that are lastPartInFile or
+            /// lastPartInFileMorePartsPending that were reported
+            /// for this command, including the first block in
+            /// the range...
+            /// </summary>
+            public List<ImageBlocksComplete> limageblockscomplete;
+            public bool blImageBlocksRangeDetected;
         }
 
         /// <summary>
@@ -3150,11 +3383,16 @@ namespace TwainDirect.Support
         /// </summary>
         private bool m_blUseHttps;
 
-        // Image blocks (can be null)...
+        /// <summary>
+        /// Image blocks (can be null)...
+        /// </summary>
         private string m_szImageBlocks;
 
         // An image file (can be null or empty)...
         private string m_szImageFile;
+
+        private static long ms_lImageBlockFirst;
+        private static List<ImageBlocksComplete> ms_limageblockscomplete;
 
         // An a thumbnail image file (can be null or empty)...
         private string m_szThumbnailFile;

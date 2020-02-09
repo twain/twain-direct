@@ -792,6 +792,14 @@ namespace TwainDirect.Scanner
             // Start polling...
             Display("");
             Display("Starting, please wait...");
+            if (Config.Get("imageBlockSize", 0) < 8192)
+            {
+                Display("Each image will be transferred in its own imageBlock...");
+            }
+            else
+            {
+                Display("imageBlocks will not exceed " + Config.Get("imageBlockSize", 0) + " bytes...");
+            }
             string szNote = m_scanner.GetTwainLocalNote();
             if (!string.IsNullOrEmpty(szNote))
             {

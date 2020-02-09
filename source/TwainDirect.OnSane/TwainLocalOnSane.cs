@@ -1069,9 +1069,6 @@ namespace TwainDirect.OnSane
                     // Segmentcount (long document or huge document)...
                     szMeta += "                \"imagePart\": " + "1" + ",\n";
 
-                    // Segmentcount (long document or huge document)...
-                    szMeta += "                \"imagePartNum\": " + "1" + ",\n";
-
                     // Segmentlast (long document or huge document)...
                     szMeta += "                \"moreParts\": " + "\"lastPartInFile\"" + "\n";
 
