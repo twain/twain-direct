@@ -6,7 +6,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    05-Dec-2013     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2013-2018 Kodak Alaris Inc.
+//  Copyright (C) 2013-2020 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -39,7 +39,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Kodak Alaris Inc.")]
 [assembly: AssemblyProduct("TwainDirect.Scanner")]
-[assembly: AssemblyCopyright("Copyright © 2014-2018, Kodak Alaris Inc.")]
+[assembly: AssemblyCopyright("Copyright © 2014-2020, Kodak Alaris Inc.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -60,5 +60,5 @@ using System.Runtime.InteropServices;
 //
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
-[assembly: AssemblyVersion("1.17.*")]
-[assembly: AssemblyFileVersion("1.17.0.0")]
+[assembly: AssemblyVersion("1.18.*")]
+[assembly: AssemblyFileVersion("1.18.0.0")]

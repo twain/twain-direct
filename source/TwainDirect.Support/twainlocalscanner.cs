@@ -71,7 +71,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    15-Oct-2016     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2016-2018 Kodak Alaris Inc.
+//  Copyright (C) 2016-2020 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -4014,7 +4014,6 @@ namespace TwainDirect.Support
 
             // Our locks...
             m_objectLockClientApi = new object();
-            m_objectLockClientFinishImage = new object();
             m_objectLockEndSession = new object();
 
             // The list of image blocks that we've received from
@@ -4447,37 +4446,35 @@ namespace TwainDirect.Support
         /// <returns></returns>
         public bool ClientFinishImage(ApiCmd a_apicmd, int a_iImageBlockNum, TwainLocalScanner.LastPartFlag a_lastpartflag, string a_szImageBlockBasename, out string a_szFinishedImageBasename)
         {
-            int ii;
             bool blSuccess;
             bool blDetected;
             long lJsonErrorIndex = 0;
-            long iImageNumber = 0;
-            long iImagePart = 0;
+            long lImageBlockFirst = 0;
+            long lImageBlockLast = 0;
             string szMoreParts = "";
-            long iOurImageNumber = 0;
-            long iOurImagePart = 0;
-            string szOurMoreParts = "";
-            List<long> llImageBlocks;
-            List<ApiCmd.ImageBlocksComplete> limageblockscomplete;
             string szMetadata = "";
-            string szThumbnail;
-            string szTdMetadataFile = a_szImageBlockBasename + ".tdmeta";
-            string szTdImageBlockFile = a_szImageBlockBasename + ".tdpdf";
-            JsonLookup jsonlookup;
-            MapCommandIdToImageBlockNum mapcommandidtoimageblocknum;
             string szDirectoryName = Path.GetDirectoryName(a_szImageBlockBasename);
+            string[] aszSourceFiles = null;
+            string szTdMetadataFile = a_szImageBlockBasename + ".tdmeta";
+            JsonLookup jsonlookup;
+            List<ApiCmd.ImageBlocksComplete> limageblockscomplete;
+            List<MapCommandIdToImageBlockNum> lmapcommandidtoimageblocknum;
 
             // Init stuff...
             a_szFinishedImageBasename = "";
-            lock (m_lmapcommandidtoimageblocknum)
-            {
 
-            }
+            // TWAIN Direct 1.2 and later
+            // imageBlockNum and imageBlocksComplete section...
+            #region imageBlockNum and imageBlocksComplete section...
 
             // If we're definitively NOT a last part image block, then scoot...
             if (a_lastpartflag == LastPartFlag.No)
             {
-                // All done...
+                // We don't need this, so keep it clear...
+                lock (m_objectMapCommandIdToImageBlockNumLock)
+                {
+                    m_lmapcommandidtoimageblocknum.Clear();
+                }
                 return (false);
             }
 
@@ -4489,22 +4486,10 @@ namespace TwainDirect.Support
             // more images previous to it... 
             if (a_lastpartflag == LastPartFlag.Yes)
             {
-                long lImageBlockFirst;
-                long lImageBlockLast;
-
-                // If we were locked out, we may no longer have the imageBlock,
-                // which means somebody else beat us to the punch, and we have
-                // no work to do...
-                if (!File.Exists(szTdImageBlockFile))
+                // We don't need this, so keep it clear...
+                lock (m_objectMapCommandIdToImageBlockNumLock)
                 {
-                    return (false);
-                }
-
-                // We have no metadata, not sure why, but it ain't good, so scoot...
-                if (!File.Exists(szTdMetadataFile))
-                {
-                    Log.Error("ClientFinishImage: metadata missing <" + szTdMetadataFile + ">");
-                    return (false);
+                    m_lmapcommandidtoimageblocknum.Clear();
                 }
 
                 // Get the list of imageBlockRangeLastParts...
@@ -4530,7 +4515,7 @@ namespace TwainDirect.Support
                     return (false);
                 }
 
-                // Squirrel these away...
+                // Squirrel away the first and last image block numbers...
                 lImageBlockFirst = limageblockscomplete[iIndex].lFirst;
                 lImageBlockLast = limageblockscomplete[iIndex].lLast;
 
@@ -4540,7 +4525,7 @@ namespace TwainDirect.Support
                 a_szFinishedImageBasename = Path.Combine(Path.GetDirectoryName(a_szImageBlockBasename), "image" + (m_iLastImageNumberFromPreviousStartCapturing + m_iLastImageNumberSinceCurrentStartCapturing).ToString("D6"));
 
                 // Build the list of files (the range is inclusive!)...
-                string[] aszSourceFiles = new string[(lImageBlockLast - lImageBlockFirst) + 1];
+                aszSourceFiles = new string[(lImageBlockLast - lImageBlockFirst) + 1];
                 for (long lImageBlock = lImageBlockFirst; lImageBlock <= lImageBlockLast; lImageBlock++)
                 {
                     aszSourceFiles[lImageBlock - lImageBlockFirst] = Path.Combine(Path.Combine(m_szWriteFolder, "images"), "img" + lImageBlock.ToString("D6"));
@@ -4586,12 +4571,12 @@ namespace TwainDirect.Support
                         // Delete this .tdpdf...
                         File.Delete(aszSourceFiles[ff] + ".tdpdf");
 
-                        // Rename the last .tdmeta, this will trigger the view to display the image...
+                        // Rename the last .tdmeta, this triggers the viewer to display the image...
                         if (ff == (aszSourceFiles.Length - 1))
                         {
                             File.Move(aszSourceFiles[ff] + ".tdmeta", a_szFinishedImageBasename + ".meta");
                         }
-                        // Otherwise, delete it...
+                        // Otherwise it's an intermediate file, delete it...
                         else
                         {
                             File.Delete(aszSourceFiles[ff] + ".tdmeta");
@@ -4603,333 +4588,214 @@ namespace TwainDirect.Support
                 return (true);
             }
 
-            // Otherwise, do it the old-fashioned way.  Note that only works
-            // if we have access to metadata...
+            #endregion
 
-            // It's possible for this function to be called in response
-            // to one or more readImageBlock calls completing.  We don't
-            // want them fighting over the data.  So we serialize their
-            // access...
-            lock (m_objectLockClientFinishImage)
+
+            // TWAIN Direct 1.1 and earlier
+            // commandId section...
+            #region commandId section...
+
+            // Otherwise, do it the old-fashioned way.  Note that this only works
+            // if we have access to the metadata.  The new scheme does not need
+            // the metadata to create completed images.  The application keeps track
+            // of the imageBlocks it's asked to transfer with readImageBlock.  The
+            // commandId is included in case we're in ClientScanParallel, so that
+            // we can map back to the correct imageBlockNum.
+
+            // Init stuff, make a copy of the map, so we don't have to hold its lock...
+            a_szFinishedImageBasename = "";
+            lock (m_objectMapCommandIdToImageBlockNumLock)
             {
-                // If we were locked out, we may no longer have the imageBlock,
-                // which means somebody else beat us to the punch, and we have
-                // no work to do...
-                if (!File.Exists(szTdImageBlockFile))
-                {
-                    return (false);
-                }
+                lmapcommandidtoimageblocknum = new List<MapCommandIdToImageBlockNum>(m_lmapcommandidtoimageblocknum);
+            }
 
-                // We have no metadata, not sure why, but it ain't good, so scoot...
-                if (!File.Exists(szTdMetadataFile))
+            // Find our entry...
+            int iMapIndex;
+            MapCommandIdToImageBlockNum mapcommandidtoimageblocknum;
+            for (iMapIndex = 0; iMapIndex < lmapcommandidtoimageblocknum.Count; iMapIndex++)
+            {
+                if (lmapcommandidtoimageblocknum[iMapIndex].GetImageBlockNum() == a_iImageBlockNum)
                 {
-                    Log.Error("ClientFinishImage: metadata missing <" + szTdMetadataFile + ">");
-                    return (false);
+                    break;
                 }
+            }
 
-                // Read the metadata, we're doing it this way because the data
-                // could have been collected as a result of a call to readImageBlock
-                // or readImageBlockMetadata.  We don't currently have a data
-                // structure for images.  This kind of thing might push me over the edge...
-                try
-                {
-                    szMetadata = File.ReadAllText(szTdMetadataFile);
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("ClientFinishImage: metadata error <" + szTdMetadataFile + "> - " + exception.Message);
-                    return (false);
-                }
+            // This is unexpected...
+            if (iMapIndex >= lmapcommandidtoimageblocknum.Count)
+            {
+                Log.Error("ClientFinishImage: no map for imageBlock..." + a_iImageBlockNum);
+                return (false);
+            }
 
-                // Huh...maybe we got here before the file was ready...
-                if (string.IsNullOrEmpty(szMetadata))
-                {
-                    return (false);
-                }
+            // Read the metadata, we're doing it this way because the data
+            // could have been collected as a result of a call to readImageBlock
+            // or readImageBlockMetadata.  We don't currently have a data
+            // structure for images.  This kind of thing might push me over the edge...
+            try
+            {
+                szMetadata = File.ReadAllText(szTdMetadataFile);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("ClientFinishImage: metadata error <" + szTdMetadataFile + "> - " + exception.Message);
+                return (false);
+            }
 
-                // Load the metadata...
-                jsonlookup = new JsonLookup();
-                blSuccess = jsonlookup.Load(szMetadata, out lJsonErrorIndex);
-                if (!blSuccess)
-                {
-                    Log.Error("ClientFinishImage: metadata error @" + lJsonErrorIndex + " <" + szMetadata + ">");
-                    return (false);
-                }
+            // Load the metadata...
+            jsonlookup = new JsonLookup();
+            blSuccess = jsonlookup.Load(szMetadata, out lJsonErrorIndex);
+            if (!blSuccess)
+            {
+                Log.Error("ClientFinishImage: metadata error @" + lJsonErrorIndex + " <" + szMetadata + ">");
+                return (false);
+            }
 
-                // Collect the relevant address information, this is what
-                // will allow us to stitch the image back together in the
-                // correct order...
-                try
+            // Collect the relevant address information, this is what
+            // allows us to stitch the image back together.  We have
+            // to go back to the main list, update it, and refresh ourselves
+            // with it before continuing...
+            szMoreParts = jsonlookup.Get("metadata.address.moreParts");
+            try
+            {
+                mapcommandidtoimageblocknum = new MapCommandIdToImageBlockNum(lmapcommandidtoimageblocknum[iMapIndex].GetCommandId(), lmapcommandidtoimageblocknum[iMapIndex].GetImageBlockNum());
+                mapcommandidtoimageblocknum.SetMeta
+                (
+                    int.Parse(jsonlookup.Get("metadata.address.imageNumber")),
+                    int.Parse(jsonlookup.Get("metadata.address.imagePart")),
+                    szMoreParts
+                );
+                lock (m_objectMapCommandIdToImageBlockNumLock)
                 {
-                    iOurImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
-                    iOurImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
-                    szOurMoreParts = jsonlookup.Get("metadata.address.moreParts");
-                    if (iOurImageNumber > m_iLastImageNumberSinceCurrentStartCapturing)
+                    for (int mm = 0; mm < m_lmapcommandidtoimageblocknum.Count; mm++)
                     {
-                        m_iLastImageNumberSinceCurrentStartCapturing = iOurImageNumber;
-                    }
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("ClientFinishImage: metadata error <" + szMetadata + "> - " + exception.Message);
-                    return (false);
-                }
-
-                // This is the basename of the finished .meta and .pdf...
-                a_szFinishedImageBasename = Path.Combine(Path.GetDirectoryName(a_szImageBlockBasename), "image" + (m_iLastImageNumberFromPreviousStartCapturing + iOurImageNumber).ToString("D6"));
-
-                // Get the list of imageBlocks, this should be the contents of the array
-                // from the response to readImageBlock.  Having this allows us to better
-                // figure out where we are in the imageBlock array...
-                llImageBlocks = a_apicmd.GetImageBlocksList();
-
-                // Add any new imageBlocks to the list we're maintaining...
-                if (llImageBlocks.Count > 0)
-                {
-                    // Get the last imageBlock in our list...
-                    long lLastImageBlock = 0;
-                    if (m_llPendingImageBlocks.Count > 0)
-                    {
-                        lLastImageBlock = m_llPendingImageBlocks[m_llPendingImageBlocks.Count - 1];
-                    }
-
-                    // Append any imageBlocks greater than lLastImageBlock...
-                    for (ii = 0; ii < llImageBlocks.Count; ii++)
-                    {
-                        if (llImageBlocks[ii] > lLastImageBlock)
+                        if (m_lmapcommandidtoimageblocknum[mm].GetImageBlockNum() == mapcommandidtoimageblocknum.GetImageBlockNum())
                         {
-                            m_llPendingImageBlocks.Add(llImageBlocks[ii]);
+                            m_lmapcommandidtoimageblocknum[mm] = mapcommandidtoimageblocknum;
+                            break;
                         }
                     }
+                    lmapcommandidtoimageblocknum = new List<MapCommandIdToImageBlockNum>(m_lmapcommandidtoimageblocknum);
                 }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("ClientFinishImage: metadata error <" + szMetadata + "> - " + exception.Message);
+                return (false);
+            }
 
-                // We need the metadata to figure out what we're doing.
-                // If the imageNumber in the metadata matches the first imageBlock, if
-                // its imagePartNum is 1, and moreParts is lastPartInFile, then we can
-                // accomplish our task with simple renames.  I have this in place to allow
-                // for a simplier code path when the config setting imageBlockSize is set
-                // to 0, meaning that we don't want to split up images across multiple
-                // imageBlocks.
-                if ((m_llPendingImageBlocks.Count > 0) && (iOurImageNumber == m_llPendingImageBlocks[0]) && ((szOurMoreParts == "lastPartInFile") || (szOurMoreParts == "lastPartInFileMorePartsPending")))
+            // If we're not lastPartInFile or lastPartInFileMorePartsPending,
+            // we're done with this imageBlock...
+            if ((szMoreParts != "lastPartInFile") && (szMoreParts != "lastPartInFileMorePartsPending"))
+            {
+                return (false);
+            }
+
+            // Okay, we've completed an image.  Now we need to stitch it all together, in order.
+            // The first step is to figure out our starting and ending image block numbers. The
+            // last block is easier, we're sitting on it.  For the first block we'll walk the
+            // map until we find a match...
+            lImageBlockLast = a_iImageBlockNum;
+            for (int mm = 0; mm < lmapcommandidtoimageblocknum.Count; mm++)
+            {
+                MapMatchResult mapmatchresult = lmapcommandidtoimageblocknum[mm].MatchesMeta(lmapcommandidtoimageblocknum[iMapIndex]);
+                if (mapmatchresult == MapMatchResult.Match)
                 {
-                    // Rename the .tdpdf file...
-                    try
-                    {
-                        File.Move(szTdImageBlockFile, a_szFinishedImageBasename + ".pdf");
-                    }
-                    catch (Exception exception)
-                    {
-                        Log.Error("ClientFinishImage: move failed: <" + szTdImageBlockFile + "> --> <" + a_szFinishedImageBasename + ".pdf" + "> - " + exception.Message);
-                        return (false);
-                    }
-
-                    // If we have a thumbnail, rename it...
-                    szThumbnail = a_szImageBlockBasename + "_thumbnail.tdpdf";
-                    if (File.Exists(szThumbnail))
-                    {
-                        try
-                        {
-                            File.Move(szThumbnail, a_szFinishedImageBasename + "_thumbnail.pdf");
-                        }
-                        catch (Exception exception)
-                        {
-                            Log.Error("ClientFinishImage: move failed: <" + szThumbnail + "> --> <" + a_szFinishedImageBasename + "_thumbnail.pdf" + "> - " + exception.Message);
-                            return (false);
-                        }
-                    }
-
-                    // Always handle the .tdmeta last, because the creation
-                    // of a .meta file indicates that all of the files associated
-                    // with an image are ready for access...
-                    try
-                    {
-                        File.Move(szTdMetadataFile, a_szFinishedImageBasename + ".meta");
-                    }
-                    catch (Exception exception)
-                    {
-                        Log.Error("ClientFinishImage: move failed: <" + szTdMetadataFile + "> --> <" + a_szFinishedImageBasename + ".meta" + "> - " + exception.Message);
-                        return (false);
-                    }
-
-                    // Remove this item from our list...
-                    m_llPendingImageBlocks.RemoveAt(0);
-
-                    // All done, we created our finished image...
-                    return (true);
+                    lImageBlockFirst = lmapcommandidtoimageblocknum[mm].GetImageBlockNum();
+                    break;
                 }
+            }
 
-                // If this isn't the last bit in this image, we're done...
-                if ((szOurMoreParts != "lastPartInFile") && (szOurMoreParts != "lastPartInFileMorePartsPending"))
-                {
-                    return (false);
-                }
+            // Not good, we should always get good data for these...
+            if ((lImageBlockFirst == 0) || (lImageBlockLast == 0))
+            {
+                Log.Error("ClientFinishImage: trouble with the imageblocks..." + lImageBlockFirst + " " + lImageBlockLast);
+                return (false);
+            }
 
-                // Otherwise life is a bit more complicated.  We walk through the
-                // list of imageBlocks we got from the session object to see if
-                // we can build a complete image, and if so, we do that.  If there
-                // are more imageBlocks after that, we tell the caller, so that
-                // they can have us look for more complete images.  We do that until
-                // we either exhaust the imageBlocks or we're unable to create a
-                // finished image.
-                //
-                // Doing it this way allows us to generate finished images in order,
-                // and with the caller controlling the basename of the finished
-                // files.
-                //
-                // Note that it's possible, even reasonable for imageBlocks to arrive
-                // out of order, so it we don't find one, we're gonna have to try
-                // and wait for it...
-                string szTdmetaFile;
-                string szTdmeta;
-                List<string> lszBasenames = new List<string>();
-                List<long> llPendingImageBlocks = new List<long>(m_llPendingImageBlocks);
-                foreach (long lImageBlock in llPendingImageBlocks)
+            // From this point on we're doing the same thing we did above under LastPartFlag.Yes...
+
+            // This is the basename of the finished .meta and .pdf, which
+            // is why it doesn't include .meta or .pdf...  O.o
+            m_iLastImageNumberSinceCurrentStartCapturing += 1;
+            a_szFinishedImageBasename = Path.Combine(Path.GetDirectoryName(a_szImageBlockBasename), "image" + (m_iLastImageNumberFromPreviousStartCapturing + m_iLastImageNumberSinceCurrentStartCapturing).ToString("D6"));
+
+            // Build the list of files (the range is inclusive!)...
+            aszSourceFiles = new string[(lImageBlockLast - lImageBlockFirst) + 1];
+            for (long lImageBlock = lImageBlockFirst; lImageBlock <= lImageBlockLast; lImageBlock++)
+            {
+                aszSourceFiles[lImageBlock - lImageBlockFirst] = Path.Combine(Path.Combine(m_szWriteFolder, "images"), "img" + lImageBlock.ToString("D6"));
+            }
+
+            // Catenate the .tdpdf files to a single .pdf, and delete the .tdpdf's...
+            using (Stream streamFinishedImageBasename = File.OpenWrite(a_szFinishedImageBasename + ".pdf"))
+            {
+                // Walk the files...
+                for (int ff = 0; ff < aszSourceFiles.Length; ff++)
                 {
-                    // Don't process stuff beyond us...
-                    if (lImageBlock > a_iImageBlockNum)
+                    // If we find a thumbnail, rename it...
+                    if (File.Exists(aszSourceFiles[ff] + "_thumbnail.tdpdf"))
                     {
-                        return (false);
+                        File.Move(aszSourceFiles[ff] + "_thumbnail.tdpdf", a_szFinishedImageBasename + "_thumbnail.pdf");
                     }
 
+                    // mlm: need a way to abort this...
                     // Check for a .tdmeta file, if we never get it, we're done...
+                    // 300 * 100 gives us 30 seconds...
                     int iTdmetaRetry = 0;
-                    int iTdmetaRetries = (int)Config.Get("tdmetaRetries", 30);
-                    szTdmetaFile = Path.Combine(szDirectoryName, "img" + lImageBlock.ToString("D6") + ".tdmeta");
+                    int iTdmetaRetries = (int)Config.Get("tdmetaRetries", 300);
                     for (iTdmetaRetry = 0; iTdmetaRetry < iTdmetaRetries; iTdmetaRetry++)
                     {
-                        if (File.Exists(szTdmetaFile))
+                        if (File.Exists(aszSourceFiles[ff] + ".tdmeta") && File.Exists(aszSourceFiles[ff] + ".tdpdf"))
                         {
                             break;
                         }
-                        Thread.Sleep((int)Config.Get("tdmetaMilliseconds", 1000));
+                        Thread.Sleep((int)Config.Get("tdmetaMilliseconds", 100));
                     }
                     if (iTdmetaRetry >= iTdmetaRetries)
                     {
-                        Log.Error("ClientFinishImage: tdmetaretry failed...<" + szTdmetaFile + ">");
+                        Log.Error("ClientFinishImage: tdmeta never showed up...<" + aszSourceFiles[ff] + ".tdmeta + .tdpdf" + ">");
                         return (false);
                     }
 
-                    // Read the beastie...
-                    szTdmeta = File.ReadAllText(szTdmetaFile);
-                    jsonlookup.Load(szTdmeta, out lJsonErrorIndex);
-
-                    // Collect the address information, we use this to look for gaps...
-                    try
+                    // Concatentate this .twpdf...
+                    using (Stream streamSourceFile = File.OpenRead(aszSourceFiles[ff] + ".tdpdf"))
                     {
-                        iImageNumber = int.Parse(jsonlookup.Get("metadata.address.imageNumber"));
-                        iImagePart = int.Parse(jsonlookup.Get("metadata.address.imagePart"));
-                        szMoreParts = jsonlookup.Get("metadata.address.moreParts");
-                    }
-                    catch (Exception exception)
-                    {
-                        Log.Error("ClientFinishImage: metadata error - " + exception.Message);
-                        return (false);
+                        streamSourceFile.CopyTo(streamFinishedImageBasename, 0x100000);
                     }
 
-                    // If it's not our image, skip it...
-                    if (    (iImageNumber != iOurImageNumber)
-                        ||  (iImagePart != iOurImagePart))
+                    // Delete this .tdpdf...
+                    File.Delete(aszSourceFiles[ff] + ".tdpdf");
+
+                    // Rename the last .tdmeta, this triggers the viewer to display the image...
+                    if (ff == (aszSourceFiles.Length - 1))
                     {
-                        continue;
+                        File.Move(aszSourceFiles[ff] + ".tdmeta", a_szFinishedImageBasename + ".meta");
                     }
-
-                    // Add it to our list...
-                    lszBasenames.Add(Path.Combine(szDirectoryName, Path.GetFileNameWithoutExtension(szTdmetaFile)));
-
-                    // Remove this imageBlock from our list...
-                    int iIndex = 0;
-                    for (iIndex = 0; iIndex < m_llPendingImageBlocks.Count; iIndex++)
+                    // Otherwise it's an intermediate file, delete it...
+                    else
                     {
-                        if (m_llPendingImageBlocks[iIndex] == lImageBlock)
-                        {
-                            break;
-                        }
-                    }
-                    if (iIndex < m_llPendingImageBlocks.Count)
-                    {
-                        m_llPendingImageBlocks.RemoveAt(iIndex);
-                    }
-
-                    // If this isn't the last bit, go up and look for more.  We have two
-                    // kinds of last parts.  One for a PDF/raster that represents a complete
-                    // sheet of paper, and one that's a segment from a sheet of paper...
-                    if ((szMoreParts != "lastPartInFile") && (szMoreParts != "lastPartInFileMorePartsPending"))
-                    {
-                        continue;
-                    }
-
-                    // If we got this far, we've found all of the imageBlocks for an image...
-                    break;
-                }
-
-                // Stitch all the .tdpdf's into a single .pdf...
-                int iRead;
-                byte[] abData = new byte[0x200000];
-                string szLastBasename = lszBasenames[lszBasenames.Count - 1];
-                FileStream filestreamWrite = new FileStream(a_szFinishedImageBasename + ".pdf", FileMode.Create);
-                foreach (string szBasename in lszBasenames)
-                {
-                    // Copy the data...
-                    try
-                    {
-                        FileStream filestreamRead = new FileStream(szBasename + ".tdpdf", FileMode.Open);
-                        while (true)
-                        {
-                            iRead = filestreamRead.Read(abData, 0, abData.Length);
-                            if (iRead == 0)
-                            {
-                                break;
-                            }
-                            filestreamWrite.Write(abData, 0, iRead);
-                        }
-                        filestreamRead.Close();
-                    }
-                    catch (Exception exception)
-                    {
-                        Log.Error("ClientFinishImage: read or write error - " + exception.Message);
-                        return (false);
-                    }
-
-                    // Blow away the .tdpdf file...
-                    File.Delete(szBasename + ".tdpdf");
-
-                    // Blow away the .tdmeta file, if it's not the last one...
-                    if (szBasename != szLastBasename)
-                    {
-                        File.Delete(szBasename + ".tdmeta");
+                        File.Delete(aszSourceFiles[ff] + ".tdmeta");
                     }
                 }
-                filestreamWrite.Close();
-
-                // If we have a thumbnail, rename it...
-                szThumbnail = szLastBasename + "_thumbnail.tdpdf";
-                if (File.Exists(szThumbnail))
-                {
-                    try
-                    {
-                        File.Move(szThumbnail, a_szFinishedImageBasename + "_thumbnail.pdf");
-                    }
-                    catch (Exception exception)
-                    {
-                        Log.Error("ClientFinishImage: move failed: " + szThumbnail + " -- > " + a_szFinishedImageBasename + "_thumbnail.pdf - " + exception.Message);
-                    }
-                }
-
-                // Always handle the .tdmeta last, because the creation
-                // of a .meta file indicates that all of the files associated
-                // with an image are ready for access...
-                try
-                {
-                    File.Move(szLastBasename + ".tdmeta", a_szFinishedImageBasename + ".meta");
-                }
-                catch (Exception exception)
-                {
-                    Log.Error("ClientFinishImage: move failed: " + szLastBasename + ".tdmeta --> " + a_szFinishedImageBasename + ".meta - " + exception.Message);
-                }
-
-                // All done, we created our finished image...
-                return (true);
             }
+
+            // Okay, clean up the map...
+            lock (m_objectMapCommandIdToImageBlockNumLock)
+            {
+                for (int mm = 0; mm < m_lmapcommandidtoimageblocknum.Count; mm++)
+                {
+                    if ((m_lmapcommandidtoimageblocknum[mm].GetImageBlockNum() >= lImageBlockFirst) && (m_lmapcommandidtoimageblocknum[mm].GetImageBlockNum() >= lImageBlockLast))
+                    {
+                        m_lmapcommandidtoimageblocknum.RemoveAt(mm);
+                        mm -= 1;
+                    }
+                }
+            }
+
+            // All done, we created our finished image...
+            return (true);
+
+            #endregion
         }
 
         /// <summary>
@@ -5360,12 +5226,6 @@ namespace TwainDirect.Support
                     }
                 }
 
-                // Add this to our map to help put image chunks back together...
-                lock (m_lmapcommandidtoimageblocknum)
-                {
-                    m_lmapcommandidtoimageblocknum.Add(new MapCommandIdToImageBlockNum(a_apicmd.GetCommandId(), (int)a_lImageBlockNum));
-                }
-
                 // Send the RESTful API command...
                 blSuccess = ClientHttpRequest
                 (
@@ -5508,10 +5368,12 @@ namespace TwainDirect.Support
                     }
                 }
 
-                // Add this to our map to help put image chunks back together...
-                lock (m_lmapcommandidtoimageblocknum)
+                // Add this to our map to help put image chunks back together,
+                // make sure the list is sorted...
+                lock (m_objectMapCommandIdToImageBlockNumLock)
                 {
                     m_lmapcommandidtoimageblocknum.Add(new MapCommandIdToImageBlockNum(a_apicmd.GetCommandId(), (int)a_lImageBlockNum));
+                    m_lmapcommandidtoimageblocknum.Sort(SortByImageBlockNumAscending);
                 }
 
                 // Send the RESTful API command...
@@ -5584,6 +5446,17 @@ namespace TwainDirect.Support
         }
 
         /// <summary>
+        /// A comparison operator for sorting keys in CmdSet...
+        /// </summary>
+        /// <param name="name1"></param>
+        /// <param name="name2"></param>
+        /// <returns></returns>
+        private int SortByImageBlockNumAscending(MapCommandIdToImageBlockNum a_mapcommandidtoimageblocknum1, MapCommandIdToImageBlockNum a_mapcommandidtoimageblocknum2)
+        {
+            return (a_mapcommandidtoimageblocknum1.GetImageBlockNum().CompareTo(a_mapcommandidtoimageblocknum2.GetImageBlockNum()));
+        }
+
+        /// <summary>
         /// Release one or more image blocks
         /// </summary>
         /// <param name="a_lImageBlockNum">first block to release</param>
@@ -5605,19 +5478,6 @@ namespace TwainDirect.Support
                 {
                     a_apicmd.SetClientCommandId(m_twainlocalsession.ClientCreateCommandId());
                     szSessionId = m_twainlocalsession.GetSessionId();
-                }
-
-                // Remove any content matching these image blocks...
-                lock (m_lmapcommandidtoimageblocknum)
-                {
-                    for (int mm = m_lmapcommandidtoimageblocknum.Count - 1; mm >= 0; mm--)
-                    {
-                        if (   (m_lmapcommandidtoimageblocknum[mm].GetImageBlockNum() >= (int)a_lImageBlockNum)
-                            && (m_lmapcommandidtoimageblocknum[mm].GetImageBlockNum() <= (int)a_lLastImageBlockNum))
-                        {
-                            m_lmapcommandidtoimageblocknum.RemoveAt(mm);
-                        }
-                    }
                 }
 
                 // Send the RESTful API command...
@@ -6028,6 +5888,13 @@ namespace TwainDirect.Support
         /// <param name="a_szEvent">event</param>
         public delegate void EventCallback(object a_object, string a_szEvent);
 
+        public enum MapMatchResult
+        {
+            NotReady = 0,
+            Match = 1,
+            NoMatch = 2
+        }
+
         /// <summary>
         /// Map a commandId to an imageBlockNum...
         /// </summary>
@@ -6037,6 +5904,9 @@ namespace TwainDirect.Support
             {
                 m_szCommandId = a_szCommandId;
                 m_iImageBlockNum = a_iImageBlockNum;
+                m_iImageNumber = 0;
+                m_iImagePartNum = 0;
+                m_szMoreParts = "";
             }
             public string GetCommandId()
             {
@@ -6046,8 +5916,29 @@ namespace TwainDirect.Support
             {
                 return (m_iImageBlockNum);
             }
+            public MapMatchResult MatchesMeta(MapCommandIdToImageBlockNum a_lmapcommandidtoimageblocknum)
+            {
+                if (m_iImageNumber == 0)
+                {
+                    return (MapMatchResult.NotReady);
+                }
+                if ((m_iImageNumber == a_lmapcommandidtoimageblocknum.m_iImageNumber) && (m_iImagePartNum == a_lmapcommandidtoimageblocknum.m_iImagePartNum))
+                {
+                    return (MapMatchResult.Match);
+                }
+                return (MapMatchResult.NoMatch);
+            }
+            public void SetMeta(int a_iImageNumber, int a_iImagePartNum, string a_szMoreParts)
+            {
+                m_iImageNumber = a_iImageNumber;
+                m_iImagePartNum = a_iImagePartNum;
+                m_szMoreParts = a_szMoreParts;
+            }
             private string m_szCommandId;
             private int m_iImageBlockNum;
+            private int m_iImageNumber;
+            private int m_iImagePartNum;
+            private string m_szMoreParts;
         }
 
         #endregion
@@ -6986,7 +6877,6 @@ namespace TwainDirect.Support
         /// Something we can lock...
         /// </summary>
         private object m_objectLockClientApi;
-        private object m_objectLockClientFinishImage;
         private object m_objectLockEndSession;
 
         /// <summary>
@@ -7060,6 +6950,7 @@ namespace TwainDirect.Support
         /// needed are additional properties to resolve things...
         /// </summary>
         private List<MapCommandIdToImageBlockNum> m_lmapcommandidtoimageblocknum = new List<MapCommandIdToImageBlockNum>();
+        private object m_objectMapCommandIdToImageBlockNumLock = new object();
          
         #endregion
 

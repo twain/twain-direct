@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    01-Jun-2017     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2019 Kodak Alaris Inc.
+//  Copyright (C) 2014-2020 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -4744,17 +4744,19 @@ namespace TwainDirect.Certification
                                 }
                                 else
                                 {
-                                    DisplayError("fix this code!!!");
-                                    // mlm
-                                    // we need a variable that holds the imageBlocks from the last command!!!
-                                    /*
-                                    apicmd = new ApiCmd(m_dnssddeviceinfoSelected);
-                                    m_twainlocalscannerclient.ClientScannerGetSession(ref apicmd);
-                                    if ((iIndex >= 0) && (iIndex < lImageBlocks.Count))
-                                    {
-                                        szValue = lImageBlocks[iIndex].ToString();
-                                    }
-                                    */
+                                    // Use whoever has the larger revision number...
+                                    int iRevisionLast = 0;
+                                    int iRevisionEvent = 0;
+                                    long lJsonErrorindex;
+                                    JsonLookup jsonlookup;
+                                    JsonLookup jsonlookupLast = new JsonLookup();
+                                    JsonLookup jsonlookupEvent = new JsonLookup();
+                                    jsonlookupLast.Load(m_transactionLast.GetResponseData(), out lJsonErrorindex);
+                                    jsonlookupEvent.Load(m_transactionEvent.GetResponseData(), out lJsonErrorindex);
+                                    int.TryParse(jsonlookupLast.Get("results.session.revision"), out iRevisionLast);
+                                    int.TryParse(jsonlookupEvent.Get("results.session.revision"), out iRevisionEvent);
+                                    jsonlookup = (iRevisionLast > iRevisionEvent) ? jsonlookupLast : jsonlookupEvent;
+                                    szValue = jsonlookup.Get("results.session.imageBlocks[" + iIndex + "]");
                                 }
                             }
                         }

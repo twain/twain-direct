@@ -11,7 +11,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    30-Jun-2015     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2015-2018 Kodak Alaris Inc.
+//  Copyright (C) 2015-2020 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -545,6 +545,9 @@ namespace TwainDirect.Support
         /// <returns>an array of image block numbers (ex: [ 1, 2 ])</returns>
         public string GetImageBlocksJson(string a_szSessionState)
         {
+            // Set to false in TwainDirect.Scanner to get pre-TWAIN Direct 1.2 behavior...
+            bool blUseImageBlocksComplete = (Config.Get("useImageBlocksComplete", "yes") == "yes");
+
             // These states always report that we have no data, or
             // if we've drained all of the umages...
             if (    (a_szSessionState == "noSession")
@@ -555,9 +558,9 @@ namespace TwainDirect.Support
                 (
                     "\"doneCapturing\":true," +
                     "\"imageBlocksDrained\":true," +
-                    "\"imageBlockNum\":0," +
+                    (blUseImageBlocksComplete ? "\"imageBlockNum\":0," : "") +
                     "\"imageBlocks\":[]," +
-                    "\"imageBlocksComplete\":[],"
+                    (blUseImageBlocksComplete ? "\"imageBlocksComplete\":[]," : "")
                );
             }
 
@@ -582,9 +585,9 @@ namespace TwainDirect.Support
             (
                 "\"doneCapturing\":" + ((m_sessiondata.blSessionDoneCapturing) ? "true," : "false,") +
                 "\"imageBlocksDrained\":false," +
-                "\"imageBlockNum\":" + m_sessiondata.lImageBlockNum + "," +
+                (blUseImageBlocksComplete ? ("\"imageBlockNum\":" + m_sessiondata.lImageBlockNum + ",") : "") +
                 "\"imageBlocks\":" + ((m_sessiondata.lImageBlocks == null) ? "[]," : "[" + string.Join(",", m_sessiondata.lImageBlocks) + "],") +
-                "\"imageBlocksComplete\":" + szImageblockscomplete
+                (blUseImageBlocksComplete ? ("\"imageBlocksComplete\":" + szImageblockscomplete) : "")
             );
         }
 

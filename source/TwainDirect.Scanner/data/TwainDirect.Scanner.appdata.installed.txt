@@ -72,6 +72,19 @@
 
 
 
+    "commentUseImageBlocksComplete": [
+        "******************************************************************************",
+        "default: yes",
+        "changing this to 'no' resets TwainDirect.Scanner to behavior prior to TWAIN",
+        "Direct 1.2; the scanner doesn't help as much when it comes to figuring out",
+        "how to reassemble imageBlocks into images",
+        "no - imageBlocksNum and imageBlocksComplete are NOT in the session object",
+        "yes - imageBlocksNum and imageBlocksComplete are included in the session object"
+    ],
+    "XuseImageBlocksComplete": "yes",
+
+
+
     "commentUsePort": [
         "default: 34034",
         "port number for the bridge to use for TWAIN Local; changing this requires",

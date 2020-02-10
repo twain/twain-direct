@@ -8,7 +8,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    17-Dec-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2018 Kodak Alaris Inc.
+//  Copyright (C) 2014-2020 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
@@ -569,8 +569,7 @@ namespace TwainDirect.OnTwain
                 if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
                 {
                     twextimageinfo.NumInfos = 0;
-                    twinfo.InfoId = (ushort)TWAIN.TWEI.DOCUMENTNUMBER; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
-                    twinfo.InfoId = (ushort)TWAIN.TWEI.PAGENUMBER; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
+                    twinfo.InfoId = (ushort)TWAIN.TWEI.PAPERCOUNT; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                     twinfo.InfoId = (ushort)TWAIN.TWEI.PAGESIDE; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                     sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
                     if (sts != TWAIN.STS.SUCCESS)
@@ -633,40 +632,14 @@ namespace TwainDirect.OnTwain
                     // See if we can get the side from the extended image info...
                     if (m_deviceregisterSession.GetTwainInquiryData().GetExtImageInfo())
                     {
-                        bool blUpdateSheetNumber = true;
                         for (uu = 0; uu < twextimageinfo.NumInfos; uu++)
                         {
                             twextimageinfo.Get(uu, ref twinfo);
-                            if (twinfo.InfoId == (ushort)TWAIN.TWEI.DOCUMENTNUMBER)
+                            if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAPERCOUNT)
                             {
                                 if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
                                 {
-                                    if (twinfo.Item != m_uintptrDocumentNumber)
-                                    {
-                                        blGotSheetNumber = true;
-                                        if (blUpdateSheetNumber)
-                                        {
-                                            m_iSheetNumber += 1;
-                                            blUpdateSheetNumber = false;
-                                        }
-                                        m_uintptrDocumentNumber = twinfo.Item;
-                                    }
-                                }
-                            }
-                            else if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAGENUMBER)
-                            {
-                                if (twinfo.ReturnCode == (ushort)TWAIN.STS.SUCCESS)
-                                {
-                                    if (twinfo.Item != m_uintptrPageNumber)
-                                    {
-                                        blGotSheetNumber = true;
-                                        if (blUpdateSheetNumber)
-                                        {
-                                            m_iSheetNumber += 1;
-                                            blUpdateSheetNumber = false;
-                                        }
-                                        m_uintptrPageNumber = twinfo.Item;
-                                    }
+                                    m_iSheetNumber = (int)twinfo.Item;
                                 }
                             }
                             else if (twinfo.InfoId == (ushort)TWAIN.TWEI.PAGESIDE)
@@ -937,16 +910,6 @@ namespace TwainDirect.OnTwain
         private void ClearImageBlocksDrained()
         {
             m_iSheetNumber = 0;
-            if (UIntPtr.Size == 4)
-            {
-                m_uintptrDocumentNumber = new UIntPtr(uint.MaxValue);
-                m_uintptrPageNumber = new UIntPtr(uint.MaxValue);
-            }
-            else
-            {
-                m_uintptrDocumentNumber = new UIntPtr(ulong.MaxValue);
-                m_uintptrPageNumber = new UIntPtr(ulong.MaxValue);
-            }
             m_blSessionImageBlocksDrained = false;
             string szSessionImageBlocksDrained = Path.Combine(m_szImagesFolder, "imageBlocksDrained.meta");
             if (File.Exists(szSessionImageBlocksDrained))
@@ -1751,8 +1714,6 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// Count the sheets...
         /// </summary>
-        private UIntPtr m_uintptrDocumentNumber;
-        private UIntPtr m_uintptrPageNumber;
         private int m_iSheetNumber;
 
         /// <summary>

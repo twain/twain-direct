@@ -9,7 +9,7 @@
 //  Author          Date            Comment
 //  M.McLaughlin    16-Jun-2014     Initial Release
 ///////////////////////////////////////////////////////////////////////////////////////
-//  Copyright (C) 2014-2018 Kodak Alaris Inc.
+//  Copyright (C) 2014-2020 Kodak Alaris Inc.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a
 //  copy of this software and associated documentation files (the "Software"),
