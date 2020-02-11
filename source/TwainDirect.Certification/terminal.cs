@@ -1404,6 +1404,10 @@ namespace TwainDirect.Certification
             {
                 DisplayRed(szLine, true);
             }
+            else if (a_functionarguments.aszCmd[2].Contains("warn"))
+            {
+                DisplayYellow(szLine, true);
+            }
             else
             {
                 Display(szLine, true);
