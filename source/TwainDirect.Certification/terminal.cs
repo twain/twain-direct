@@ -1581,6 +1581,7 @@ namespace TwainDirect.Certification
                 Display("increment {dst} {src} [step].................increment src by step and store in dst");
                 Display("json2xml {file|json}.........................convert json formatted data to xml");
                 Display("log {info|warn|error,etc} text...............add a line to the log file");
+                Display("report {initialize|save {folder}}............self certification report");
                 Display("return [status]..............................return from call function");
                 Display("run [script].................................run a script");
                 Display("runv [script]................................run a script verbosely");
@@ -2123,6 +2124,14 @@ namespace TwainDirect.Certification
             {
                 DisplayRed("PWD");
                 Display("Show the path to the current working directory.");
+                return (false);
+            }
+
+            // Report...
+            if ((szCommand == "report"))
+            {
+                DisplayRed("REPORT {INITIALIZE | SAVE {FOLDER}}");
+                Display("Initialize or save a self certification report.");
                 return (false);
             }
 
@@ -3085,7 +3094,7 @@ namespace TwainDirect.Certification
         /// <returns>true to quit</returns>
         private bool CmdReport(ref Interpreter.FunctionArguments a_functionarguments)
         {
-            // If we have no arguments, then log a complain...
+            // If we have no arguments, then log a complaint...
             if ((a_functionarguments.aszCmd == null) || (a_functionarguments.aszCmd.Length < 2) || (a_functionarguments.aszCmd[1] == null))
             {
                 DisplayError("please specify initialize or save");
