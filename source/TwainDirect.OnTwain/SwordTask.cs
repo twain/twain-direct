@@ -1793,6 +1793,35 @@ namespace TwainDirect.OnTwain
                 m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
             }
 
+            // Otherwise, try to turn compression on by default, we won't validate
+            // the result...
+            string szCompressions = a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetCompressions();
+            if (szCompressions.Contains("autoVersion1") || szCompressions.Contains("group4") || szCompressions.Contains("jpeg"))
+            {
+                szStatus = "";
+                szCapability = "ICAP_COMPRESSION";
+                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                if (sts == TWAIN.STS.SUCCESS)
+                {
+                    // Walk the enumerations looking for stuff that isn't TWCP_NONE (aka 0)...
+                    string[] aszCapability = szCapability.Split(',');
+                    for (int ee = 6; ee < aszCapability.Length; ee++)
+                    {
+                        int iTwcp = 0;
+                        if (int.TryParse(aszCapability[ee], out iTwcp))
+                        {
+                            if (iTwcp > 0)
+                            {
+                                szStatus = "";
+                                szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16," + iTwcp; // TWCP_GROUP4 or TWCP_JPEG
+                                m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             // Life is good...
             return (true);
         }
@@ -2135,60 +2164,107 @@ namespace TwainDirect.OnTwain
                     ConfigureNameLookup.Add(ref m_configurenamelookup, a_swordstream.GetName(), swordsource.GetName(), swordpixelformat.GetName(), swordsource.GetSource(), swordpixelformat.GetPixelFormat());
 
                     // Set the pixelformat...
+                    int iAutoColorEnabled = 0;
                     string szCapPixelType;
                     string szPixelformt = swordpixelformat.GetPixelFormat();
                     if (string.IsNullOrEmpty(szPixelformt) || (szPixelformt == "any"))
                     {
-                        szCapPixelType = "ICAP_PIXELTYPE";
+                        // If we can autodetect,do that...
+                        if (m_deviceregister.GetTwainInquiryData().GetAutomaticColorEnabled())
+                        {
+                            iAutoColorEnabled = 1;
+                        }
+
+                        // Otherwise examine the pixeltype, pick the value with
+                        // the most pixel data we can get...
+                        else
+                        {
+                            iAutoColorEnabled = -1;
+                            szCapPixelType = "ICAP_PIXELTYPE";
+                            szStatus = "";
+                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapPixelType, ref szStatus);
+                            if (sts != TWAIN.STS.SUCCESS)
+                            {
+                                TWAINWorkingGroup.Log.Error("Couldn't get ICAP_PIXELTYPE for 'any'");
+                                return (SwordStatus.Fail);
+                            }
+                            string[] aszContainer = CSV.Parse(szCapPixelType);
+                            if ((aszContainer == null) || (aszContainer.Length < 3) || (aszContainer[1] != "TWON_ONEVALUE"))
+                            {
+                                TWAINWorkingGroup.Log.Error("Couldn't parse ICAP_PIXELTYPE for 'any'");
+                                return (SwordStatus.Fail);
+                            }
+                            int iTwpt = -1;
+                            for (int xx = 3; xx < aszContainer.Length; xx++)
+                            {
+                                string szValue = aszContainer[xx].ToLowerInvariant();
+                                if ((szValue == "0") || szValue.Contains("bw"))
+                                {
+                                    if (0 > iTwpt) iTwpt = 0;
+                                }
+                                else if ((szValue == "1") || szValue.Contains("gray"))
+                                {
+                                    if (1 > iTwpt) iTwpt = 1;
+                                }
+                                else if ((szValue == "2") || szValue.Contains("rgb"))
+                                {
+                                    if (2 > iTwpt) iTwpt = 2;
+                                }
+                            }
+                            switch (iTwpt)
+                            {
+                                default:
+                                    TWAINWorkingGroup.Log.Error("Unsupported ICAP_PIXELTYPE for 'any' <" + aszContainer[3] + ">");
+                                    return (SwordStatus.Fail);
+                                case 0:
+                                    szPixelformt = "bw1";
+                                    break;
+                                case 1:
+                                    szPixelformt = "gray8";
+                                    break;
+                                case 2:
+                                    szPixelformt = "rgb24";
+                                    break;
+                            }
+                        }
+                    }
+
+                    // Let the scanner decide...
+                    if (iAutoColorEnabled == 1)
+                    {
+                        szCapPixelType = "ICAP_AUTOMATICCOLORENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
                         szStatus = "";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapPixelType, ref szStatus);
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapPixelType, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
-                            TWAINWorkingGroup.Log.Error("Couldn't get ICAP_PIXELTYPE for 'any'");
                             return (SwordStatus.Fail);
                         }
-                        string[] aszContainer = CSV.Parse(szCapPixelType);
-                        if ((aszContainer == null) || (aszContainer.Length < 3) || (aszContainer[1] != "TWON_ONEVALUE"))
-                        {
-                            TWAINWorkingGroup.Log.Error("Couldn't parse ICAP_PIXELTYPE for 'any'");
-                            return (SwordStatus.Fail);
-                        }
-                        switch (aszContainer[3])
+                    }
+
+                    // Set a pixeltype...
+                    else
+                    {
+                        switch (szPixelformt)
                         {
                             default:
-                                TWAINWorkingGroup.Log.Error("Unsupported ICAP_PIXELTYPE for 'any' <" + aszContainer[3] + ">");
-                                return (SwordStatus.Fail);
-                            case "0":
-                                szPixelformt = "bw1";
+                                szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,-1"; // cause a failure...
                                 break;
-                            case "1":
-                                szPixelformt = "gray8";
+                            case "bw1":
+                                szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPT_BW
                                 break;
-                            case "2":
-                                szPixelformt = "rgb24";
+                            case "gray8":
+                                szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPT_GRAY
+                                break;
+                            case "rgb24":
+                                szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2"; // TWPT_RGB24
                                 break;
                         }
-                    }
-                    switch (szPixelformt)
-                    {
-                        default:
-                            szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,-1"; // cause a failure...
-                            break;
-                        case "bw1":
-                            szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,0"; // TWPT_BW
-                            break;
-                        case "gray8":
-                            szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,1"; // TWPT_GRAY
-                            break;
-                        case "rgb24":
-                            szCapPixelType = "ICAP_PIXELTYPE,TWON_ONEVALUE,TWTY_UINT16,2"; // TWPT_RGB24
-                            break;
-                    }
-                    szStatus = "";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapPixelType, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        return (SwordStatus.Fail);
+                        szStatus = "";
+                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapPixelType, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            return (SwordStatus.Fail);
+                        }
                     }
 
                     // For each attribute...
@@ -3650,7 +3726,9 @@ namespace TwainDirect.OnTwain
                         m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
                         return (m_twaininquirydata);
 
-                    // These containers are just off by an index, so we can combine them...
+                    // These containers are just off by an index, so we can combine them.  We
+                    // only care if compression was detected.  We'll accept attempts to set
+                    // to group4 or jpeg (or anything else)...
                     case "TWON_ONEVALUE":
                     case "TWON_ENUMERATION":
                         for (iEnum = (aszContainer[1] == "TWON_ONEVALUE") ? 3 : 6; iEnum < aszContainer.Length; iEnum++)
@@ -3786,6 +3864,7 @@ namespace TwainDirect.OnTwain
                 // Can we detect color?
                 szStatus = TwainGetValue("ICAP_AUTOMATICCOLORENABLED");
                 m_blAutomaticColorEnabled = (szStatus != null);
+                m_twaininquirydata.SetAutomaticColorEnabled(m_blAutomaticColorEnabled);
             }
 
             // All done...
@@ -9614,7 +9693,7 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// TWAIN: The owner of this scanner...
         /// </summary>
-        private string m_szVendorOwner;       
+        private string m_szVendorOwner;
 
         /// <summary>
         /// TWAIN: true if ICAP_AUTOMATICCOLORENABLED is supported...

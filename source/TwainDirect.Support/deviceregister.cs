@@ -428,6 +428,16 @@ namespace TwainDirect.Support
                     case "driver": twaininquirydata.m_twaindirectsupport = TwainDirectSupport.Driver; break;
                 }
 
+                // CAP_AUTOMATICCOLORENABLED?
+                szValue = jsonlookup.Get("isAutomaticColorEnabled", false);
+                if (szValue == null) szValue = "";
+                switch (szValue.ToLowerInvariant())
+                {
+                    default: twaininquirydata.m_blAutomaticColorEnabled = false; break;
+                    case "false": twaininquirydata.m_blAutomaticColorEnabled = false; break;
+                    case "true": twaininquirydata.m_blAutomaticColorEnabled = true; break;
+                }
+
                 // CAP_AUTOMATICSENSEMEDIUM?
                 szValue = jsonlookup.Get("isAutomaticSenseMedium", false);
                 if (szValue == null) szValue = "";
@@ -632,6 +642,15 @@ namespace TwainDirect.Support
             public bool GetAutomaticSenseMedium()
             {
                 return (m_blAutomaticSenseMedium);
+            }
+
+            /// <summary>
+            /// Get CAP_AUTOMATICCOLORENABLED...
+            /// </summary>
+            /// <returns>true if supported</returns>
+            public bool GetAutomaticColorEnabled()
+            {
+                return (m_blAutomaticColorEnabled);
             }
 
             /// <summary>
@@ -913,6 +932,7 @@ namespace TwainDirect.Support
                 szJson += "\"twidentityProductName\":\"" + m_szTwidentityProductName + "\",";
                 szJson += "\"twidentityVersion\":\"" + m_szTwidentityVersion + "\",";
                 szJson += "\"twainDirectSupport\":\"" + m_twaindirectsupport + "\",";
+                szJson += "\"isAutomaticColorEnabled\":" + m_blAutomaticColorEnabled.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isAutomaticSenseMedium\":" + m_blAutomaticSenseMedium.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isCapabilityResetallSupported\":" + m_blCapabilityResetall.ToString().ToLowerInvariant() + ",";
                 szJson += "\"isDatTwainDirectSupported\":" + m_blDatTwainDirect.ToString().ToLowerInvariant() + ",";
@@ -952,6 +972,14 @@ namespace TwainDirect.Support
             public void SetAutomaticSenseMedium(bool a_blAutomaticSenseMedium)
             {
                 m_blAutomaticSenseMedium = a_blAutomaticSenseMedium;
+            }
+
+            /// <summary>
+            /// Set CAP_AUTOMATICCOLORENABLED...
+            /// </summary>
+            public void SetAutomaticColorEnabled(bool a_blAutomaticColorEnabled)
+            {
+                m_blAutomaticColorEnabled = a_blAutomaticColorEnabled;
             }
 
             /// <summary>
@@ -1159,6 +1187,12 @@ namespace TwainDirect.Support
             /// </summary>
             /// <returns></returns>
             private bool m_blAutomaticSenseMedium;
+
+            /// <summary>
+            /// Is ICAP_AUTOMATICCOLORENABLED supported?
+            /// </summary>
+            /// <returns></returns>
+            private bool m_blAutomaticColorEnabled;
 
             /// <summary>
             /// JSON array of camerasides, or an empty string...

@@ -74,6 +74,8 @@ run 'function CheckJsonProperty' 'TL.NSCN.RDIB.008' 'readimageblockresult' 'resu
 run 'function CheckJsonProperty' 'TL.NSCN.RDIB.009' 'readimageblockresult' 'results.session.sessionId' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.RDIB.010' 'readimageblockresult' 'results.session.revision' != ''
 run 'function CheckJsonProperty' 'TL.NSCN.RDIB.011' 'readimageblockresult' 'results.session.state' == '${arg:3}' '${arg:4}'
+run 'function WarnJsonProperty' 'TL.NSCN.RDIB.012' 'readimageblockresult' 'results.session.imageBlockNum'
+run 'function WarnJsonProperty' 'TL.NSCN.RDIB.013' 'readimageblockresult' 'results.session.imageBlocksComplete'
 ;
 ; If we didn't ask for metadata, there'd better not be any...
 if '${arg:2}' == 'true' goto READIMAGEBLOCK.CHECKMETADATA
