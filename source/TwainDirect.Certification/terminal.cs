@@ -2678,7 +2678,7 @@ namespace TwainDirect.Certification
             }
 
             // Get the step...
-            if ((a_functionarguments.aszCmd.Length >= 4) || (a_functionarguments.aszCmd[3] != null))
+            if ((a_functionarguments.aszCmd.Length >= 4) && (a_functionarguments.aszCmd[3] != null))
             {
                 if (!int.TryParse(a_functionarguments.aszCmd[3], out iStep))
                 {
