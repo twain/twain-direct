@@ -179,7 +179,7 @@ namespace TwainDirect.Support
         {
             int cc;
             int tt;
-            char szQuote;
+            char szQuote = (char)0;
             string[] aszTokens;
 
             // We're coming out of this with at least one token...
@@ -237,6 +237,7 @@ namespace TwainDirect.Support
                         // We found our terminator (don't copy it)...
                         if (a_szCmd[cc] == szQuote)
                         {
+                            szQuote = (char)0;
                             cc += 1;
                             break;
                         }
@@ -277,6 +278,13 @@ namespace TwainDirect.Support
                         aszTokens = asz;
                         tt += 1;
                     }
+                }
+
+                // Bail if we find an inline comment...
+                else if ((szQuote == (char)0) && (a_szCmd[cc] == ';'))
+                {
+                    Array.Resize<string>(ref aszTokens, aszTokens.Length - 1);
+                    break;
                 }
 
                 // Anything else is data in the current token...

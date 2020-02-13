@@ -1663,7 +1663,7 @@ namespace TwainDirect.Certification
                 Display("The 'language' is not sophisticated.  It supports a goto, a conditional goto, and a call");
                 Display("function.  The set and increment commands manage variables.  All of the TWAIN Direct calls are");
                 Display("accessible, including some extras used to stress the system.  The semicolon ';' is the comment");
-                Display("indicator.  At this time it must appear on a line by itself.");
+                Display("indicator, it can be used by itself and at the end of lines.");
                 Display("");
                 Display("The most interesting part of the scripting support is variable expansion.  Variables take the");
                 Display("form ${source:target} with the following available sources:");
@@ -2331,7 +2331,7 @@ namespace TwainDirect.Certification
             Display("");
             while (true)
             {
-                interpreter.SetPrompt("Cerify '" + szScanner + "' on 'TWAIN " + ((szProtocol == "local") ? "Local'" : "Cloud'") + " (yes/no)? ");
+                interpreter.SetPrompt("Certify '" + szScanner + "' on 'TWAIN " + ((szProtocol == "local") ? "Local'" : "Cloud'") + " (yes/no)? ");
                 string szAnswer = interpreter.Prompt(m_streamreaderConsole);
                 if (szAnswer.ToLowerInvariant().StartsWith("y"))
                 {
