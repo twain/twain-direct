@@ -166,6 +166,26 @@ namespace TWAINWorkingGroup
             m_runinuithreaddelegate = a_runinuithreaddelegate;
             m_intptrHwnd = a_intptrHwnd;
 
+            // Help for RunInUiThread...
+            m_threaddataDatAudiofilexfer = default(ThreadData);
+            m_threaddataDatAudionativexfer = default(ThreadData);
+            m_threaddataDatCapability = default(ThreadData);
+            m_threaddataDatEvent = default(ThreadData);
+            m_threaddataDatExtimageinfo = default(ThreadData);
+            m_threaddataDatIdentity = default(ThreadData);
+            m_threaddataDatImagefilexfer = default(ThreadData);
+            m_threaddataDatImageinfo = default(ThreadData);
+            m_threaddataDatImagelayout = default(ThreadData);
+            m_threaddataDatImagememfilexfer = default(ThreadData);
+            m_threaddataDatImagememxfer = default(ThreadData);
+            m_threaddataDatImagenativexfer = default(ThreadData);
+            m_threaddataDatParent = default(ThreadData);
+            m_threaddataDatPendingxfers = default(ThreadData);
+            m_threaddataDatSetupfilexfer = default(ThreadData);
+            m_threaddataDatSetupmemxfer = default(ThreadData);
+            m_threaddataDatStatus = default(ThreadData);
+            m_threaddataDatUserinterface = default(ThreadData);
+
             // We always go through a discovery process, even on 32-bit...
             m_linuxdsm = LinuxDsm.Unknown;
 
@@ -209,6 +229,10 @@ namespace TWAINWorkingGroup
                 if (GetMachineWordBitSize() == 32)
                 {
                     m_blFound020302Dsm64bit = false;
+                    if (File.Exists("/usr/local/lib64/libtwaindsm.so"))
+                    {
+                        m_blFoundLatestDsm64 = true;
+                    }
                     if (File.Exists("/usr/local/lib/libtwaindsm.so"))
                     {
                         m_blFoundLatestDsm = true;
@@ -222,12 +246,16 @@ namespace TWAINWorkingGroup
                 }
 
                 // Check for any newer DSM, but only on 64-bit systems...
-                if ((GetMachineWordBitSize() == 64) && File.Exists("/usr/local/lib/libtwaindsm.so"))
+                if ((GetMachineWordBitSize() == 64) && (File.Exists("/usr/local/lib/libtwaindsm.so") || File.Exists("/usr/local/lib64/libtwaindsm.so")))
                 {
                     bool blCheckForNewDsm = true;
 
                     // Get the DSMs by their fully decorated names...
-                    string[] aszDsm = Directory.GetFiles("/usr/local/lib", "libtwaindsm.so.*.*.*");
+                    string[] aszDsm = Directory.GetFiles("/usr/local/lib64", "libtwaindsm.so.*.*.*");
+                    if (aszDsm.Length == 0)
+                    {
+                        aszDsm = Directory.GetFiles("/usr/local/lib", "libtwaindsm.so.*.*.*");
+                    }
                     if ((aszDsm != null) && (aszDsm.Length > 0))
                     {
                         // Check each name, we only want to launch the process if
@@ -286,7 +314,14 @@ namespace TWAINWorkingGroup
                                 ||  szDsm.Contains("so.4"))
                             {
                                 // libtwaindsm.so is pointing to a new DSM...
-                                m_blFoundLatestDsm = true;
+                                if (szDsm.Contains("lib64"))
+                                {
+                                    m_blFoundLatestDsm64 = true;
+                                }
+                                else
+                                {
+                                    m_blFoundLatestDsm = true;
+                                }
                                 break;
                             }
                         }
@@ -309,6 +344,7 @@ namespace TWAINWorkingGroup
             }
 
             // Activate our thread...
+            /*
             if (m_threadTwain == null)
             {
                 m_twaincommand = new TwainCommand();
@@ -328,6 +364,18 @@ namespace TWAINWorkingGroup
                     }
                 }
             }
+            */
+        }
+
+        /// <summary>
+        /// Cleanup...
+        /// </summary>
+        [SuppressMessage("Microsoft.Security", "CA2123:OverrideLinkDemandsShouldBeIdenticalToBase")]
+        [SecurityPermissionAttribute(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -354,7 +402,11 @@ namespace TWAINWorkingGroup
             // Linux...
             else if (ms_platform == Platform.LINUX)
             {
-                if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                {
+                    szDsmPath = "/usr/local/lib64/libtwaindsm.so";
+                }
+                else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                 {
                     szDsmPath = "/usr/local/lib/libtwaindsm.so";
                 }
@@ -394,6 +446,15 @@ namespace TWAINWorkingGroup
         }
 
         /// <summary>
+        /// Get the identity of the current application...
+        /// </summary>
+        /// <returns></returns>
+        public string GetAppIdentity()
+        {
+            return (IdentityToCsv(m_twidentityApp));
+        }
+
+        /// <summary>
         /// Get the identity of the current driver, if we have one...
         /// </summary>
         /// <returns></returns>
@@ -404,17 +465,6 @@ namespace TWAINWorkingGroup
                 return (IdentityToCsv(default(TW_IDENTITY)));
             }
             return (IdentityToCsv(m_twidentityDs));
-        }
-
-        /// <summary>
-        /// Cleanup...
-        /// </summary>
-        [SuppressMessage("Microsoft.Security", "CA2123:OverrideLinkDemandsShouldBeIdenticalToBase")]
-        [SecurityPermissionAttribute(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.UnmanagedCode)]
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -724,20 +774,17 @@ namespace TWAINWorkingGroup
             // Allocate memory that we can give to the driver...
             if (m_tweventPreFilterMessage.pEvent == IntPtr.Zero)
             {
-                m_tweventPreFilterMessage.pEvent = Marshal.AllocHGlobal(Marshal.SizeOf(msg));
+                m_tweventPreFilterMessage.pEvent = Marshal.AllocHGlobal(Marshal.SizeOf(msg) + 65536);
             }
             Marshal.StructureToPtr(msg, m_tweventPreFilterMessage.pEvent, true);
 
             // See if the driver wants the event...
             m_tweventPreFilterMessage.TWMessage = 0;
-            sts = DatEvent(DG.CONTROL, MSG.PROCESSEVENT, ref m_tweventPreFilterMessage);
+            sts = DatEvent(DG.CONTROL, MSG.PROCESSEVENT, ref m_tweventPreFilterMessage, true);
             if ((sts != STS.DSEVENT) && (sts != STS.NOTDSEVENT))
             {
                 return (false);
             }
-
-            // Handle messages...
-            ProcessEvent((MSG)m_tweventPreFilterMessage.TWMessage);
 
             // All done, tell the app we consumed the event if we
             // got back a status telling us that...
@@ -757,11 +804,50 @@ namespace TWAINWorkingGroup
             STS sts;
             STATE stateStart;
 
+            // Nothing to do here...
+            if (m_state <= STATE.S2)
+            {
+                return (m_state);
+            }
+
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate != null)
             {
                 lock (m_lockTwain)
                 {
+                    // No point in continuing...
+                    if (m_twaincommand == null)
+                    {
+                        return (m_state);
+                    }
+
+                    // Set the command variables...
+                    ThreadData threaddata = default(ThreadData);
+                    threaddata.blExitThread = true;
+                    long lIndex = m_twaincommand.Submit(threaddata);
+
+                    // Submit the command and wait for the reply, the delay
+                    // is needed because Mac OS X doesn't gracefully handle
+                    // the loss of a mutex...
+                    s_iCloseDsmDelay = 0;
+                    CallerToThreadSet();
+                    ThreadToRollbackWaitOne();
+                    Thread.Sleep(s_iCloseDsmDelay);
+
+                    // Clear the command variables...
+                    m_twaincommand.Delete(lIndex);
+                }
+            }
+            else if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            {
+                lock (m_lockTwain)
+                {
+                    // No point in continuing...
+                    if (m_twaincommand == null)
+                    {
+                        return (m_state);
+                    }
+
                     // Set the command variables...
                     ThreadData threaddata = default(ThreadData);
                     threaddata.stateRollback = a_stateTarget;
@@ -774,7 +860,7 @@ namespace TWAINWorkingGroup
                     s_iCloseDsmDelay = 0;
                     CallerToThreadSet();
                     ThreadToRollbackWaitOne();
-                    System.Threading.Thread.Sleep(s_iCloseDsmDelay);
+                    Thread.Sleep(s_iCloseDsmDelay);
 
                     // Clear the command variables...
                     m_twaincommand.Delete(lIndex);
@@ -831,6 +917,9 @@ namespace TWAINWorkingGroup
                     }
                     stateStart = STATE.S4;
                     m_blAcceptXferReady = false;
+                    m_blIsMsgclosedsok = false;
+                    m_blIsMsgclosedsreq = false;
+                    m_blIsMsgxferready = false; 
                 }
 
                 // State 4 --> State 3...
@@ -874,6 +963,507 @@ namespace TWAINWorkingGroup
             return (m_state);
         }
 
+        /// <summary>
+        /// Send a command to the currently loaded DSM...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        public TWAIN.STS Send(string a_szDg, string a_szDat, string a_szMsg, ref string a_szTwmemref, ref string a_szResult)
+        {
+            int iDg;
+            int iDat;
+            int iMsg;
+            TWAIN.STS sts;
+            TWAIN.DG dg = TWAIN.DG.MASK;
+            TWAIN.DAT dat = TWAIN.DAT.NULL;
+            TWAIN.MSG msg = TWAIN.MSG.NULL;
+
+            // Init stuff...
+            iDg = 0;
+            iDat = 0;
+            iMsg = 0;
+            sts = TWAIN.STS.BADPROTOCOL;
+            a_szResult = "";
+
+            // Look for DG...
+            if (!a_szDg.ToLowerInvariant().StartsWith("dg_"))
+            {
+                TWAINWorkingGroup.Log.Error("Unrecognized dg - <" + a_szDg + ">");
+                return (TWAIN.STS.BADPROTOCOL);
+            }
+            else
+            {
+                // Look for hex number (take anything)...
+                if (a_szDg.ToLowerInvariant().StartsWith("dg_0x"))
+                {
+                    if (!int.TryParse(a_szDg.ToLowerInvariant().Substring(3), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iDg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Badly constructed dg - <" + a_szDg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                }
+                else
+                {
+                    if (!Enum.TryParse(a_szDg.ToUpperInvariant().Substring(3), out dg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Unrecognized dg - <" + a_szDg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                    iDg = (int)dg;
+                }
+            }
+
+            // Look for DAT...
+            if (!a_szDat.ToLowerInvariant().StartsWith("dat_"))
+            {
+                TWAINWorkingGroup.Log.Error("Unrecognized dat - <" + a_szDat + ">");
+                return (TWAIN.STS.BADPROTOCOL);
+            }
+            else
+            {
+                // Look for hex number (take anything)...
+                if (a_szDat.ToLowerInvariant().StartsWith("dat_0x"))
+                {
+                    if (!int.TryParse(a_szDat.ToLowerInvariant().Substring(4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iDat))
+                    {
+                        TWAINWorkingGroup.Log.Error("Badly constructed dat - <" + a_szDat + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                }
+                else
+                {
+                    if (!Enum.TryParse(a_szDat.ToUpperInvariant().Substring(4), out dat))
+                    {
+                        TWAINWorkingGroup.Log.Error("Unrecognized dat - <" + a_szDat + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                    iDat = (int)dat;
+                }
+            }
+
+            // Look for MSG...
+            if (!a_szMsg.ToLowerInvariant().StartsWith("msg_"))
+            {
+                TWAINWorkingGroup.Log.Error("Unrecognized msg - <" + a_szMsg + ">");
+                return (TWAIN.STS.BADPROTOCOL);
+            }
+            else
+            {
+                // Look for hex number (take anything)...
+                if (a_szMsg.ToLowerInvariant().StartsWith("msg_0x"))
+                {
+                    if (!int.TryParse(a_szMsg.ToLowerInvariant().Substring(4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iMsg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Badly constructed dat - <" + a_szMsg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                }
+                else
+                {
+                    if (!Enum.TryParse(a_szMsg.ToUpperInvariant().Substring(4), out msg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Unrecognized msg - <" + a_szMsg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                    iMsg = (int)msg;
+                }
+            }
+
+            // Send the command...
+            switch (iDat)
+            {
+                // Ruh-roh, since we can't marshal it, we have to return an error,
+                // it would be nice to have a solution for this, but that will need
+                // a dynamic marshalling system...
+                default:
+                    sts = TWAIN.STS.BADPROTOCOL;
+                    break;
+
+                // DAT_AUDIOFILEXFER...
+                case (int)TWAIN.DAT.AUDIOFILEXFER:
+                    {
+                        sts = DatAudiofilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg);
+                        a_szTwmemref = "";
+                    }
+                    break;
+
+                // DAT_AUDIOINFO..
+                case (int)TWAIN.DAT.AUDIOINFO:
+                    {
+                        TWAIN.TW_AUDIOINFO twaudioinfo = default(TWAIN.TW_AUDIOINFO);
+                        sts = DatAudioinfo((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twaudioinfo);
+                        a_szTwmemref = AudioinfoToCsv(twaudioinfo);
+                    }
+                    break;
+
+                // DAT_AUDIONATIVEXFER..
+                case (int)TWAIN.DAT.AUDIONATIVEXFER:
+                    {
+                        IntPtr intptr = IntPtr.Zero;
+                        sts = DatAudionativexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref intptr);
+                        a_szTwmemref = intptr.ToString();
+                    }
+                    break;
+
+                // DAT_CALLBACK...
+                case (int)TWAIN.DAT.CALLBACK:
+                    {
+                        TWAIN.TW_CALLBACK twcallback = default(TWAIN.TW_CALLBACK);
+                        CsvToCallback(ref twcallback, a_szTwmemref);
+                        sts = DatCallback((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcallback);
+                        a_szTwmemref = CallbackToCsv(twcallback);
+                    }
+                    break;
+
+                // DAT_CALLBACK2...
+                case (int)TWAIN.DAT.CALLBACK2:
+                    {
+                        TWAIN.TW_CALLBACK2 twcallback2 = default(TWAIN.TW_CALLBACK2);
+                        CsvToCallback2(ref twcallback2, a_szTwmemref);
+                        sts = DatCallback2((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcallback2);
+                        a_szTwmemref = Callback2ToCsv(twcallback2);
+                    }
+                    break;
+
+                // DAT_CAPABILITY...
+                case (int)TWAIN.DAT.CAPABILITY:
+                    {
+                        // Skip symbols for msg_querysupport, otherwise 0 gets turned into false, also
+                        // if the command fails the return value is whatever was sent into us, which
+                        // matches the experience one should get with C/C++...
+                        string szStatus = "";
+                        TWAIN.TW_CAPABILITY twcapability = default(TWAIN.TW_CAPABILITY);
+                        CsvToCapability(ref twcapability, ref szStatus, a_szTwmemref);
+                        sts = DatCapability((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcapability);
+                        if ((sts == TWAIN.STS.SUCCESS) || (sts == TWAIN.STS.CHECKSTATUS))
+                        {
+                            // Convert the data to CSV...
+                            a_szTwmemref = CapabilityToCsv(twcapability, ((TWAIN.MSG)iMsg != TWAIN.MSG.QUERYSUPPORT));
+                            // Free the handle if the driver created it...
+                            switch ((TWAIN.MSG)iMsg)
+                            {
+                                default: break;
+                                case TWAIN.MSG.GET:
+                                case TWAIN.MSG.GETCURRENT:
+                                case TWAIN.MSG.GETDEFAULT:
+                                case TWAIN.MSG.QUERYSUPPORT:
+                                case TWAIN.MSG.RESET:
+                                    DsmMemFree(ref twcapability.hContainer);
+                                    break;
+                            }
+                        }
+                    }
+                    break;
+
+                // DAT_CIECOLOR..
+                case (int)TWAIN.DAT.CIECOLOR:
+                    {
+                        //TWAIN.TW_CIECOLOR twciecolor = default(TWAIN.TW_CIECOLOR);
+                        //sts = m_twain.DatCiecolor((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twciecolor);
+                        //a_szTwmemref = m_twain.CiecolorToCsv(twciecolor);
+                    }
+                    break;
+
+                // DAT_CUSTOMDSDATA...
+                case (int)TWAIN.DAT.CUSTOMDSDATA:
+                    {
+                        TWAIN.TW_CUSTOMDSDATA twcustomdsdata = default(TWAIN.TW_CUSTOMDSDATA);
+                        CsvToCustomdsdata(ref twcustomdsdata, a_szTwmemref);
+                        sts = DatCustomdsdata((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcustomdsdata);
+                        a_szTwmemref = CustomdsdataToCsv(twcustomdsdata);
+                    }
+                    break;
+
+                // DAT_DEVICEEVENT...
+                case (int)TWAIN.DAT.DEVICEEVENT:
+                    {
+                        TWAIN.TW_DEVICEEVENT twdeviceevent = default(TWAIN.TW_DEVICEEVENT);
+                        sts = DatDeviceevent((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twdeviceevent);
+                        a_szTwmemref = DeviceeventToCsv(twdeviceevent);
+                    }
+                    break;
+
+                // DAT_ENTRYPOINT...
+                case (int)TWAIN.DAT.ENTRYPOINT:
+                    {
+                        TWAIN.TW_ENTRYPOINT twentrypoint = default(TWAIN.TW_ENTRYPOINT);
+                        twentrypoint.Size = (uint)Marshal.SizeOf(twentrypoint);
+                        sts = DatEntrypoint((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twentrypoint);
+                        a_szTwmemref = EntrypointToCsv(twentrypoint);
+                    }
+                    break;
+
+                // DAT_EVENT...
+                case (int)TWAIN.DAT.EVENT:
+                    {
+                        TWAIN.TW_EVENT twevent = default(TWAIN.TW_EVENT);
+                        sts = DatEvent((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twevent);
+                        a_szTwmemref = EventToCsv(twevent);
+                    }
+                    break;
+
+                // DAT_EXTIMAGEINFO...
+                case (int)TWAIN.DAT.EXTIMAGEINFO:
+                    {
+                        TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
+                        CsvToExtimageinfo(ref twextimageinfo, a_szTwmemref);
+                        sts = DatExtimageinfo((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twextimageinfo);
+                        a_szTwmemref = ExtimageinfoToCsv(twextimageinfo);
+                    }
+                    break;
+
+                // DAT_FILESYSTEM...
+                case (int)TWAIN.DAT.FILESYSTEM:
+                    {
+                        TWAIN.TW_FILESYSTEM twfilesystem = default(TWAIN.TW_FILESYSTEM);
+                        CsvToFilesystem(ref twfilesystem, a_szTwmemref);
+                        sts = DatFilesystem((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twfilesystem);
+                        a_szTwmemref = FilesystemToCsv(twfilesystem);
+                    }
+                    break;
+
+                // DAT_FILTER...
+                case (int)TWAIN.DAT.FILTER:
+                    {
+                        //TWAIN.TW_FILTER twfilter = default(TWAIN.TW_FILTER);
+                        //m_twain.CsvToFilter(ref twfilter, a_szTwmemref);
+                        //sts = m_twain.DatFilter((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twfilter);
+                        //a_szTwmemref = m_twain.FilterToCsv(twfilter);
+                    }
+                    break;
+
+                // DAT_GRAYRESPONSE...
+                case (int)TWAIN.DAT.GRAYRESPONSE:
+                    {
+                        //TWAIN.TW_GRAYRESPONSE twgrayresponse = default(TWAIN.TW_GRAYRESPONSE);
+                        //m_twain.CsvToGrayresponse(ref twgrayresponse, a_szTwmemref);
+                        //sts = m_twain.DatGrayresponse((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twgrayresponse);
+                        //a_szTwmemref = m_twain.GrayresponseToCsv(twgrayresponse);
+                    }
+                    break;
+
+                // DAT_ICCPROFILE...
+                case (int)TWAIN.DAT.ICCPROFILE:
+                    {
+                        TWAIN.TW_MEMORY twmemory = default(TWAIN.TW_MEMORY);
+                        sts = DatIccprofile((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twmemory);
+                        a_szTwmemref = IccprofileToCsv(twmemory);
+                    }
+                    break;
+
+                // DAT_IDENTITY...
+                case (int)TWAIN.DAT.IDENTITY:
+                    {
+                        TWAIN.TW_IDENTITY twidentity = default(TWAIN.TW_IDENTITY);
+                        switch (iMsg)
+                        {
+                            default:
+                                break;
+                            case (int)TWAIN.MSG.SET:
+                            case (int)TWAIN.MSG.OPENDS:
+                                CsvToIdentity(ref twidentity, a_szTwmemref);
+                                break;
+                        }
+                        sts = DatIdentity((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twidentity);
+                        a_szTwmemref = IdentityToCsv(twidentity);
+                    }
+                    break;
+
+                // DAT_IMAGEFILEXFER...
+                case (int)TWAIN.DAT.IMAGEFILEXFER:
+                    {
+                        sts = DatImagefilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg);
+                        a_szTwmemref = "";
+                    }
+                    break;
+
+                // DAT_IMAGEINFO...
+                case (int)TWAIN.DAT.IMAGEINFO:
+                    {
+                        TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
+                        CsvToImageinfo(ref twimageinfo, a_szTwmemref);
+                        sts = DatImageinfo((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimageinfo);
+                        a_szTwmemref = ImageinfoToCsv(twimageinfo);
+                    }
+                    break;
+
+                // DAT_IMAGELAYOUT...
+                case (int)TWAIN.DAT.IMAGELAYOUT:
+                    {
+                        TWAIN.TW_IMAGELAYOUT twimagelayout = default(TWAIN.TW_IMAGELAYOUT);
+                        CsvToImagelayout(ref twimagelayout, a_szTwmemref);
+                        sts = DatImagelayout((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimagelayout);
+                        a_szTwmemref = ImagelayoutToCsv(twimagelayout);
+                    }
+                    break;
+
+                // DAT_IMAGEMEMFILEXFER...
+                case (int)TWAIN.DAT.IMAGEMEMFILEXFER:
+                    {
+                        TWAIN.TW_IMAGEMEMXFER twimagememxfer = default(TWAIN.TW_IMAGEMEMXFER);
+                        CsvToImagememxfer(ref twimagememxfer, a_szTwmemref);
+                        sts = DatImagememfilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimagememxfer);
+                        a_szTwmemref = ImagememxferToCsv(twimagememxfer);
+                    }
+                    break;
+
+                // DAT_IMAGEMEMXFER...
+                case (int)TWAIN.DAT.IMAGEMEMXFER:
+                    {
+                        TWAIN.TW_IMAGEMEMXFER twimagememxfer = default(TWAIN.TW_IMAGEMEMXFER);
+                        CsvToImagememxfer(ref twimagememxfer, a_szTwmemref);
+                        sts = DatImagememxfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimagememxfer);
+                        a_szTwmemref = ImagememxferToCsv(twimagememxfer);
+                    }
+                    break;
+
+                // DAT_IMAGENATIVEXFER...
+                case (int)TWAIN.DAT.IMAGENATIVEXFER:
+                    {
+                        IntPtr intptrBitmapHandle = IntPtr.Zero;
+                        sts = DatImagenativexferHandle((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref intptrBitmapHandle);
+                        a_szTwmemref = intptrBitmapHandle.ToString();
+                    }
+                    break;
+
+                // DAT_JPEGCOMPRESSION...
+                case (int)TWAIN.DAT.JPEGCOMPRESSION:
+                    {
+                        //TWAIN.TW_JPEGCOMPRESSION twjpegcompression = default(TWAIN.TW_JPEGCOMPRESSION);
+                        //m_twain.CsvToJpegcompression(ref twjpegcompression, a_szTwmemref);
+                        //sts = m_twain.DatJpegcompression((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twjpegcompression);
+                        //a_szTwmemref = m_twain.JpegcompressionToCsv(twjpegcompression);
+                    }
+                    break;
+
+                // DAT_METRICS...
+                case (int)TWAIN.DAT.METRICS:
+                    {
+                        TWAIN.TW_METRICS twmetrics = default(TWAIN.TW_METRICS);
+                        twmetrics.SizeOf = (uint)Marshal.SizeOf(twmetrics);
+                        sts = DatMetrics((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twmetrics);
+                        a_szTwmemref = MetricsToCsv(twmetrics);
+                    }
+                    break;
+
+                // DAT_PALETTE8...
+                case (int)TWAIN.DAT.PALETTE8:
+                    {
+                        //TWAIN.TW_PALETTE8 twpalette8 = default(TWAIN.TW_PALETTE8);
+                        //m_twain.CsvToPalette8(ref twpalette8, a_szTwmemref);
+                        //sts = m_twain.DatPalette8((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twpalette8);
+                        //a_szTwmemref = m_twain.Palette8ToCsv(twpalette8);
+                    }
+                    break;
+
+                // DAT_PARENT...
+                case (int)TWAIN.DAT.PARENT:
+                    {
+                        sts = DatParent((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref m_intptrHwnd);
+                        a_szTwmemref = "";
+                    }
+                    break;
+
+                // DAT_PASSTHRU...
+                case (int)TWAIN.DAT.PASSTHRU:
+                    {
+                        TWAIN.TW_PASSTHRU twpassthru = default(TWAIN.TW_PASSTHRU);
+                        CsvToPassthru(ref twpassthru, a_szTwmemref);
+                        sts = DatPassthru((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twpassthru);
+                        a_szTwmemref = PassthruToCsv(twpassthru);
+                    }
+                    break;
+
+                // DAT_PENDINGXFERS...
+                case (int)TWAIN.DAT.PENDINGXFERS:
+                    {
+                        TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
+                        sts = DatPendingxfers((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twpendingxfers);
+                        a_szTwmemref = PendingxfersToCsv(twpendingxfers);
+                    }
+                    break;
+
+                // DAT_RGBRESPONSE...
+                case (int)TWAIN.DAT.RGBRESPONSE:
+                    {
+                        //TWAIN.TW_RGBRESPONSE twrgbresponse = default(TWAIN.TW_RGBRESPONSE);
+                        //m_twain.CsvToRgbresponse(ref twrgbresponse, a_szTwmemref);
+                        //sts = m_twain.DatRgbresponse((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twrgbresponse);
+                        //a_szTwmemref = m_twain.RgbresponseToCsv(twrgbresponse);
+                    }
+                    break;
+
+                // DAT_SETUPFILEXFER...
+                case (int)TWAIN.DAT.SETUPFILEXFER:
+                    {
+                        TWAIN.TW_SETUPFILEXFER twsetupfilexfer = default(TWAIN.TW_SETUPFILEXFER);
+                        CsvToSetupfilexfer(ref twsetupfilexfer, a_szTwmemref);
+                        sts = DatSetupfilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twsetupfilexfer);
+                        a_szTwmemref = SetupfilexferToCsv(twsetupfilexfer);
+                    }
+                    break;
+
+                // DAT_SETUPMEMXFER...
+                case (int)TWAIN.DAT.SETUPMEMXFER:
+                    {
+                        TWAIN.TW_SETUPMEMXFER twsetupmemxfer = default(TWAIN.TW_SETUPMEMXFER);
+                        sts = DatSetupmemxfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twsetupmemxfer);
+                        a_szTwmemref = SetupmemxferToCsv(twsetupmemxfer);
+                    }
+                    break;
+
+                // DAT_STATUS...
+                case (int)TWAIN.DAT.STATUS:
+                    {
+                        TWAIN.TW_STATUS twstatus = default(TWAIN.TW_STATUS);
+                        sts = DatStatus((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twstatus);
+                        a_szTwmemref = StatusToCsv(twstatus);
+                    }
+                    break;
+
+                // DAT_STATUSUTF8...
+                case (int)TWAIN.DAT.STATUSUTF8:
+                    {
+                        TWAIN.TW_STATUSUTF8 twstatusutf8 = default(TWAIN.TW_STATUSUTF8);
+                        sts = DatStatusutf8((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twstatusutf8);
+                        a_szTwmemref = Statusutf8ToCsv(twstatusutf8);
+                    }
+                    break;
+
+                // DAT_TWAINDIRECT...
+                case (int)TWAIN.DAT.TWAINDIRECT:
+                    {
+                        TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);
+                        CsvToTwaindirect(ref twtwaindirect, a_szTwmemref);
+                        sts = DatTwaindirect((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twtwaindirect);
+                        a_szTwmemref = TwaindirectToCsv(twtwaindirect);
+                    }
+                    break;
+
+                // DAT_USERINTERFACE...
+                case (int)TWAIN.DAT.USERINTERFACE:
+                    {
+                        TWAIN.TW_USERINTERFACE twuserinterface = default(TWAIN.TW_USERINTERFACE);
+                        CsvToUserinterface(ref twuserinterface, a_szTwmemref);
+                        sts = DatUserinterface((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twuserinterface);
+                        a_szTwmemref = UserinterfaceToCsv(twuserinterface);
+                    }
+                    break;
+
+                // DAT_XFERGROUP...
+                case (int)TWAIN.DAT.XFERGROUP:
+                    {
+                        uint uXferGroup = 0;
+                        sts = DatXferGroup((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref uXferGroup);
+                        a_szTwmemref = string.Format("0x{0:X}", uXferGroup);
+                    }
+                    break;
+            }
+
+            // All done...
+            return (sts);
+        }
+
         #endregion
 
 
@@ -883,6 +1473,121 @@ namespace TWAINWorkingGroup
         // functions that do that are located here...
         ///////////////////////////////////////////////////////////////////////////////
         #region Public Helper Functions...
+
+        /// <summary>
+        /// Copy intptr to intptr...
+        /// </summary>
+        /// <param name="dest"></param>
+        /// <param name="src"></param>
+        /// <param name="count"></param>
+        public static void MemCpy(IntPtr dest, IntPtr src, int count)
+        {
+            if (TWAIN.GetPlatform() == TWAIN.Platform.WINDOWS)
+            {
+                NativeMethods.CopyMemory(dest, src, (uint)count);
+            }
+            else
+            {
+                NativeMethods.memcpy(dest, src, (IntPtr)count);
+            }
+        }
+
+        /// <summary>
+        /// Safely move intptr to intptr...
+        /// </summary>
+        /// <param name="dest"></param>
+        /// <param name="src"></param>
+        /// <param name="count"></param>
+        public static void MemMove(IntPtr dest, IntPtr src, int count)
+        {
+            if (TWAIN.GetPlatform() == TWAIN.Platform.WINDOWS)
+            {
+                NativeMethods.MoveMemory(dest, src, (uint)count);
+            }
+            else
+            {
+                NativeMethods.memmove(dest, src, (IntPtr)count);
+            }
+        }
+
+        /// <summary>
+        /// Write stuff to a file without having to rebuffer it...
+        /// </summary>
+        /// <param name="a_szFilename"></param>
+        /// <param name="a_intptrPtr"></param>
+        /// <param name="a_iBytes"></param>
+        /// <returns></returns>
+        public static int WriteImageFile(string a_szFilename, IntPtr a_intptrPtr, int a_iBytes, out string a_szFinalFilename)
+        {
+            // Init stuff...
+            a_szFinalFilename = "";
+
+            // Try to write our file...
+            try
+            {
+                // If we don't have an extension, try to add one...
+                if (!Path.GetFileName(a_szFilename).Contains(".") && (a_iBytes >= 2))
+                {
+                    byte[] abData = new byte[2];
+                    Marshal.Copy(a_intptrPtr, abData, 0, 2);
+                    // BMP
+                    if ((abData[0] == 0x42) && (abData[1] == 0x4D)) // BM
+                    {
+                        a_szFilename += ".bmp";
+                    }
+                    else if ((abData[0] == 0x49) && (abData[1] == 0x49)) // II
+                    {
+                        a_szFilename += ".tif";
+                    }
+                    else if ((abData[0] == 0xFF) && (abData[1] == 0xD8))
+                    {
+                        a_szFilename += ".jpg";
+                    }
+                    else if ((abData[0] == 0x25) && (abData[1] == 0x50)) // %P
+                    {
+                        a_szFilename += ".pdf";
+                    }
+                }
+
+                // For the caller...
+                a_szFinalFilename = a_szFilename;
+
+                // Handle Windows...
+                if (TWAIN.GetPlatform() == TWAIN.Platform.WINDOWS)
+                {
+                    IntPtr intptrFile;
+                    IntPtr intptrBytes = (IntPtr)a_iBytes;
+                    IntPtr intptrCount = (IntPtr)1;
+                    if (NativeMethods._wfopen_s(out intptrFile, a_szFilename, "wb") != 0)
+                    {
+                        return (-1);
+                    }
+                    intptrBytes = NativeMethods.fwriteWin(a_intptrPtr, intptrBytes, intptrCount, intptrFile);
+                    NativeMethods.fcloseWin(intptrFile);
+                    return ((int)intptrBytes);
+                }
+
+                // Handle everybody else...
+                else
+                {
+                    IntPtr intptrFile;
+                    IntPtr intptrBytes;
+                    intptrFile = NativeMethods.fopen(a_szFilename, "w");
+                    if (intptrFile == IntPtr.Zero)
+                    {
+                        return (-1);
+                    }
+                    intptrBytes = NativeMethods.fwrite(a_intptrPtr, (IntPtr)a_iBytes, (IntPtr)1, intptrFile);
+                    NativeMethods.fclose(intptrFile);
+                    return ((int)intptrBytes);
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("Write file failed <" + a_szFilename + "> - " + exception.Message);
+                return (-1);
+            }
+        }
 
         /// <summary>
         /// Convert the contents of an audio info to a string that we can show in
@@ -1071,7 +1776,7 @@ namespace TWAINWorkingGroup
                             string szValue;
                             for (uu = 0; uu < NumItems; uu++)
                             {
-                                string szItem = GetIndexedItem(ItemType, intptr, (int)uu);
+                                string szItem = GetIndexedItem(a_twcapability, ItemType, intptr, (int)uu);
                                 szValue = CvtCapValueToEnum(a_twcapability.Cap, szItem);
                                 csvArray.Add(szValue);
                             }
@@ -1080,7 +1785,7 @@ namespace TWAINWorkingGroup
                         {
                             for (uu = 0; uu < NumItems; uu++)
                             {
-                                csvArray.Add(GetIndexedItem(ItemType, intptr, (int)uu));
+                                csvArray.Add(GetIndexedItem(a_twcapability, ItemType, intptr, (int)uu));
                             }
                         }
 
@@ -1112,7 +1817,7 @@ namespace TWAINWorkingGroup
                             csvEnum.Add(twenumerationmacosx.DefaultIndex.ToString());
                         }
                         // Windows or the 2.4+ Linux DSM...
-                        else if ((ms_platform == Platform.WINDOWS) || (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
+                        else if ((ms_platform == Platform.WINDOWS) || ((m_blFoundLatestDsm || m_blFoundLatestDsm64) && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
                         {
                             // Crack the container...
                             TW_ENUMERATION twenumeration = default(TW_ENUMERATION);
@@ -1159,7 +1864,7 @@ namespace TWAINWorkingGroup
                             string szValue;
                             for (uu = 0; uu < NumItems; uu++)
                             {
-                                string szItem = GetIndexedItem(ItemType, intptr, (int)uu);
+                                string szItem = GetIndexedItem(a_twcapability, ItemType, intptr, (int)uu);
                                 szValue = CvtCapValueToEnum(a_twcapability.Cap, szItem);
                                 csvEnum.Add(szValue);
                             }
@@ -1168,7 +1873,7 @@ namespace TWAINWorkingGroup
                         {
                             for (uu = 0; uu < NumItems; uu++)
                             {
-                                csvEnum.Add(GetIndexedItem(ItemType, intptr, (int)uu));
+                                csvEnum.Add(GetIndexedItem(a_twcapability, ItemType, intptr, (int)uu));
                             }
                         }
 
@@ -1208,13 +1913,13 @@ namespace TWAINWorkingGroup
                         if (a_blUseSymbols)
                         {
                             string szValue;
-                            string szItem = GetIndexedItem(ItemType, intptr, 0);
+                            string szItem = GetIndexedItem(a_twcapability, ItemType, intptr, 0);
                             szValue = CvtCapValueToEnum(a_twcapability.Cap, szItem);
                             csvOnevalue.Add(szValue);
                         }
                         else
                         {
-                            csvOnevalue.Add(GetIndexedItem(ItemType, intptr, 0));
+                            csvOnevalue.Add(GetIndexedItem(a_twcapability, ItemType, intptr, 0));
                         }
 
                         // All done...
@@ -1253,7 +1958,7 @@ namespace TWAINWorkingGroup
                             twrangefix32.CurrentValue = twrangefix32macosx.CurrentValue;
                         }
                         // Windows or the 2.4+ Linux DSM...
-                        else if ((ms_platform == Platform.WINDOWS) || (m_linuxdsm == LinuxDsm.IsLatestDsm) || (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
+                        else if ((ms_platform == Platform.WINDOWS) || (m_linuxdsm == LinuxDsm.IsLatestDsm) || ((m_blFoundLatestDsm || m_blFoundLatestDsm64) && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
                         {
                             intptrLocked = DsmMemLock(a_twcapability.hContainer);
                             twrange = (TW_RANGE)Marshal.PtrToStructure(intptrLocked, typeof(TW_RANGE));
@@ -1544,7 +2249,7 @@ namespace TWAINWorkingGroup
                                 intptr = (IntPtr)((UInt64)intptr + (UInt64)Marshal.SizeOf(twenumerationmacosx));
                             }
                             // Windows or the 2.4+ Linux DSM...
-                            else if ((m_linuxdsm == LinuxDsm.IsLatestDsm) || (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
+                            else if ((ms_platform == Platform.WINDOWS) || ((m_linuxdsm == LinuxDsm.IsLatestDsm) || ((m_blFoundLatestDsm || m_blFoundLatestDsm64) && (m_linuxdsm == LinuxDsm.IsLatestDsm))))
                             {
                                 // Allocate...
                                 a_twcapability.hContainer = DsmMemAlloc((uint)(Marshal.SizeOf(default(TW_ENUMERATION)) + (((int)u32NumItems + 1) * Marshal.SizeOf(default(TW_STR255)))));
@@ -1659,7 +2364,7 @@ namespace TWAINWorkingGroup
                                 intptr = DsmMemLock(a_twcapability.hContainer);
                             }
                             // Windows or the 2.4+ Linux DSM...
-                            else if ((m_linuxdsm == LinuxDsm.IsLatestDsm) || (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm)))
+                            else if ((ms_platform == Platform.WINDOWS) || ((m_linuxdsm == LinuxDsm.IsLatestDsm) || ((m_blFoundLatestDsm || m_blFoundLatestDsm64) && (m_linuxdsm == LinuxDsm.IsLatestDsm))))
                             {
                                 // Allocate...
                                 a_twcapability.hContainer = DsmMemAlloc((uint)(Marshal.SizeOf(default(TW_RANGE))));
@@ -2122,8 +2827,8 @@ namespace TWAINWorkingGroup
                 a_twidentity.Id = ulong.Parse(asz[0]);
                 a_twidentity.Version.MajorNum = ushort.Parse(asz[1]);
                 a_twidentity.Version.MinorNum = ushort.Parse(asz[2]);
-                a_twidentity.Version.Language = (TWLG)Enum.Parse(typeof(TWLG), asz[3]);
-                a_twidentity.Version.Country = (TWCY)Enum.Parse(typeof(TWCY), asz[4]);
+                if (asz[3] != "0") a_twidentity.Version.Language = (TWLG)Enum.Parse(typeof(TWLG), asz[3]);
+                if (asz[4] != "0") a_twidentity.Version.Country = (TWCY)Enum.Parse(typeof(TWCY), asz[4]);
                 a_twidentity.Version.Info.Set(asz[5]);
                 a_twidentity.ProtocolMajor = ushort.Parse(asz[6]);
                 a_twidentity.ProtocolMinor = ushort.Parse(asz[7]);
@@ -2210,9 +2915,9 @@ namespace TWAINWorkingGroup
                 a_twimageinfo.BitsPerSample_5 = short.Parse(asz[10]);
                 a_twimageinfo.BitsPerSample_6 = short.Parse(asz[11]);
                 a_twimageinfo.BitsPerSample_7 = short.Parse(asz[12]);
-                a_twimageinfo.Planar = ushort.Parse(asz[13]);
-                a_twimageinfo.PixelType = (short)(TWPT)Enum.Parse(typeof(TWPT), asz[14].ToUpperInvariant().Replace("TWPT_",""));
-                a_twimageinfo.Compression = (ushort)(TWCP)Enum.Parse(typeof(TWCP), asz[15].ToUpperInvariant().Replace("TWCP_", ""));
+                a_twimageinfo.Planar = ushort.Parse(CvtCapValueFromEnum(CAP.ICAP_PLANARCHUNKY, asz[13]));
+                a_twimageinfo.PixelType = short.Parse(CvtCapValueFromEnum(CAP.ICAP_PIXELTYPE, asz[14]));
+                a_twimageinfo.Compression = ushort.Parse(CvtCapValueFromEnum(CAP.ICAP_COMPRESSION, asz[15]));
             }
             catch (Exception exception)
             {
@@ -2338,8 +3043,8 @@ namespace TWAINWorkingGroup
             {
                 string[] asz = CSV.Parse(a_szImagememxfer);
 
-                // Sort out the frame...
-                a_twimagememxfer.Compression = ushort.Parse(asz[0]);
+                // Sort out the structure...
+                a_twimagememxfer.Compression = ushort.Parse(CvtCapValueFromEnum(CAP.ICAP_COMPRESSION, asz[0]));
                 a_twimagememxfer.BytesPerRow = uint.Parse(asz[1]);
                 a_twimagememxfer.Columns = uint.Parse(asz[2]);
                 a_twimagememxfer.Rows = uint.Parse(asz[3]);
@@ -2466,6 +3171,36 @@ namespace TWAINWorkingGroup
         }
 
         /// <summary>
+        /// Convert the contents of a string to a pendingxfers structure...
+        /// </summary>
+        /// <param name="a_twpassthru">A TWAIN structure</param>
+        /// <param name="a_szPassthru">A CSV string of the TWAIN structure</param>
+        /// <returns>True if the conversion is successful</returns>
+        public bool CsvToPendingXfers(ref TW_PENDINGXFERS a_twpendingxfers, string a_szPendingxfers)
+        {
+            // Init stuff...
+            a_twpendingxfers = default(TW_PENDINGXFERS);
+
+            // Build the string...
+            try
+            {
+                string[] asz = CSV.Parse(a_szPendingxfers);
+
+                // Sort out the frame...
+                a_twpendingxfers.Count = ushort.Parse(asz[0]);
+                a_twpendingxfers.EOJ = uint.Parse(asz[1]);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("***error*** - " + exception.Message);
+                return (false);
+            }
+
+            // All done...
+            return (true);
+        }
+
+        /// <summary>
         /// Convert the contents of a setup file xfer structure to a string that
         /// we can show in our simple GUI...
         /// </summary>
@@ -2506,7 +3241,7 @@ namespace TWAINWorkingGroup
 
                 // Sort out the values...
                 a_twsetupfilexfer.FileName.Set(asz[0]);
-                a_twsetupfilexfer.Format = (TWFF)Enum.Parse(typeof(TWFF), asz[1].Remove(0, 5));
+                a_twsetupfilexfer.Format = (TWFF)ushort.Parse(CvtCapValueFromEnum(CAP.ICAP_IMAGEFILEFORMAT, asz[1]));
                 a_twsetupfilexfer.VRefNum = short.Parse(asz[2]);
             }
             catch (Exception exception)
@@ -2540,6 +3275,37 @@ namespace TWAINWorkingGroup
                 Log.Error("***error*** - " + exception.Message);
                 return ("***error***");
             }
+        }
+
+        /// <summary>
+        /// Convert a string to a setupmemxfer...
+        /// </summary>
+        /// <param name="a_twsetupfilexfer">A TWAIN structure</param>
+        /// <param name="a_szSetupfilexfer">A CSV string of the TWAIN structure</param>
+        /// <returns>True if the conversion is successful</returns>
+        public bool CsvToSetupmemxfer(ref TW_SETUPMEMXFER a_twsetupmemxfer, string a_szSetupmemxfer)
+        {
+            // Init stuff...
+            a_twsetupmemxfer = default(TW_SETUPMEMXFER);
+
+            // Build the string...
+            try
+            {
+                string[] asz = CSV.Parse(a_szSetupmemxfer);
+
+                // Sort out the values...
+                a_twsetupmemxfer.MinBufSize = uint.Parse(asz[0]);
+                a_twsetupmemxfer.MaxBufSize = uint.Parse(asz[1]);
+                a_twsetupmemxfer.Preferred = uint.Parse(asz[2]);
+            }
+            catch (Exception exception)
+            {
+                Log.Error("***error*** - " + exception.Message);
+                return (false);
+            }
+
+            // All done...
+            return (true);
         }
 
         /// <summary>
@@ -2681,8 +3447,9 @@ namespace TWAINWorkingGroup
             try
             {
                 CSV csv = new CSV();
-                csv.Add(a_twuserinterface.ShowUI.ToString());
-                csv.Add(a_twuserinterface.ModalUI.ToString());
+                csv.Add(CvtCapValueToEnumHelper<bool>(a_twuserinterface.ShowUI.ToString()));
+                csv.Add(CvtCapValueToEnumHelper<bool>(a_twuserinterface.ModalUI.ToString()));
+                csv.Add(a_twuserinterface.hParent.ToString());
                 return (csv.Get());
             }
             catch (Exception exception)
@@ -2714,20 +3481,23 @@ namespace TWAINWorkingGroup
                 a_twuserinterface.hParent = IntPtr.Zero;
 
                 // Sort out the values...
-                if (asz.Length >= 1)
-                {
-                     ushort.TryParse(asz[0], out a_twuserinterface.ShowUI);
-                }
-                if (asz.Length >= 2)
-                {
-                     ushort.TryParse(asz[1], out a_twuserinterface.ModalUI);
-                }
+                ushort.TryParse(CvtCapValueFromEnumHelper<bool>(asz[0]), out a_twuserinterface.ShowUI);
+                ushort.TryParse(CvtCapValueFromEnumHelper<bool>(asz[1]), out a_twuserinterface.ModalUI);
+
+                // Really shouldn't have this test, but I'll probably break things if I remove it...
                 if (asz.Length >= 3)
                 {
-                    Int64 i64;
-                    if (Int64.TryParse(asz[2], out i64))
+                    if (asz[2].ToLowerInvariant() == "hwnd")
                     {
-                        a_twuserinterface.hParent = (IntPtr)i64;
+                        a_twuserinterface.hParent = m_intptrHwnd;
+                    }
+                    else
+                    {
+                        Int64 i64;
+                        if (Int64.TryParse(asz[2], out i64))
+                        {
+                            a_twuserinterface.hParent = (IntPtr)i64;
+                        }
                     }
                 }
             }
@@ -2800,23 +3570,45 @@ namespace TWAINWorkingGroup
         /// <returns></returns>
         private string CvtCapValueToEnumHelper<T>(string a_szValue)
         {
+            T t;
+            Int32 i32 = 0;
             UInt32 u32 = 0;
             string szCvt = "";
+
+            // Adjust our value, as needed...
             if (a_szValue.StartsWith(typeof(T).Name + "_"))
             {
                 a_szValue = a_szValue.Substring((typeof(T).Name + "_").Length);
             }
-            if (UInt32.TryParse(a_szValue, out u32))
+
+            // Handle enums with negative numbers...
+            if (a_szValue.StartsWith("-"))
             {
-                T t;
+                if (Int32.TryParse(a_szValue, out i32))
+                {
+                    t = (T)Enum.Parse(typeof(T), a_szValue, true);
+                    szCvt = t.ToString();
+                    if (szCvt != u32.ToString())
+                    {
+                        return (typeof(T).ToString().Replace("TWAINWorkingGroup.TWAIN+", "") + "_" + szCvt);
+                    }
+                }
+            }
+
+            // Everybody else...
+            else if (UInt32.TryParse(a_szValue, out u32))
+            {
+                // Handle bool...
                 if (typeof(T) == typeof(bool))
                 {
                     if ((a_szValue == "1") || (a_szValue.ToLowerInvariant() == "true"))
                     {
-                        return ("true");
+                        return ("TRUE");
                     }
-                    return ("false");
+                    return ("FALSE");
                 }
+
+                // Handle DAT (which is a weird one)..
                 else if (typeof(T) == typeof(DAT))
                 {
                     UInt32 u32Dg = u32 >> 16;
@@ -2827,42 +3619,221 @@ namespace TWAINWorkingGroup
                     szDat = (szDat != u32Dat.ToString()) ? ("DAT_" + szDat) : string.Format("0x{0:X}", u32Dat);
                     return (szDg + "|" + szDat);
                 }
+
+                // Everybody else is on their own...
                 else
                 {
+                    // mono hurls on this, .net doesn't, so gonna help...
+                    switch (a_szValue)
+                    {
+                        default: break;
+                        case "65535": a_szValue = "-1"; break;
+                        case "65534": a_szValue = "-2"; break;
+                        case "65533": a_szValue = "-3"; break;
+                        case "65532": a_szValue = "-4"; break;
+                    }
                     t = (T)Enum.Parse(typeof(T), a_szValue, true);
                 }
+
+                // Check to see if we changed anything...
                 szCvt = t.ToString();
                 if (szCvt != u32.ToString())
                 {
+                    // CAP is in its final form...
                     if (typeof(T) == typeof(CAP))
                     {
                         return (szCvt);
                     }
+                    // Everybody else needs the name decoration removed...
                     else
                     {
                         return (typeof(T).ToString().Replace("TWAINWorkingGroup.TWAIN+", "") + "_" + szCvt);
                     }
                 }
+
+                // We're probably a custom value...
                 else
                 {
                     return (string.Format("0x{0:X}", u32));
                 }
             }
+
+            // We're a string...
             return (a_szValue);
         }
 
         /// <summary>
-        /// This mess is what tries to turn readble stuff into numeric constants...
+        /// This mess is what tries to turn readable stuff into numeric constants...
         /// </summary>
         /// <typeparam name="T">type for the conversion</typeparam>
         /// <param name="a_szValue">value to convert</param>
         /// <returns></returns>
         private string CvtCapValueFromEnumHelper<T>(string a_szValue)
         {
-            if (a_szValue.StartsWith(typeof(T).Name + "_"))
+            // We can figure this one out on our own...
+            if ((typeof(T).Name == "bool") || (typeof(T).Name == "Boolean"))
+            {
+                return (((a_szValue.ToLowerInvariant() == "true") || (a_szValue == "1")) ? "1" : "0");
+            }
+
+            // Look for the enum prefix...
+            if (a_szValue.ToLowerInvariant().StartsWith(typeof(T).Name.ToLowerInvariant() + "_"))
             {
                 return (a_szValue.Substring((typeof(T).Name + "_").Length));
             }
+
+            // Er...
+            return (a_szValue);
+        }
+
+        /// <summary>
+        /// This mess is what tries to turn readable stuff into numeric constants...
+        /// </summary>
+        /// <typeparam name="T">type for the conversion</typeparam>
+        /// <param name="a_szValue">value to convert</param>
+        /// <returns></returns>
+        private string CvtCapValueFromTwlg(string a_szValue)
+        {
+            // mono goes "hork", probably because the enum is wackadoodle, this
+            // does work on .net, but what'cha gonna do?
+            if (a_szValue.ToUpperInvariant().StartsWith("TWLG_"))
+            {
+                switch (a_szValue.ToUpperInvariant().Substring(5))
+                {
+                    default: break;
+                    case "USERLOCALE": return ("65535"); // -1, kinda...
+                    case "DAN": return ("0");
+                    case "DUT": return ("1");
+                    case "ENG": return ("2");
+                    case "FCF": return ("3");
+                    case "FIN": return ("4");
+                    case "FRN": return ("5");
+                    case "GER": return ("6");
+                    case "ICE": return ("7");
+                    case "ITN": return ("8");
+                    case "NOR": return ("9");
+                    case "POR": return ("10");
+                    case "SPA": return ("11");
+                    case "SWE": return ("12");
+                    case "USA": return ("13");
+                    case "AFRIKAANS": return ("14");
+                    case "ALBANIA": return ("15");
+                    case "ARABIC": return ("16");
+                    case "ARABIC_ALGERIA": return ("17");
+                    case "ARABIC_BAHRAIN": return ("18");
+                    case "ARABIC_EGYPT": return ("19");
+                    case "ARABIC_IRAQ": return ("20");
+                    case "ARABIC_JORDAN": return ("21");
+                    case "ARABIC_KUWAIT": return ("22");
+                    case "ARABIC_LEBANON": return ("23");
+                    case "ARABIC_LIBYA": return ("24");
+                    case "ARABIC_MOROCCO": return ("25");
+                    case "ARABIC_OMAN": return ("26");
+                    case "ARABIC_QATAR": return ("27");
+                    case "ARABIC_SAUDIARABIA": return ("28");
+                    case "ARABIC_SYRIA": return ("29");
+                    case "ARABIC_TUNISIA": return ("30");
+                    case "ARABIC_UAE": return ("31");
+                    case "ARABIC_YEMEN": return ("32");
+                    case "BASQUE": return ("33");
+                    case "BYELORUSSIAN": return ("34");
+                    case "BULGARIAN": return ("35");
+                    case "CATALAN": return ("36");
+                    case "CHINESE": return ("37");
+                    case "CHINESE_HONGKONG": return ("38");
+                    case "CHINESE_PRC": return ("39");
+                    case "CHINESE_SINGAPORE": return ("40");
+                    case "CHINESE_SIMPLIFIED": return ("41");
+                    case "CHINESE_TAIWAN": return ("42");
+                    case "CHINESE_TRADITIONAL": return ("43");
+                    case "CROATIA": return ("44");
+                    case "CZECH": return ("45");
+                    case "DANISH": return (((int)TWLG.DAN).ToString());
+                    case "DUTCH": return (((int)TWLG.DUT).ToString());
+                    case "DUTCH_BELGIAN": return ("46");
+                    case "ENGLISH": return (((int)TWLG.ENG).ToString());
+                    case "ENGLISH_AUSTRALIAN": return ("47");
+                    case "ENGLISH_CANADIAN": return ("48");
+                    case "ENGLISH_IRELAND": return ("49");
+                    case "ENGLISH_NEWZEALAND": return ("50");
+                    case "ENGLISH_SOUTHAFRICA": return ("51");
+                    case "ENGLISH_UK": return ("52");
+                    case "ENGLISH_USA": return (((int)TWLG.USA).ToString());
+                    case "ESTONIAN": return ("53");
+                    case "FAEROESE": return ("54");
+                    case "FARSI": return ("55");
+                    case "FINNISH": return (((int)TWLG.FIN).ToString());
+                    case "FRENCH": return (((int)TWLG.FRN).ToString());
+                    case "FRENCH_BELGIAN": return ("56");
+                    case "FRENCH_CANADIAN": return (((int)TWLG.FCF).ToString());
+                    case "FRENCH_LUXEMBOURG": return ("57");
+                    case "FRENCH_SWISS": return ("58");
+                    case "GERMAN": return (((int)TWLG.GER).ToString());
+                    case "GERMAN_AUSTRIAN": return ("59");
+                    case "GERMAN_LUXEMBOURG": return ("60");
+                    case "GERMAN_LIECHTENSTEIN": return ("61");
+                    case "GERMAN_SWISS": return ("62");
+                    case "GREEK": return ("63");
+                    case "HEBREW": return ("64");
+                    case "HUNGARIAN": return ("65");
+                    case "ICELANDIC": return (((int)TWLG.ICE).ToString());
+                    case "INDONESIAN": return ("66");
+                    case "ITALIAN": return (((int)TWLG.ITN).ToString());
+                    case "ITALIAN_SWISS": return ("67");
+                    case "JAPANESE": return ("68");
+                    case "KOREAN": return ("69");
+                    case "KOREAN_JOHAB": return ("70");
+                    case "LATVIAN": return ("71");
+                    case "LITHUANIAN": return ("72");
+                    case "NORWEGIAN": return (((int)TWLG.NOR).ToString());
+                    case "NORWEGIAN_BOKMAL": return ("73");
+                    case "NORWEGIAN_NYNORSK": return ("74");
+                    case "POLISH": return ("75");
+                    case "PORTUGUESE": return (((int)TWLG.POR).ToString());
+                    case "PORTUGUESE_BRAZIL": return ("76");
+                    case "ROMANIAN": return ("77");
+                    case "RUSSIAN": return ("78");
+                    case "SERBIAN_LATIN": return ("79");
+                    case "SLOVAK": return ("80");
+                    case "SLOVENIAN": return ("81");
+                    case "SPANISH": return (((int)TWLG.SPA).ToString());
+                    case "SPANISH_MEXICAN": return ("82");
+                    case "SPANISH_MODERN": return ("83");
+                    case "SWEDISH": return (((int)TWLG.SWE).ToString());
+                    case "THAI": return ("84");
+                    case "TURKISH": return ("85");
+                    case "UKRANIAN": return ("86");
+                    case "ASSAMESE": return ("87");
+                    case "BENGALI": return ("88");
+                    case "BIHARI": return ("89");
+                    case "BODO": return ("90");
+                    case "DOGRI": return ("91");
+                    case "GUJARATI": return ("92");
+                    case "HARYANVI": return ("93");
+                    case "HINDI": return ("94");
+                    case "KANNADA": return ("95");
+                    case "KASHMIRI": return ("96");
+                    case "MALAYALAM": return ("97");
+                    case "MARATHI": return ("98");
+                    case "MARWARI": return ("99");
+                    case "MEGHALAYAN": return ("100");
+                    case "MIZO": return ("101");
+                    case "NAGA": return ("102");
+                    case "ORISSI": return ("103");
+                    case "PUNJABI": return ("104");
+                    case "PUSHTU": return ("105");
+                    case "SERBIAN_CYRILLIC": return ("106");
+                    case "SIKKIMI": return ("107");
+                    case "SWEDISH_FINLAND": return ("108");
+                    case "TAMIL": return ("109");
+                    case "TELUGU": return ("110");
+                    case "TRIPURI": return ("111");
+                    case "URDU": return ("112");
+                    case "VIETNAMESE": return ("113");
+                }
+            }
+
+            // Er...
             return (a_szValue);
         }
 
@@ -3054,10 +4025,10 @@ namespace TWAINWorkingGroup
         {
             int ii;
 
-            // Skip hex...
+            // Turn hex into a decimal...
             if (a_szValue.ToLowerInvariant().StartsWith("0x"))
             {
-                return (a_szValue);
+                return (int.Parse(a_szValue.Substring(2), NumberStyles.HexNumber).ToString());
             }
 
             // Skip numbers...
@@ -3074,52 +4045,52 @@ namespace TWAINWorkingGroup
                 case CAP.CAP_ALARMS: { TWAL twal; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWAL>(a_szValue), out twal) ? ((int)twal).ToString() : a_szValue); };
                 case CAP.CAP_ALARMVOLUME: return (a_szValue);
                 case CAP.CAP_AUTHOR: return (a_szValue);
-                case CAP.CAP_AUTOFEED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_AUTOMATICCAPTURE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_AUTOMATICSENSEMEDIUM: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_AUTOSCAN: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_AUTOFEED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_AUTOMATICCAPTURE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_AUTOMATICSENSEMEDIUM: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_AUTOSCAN: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_BATTERYMINUTES: return (a_szValue);
                 case CAP.CAP_BATTERYPERCENTAGE: return (a_szValue);
-                case CAP.CAP_CAMERAENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_CAMERAENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_CAMERAORDER: { TWPT twpt; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPT>(a_szValue), out twpt) ? ((int)twpt).ToString() : a_szValue); };
-                case CAP.CAP_CAMERAPREVIEWUI: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_CAMERAPREVIEWUI: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_CAMERASIDE: { TWCS twcs; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWCS>(a_szValue), out twcs) ? ((int)twcs).ToString() : a_szValue); };
                 case CAP.CAP_CAPTION: return (a_szValue);
-                case CAP.CAP_CLEARPAGE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_CUSTOMDSDATA: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_CLEARPAGE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_CUSTOMDSDATA: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_CUSTOMINTERFACEGUID: return (a_szValue);
                 case CAP.CAP_DEVICEEVENT: { TWDE twde; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWDE>(a_szValue), out twde) ? ((int)twde).ToString() : a_szValue); };
-                case CAP.CAP_DEVICEONLINE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_DEVICEONLINE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_DEVICETIMEDATE: return (a_szValue);
                 case CAP.CAP_DOUBLEFEEDDETECTION: { TWDF twdf; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWDF>(a_szValue), out twdf) ? ((int)twdf).ToString() : a_szValue); };
                 case CAP.CAP_DOUBLEFEEDDETECTIONLENGTH: return (a_szValue);
                 case CAP.CAP_DOUBLEFEEDDETECTIONRESPONSE: { TWDP twdp; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWDP>(a_szValue), out twdp) ? ((int)twdp).ToString() : a_szValue); };
                 case CAP.CAP_DOUBLEFEEDDETECTIONSENSITIVITY: { TWUS twus; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWUS>(a_szValue), out twus) ? ((int)twus).ToString() : a_szValue); };
                 case CAP.CAP_DUPLEX: { TWDX twdx; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWDX>(a_szValue), out twdx) ? ((int)twdx).ToString() : a_szValue); };
-                case CAP.CAP_DUPLEXENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_ENABLEDSUIONLY: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_DUPLEXENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_ENABLEDSUIONLY: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_ENDORSER: return (a_szValue);
                 case CAP.CAP_EXTENDEDCAPS: { CAP cap; return (Enum.TryParse(CvtCapValueFromEnumHelper<CAP>(a_szValue), out cap) ? ((int)cap).ToString() : a_szValue); };
                 case CAP.CAP_FEEDERALIGNMENT: { TWFA twfa; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFA>(a_szValue), out twfa) ? ((int)twfa).ToString() : a_szValue); };
-                case CAP.CAP_FEEDERENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_FEEDERLOADED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_FEEDERENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_FEEDERLOADED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_FEEDERORDER: { TWFO twfo; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFO>(a_szValue), out twfo) ? ((int)twfo).ToString() : a_szValue); };
                 case CAP.CAP_FEEDERPOCKET: { TWFP twfp; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFP>(a_szValue), out twfp) ? ((int)twfp).ToString() : a_szValue); };
-                case CAP.CAP_FEEDERPREP: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_FEEDPAGE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_INDICATORS: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_FEEDERPREP: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_FEEDPAGE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_INDICATORS: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_INDICATORSMODE: { TWCI twci; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWCI>(a_szValue), out twci) ? ((int)twci).ToString() : a_szValue); };
                 case CAP.CAP_JOBCONTROL: { TWJC twjc; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWJC>(a_szValue), out twjc) ? ((int)twjc).ToString() : a_szValue); };
-                case CAP.CAP_LANGUAGE: { TWLG twlg; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWLG>(a_szValue), out twlg) ? ((int)twlg).ToString() : a_szValue); };
+                case CAP.CAP_LANGUAGE: return(CvtCapValueFromTwlg(a_szValue));
                 case CAP.CAP_MAXBATCHBUFFERS: return (a_szValue);
-                case CAP.CAP_MICRENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_PAPERDETECTABLE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_MICRENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_PAPERDETECTABLE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_PAPERHANDLING: { TWPH twph; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPH>(a_szValue), out twph) ? ((int)twph).ToString() : a_szValue); };
                 case CAP.CAP_POWERSAVETIME: return (a_szValue);
                 case CAP.CAP_POWERSUPPLY: { TWPS twps; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPS>(a_szValue), out twps) ? ((int)twps).ToString() : a_szValue); };
                 case CAP.CAP_PRINTER: { TWPR twpr; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPR>(a_szValue), out twpr) ? ((int)twpr).ToString() : a_szValue); };
                 case CAP.CAP_PRINTERCHARROTATION: return (a_szValue);
-                case CAP.CAP_PRINTERENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_PRINTERENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_PRINTERFONTSTYLE: { TWPF twpf; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPF>(a_szValue), out twpf) ? ((int)twpf).ToString() : a_szValue); };
                 case CAP.CAP_PRINTERINDEX: return (a_szValue);
                 case CAP.CAP_PRINTERINDEXLEADCHAR: return (a_szValue);
@@ -3132,31 +4103,31 @@ namespace TWAINWorkingGroup
                 case CAP.CAP_PRINTERSTRINGPREVIEW: return (a_szValue);
                 case CAP.CAP_PRINTERSUFFIX: return (a_szValue);
                 case CAP.CAP_PRINTERVERTICALOFFSET: return (a_szValue);
-                case CAP.CAP_REACQUIREALLOWED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.CAP_REWINDPAGE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_REACQUIREALLOWED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.CAP_REWINDPAGE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_SEGMENTED: { TWSG twsg; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWSG>(a_szValue), out twsg) ? ((int)twsg).ToString() : a_szValue); };
                 case CAP.CAP_SERIALNUMBER: return (a_szValue);
                 case CAP.CAP_SHEETCOUNT: return (a_szValue);
                 case CAP.CAP_SUPPORTEDCAPS: { CAP cap; return (Enum.TryParse(CvtCapValueFromEnumHelper<CAP>(a_szValue), out cap) ? ((int)cap).ToString() : a_szValue); };
                 case CAP.CAP_SUPPORTEDCAPSSEGMENTUNIQUE: { CAP cap; return (Enum.TryParse(CvtCapValueFromEnumHelper<CAP>(a_szValue), out cap) ? ((int)cap).ToString() : a_szValue); };
                 case CAP.CAP_SUPPORTEDDATS: { DAT dat; return (Enum.TryParse(CvtCapValueFromEnumHelper<DAT>(a_szValue), out dat) ? ((int)dat).ToString() : a_szValue); };
-                case CAP.CAP_THUMBNAILSENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_THUMBNAILSENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_TIMEBEFOREFIRSTCAPTURE: return (a_szValue);
                 case CAP.CAP_TIMEBETWEENCAPTURES: return (a_szValue);
                 case CAP.CAP_TIMEDATE: return (a_szValue);
-                case CAP.CAP_UICONTROLLABLE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.CAP_UICONTROLLABLE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.CAP_XFERCOUNT: return (a_szValue);
-                case CAP.ICAP_AUTOBRIGHT: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_AUTOBRIGHT: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_AUTODISCARDBLANKPAGES: { TWBP twbp; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWBP>(a_szValue), out twbp) ? ((int)twbp).ToString() : a_szValue); };
-                case CAP.ICAP_AUTOMATICBORDERDETECTION: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.ICAP_AUTOMATICCOLORENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.ICAP_AUTOMATICCOLORNONCOLORPIXELTYPE: return (CvtCapValueFromEnumHelper<TWPT>(a_szValue));
-                case CAP.ICAP_AUTOMATICCROPUSESFRAME: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.ICAP_AUTOMATICDESKEW: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.ICAP_AUTOMATICLENGTHDETECTION: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
-                case CAP.ICAP_AUTOMATICROTATE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_AUTOMATICBORDERDETECTION: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.ICAP_AUTOMATICCOLORENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.ICAP_AUTOMATICCOLORNONCOLORPIXELTYPE: { TWPT twpt; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPT>(a_szValue), out twpt) ? ((int)twpt).ToString() : a_szValue); };
+                case CAP.ICAP_AUTOMATICCROPUSESFRAME: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.ICAP_AUTOMATICDESKEW: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.ICAP_AUTOMATICLENGTHDETECTION: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
+                case CAP.ICAP_AUTOMATICROTATE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_AUTOSIZE: { TWAS twas; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWAS>(a_szValue), out twas) ? ((int)twas).ToString() : a_szValue); };
-                case CAP.ICAP_BARCODEDETECTIONENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_BARCODEDETECTIONENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_BARCODEMAXRETRIES: return (a_szValue);
                 case CAP.ICAP_BARCODEMAXSEARCHPRIORITIES: return (a_szValue);
                 case CAP.ICAP_BARCODESEARCHMODE: { TWBD twbd; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWBD>(a_szValue), out twbd) ? ((int)twbd).ToString() : a_szValue); };
@@ -3168,16 +4139,16 @@ namespace TWAINWorkingGroup
                 case CAP.ICAP_BITORDERCODES: { TWBO twbo; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWBO>(a_szValue), out twbo) ? ((int)twbo).ToString() : a_szValue); };
                 case CAP.ICAP_BRIGHTNESS: return (a_szValue);
                 case CAP.ICAP_CCITTKFACTOR: return (a_szValue);
-                case CAP.ICAP_COLORMANAGEMENTENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_COLORMANAGEMENTENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_COMPRESSION: { TWCP twcp; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWCP>(a_szValue), out twcp) ? ((int)twcp).ToString() : a_szValue); };
                 case CAP.ICAP_CONTRAST: return (a_szValue);
                 case CAP.ICAP_CUSTHALFTONE: return (a_szValue);
                 case CAP.ICAP_EXPOSURETIME: return (a_szValue);
-                case CAP.ICAP_EXTIMAGEINFO: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_EXTIMAGEINFO: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_FEEDERTYPE: { TWFE twfe; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFE>(a_szValue), out twfe) ? ((int)twfe).ToString() : a_szValue); };
                 case CAP.ICAP_FILMTYPE: { TWFM twfm; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFM>(a_szValue), out twfm) ? ((int)twfm).ToString() : a_szValue); };
                 case CAP.ICAP_FILTER: { TWFT twft; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFT>(a_szValue), out twft) ? ((int)twft).ToString() : a_szValue); };
-                case CAP.ICAP_FLASHUSED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_FLASHUSED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_FLASHUSED2: { TWFL twfl; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFL>(a_szValue), out twfl) ? ((int)twfl).ToString() : a_szValue); };
                 case CAP.ICAP_FLIPROTATION: { TWFR twfr; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWFR>(a_szValue), out twfr) ? ((int)twfr).ToString() : a_szValue); };
                 case CAP.ICAP_FRAMES: return (a_szValue);
@@ -3193,7 +4164,7 @@ namespace TWAINWorkingGroup
                 case CAP.ICAP_JPEGPIXELTYPE: { TWPT twpt; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPT>(a_szValue), out twpt) ? ((int)twpt).ToString() : a_szValue); };
                 case CAP.ICAP_JPEGQUALITY: { TWJQ twjq; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWJQ>(a_szValue), out twjq) ? ((int)twjq).ToString() : a_szValue); };
                 case CAP.ICAP_JPEGSUBSAMPLING: { TWJS twjs; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWJS>(a_szValue), out twjs) ? ((int)twjs).ToString() : a_szValue); };
-                case CAP.ICAP_LAMPSTATE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_LAMPSTATE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_LIGHTPATH: { TWLP twlp; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWLP>(a_szValue), out twlp) ? ((int)twlp).ToString() : a_szValue); };
                 case CAP.ICAP_LIGHTSOURCE: { TWLS twls; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWLS>(a_szValue), out twls) ? ((int)twls).ToString() : a_szValue); };
                 case CAP.ICAP_MAXFRAMES: return (a_szValue);
@@ -3203,7 +4174,7 @@ namespace TWAINWorkingGroup
                 case CAP.ICAP_NOISEFILTER: { TWNF twnf; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWNF>(a_szValue), out twnf) ? ((int)twnf).ToString() : a_szValue); };
                 case CAP.ICAP_ORIENTATION: { TWOR twor; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWOR>(a_szValue), out twor) ? ((int)twor).ToString() : a_szValue); };
                 case CAP.ICAP_OVERSCAN: { TWOV twov; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWOV>(a_szValue), out twov) ? ((int)twov).ToString() : a_szValue); };
-                case CAP.ICAP_PATCHCODEDETECTIONENABLED: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_PATCHCODEDETECTIONENABLED: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_PATCHCODEMAXRETRIES: return (a_szValue);
                 case CAP.ICAP_PATCHCODEMAXSEARCHPRIORITIES: return (a_szValue);
                 case CAP.ICAP_PATCHCODESEARCHMODE: { TWBD twbd; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWBD>(a_szValue), out twbd) ? ((int)twbd).ToString() : a_szValue); };
@@ -3222,9 +4193,9 @@ namespace TWAINWorkingGroup
                 case CAP.ICAP_SUPPORTEDPATCHCODETYPES: { TWPCH twpch; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWPCH>(a_szValue), out twpch) ? ((int)twpch).ToString() : a_szValue); };
                 case CAP.ICAP_SUPPORTEDSIZES: { TWSS twss; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWSS>(a_szValue), out twss) ? ((int)twss).ToString() : a_szValue); };
                 case CAP.ICAP_THRESHOLD: return (a_szValue);
-                case CAP.ICAP_TILES: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_TILES: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_TIMEFILL: return (a_szValue);
-                case CAP.ICAP_UNDEFINEDIMAGESIZE: { bool bl; return (Enum.TryParse(CvtCapValueFromEnumHelper<bool>(a_szValue), out bl) ? (bl ? "1" : "0") : a_szValue); };
+                case CAP.ICAP_UNDEFINEDIMAGESIZE: return (CvtCapValueFromEnumHelper<bool>(a_szValue));
                 case CAP.ICAP_UNITS: { TWUN twun; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWUN>(a_szValue), out twun) ? ((int)twun).ToString() : a_szValue); };
                 case CAP.ICAP_XFERMECH: { TWSX twsx; return (Enum.TryParse(CvtCapValueFromEnumHelper<TWSX>(a_szValue), out twsx) ? ((int)twsx).ToString() : a_szValue); };
                 case CAP.ICAP_XNATIVERESOLUTION: return (a_szValue);
@@ -3322,7 +4293,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryNullDest(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, a_dat, a_msg, a_twmemref);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryNullDest(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, a_dat, a_msg, a_twmemref);
                     }
@@ -3464,7 +4439,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntry(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, a_dat, a_msg, a_twmemref);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntry(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, a_dat, a_msg, a_twmemref);
                     }
@@ -3539,41 +4518,31 @@ namespace TWAINWorkingGroup
         /// <returns>TWAIN status</returns>
         private void DatAudiofilexferWindowsTwain32()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatAudiofilexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwain32DsmEntryAudiofilexfer
+            m_threaddataDatAudiofilexfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntryAudiofilexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
+                m_threaddataDatAudiofilexfer.dg,
+                m_threaddataDatAudiofilexfer.dat,
+                m_threaddataDatAudiofilexfer.msg,
                 IntPtr.Zero
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatAudiofilexfer, threaddata);
         }
         private void DatAudiofilexferWindowsTwainDsm()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatAudiofilexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryAudiofilexfer
+            m_threaddataDatAudiofilexfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryAudiofilexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
+                m_threaddataDatAudiofilexfer.dg,
+                m_threaddataDatAudiofilexfer.dat,
+                m_threaddataDatAudiofilexfer.msg,
                 IntPtr.Zero
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatAudiofilexfer, threaddata);
         }
         public STS DatAudiofilexfer(DG a_dg, MSG a_msg)
         {
@@ -3619,7 +4588,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (this.m_runinuithreaddelegate == null)
+                    if (m_threaddataDatAudiofilexfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
                         if (m_blUseLegacyDSM)
                         {
@@ -3636,28 +4605,28 @@ namespace TWAINWorkingGroup
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.AUDIOFILEXFER;
-                                m_lIndexDatAudiofilexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatAudiofilexfer = default(ThreadData);
+                                m_threaddataDatAudiofilexfer.blIsInuse = true;
+                                m_threaddataDatAudiofilexfer.dg = a_dg;
+                                m_threaddataDatAudiofilexfer.msg = a_msg;
+                                m_threaddataDatAudiofilexfer.dat = DAT.AUDIOFILEXFER;
                                 RunInUiThread(DatAudiofilexferWindowsTwain32);
-                                sts = m_twaincommand.Get(m_lIndexDatAudiofilexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatAudiofilexfer);
+                                sts = m_threaddataDatAudiofilexfer.sts;
+                                m_threaddataDatAudiofilexfer = default(ThreadData);
                             }
                         }
                         else
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.AUDIOFILEXFER;
-                                m_lIndexDatAudiofilexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatAudiofilexfer = default(ThreadData);
+                                m_threaddataDatAudiofilexfer.blIsInuse = true;
+                                m_threaddataDatAudiofilexfer.dg = a_dg;
+                                m_threaddataDatAudiofilexfer.msg = a_msg;
+                                m_threaddataDatAudiofilexfer.dat = DAT.AUDIOFILEXFER;
                                 RunInUiThread(DatAudiofilexferWindowsTwainDsm);
-                                sts = m_twaincommand.Get(m_lIndexDatAudiofilexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatAudiofilexfer);
+                                sts = m_threaddataDatAudiofilexfer.sts;
+                                m_threaddataDatAudiofilexfer = default(ThreadData);
                             }
                         }
                     }
@@ -3677,7 +4646,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryAudiofilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.AUDIOFILEXFER, a_msg, IntPtr.Zero);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryAudiofilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.AUDIOFILEXFER, a_msg, IntPtr.Zero);
                     }
@@ -3824,7 +4797,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryAudioAudioinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.AUDIOINFO, a_msg, ref a_twaudioinfo);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryAudioAudioinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.AUDIOINFO, a_msg, ref a_twaudioinfo);
                     }
@@ -3900,41 +4877,31 @@ namespace TWAINWorkingGroup
         /// <returns>TWAIN status</returns>
         private void DatAudionativexferWindowsTwain32()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatAudionativexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwain32DsmEntryAudionativexfer
+            m_threaddataDatAudionativexfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntryAudionativexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.intptrAudio
+                m_threaddataDatAudionativexfer.dg,
+                m_threaddataDatAudionativexfer.dat,
+                m_threaddataDatAudionativexfer.msg,
+                ref m_threaddataDatAudionativexfer.intptrAudio
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatAudionativexfer, threaddata);
         }
         private void DatAudionativexferWindowsTwainDsm()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatAudionativexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryAudionativexfer
+            m_threaddataDatAudionativexfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryAudionativexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.intptrAudio
+                m_threaddataDatAudionativexfer.dg,
+                m_threaddataDatAudionativexfer.dat,
+                m_threaddataDatAudionativexfer.msg,
+                ref m_threaddataDatAudionativexfer.intptrAudio
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatAudionativexfer, threaddata);
         }
         [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust", Unrestricted = false)]
         public STS DatAudionativexfer(DG a_dg, MSG a_msg, ref IntPtr a_intptrAudio)
@@ -3983,13 +4950,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
-                    {
-                    }
-                    else
-                    {
-                    }
-                    if (this.m_runinuithreaddelegate == null)
+                    if (m_threaddataDatAudionativexfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
                         if (m_blUseLegacyDSM)
                         {
@@ -4006,32 +4967,30 @@ namespace TWAINWorkingGroup
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                a_intptrAudio = IntPtr.Zero;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.AUDIONATIVEXFER;
-                                m_lIndexDatAudionativexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatAudionativexfer = default(ThreadData);
+                                m_threaddataDatAudionativexfer.blIsInuse = true;
+                                m_threaddataDatAudionativexfer.dg = a_dg;
+                                m_threaddataDatAudionativexfer.msg = a_msg;
+                                m_threaddataDatAudionativexfer.dat = DAT.AUDIONATIVEXFER;
                                 RunInUiThread(DatAudionativexferWindowsTwain32);
-                                a_intptrAudio = m_twaincommand.Get(m_lIndexDatImagenativexfer).intptrAudio;
-                                sts = m_twaincommand.Get(m_lIndexDatAudionativexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatAudionativexfer);
+                                a_intptrAudio = m_threaddataDatAudionativexfer.intptrAudio;
+                                sts = m_threaddataDatAudionativexfer.sts;
+                                m_threaddataDatAudionativexfer = default(ThreadData);
                             }
                         }
                         else
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                a_intptrAudio = IntPtr.Zero;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.AUDIONATIVEXFER;
-                                m_lIndexDatAudionativexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatAudionativexfer = default(ThreadData);
+                                m_threaddataDatAudionativexfer.blIsInuse = true;
+                                m_threaddataDatAudionativexfer.dg = a_dg;
+                                m_threaddataDatAudionativexfer.msg = a_msg;
+                                m_threaddataDatAudionativexfer.dat = DAT.AUDIONATIVEXFER;
                                 RunInUiThread(DatAudionativexferWindowsTwainDsm);
-                                a_intptrAudio = m_twaincommand.Get(m_lIndexDatAudionativexfer).intptrAudio;
-                                sts = m_twaincommand.Get(m_lIndexDatAudionativexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatAudionativexfer);
+                                a_intptrAudio = m_threaddataDatAudionativexfer.intptrAudio;
+                                sts = m_threaddataDatAudionativexfer.sts;
+                                m_threaddataDatAudionativexfer = default(ThreadData);
                             }
                         }
                     }
@@ -4052,7 +5011,11 @@ namespace TWAINWorkingGroup
                 try
                 {
                     a_intptrAudio = IntPtr.Zero;
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryAudionativexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.AUDIONATIVEXFER, a_msg, ref a_intptrAudio);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryAudionativexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.AUDIONATIVEXFER, a_msg, ref a_intptrAudio);
                     }
@@ -4201,7 +5164,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryCallback(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CALLBACK, a_msg, ref a_twcallback);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryCallback(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CALLBACK, a_msg, ref a_twcallback);
                     }
@@ -4342,7 +5309,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryCallback2(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CALLBACK2, a_msg, ref a_twcallback2);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryCallback2(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CALLBACK2, a_msg, ref a_twcallback2);
                     }
@@ -4417,56 +5388,87 @@ namespace TWAINWorkingGroup
         /// <param name="a_twcapability">CAPABILITY structure</param>
         /// <returns>TWAIN status</returns>
         [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust", Unrestricted = false)]
+        private void DatCapabilityWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatCapability.sts = (STS)NativeMethods.WindowsTwain32DsmEntryCapability
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatCapability.dg,
+                m_threaddataDatCapability.dat,
+                m_threaddataDatCapability.msg,
+                ref m_threaddataDatCapability.twcapability
+            );
+        }
+        private void DatCapabilityWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatCapability.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryCapability
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatCapability.dg,
+                m_threaddataDatCapability.dat,
+                m_threaddataDatCapability.msg,
+                ref m_threaddataDatCapability.twcapability
+            );
+        }
         public STS DatCapability(DG a_dg, MSG a_msg, ref TW_CAPABILITY a_twcapability)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    ThreadData threaddata = default(ThreadData);
-                    long lIndex = 0;
-
-                    // TBD: sometimes this doesn't work!  Not sure why
-                    // yet, but a retry takes care of it.
-                    for (int ii = 0; ii < 5; ii++)
+                    lock (m_lockTwain)
                     {
-                        // Set our command variables...
-                        threaddata = default(ThreadData);
-                        threaddata.twcapability = a_twcapability;
-                        threaddata.dg = a_dg;
-                        threaddata.msg = a_msg;
-                        threaddata.dat = DAT.CAPABILITY;
-                        lIndex = m_twaincommand.Submit(threaddata);
+                        ThreadData threaddata = default(ThreadData);
+                        long lIndex = 0;
 
-                        // Submit the command and wait for the reply...
-                        CallerToThreadSet();
-                        ThreadToCallerWaitOne();
-
-                        // Hmmm...
-                        if (   (a_msg == MSG.GETCURRENT)
-                            && (m_twaincommand.Get(lIndex).sts == STS.SUCCESS)
-                            && (m_twaincommand.Get(lIndex).twcapability.ConType == (TWON)0)
-                            && (m_twaincommand.Get(lIndex).twcapability.hContainer == IntPtr.Zero))
+                        // TBD: sometimes this doesn't work!  Not sure why
+                        // yet, but a retry takes care of it.
+                        for (int ii = 0; ii < 5; ii++)
                         {
-                            Thread.Sleep(1000);
-                            continue;
+                            // Set our command variables...
+                            threaddata = default(ThreadData);
+                            threaddata.twcapability = a_twcapability;
+                            threaddata.dg = a_dg;
+                            threaddata.msg = a_msg;
+                            threaddata.dat = DAT.CAPABILITY;
+                            lIndex = m_twaincommand.Submit(threaddata);
+
+                            // Submit the command and wait for the reply...
+                            CallerToThreadSet();
+                            ThreadToCallerWaitOne();
+
+                            // Hmmm...
+                            if (   (a_msg == MSG.GETCURRENT)
+                                && (m_twaincommand.Get(lIndex).sts == STS.SUCCESS)
+                                && (m_twaincommand.Get(lIndex).twcapability.ConType == (TWON)0)
+                                && (m_twaincommand.Get(lIndex).twcapability.hContainer == IntPtr.Zero))
+                            {
+                                Thread.Sleep(1000);
+                                continue;
+                            }
+
+                            // We're done...
+                            break;
                         }
 
-                        // We're done...
-                        break;
+                        // Return the result...
+                        a_twcapability = m_twaincommand.Get(lIndex).twcapability;
+                        sts = m_twaincommand.Get(lIndex).sts;
+
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
                     }
-
-                    // Return the result...
-                    a_twcapability = m_twaincommand.Get(lIndex).twcapability;
-                    sts = m_twaincommand.Get(lIndex).sts;
-
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -4493,13 +5495,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatCapability.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryCapability(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryCapability(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryCapability(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryCapability(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatCapability = default(ThreadData);
+                                m_threaddataDatCapability.blIsInuse = true;
+                                m_threaddataDatCapability.dg = a_dg;
+                                m_threaddataDatCapability.msg = a_msg;
+                                m_threaddataDatCapability.dat = DAT.CAPABILITY;
+                                m_threaddataDatCapability.twcapability = a_twcapability;
+                                RunInUiThread(DatCapabilityWindowsTwain32);
+                                a_twcapability = m_threaddataDatCapability.twcapability;
+                                sts = m_threaddataDatCapability.sts;
+                                m_threaddataDatCapability = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatCapability = default(ThreadData);
+                                m_threaddataDatCapability.blIsInuse = true;
+                                m_threaddataDatCapability.dg = a_dg;
+                                m_threaddataDatCapability.msg = a_msg;
+                                m_threaddataDatCapability.dat = DAT.CAPABILITY;
+                                m_threaddataDatCapability.twcapability = a_twcapability;
+                                RunInUiThread(DatCapabilityWindowsTwainDsm);
+                                a_twcapability = m_threaddataDatCapability.twcapability;
+                                sts = m_threaddataDatCapability.sts;
+                                m_threaddataDatCapability = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -4517,7 +5557,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryCapability(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryCapability(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CAPABILITY, a_msg, ref a_twcapability);
                     }
@@ -4711,7 +5755,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryCiecolor(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CIECOLOR, a_msg, ref a_twciecolor);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryCiecolor(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CIECOLOR, a_msg, ref a_twciecolor);
                     }
@@ -4853,7 +5901,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryCustomdsdata(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CUSTOMDSDATA, a_msg, ref a_twcustomdsdata);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryCustomdsdata(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.CUSTOMDSDATA, a_msg, ref a_twcustomdsdata);
                     }
@@ -4994,7 +6046,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryDeviceevent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.DEVICEEVENT, a_msg, ref a_twdeviceevent);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryDeviceevent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.DEVICEEVENT, a_msg, ref a_twdeviceevent);
                     }
@@ -5146,7 +6202,11 @@ namespace TWAINWorkingGroup
                     // situation of using a different DSM for the memory functions, but
                     // it'l be okay.  You can stop breathing in and out of that paper bag...
                     sts = STS.BUMMER;
-                    if (m_blFoundLatestDsm)
+                    if (m_blFoundLatestDsm64)
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryEntrypoint(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
+                    }
+                    else if (m_blFoundLatestDsm)
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryEntrypoint(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.ENTRYPOINT, a_msg, ref a_twentrypoint);
                     }
@@ -5256,7 +6316,35 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twevent">EVENT structure</param>
         /// <returns>TWAIN status</returns>
-        public STS DatEvent(DG a_dg, MSG a_msg, ref TW_EVENT a_twevent)
+        private void DatEventWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatEvent.sts = (STS)NativeMethods.WindowsTwain32DsmEntryEvent
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatEvent.dg,
+                m_threaddataDatEvent.dat,
+                m_threaddataDatEvent.msg,
+                ref m_threaddataDatEvent.twevent
+            );
+        }
+        private void DatEventWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatEvent.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryEvent
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatEvent.dg,
+                m_threaddataDatEvent.dat,
+                m_threaddataDatEvent.msg,
+                ref m_threaddataDatEvent.twevent
+            );
+        }
+        public STS DatEvent(DG a_dg, MSG a_msg, ref TW_EVENT a_twevent, bool a_blInPreFilter = false)
         {
             STS sts;
 
@@ -5272,13 +6360,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (a_blInPreFilter || m_threaddataDatEvent.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryEvent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryEvent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryEvent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryEvent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatEvent = default(ThreadData);
+                                m_threaddataDatEvent.blIsInuse = true;
+                                m_threaddataDatEvent.dg = a_dg;
+                                m_threaddataDatEvent.msg = a_msg;
+                                m_threaddataDatEvent.dat = DAT.EVENT;
+                                m_threaddataDatEvent.twevent = a_twevent;
+                                RunInUiThread(DatEventWindowsTwain32);
+                                a_twevent = m_threaddataDatEvent.twevent;
+                                sts = m_threaddataDatEvent.sts;
+                                m_threaddataDatEvent = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatEvent = default(ThreadData);
+                                m_threaddataDatEvent.blIsInuse = true;
+                                m_threaddataDatEvent.dg = a_dg;
+                                m_threaddataDatEvent.msg = a_msg;
+                                m_threaddataDatEvent.dat = DAT.EVENT;
+                                m_threaddataDatEvent.twevent = a_twevent;
+                                RunInUiThread(DatEventWindowsTwainDsm);
+                                a_twevent = m_threaddataDatEvent.twevent;
+                                sts = m_threaddataDatEvent.sts;
+                                m_threaddataDatEvent = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -5296,7 +6422,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryEvent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryEvent(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EVENT, a_msg, ref a_twevent);
                     }
@@ -5376,35 +6506,66 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twextimageinfo">EXTIMAGEINFO structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatExtimageinfoWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatExtimageinfo.sts = (STS)NativeMethods.WindowsTwain32DsmEntryExtimageinfo
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatExtimageinfo.dg,
+                m_threaddataDatExtimageinfo.dat,
+                m_threaddataDatExtimageinfo.msg,
+                ref m_threaddataDatExtimageinfo.twextimageinfo
+            );
+        }
+        private void DatExtimageinfoWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatExtimageinfo.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryExtimageinfo
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatExtimageinfo.dg,
+                m_threaddataDatExtimageinfo.dat,
+                m_threaddataDatExtimageinfo.msg,
+                ref m_threaddataDatExtimageinfo.twextimageinfo
+            );
+        }
         public STS DatExtimageinfo(DG a_dg, MSG a_msg, ref TW_EXTIMAGEINFO a_twextimageinfo)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twextimageinfo = a_twextimageinfo;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.EXTIMAGEINFO;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twextimageinfo = a_twextimageinfo;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.EXTIMAGEINFO;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twextimageinfo = m_twaincommand.Get(lIndex).twextimageinfo;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twextimageinfo = m_twaincommand.Get(lIndex).twextimageinfo;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -5419,13 +6580,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatExtimageinfo.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryExtimageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryExtimageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryExtimageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryExtimageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatExtimageinfo = default(ThreadData);
+                                m_threaddataDatExtimageinfo.blIsInuse = true;
+                                m_threaddataDatExtimageinfo.dg = a_dg;
+                                m_threaddataDatExtimageinfo.msg = a_msg;
+                                m_threaddataDatExtimageinfo.dat = DAT.EXTIMAGEINFO;
+                                m_threaddataDatExtimageinfo.twextimageinfo = a_twextimageinfo;
+                                RunInUiThread(DatExtimageinfoWindowsTwain32);
+                                a_twextimageinfo = m_threaddataDatExtimageinfo.twextimageinfo;
+                                sts = m_threaddataDatExtimageinfo.sts;
+                                m_threaddataDatExtimageinfo = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatExtimageinfo = default(ThreadData);
+                                m_threaddataDatExtimageinfo.blIsInuse = true;
+                                m_threaddataDatExtimageinfo.dg = a_dg;
+                                m_threaddataDatExtimageinfo.msg = a_msg;
+                                m_threaddataDatExtimageinfo.dat = DAT.EXTIMAGEINFO;
+                                m_threaddataDatExtimageinfo.twextimageinfo = a_twextimageinfo;
+                                RunInUiThread(DatExtimageinfoWindowsTwainDsm);
+                                a_twextimageinfo = m_threaddataDatExtimageinfo.twextimageinfo;
+                                sts = m_threaddataDatExtimageinfo.sts;
+                                m_threaddataDatExtimageinfo = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -5443,7 +6642,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryExtimageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryExtimageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.EXTIMAGEINFO, a_msg, ref a_twextimageinfo);
                     }
@@ -5584,7 +6787,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryFilesystem(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.FILESYSTEM, a_msg, ref a_twfilesystem);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryFilesystem(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.FILESYSTEM, a_msg, ref a_twfilesystem);
                     }
@@ -5725,7 +6932,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryFilter(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.FILTER, a_msg, ref a_twfilter);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryFilter(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.FILTER, a_msg, ref a_twfilter);
                     }
@@ -5866,7 +7077,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryGrayresponse(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.GRAYRESPONSE, a_msg, ref a_twgrayresponse);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryGrayresponse(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.GRAYRESPONSE, a_msg, ref a_twgrayresponse);
                     }
@@ -6007,7 +7222,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryIccprofile(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.ICCPROFILE, a_msg, ref a_twmemory);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryIccprofile(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.ICCPROFILE, a_msg, ref a_twmemory);
                     }
@@ -6081,36 +7300,84 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twidentity">IDENTITY structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatIdentityWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            if (GetState() <= STATE.S3)
+            {
+                m_threaddataDatIdentity.sts = (STS)NativeMethods.WindowsTwain32DsmEntryIdentity
+                (
+                    ref m_twidentitylegacyApp,
+                    IntPtr.Zero,
+                    m_threaddataDatIdentity.dg,
+                    m_threaddataDatIdentity.dat,
+                    m_threaddataDatIdentity.msg,
+                    ref m_threaddataDatIdentity.twidentitylegacy
+                );
+            }
+            // Man, I'm learning stupid new stuff all the time, so the old DSM
+            // had to have the destination.  Argh...
+            else
+            {
+                m_threaddataDatIdentity.sts = (STS)NativeMethods.WindowsTwain32DsmEntryIdentityState4
+                (
+                    ref m_twidentitylegacyApp,
+                    ref m_twidentitylegacyDs,
+                    m_threaddataDatIdentity.dg,
+                    m_threaddataDatIdentity.dat,
+                    m_threaddataDatIdentity.msg,
+                    ref m_threaddataDatIdentity.twidentitylegacy
+                );
+            }
+        }
+        private void DatIdentityWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatIdentity.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryIdentity
+            (
+                ref m_twidentitylegacyApp,
+                IntPtr.Zero,
+                m_threaddataDatIdentity.dg,
+                m_threaddataDatIdentity.dat,
+                m_threaddataDatIdentity.msg,
+                ref m_threaddataDatIdentity.twidentitylegacy
+            );
+        }
         [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust", Unrestricted = false)]
         public STS DatIdentity(DG a_dg, MSG a_msg, ref TW_IDENTITY a_twidentity)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twidentity = a_twidentity;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.IDENTITY;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twidentity = a_twidentity;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.IDENTITY;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twidentity = m_twaincommand.Get(lIndex).twidentity;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twidentity = m_twaincommand.Get(lIndex).twidentity;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -6122,17 +7389,64 @@ namespace TWAINWorkingGroup
             // Windows...
             if (ms_platform == Platform.WINDOWS)
             {
+                // Convert the identity structure...
                 TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatIdentity.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                        if (m_blUseLegacyDSM)
+                        {
+                            if (GetState() <= STATE.S3)
+                            {
+                                sts = (STS)NativeMethods.WindowsTwain32DsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            }
+                            else
+                            {
+                                sts = (STS)NativeMethods.WindowsTwain32DsmEntryIdentityState4(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            }
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatIdentity = default(ThreadData);
+                                m_threaddataDatIdentity.blIsInuse = true;
+                                m_threaddataDatIdentity.dg = a_dg;
+                                m_threaddataDatIdentity.msg = a_msg;
+                                m_threaddataDatIdentity.dat = DAT.IDENTITY;
+                                m_threaddataDatIdentity.twidentitylegacy = twidentitylegacy;
+                                RunInUiThread(DatIdentityWindowsTwain32);
+                                twidentitylegacy = m_threaddataDatIdentity.twidentitylegacy;
+                                sts = m_threaddataDatIdentity.sts;
+                                m_threaddataDatIdentity = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatIdentity = default(ThreadData);
+                                m_threaddataDatIdentity.blIsInuse = true;
+                                m_threaddataDatIdentity.dg = a_dg;
+                                m_threaddataDatIdentity.msg = a_msg;
+                                m_threaddataDatIdentity.dat = DAT.IDENTITY;
+                                m_threaddataDatIdentity.twidentitylegacy = twidentitylegacy;
+                                RunInUiThread(DatIdentityWindowsTwainDsm);
+                                twidentitylegacy = m_threaddataDatIdentity.twidentitylegacy;
+                                sts = m_threaddataDatIdentity.sts;
+                                m_threaddataDatIdentity = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -6167,7 +7481,14 @@ namespace TWAINWorkingGroup
                     if (a_msg == MSG.CLOSEDS)
                     {
                         // We've opened this source, and we know it's the new style...
-                        if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                        if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                        {
+                            TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            sts = (STS)NativeMethods.Linux64DsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
+                        }
+                        // We've opened this source, and we know it's the new style...
+                        else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                         {
                             TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
                             sts = (STS)NativeMethods.LinuxDsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
@@ -6202,6 +7523,15 @@ namespace TWAINWorkingGroup
                         sts = STS.ENDOFLIST;
 
                         // Try to start with the latest DSM...
+                        if (m_blFoundLatestDsm64)
+                        {
+                            m_linux64bitdsmDatIdentity = LinuxDsm.IsLatestDsm;
+                            TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            sts = (STS)NativeMethods.Linux64DsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
+                        }
+
+                        // Try to start with the latest DSM...
                         if (m_blFoundLatestDsm)
                         {
                             m_linux64bitdsmDatIdentity = LinuxDsm.IsLatestDsm;
@@ -6233,6 +7563,20 @@ namespace TWAINWorkingGroup
                         if (m_linux64bitdsmDatIdentity == LinuxDsm.Unknown)
                         {
                             sts = STS.ENDOFLIST;
+                        }
+
+                        // We're working the latest DSM, if we hit end of list, then we'll
+                        // try to switch over to the old DSM...
+                        if (m_blFoundLatestDsm64 && (m_linux64bitdsmDatIdentity == LinuxDsm.IsLatestDsm))
+                        {
+                            TW_IDENTITY_LEGACY twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            sts = (STS)NativeMethods.Linux64DsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            a_twidentity = TwidentitylegacyToTwidentity(twidentitylegacy);
+                            if (sts == STS.ENDOFLIST)
+                            {
+                                m_linux64bitdsmDatIdentity = m_blFound020302Dsm64bit ? LinuxDsm.Is020302Dsm64bit : LinuxDsm.Unknown;
+                                blChangeToGetFirst = true;
+                            }
                         }
 
                         // We're working the latest DSM, if we hit end of list, then we'll
@@ -6271,6 +7615,21 @@ namespace TWAINWorkingGroup
 
                         // Prime the pump by assuming we didn't find anything...
                         sts = STS.NODS;
+
+                        // Try with the latest DSM first, if we have one...
+                        if (m_blFoundLatestDsm64)
+                        {
+                            twidentitylegacy = TwidentityToTwidentitylegacy(a_twidentity);
+                            twidentitylegacy.Id = 0;
+                            try
+                            {
+                                sts = (STS)NativeMethods.Linux64DsmEntryIdentity(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.IDENTITY, a_msg, ref twidentitylegacy);
+                            }
+                            catch
+                            {
+                                sts = STS.NODS;
+                            }
+                        }
 
                         // Try with the latest DSM first, if we have one...
                         if (m_blFoundLatestDsm)
@@ -6443,7 +7802,11 @@ namespace TWAINWorkingGroup
                         // Issue the command...
                         try
                         {
-                            if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                            if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                            {
+                                sts = (STS)NativeMethods.Linux64DsmEntryCallback(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.CALLBACK, MSG.REGISTER_CALLBACK, ref twcallback);
+                            }
+                            else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                             {
                                 sts = (STS)NativeMethods.LinuxDsmEntryCallback(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.CALLBACK, MSG.REGISTER_CALLBACK, ref twcallback);
                             }
@@ -6530,35 +7893,66 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twimageinfo">IMAGEINFO structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatImageinfoWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatImageinfo.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImageinfo
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatImageinfo.dg,
+                m_threaddataDatImageinfo.dat,
+                m_threaddataDatImageinfo.msg,
+                ref m_threaddataDatImageinfo.twimageinfo
+            );
+        }
+        private void DatImageinfoWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatImageinfo.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImageinfo
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatImageinfo.dg,
+                m_threaddataDatImageinfo.dat,
+                m_threaddataDatImageinfo.msg,
+                ref m_threaddataDatImageinfo.twimageinfo
+            );
+        }
         public STS DatImageinfo(DG a_dg, MSG a_msg, ref TW_IMAGEINFO a_twimageinfo)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twimageinfo = a_twimageinfo;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.IMAGEINFO;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twimageinfo = a_twimageinfo;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.IMAGEINFO;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twimageinfo = m_twaincommand.Get(lIndex).twimageinfo;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twimageinfo = m_twaincommand.Get(lIndex).twimageinfo;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -6573,13 +7967,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatImageinfo.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryImageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryImageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatImageinfo = default(ThreadData);
+                                m_threaddataDatImageinfo.blIsInuse = true;
+                                m_threaddataDatImageinfo.dg = a_dg;
+                                m_threaddataDatImageinfo.msg = a_msg;
+                                m_threaddataDatImageinfo.dat = DAT.IMAGEINFO;
+                                m_threaddataDatImageinfo.twimageinfo = a_twimageinfo;
+                                RunInUiThread(DatImageinfoWindowsTwain32);
+                                a_twimageinfo = m_threaddataDatImageinfo.twimageinfo;
+                                sts = m_threaddataDatImageinfo.sts;
+                                m_threaddataDatImageinfo = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatImageinfo = default(ThreadData);
+                                m_threaddataDatImageinfo.blIsInuse = true;
+                                m_threaddataDatImageinfo.dg = a_dg;
+                                m_threaddataDatImageinfo.msg = a_msg;
+                                m_threaddataDatImageinfo.dat = DAT.IMAGEINFO;
+                                m_threaddataDatImageinfo.twimageinfo = a_twimageinfo;
+                                RunInUiThread(DatImageinfoWindowsTwainDsm);
+                                a_twimageinfo = m_threaddataDatImageinfo.twimageinfo;
+                                sts = m_threaddataDatImageinfo.sts;
+                                m_threaddataDatImageinfo = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -6597,7 +8029,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryImageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryImageinfo(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEINFO, a_msg, ref a_twimageinfo);
                     }
@@ -6689,35 +8125,66 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twimagelayout">IMAGELAYOUT structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatImagelayoutWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatImagelayout.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagelayout
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatImagelayout.dg,
+                m_threaddataDatImagelayout.dat,
+                m_threaddataDatImagelayout.msg,
+                ref m_threaddataDatImagelayout.twimagelayout
+            );
+        }
+        private void DatImagelayoutWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatImagelayout.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagelayout
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatImagelayout.dg,
+                m_threaddataDatImagelayout.dat,
+                m_threaddataDatImagelayout.msg,
+                ref m_threaddataDatImagelayout.twimagelayout
+            );
+        }
         public STS DatImagelayout(DG a_dg, MSG a_msg, ref TW_IMAGELAYOUT a_twimagelayout)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twimagelayout = a_twimagelayout;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.IMAGELAYOUT;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twimagelayout = a_twimagelayout;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.IMAGELAYOUT;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twimagelayout = m_twaincommand.Get(lIndex).twimagelayout;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twimagelayout = m_twaincommand.Get(lIndex).twimagelayout;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -6732,13 +8199,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatImagelayout.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagelayout(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagelayout(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagelayout(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagelayout(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatImagelayout = default(ThreadData);
+                                m_threaddataDatImagelayout.blIsInuse = true;
+                                m_threaddataDatImagelayout.dg = a_dg;
+                                m_threaddataDatImagelayout.msg = a_msg;
+                                m_threaddataDatImagelayout.dat = DAT.IMAGELAYOUT;
+                                m_threaddataDatImagelayout.twimagelayout = a_twimagelayout;
+                                RunInUiThread(DatImagelayoutWindowsTwain32);
+                                a_twimagelayout = m_threaddataDatImagelayout.twimagelayout;
+                                sts = m_threaddataDatImagelayout.sts;
+                                m_threaddataDatImagelayout = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatImagelayout = default(ThreadData);
+                                m_threaddataDatImagelayout.blIsInuse = true;
+                                m_threaddataDatImagelayout.dg = a_dg;
+                                m_threaddataDatImagelayout.msg = a_msg;
+                                m_threaddataDatImagelayout.dat = DAT.IMAGELAYOUT;
+                                m_threaddataDatImagelayout.twimagelayout = a_twimagelayout;
+                                RunInUiThread(DatImagelayoutWindowsTwainDsm);
+                                a_twimagelayout = m_threaddataDatImagelayout.twimagelayout;
+                                sts = m_threaddataDatImagelayout.sts;
+                                m_threaddataDatImagelayout = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -6756,7 +8261,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryImagelayout(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryImagelayout(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGELAYOUT, a_msg, ref a_twimagelayout);
                     }
@@ -6831,41 +8340,31 @@ namespace TWAINWorkingGroup
         /// <returns>TWAIN status</returns>
         private void DatImagefilexferWindowsTwain32()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagefilexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagefilexfer
+            m_threaddataDatImagefilexfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagefilexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
+                m_threaddataDatImagefilexfer.dg,
+                m_threaddataDatImagefilexfer.dat,
+                m_threaddataDatImagefilexfer.msg,
                 IntPtr.Zero
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagefilexfer, threaddata);
         }
         private void DatImagefilexferWindowsTwainDsm()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagefilexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagefilexfer
+            m_threaddataDatImagefilexfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagefilexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
+                m_threaddataDatImagefilexfer.dg,
+                m_threaddataDatImagefilexfer.dat,
+                m_threaddataDatImagefilexfer.msg,
                 IntPtr.Zero
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagefilexfer, threaddata);
         }
         public STS DatImagefilexfer(DG a_dg, MSG a_msg)
         {
@@ -6911,7 +8410,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (this.m_runinuithreaddelegate == null)
+                    if (m_threaddataDatImagefilexfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
                         if (m_blUseLegacyDSM)
                         {
@@ -6928,28 +8427,28 @@ namespace TWAINWorkingGroup
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGEFILEXFER;
-                                m_lIndexDatImagefilexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagefilexfer = default(ThreadData);
+                                m_threaddataDatImagefilexfer.blIsInuse = true;
+                                m_threaddataDatImagefilexfer.dg = a_dg;
+                                m_threaddataDatImagefilexfer.msg = a_msg;
+                                m_threaddataDatImagefilexfer.dat = DAT.IMAGEFILEXFER;
                                 RunInUiThread(DatImagefilexferWindowsTwain32);
-                                sts = m_twaincommand.Get(m_lIndexDatImagefilexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagefilexfer);
+                                sts = m_threaddataDatImagefilexfer.sts;
+                                m_threaddataDatImagefilexfer = default(ThreadData);
                             }
                         }
                         else
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGEFILEXFER;
-                                m_lIndexDatImagefilexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagefilexfer = default(ThreadData);
+                                m_threaddataDatImagefilexfer.blIsInuse = true;
+                                m_threaddataDatImagefilexfer.dg = a_dg;
+                                m_threaddataDatImagefilexfer.msg = a_msg;
+                                m_threaddataDatImagefilexfer.dat = DAT.IMAGEFILEXFER;
                                 RunInUiThread(DatImagefilexferWindowsTwainDsm);
-                                sts = m_twaincommand.Get(m_lIndexDatImagefilexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagefilexfer);
+                                sts = m_threaddataDatImagefilexfer.sts;
+                                m_threaddataDatImagefilexfer = default(ThreadData);
                             }
                         }
                     }
@@ -6969,7 +8468,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryImagefilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEFILEXFER, a_msg, IntPtr.Zero);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryImagefilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEFILEXFER, a_msg, IntPtr.Zero);
                     }
@@ -7051,41 +8554,31 @@ namespace TWAINWorkingGroup
         /// <returns>TWAIN status</returns>
         private void DatImagememfilexferWindowsTwain32()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagememfilexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagememfilexfer
+            m_threaddataDatImagememfilexfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagememfilexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.twimagememxfer
+                m_threaddataDatImagememfilexfer.dg,
+                m_threaddataDatImagememfilexfer.dat,
+                m_threaddataDatImagememfilexfer.msg,
+                ref m_threaddataDatImagememfilexfer.twimagememxfer
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagememfilexfer, threaddata);
         }
         private void DatImagememfilexferWindowsTwainDsm()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagememfilexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagememfilexfer
+            m_threaddataDatImagememfilexfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagememfilexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.twimagememxfer
+                m_threaddataDatImagememfilexfer.dg,
+                m_threaddataDatImagememfilexfer.dat,
+                m_threaddataDatImagememfilexfer.msg,
+                ref m_threaddataDatImagememfilexfer.twimagememxfer
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagememfilexfer, threaddata);
         }
         public STS DatImagememfilexfer(DG a_dg, MSG a_msg, ref TW_IMAGEMEMXFER a_twimagememxfer)
         {
@@ -7133,7 +8626,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (this.m_runinuithreaddelegate == null)
+                    if (m_threaddataDatImagememfilexfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
                         if (m_blUseLegacyDSM)
                         {
@@ -7150,32 +8643,32 @@ namespace TWAINWorkingGroup
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.twimagememxfer = a_twimagememxfer;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGEMEMFILEXFER;
-                                m_lIndexDatImagememfilexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagememfilexfer = default(ThreadData);
+                                m_threaddataDatImagememfilexfer.blIsInuse = true;
+                                m_threaddataDatImagememfilexfer.dg = a_dg;
+                                m_threaddataDatImagememfilexfer.msg = a_msg;
+                                m_threaddataDatImagememfilexfer.dat = DAT.IMAGEMEMFILEXFER;
+                                m_threaddataDatImagememfilexfer.twimagememxfer = a_twimagememxfer;
                                 RunInUiThread(DatImagememfilexferWindowsTwain32);
-                                a_twimagememxfer = m_twaincommand.Get(m_lIndexDatImagememfilexfer).twimagememxfer;
-                                sts = m_twaincommand.Get(m_lIndexDatImagememfilexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagememfilexfer);
+                                a_twimagememxfer = m_threaddataDatImagememfilexfer.twimagememxfer;
+                                sts = m_threaddataDatImagememfilexfer.sts;
+                                m_threaddataDatImagememfilexfer = default(ThreadData);
                             }
                         }
                         else
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.twimagememxfer = a_twimagememxfer;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGEMEMFILEXFER;
-                                m_lIndexDatImagememfilexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagememfilexfer = default(ThreadData);
+                                m_threaddataDatImagememfilexfer.blIsInuse = true;
+                                m_threaddataDatImagememfilexfer.dg = a_dg;
+                                m_threaddataDatImagememfilexfer.msg = a_msg;
+                                m_threaddataDatImagememfilexfer.dat = DAT.IMAGEMEMFILEXFER;
+                                m_threaddataDatImagememfilexfer.twimagememxfer = a_twimagememxfer;
                                 RunInUiThread(DatImagememfilexferWindowsTwainDsm);
-                                a_twimagememxfer = m_twaincommand.Get(m_lIndexDatImagememfilexfer).twimagememxfer;
-                                sts = m_twaincommand.Get(m_lIndexDatImagememfilexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagememfilexfer);
+                                a_twimagememxfer = m_threaddataDatImagememfilexfer.twimagememxfer;
+                                sts = m_threaddataDatImagememfilexfer.sts;
+                                m_threaddataDatImagememfilexfer = default(ThreadData);
                             }
                         }
                     }
@@ -7195,7 +8688,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryImagememfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEMEMFILEXFER, a_msg, ref a_twimagememxfer);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryImagememfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEMEMFILEXFER, a_msg, ref a_twimagememxfer);
                     }
@@ -7319,41 +8816,31 @@ namespace TWAINWorkingGroup
         /// <returns>TWAIN status</returns>
         private void DatImagememxferWindowsTwain32()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagememxfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagememxfer
+            m_threaddataDatImagememxfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagememxfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.twimagememxfer
+                m_threaddataDatImagememxfer.dg,
+                m_threaddataDatImagememxfer.dat,
+                m_threaddataDatImagememxfer.msg,
+                ref m_threaddataDatImagememxfer.twimagememxfer
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagememxfer, threaddata);
         }
         private void DatImagememxferWindowsTwainDsm()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagememxfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagememxfer
+            m_threaddataDatImagememxfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagememxfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.twimagememxfer
+                m_threaddataDatImagememxfer.dg,
+                m_threaddataDatImagememxfer.dat,
+                m_threaddataDatImagememxfer.msg,
+                ref m_threaddataDatImagememxfer.twimagememxfer
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagememxfer, threaddata);
         }
         public STS DatImagememxfer(DG a_dg, MSG a_msg, ref TW_IMAGEMEMXFER a_twimagememxfer)
         {
@@ -7372,18 +8859,18 @@ namespace TWAINWorkingGroup
                         threaddata.dg = a_dg;
                         threaddata.msg = a_msg;
                         threaddata.dat = DAT.IMAGEMEMXFER;
-                        m_lIndexDatImagememxfer = m_twaincommand.Submit(threaddata);
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
                         // Submit the command and wait for the reply...
                         CallerToThreadSet();
                         ThreadToCallerWaitOne();
 
                         // Return the result...
-                        a_twimagememxfer = m_twaincommand.Get(m_lIndexDatImagememxfer).twimagememxfer;
-                        sts = m_twaincommand.Get(m_lIndexDatImagememxfer).sts;
+                        a_twimagememxfer = m_twaincommand.Get(lIndex).twimagememxfer;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
                         // Clear the command variables...
-                        m_twaincommand.Delete(m_lIndexDatImagememxfer);
+                        m_twaincommand.Delete(lIndex);
                     }
                     return (sts);
                 }
@@ -7401,7 +8888,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (this.m_runinuithreaddelegate == null)
+                    if (m_threaddataDatImagememxfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
                         if (m_blUseLegacyDSM)
                         {
@@ -7418,32 +8905,32 @@ namespace TWAINWorkingGroup
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.twimagememxfer = a_twimagememxfer;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGEMEMXFER;
-                                m_lIndexDatImagememxfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagememxfer = default(ThreadData);
+                                m_threaddataDatImagememxfer.blIsInuse = true;
+                                m_threaddataDatImagememxfer.dg = a_dg;
+                                m_threaddataDatImagememxfer.msg = a_msg;
+                                m_threaddataDatImagememxfer.dat = DAT.IMAGEMEMXFER;
+                                m_threaddataDatImagememxfer.twimagememxfer = a_twimagememxfer;
                                 RunInUiThread(DatImagememxferWindowsTwain32);
-                                a_twimagememxfer = m_twaincommand.Get(m_lIndexDatImagememxfer).twimagememxfer;
-                                sts = m_twaincommand.Get(m_lIndexDatImagememxfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagememxfer);
+                                a_twimagememxfer = m_threaddataDatImagememxfer.twimagememxfer;
+                                sts = m_threaddataDatImagememxfer.sts;
+                                m_threaddataDatImagememxfer = default(ThreadData);
                             }
                         }
                         else
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.twimagememxfer = a_twimagememxfer;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGEMEMXFER;
-                                m_lIndexDatImagememxfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagememxfer = default(ThreadData);
+                                m_threaddataDatImagememxfer.blIsInuse = true;
+                                m_threaddataDatImagememxfer.dg = a_dg;
+                                m_threaddataDatImagememxfer.msg = a_msg;
+                                m_threaddataDatImagememxfer.dat = DAT.IMAGEMEMXFER;
+                                m_threaddataDatImagememxfer.twimagememxfer = a_twimagememxfer;
                                 RunInUiThread(DatImagememxferWindowsTwainDsm);
-                                a_twimagememxfer = m_twaincommand.Get(m_lIndexDatImagememxfer).twimagememxfer;
-                                sts = m_twaincommand.Get(m_lIndexDatImagememxfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagememxfer);
+                                a_twimagememxfer = m_threaddataDatImagememxfer.twimagememxfer;
+                                sts = m_threaddataDatImagememxfer.sts;
+                                m_threaddataDatImagememxfer = default(ThreadData);
                             }
                         }
                     }
@@ -7463,7 +8950,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryImagememxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEMEMXFER, a_msg, ref a_twimagememxfer);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryImagememxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGEMEMXFER, a_msg, ref a_twimagememxfer);
                     }
@@ -7587,41 +9078,31 @@ namespace TWAINWorkingGroup
         /// <returns>TWAIN status</returns>
         private void DatImagenativexferWindowsTwain32()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagenativexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagenativexfer
+            m_threaddataDatImagenativexfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntryImagenativexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.intptrBitmap
+                m_threaddataDatImagenativexfer.dg,
+                m_threaddataDatImagenativexfer.dat,
+                m_threaddataDatImagenativexfer.msg,
+                ref m_threaddataDatImagenativexfer.intptrBitmap
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagenativexfer, threaddata);
         }
         private void DatImagenativexferWindowsTwainDsm()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatImagenativexfer);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagenativexfer
+            m_threaddataDatImagenativexfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryImagenativexfer
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.intptrBitmap
+                m_threaddataDatImagenativexfer.dg,
+                m_threaddataDatImagenativexfer.dat,
+                m_threaddataDatImagenativexfer.msg,
+                ref m_threaddataDatImagenativexfer.intptrBitmap
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatImagenativexfer, threaddata);
         }
         [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust", Unrestricted = false)]
         public STS DatImagenativexfer(DG a_dg, MSG a_msg, ref Bitmap a_bitmap)
@@ -7685,13 +9166,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
-                    {
-                    }
-                    else
-                    {
-                    }
-                    if (this.m_runinuithreaddelegate == null)
+                    if (m_threaddataDatImagenativexfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
                         if (m_blUseLegacyDSM)
                         {
@@ -7708,32 +9183,30 @@ namespace TWAINWorkingGroup
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.intptrBitmap = IntPtr.Zero;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGENATIVEXFER;
-                                m_lIndexDatImagenativexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagenativexfer = default(ThreadData);
+                                m_threaddataDatImagenativexfer.blIsInuse = true;
+                                m_threaddataDatImagenativexfer.dg = a_dg;
+                                m_threaddataDatImagenativexfer.msg = a_msg;
+                                m_threaddataDatImagenativexfer.dat = DAT.IMAGENATIVEXFER;
                                 RunInUiThread(DatImagenativexferWindowsTwain32);
-                                intptrBitmap = m_twaincommand.Get(m_lIndexDatImagenativexfer).intptrBitmap;
-                                sts = m_twaincommand.Get(m_lIndexDatImagenativexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagenativexfer);
+                                intptrBitmap = a_intptrBitmapHandle = m_threaddataDatImagenativexfer.intptrBitmap;
+                                sts = m_threaddataDatImagenativexfer.sts;
+                                m_threaddataDatImagenativexfer = default(ThreadData);
                             }
                         }
                         else
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.intptrBitmap = IntPtr.Zero;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.IMAGENATIVEXFER;
-                                m_lIndexDatImagenativexfer = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatImagenativexfer = default(ThreadData);
+                                m_threaddataDatImagenativexfer.blIsInuse = true;
+                                m_threaddataDatImagenativexfer.dg = a_dg;
+                                m_threaddataDatImagenativexfer.msg = a_msg;
+                                m_threaddataDatImagenativexfer.dat = DAT.IMAGENATIVEXFER;
                                 RunInUiThread(DatImagenativexferWindowsTwainDsm);
-                                intptrBitmap = m_twaincommand.Get(m_lIndexDatImagenativexfer).intptrBitmap;
-                                sts = m_twaincommand.Get(m_lIndexDatImagenativexfer).sts;
-                                m_twaincommand.Delete(m_lIndexDatImagenativexfer);
+                                intptrBitmap = a_intptrBitmapHandle = m_threaddataDatImagenativexfer.intptrBitmap;
+                                sts = m_threaddataDatImagenativexfer.sts;
+                                m_threaddataDatImagenativexfer = default(ThreadData);
                             }
                         }
                     }
@@ -7753,7 +9226,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryImagenativexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGENATIVEXFER, a_msg, ref intptrBitmap);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryImagenativexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.IMAGENATIVEXFER, a_msg, ref intptrBitmap);
                     }
@@ -7916,7 +9393,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryJpegcompression(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.JPEGCOMPRESSION, a_msg, ref a_twjpegcompression);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryJpegcompression(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.JPEGCOMPRESSION, a_msg, ref a_twjpegcompression);
                     }
@@ -8057,7 +9538,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryMetrics(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.METRICS, a_msg, ref a_twmetrics);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryMetrics(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.METRICS, a_msg, ref a_twmetrics);
                     }
@@ -8198,7 +9683,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryPalette8(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PALETTE8, a_msg, ref a_twpalette8);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryPalette8(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PALETTE8, a_msg, ref a_twpalette8);
                     }
@@ -8272,36 +9761,67 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_intptrHwnd">PARENT structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatParentWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatParent.sts = (STS)NativeMethods.WindowsTwain32DsmEntryParent
+            (
+                ref m_twidentitylegacyApp,
+                IntPtr.Zero,
+                m_threaddataDatParent.dg,
+                m_threaddataDatParent.dat,
+                m_threaddataDatParent.msg,
+                ref m_threaddataDatParent.intptrHwnd
+            );
+        }
+        private void DatParentWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatParent.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryParent
+            (
+                ref m_twidentitylegacyApp,
+                IntPtr.Zero,
+                m_threaddataDatParent.dg,
+                m_threaddataDatParent.dat,
+                m_threaddataDatParent.msg,
+                ref m_threaddataDatParent.intptrHwnd
+            );
+        }
         [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust", Unrestricted = false)]
         public STS DatParent(DG a_dg, MSG a_msg, ref IntPtr a_intptrHwnd)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.intptrHwnd = a_intptrHwnd;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.PARENT;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.intptrHwnd = a_intptrHwnd;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.PARENT;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_intptrHwnd = m_twaincommand.Get(lIndex).intptrHwnd;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_intptrHwnd = m_twaincommand.Get(lIndex).intptrHwnd;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -8316,14 +9836,52 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatParent.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryParent(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryParent(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryParent(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryParent(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatParent = default(ThreadData);
+                                m_threaddataDatParent.blIsInuse = true;
+                                m_threaddataDatParent.dg = a_dg;
+                                m_threaddataDatParent.msg = a_msg;
+                                m_threaddataDatParent.dat = DAT.PARENT;
+                                m_threaddataDatParent.intptrHwnd = a_intptrHwnd;
+                                RunInUiThread(DatParentWindowsTwain32);
+                                sts = m_threaddataDatParent.sts;
+                                m_threaddataDatParent = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatParent = default(ThreadData);
+                                m_threaddataDatParent.blIsInuse = true;
+                                m_threaddataDatParent.dg = a_dg;
+                                m_threaddataDatParent.msg = a_msg;
+                                m_threaddataDatParent.dat = DAT.PARENT;
+                                m_threaddataDatParent.intptrHwnd = a_intptrHwnd;
+                                RunInUiThread(DatParentWindowsTwainDsm);
+                                sts = m_threaddataDatParent.sts;
+                                m_threaddataDatParent = default(ThreadData);
+                            }
+                        }
                     }
+                    // Needed for the DF_DSM2 flag...
+                    m_twidentityApp.SupportedGroups = m_twidentitylegacyApp.SupportedGroups;
                 }
                 catch (Exception exception)
                 {
@@ -8344,11 +9902,29 @@ namespace TWAINWorkingGroup
                 sts = STS.BUMMER;
 
                 // Load the new DSM, whatever it is, if we found one...
+                if (m_blFoundLatestDsm64)
+                {
+                    try
+                    {
+                        stsLatest = (STS)NativeMethods.Linux64DsmEntryParent(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        // Needed for the DF_DSM2 flag...
+                        m_twidentityApp.SupportedGroups = m_twidentitylegacyApp.SupportedGroups;
+                    }
+                    catch
+                    {
+                        // Forget this...
+                        m_blFoundLatestDsm64 = false;
+                    }
+                }
+
+                // Load the new DSM, whatever it is, if we found one...
                 if (m_blFoundLatestDsm)
                 {
                     try
                     {
                         stsLatest = (STS)NativeMethods.LinuxDsmEntryParent(ref m_twidentitylegacyApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
+                        // Needed for the DF_DSM2 flag...
+                        m_twidentityApp.SupportedGroups = m_twidentitylegacyApp.SupportedGroups;
                     }
                     catch
                     {
@@ -8393,6 +9969,8 @@ namespace TWAINWorkingGroup
                     {
                         sts = (STS)NativeMethods.MacosxTwaindsmDsmEntryParent(ref m_twidentitymacosxApp, IntPtr.Zero, a_dg, DAT.PARENT, a_msg, ref a_intptrHwnd);
                     }
+                    // Needed for the DF_DSM2 flag...
+                    m_twidentityApp.SupportedGroups = m_twidentitymacosxApp.SupportedGroups;
                 }
                 catch (Exception exception)
                 {
@@ -8519,7 +10097,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryPassthru(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PASSTHRU, a_msg, ref a_twpassthru);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryPassthru(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PASSTHRU, a_msg, ref a_twpassthru);
                     }
@@ -8593,35 +10175,66 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twpendingxfers">PENDINGXFERS structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatPendingxfersWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatPendingxfers.sts = (STS)NativeMethods.WindowsTwain32DsmEntryPendingxfers
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatPendingxfers.dg,
+                m_threaddataDatPendingxfers.dat,
+                m_threaddataDatPendingxfers.msg,
+                ref m_threaddataDatPendingxfers.twpendingxfers
+            );
+        }
+        private void DatPendingxfersWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatPendingxfers.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryPendingxfers
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatPendingxfers.dg,
+                m_threaddataDatPendingxfers.dat,
+                m_threaddataDatPendingxfers.msg,
+                ref m_threaddataDatPendingxfers.twpendingxfers
+            );
+        }
         public STS DatPendingxfers(DG a_dg, MSG a_msg, ref TW_PENDINGXFERS a_twpendingxfers)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twpendingxfers = a_twpendingxfers;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.PENDINGXFERS;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twpendingxfers = a_twpendingxfers;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.PENDINGXFERS;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twpendingxfers = m_twaincommand.Get(lIndex).twpendingxfers;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twpendingxfers = m_twaincommand.Get(lIndex).twpendingxfers;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -8636,13 +10249,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatPendingxfers.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryPendingxfers(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryPendingxfers(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryPendingxfers(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryPendingxfers(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatPendingxfers = default(ThreadData);
+                                m_threaddataDatPendingxfers.blIsInuse = true;
+                                m_threaddataDatPendingxfers.dg = a_dg;
+                                m_threaddataDatPendingxfers.msg = a_msg;
+                                m_threaddataDatPendingxfers.dat = DAT.PENDINGXFERS;
+                                m_threaddataDatPendingxfers.twpendingxfers = a_twpendingxfers;
+                                RunInUiThread(DatPendingxfersWindowsTwain32);
+                                a_twpendingxfers = m_threaddataDatPendingxfers.twpendingxfers;
+                                sts = m_threaddataDatPendingxfers.sts;
+                                m_threaddataDatPendingxfers = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatPendingxfers = default(ThreadData);
+                                m_threaddataDatPendingxfers.blIsInuse = true;
+                                m_threaddataDatPendingxfers.dg = a_dg;
+                                m_threaddataDatPendingxfers.msg = a_msg;
+                                m_threaddataDatPendingxfers.dat = DAT.PENDINGXFERS;
+                                m_threaddataDatPendingxfers.twpendingxfers = a_twpendingxfers;
+                                RunInUiThread(DatPendingxfersWindowsTwainDsm);
+                                a_twpendingxfers = m_threaddataDatPendingxfers.twpendingxfers;
+                                sts = m_threaddataDatPendingxfers.sts;
+                                m_threaddataDatPendingxfers = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -8660,7 +10311,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryPendingxfers(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryPendingxfers(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.PENDINGXFERS, a_msg, ref a_twpendingxfers);
                     }
@@ -8828,7 +10483,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryRgbresponse(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.RGBRESPONSE, a_msg, ref a_twrgbresponse);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryRgbresponse(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.RGBRESPONSE, a_msg, ref a_twrgbresponse);
                     }
@@ -8902,35 +10561,66 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twsetupfilexfer">SETUPFILEXFER structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatSetupfilexferWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatSetupfilexfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntrySetupfilexfer
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatSetupfilexfer.dg,
+                m_threaddataDatSetupfilexfer.dat,
+                m_threaddataDatSetupfilexfer.msg,
+                ref m_threaddataDatSetupfilexfer.twsetupfilexfer
+            );
+        }
+        private void DatSetupfilexferWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatSetupfilexfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntrySetupfilexfer
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatSetupfilexfer.dg,
+                m_threaddataDatSetupfilexfer.dat,
+                m_threaddataDatSetupfilexfer.msg,
+                ref m_threaddataDatSetupfilexfer.twsetupfilexfer
+            );
+        }
         public STS DatSetupfilexfer(DG a_dg, MSG a_msg, ref TW_SETUPFILEXFER a_twsetupfilexfer)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twsetupfilexfer = a_twsetupfilexfer;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.SETUPFILEXFER;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twsetupfilexfer = a_twsetupfilexfer;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.SETUPFILEXFER;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twsetupfilexfer = m_twaincommand.Get(lIndex).twsetupfilexfer;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twsetupfilexfer = m_twaincommand.Get(lIndex).twsetupfilexfer;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -8945,13 +10635,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatSetupfilexfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntrySetupfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntrySetupfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntrySetupfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntrySetupfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatSetupfilexfer = default(ThreadData);
+                                m_threaddataDatSetupfilexfer.blIsInuse = true;
+                                m_threaddataDatSetupfilexfer.dg = a_dg;
+                                m_threaddataDatSetupfilexfer.msg = a_msg;
+                                m_threaddataDatSetupfilexfer.dat = DAT.SETUPFILEXFER;
+                                m_threaddataDatSetupfilexfer.twsetupfilexfer = a_twsetupfilexfer;
+                                RunInUiThread(DatSetupfilexferWindowsTwain32);
+                                a_twsetupfilexfer = m_threaddataDatSetupfilexfer.twsetupfilexfer;
+                                sts = m_threaddataDatSetupfilexfer.sts;
+                                m_threaddataDatSetupfilexfer = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatSetupfilexfer = default(ThreadData);
+                                m_threaddataDatSetupfilexfer.blIsInuse = true;
+                                m_threaddataDatSetupfilexfer.dg = a_dg;
+                                m_threaddataDatSetupfilexfer.msg = a_msg;
+                                m_threaddataDatSetupfilexfer.dat = DAT.SETUPFILEXFER;
+                                m_threaddataDatSetupfilexfer.twsetupfilexfer = a_twsetupfilexfer;
+                                RunInUiThread(DatSetupfilexferWindowsTwainDsm);
+                                a_twsetupfilexfer = m_threaddataDatSetupfilexfer.twsetupfilexfer;
+                                sts = m_threaddataDatSetupfilexfer.sts;
+                                m_threaddataDatSetupfilexfer = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -8969,7 +10697,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntrySetupfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntrySetupfilexfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPFILEXFER, a_msg, ref a_twsetupfilexfer);
                     }
@@ -9043,35 +10775,66 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twsetupmemxfer">SETUPMEMXFER structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatSetupmemxferWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatSetupmemxfer.sts = (STS)NativeMethods.WindowsTwain32DsmEntrySetupmemxfer
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatSetupmemxfer.dg,
+                m_threaddataDatSetupmemxfer.dat,
+                m_threaddataDatSetupmemxfer.msg,
+                ref m_threaddataDatSetupmemxfer.twsetupmemxfer
+            );
+        }
+        private void DatSetupmemxferWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatSetupmemxfer.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntrySetupmemxfer
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatSetupmemxfer.dg,
+                m_threaddataDatSetupmemxfer.dat,
+                m_threaddataDatSetupmemxfer.msg,
+                ref m_threaddataDatSetupmemxfer.twsetupmemxfer
+            );
+        }
         public STS DatSetupmemxfer(DG a_dg, MSG a_msg, ref TW_SETUPMEMXFER a_twsetupmemxfer)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twsetupmemxfer = a_twsetupmemxfer;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.SETUPMEMXFER;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twsetupmemxfer = a_twsetupmemxfer;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.SETUPMEMXFER;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twsetupmemxfer = m_twaincommand.Get(lIndex).twsetupmemxfer;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twsetupmemxfer = m_twaincommand.Get(lIndex).twsetupmemxfer;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -9086,13 +10849,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatSetupmemxfer.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntrySetupmemxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntrySetupmemxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntrySetupmemxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntrySetupmemxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatSetupmemxfer = default(ThreadData);
+                                m_threaddataDatSetupmemxfer.blIsInuse = true;
+                                m_threaddataDatSetupmemxfer.dg = a_dg;
+                                m_threaddataDatSetupmemxfer.msg = a_msg;
+                                m_threaddataDatSetupmemxfer.dat = DAT.SETUPMEMXFER;
+                                m_threaddataDatSetupmemxfer.twsetupmemxfer = a_twsetupmemxfer;
+                                RunInUiThread(DatSetupmemxferWindowsTwain32);
+                                a_twsetupmemxfer = m_threaddataDatSetupmemxfer.twsetupmemxfer;
+                                sts = m_threaddataDatSetupmemxfer.sts;
+                                m_threaddataDatSetupmemxfer = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatSetupmemxfer = default(ThreadData);
+                                m_threaddataDatSetupmemxfer.blIsInuse = true;
+                                m_threaddataDatSetupmemxfer.dg = a_dg;
+                                m_threaddataDatSetupmemxfer.msg = a_msg;
+                                m_threaddataDatSetupmemxfer.dat = DAT.SETUPMEMXFER;
+                                m_threaddataDatSetupmemxfer.twsetupmemxfer = a_twsetupmemxfer;
+                                RunInUiThread(DatSetupmemxferWindowsTwainDsm);
+                                a_twsetupmemxfer = m_threaddataDatSetupmemxfer.twsetupmemxfer;
+                                sts = m_threaddataDatSetupmemxfer.sts;
+                                m_threaddataDatSetupmemxfer = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -9110,7 +10911,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntrySetupmemxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntrySetupmemxfer(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.SETUPMEMXFER, a_msg, ref a_twsetupmemxfer);
                     }
@@ -9184,35 +10989,66 @@ namespace TWAINWorkingGroup
         /// <param name="a_msg">Operation</param>
         /// <param name="a_twstatus">STATUS structure</param>
         /// <returns>TWAIN status</returns>
+        private void DatStatusWindowsTwain32()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatStatus.sts = (STS)NativeMethods.WindowsTwain32DsmEntryStatus
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatStatus.dg,
+                m_threaddataDatStatus.dat,
+                m_threaddataDatStatus.msg,
+                ref m_threaddataDatStatus.twstatus
+            );
+        }
+        private void DatStatusWindowsTwainDsm()
+        {
+            // If you get a first chance exception, be aware that some drivers
+            // will do that to you, you can ignore it and they'll keep going...
+            m_threaddataDatStatus.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryStatus
+            (
+                ref m_twidentitylegacyApp,
+                ref m_twidentitylegacyDs,
+                m_threaddataDatStatus.dg,
+                m_threaddataDatStatus.dat,
+                m_threaddataDatStatus.msg,
+                ref m_threaddataDatStatus.twstatus
+            );
+        }
         public STS DatStatus(DG a_dg, MSG a_msg, ref TW_STATUS a_twstatus)
         {
             STS sts;
 
             // Submit the work to the TWAIN thread...
-            if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
+            if (m_runinuithreaddelegate == null)
             {
-                lock (m_lockTwain)
+                if ((m_threadTwain != null) && (m_threadTwain.ManagedThreadId != Thread.CurrentThread.ManagedThreadId))
                 {
-                    // Set our command variables...
-                    ThreadData threaddata = default(ThreadData);
-                    threaddata.twstatus = a_twstatus;
-                    threaddata.dg = a_dg;
-                    threaddata.msg = a_msg;
-                    threaddata.dat = DAT.STATUS;
-                    long lIndex = m_twaincommand.Submit(threaddata);
+                    lock (m_lockTwain)
+                    {
+                        // Set our command variables...
+                        ThreadData threaddata = default(ThreadData);
+                        threaddata.twstatus = a_twstatus;
+                        threaddata.dg = a_dg;
+                        threaddata.msg = a_msg;
+                        threaddata.dat = DAT.STATUS;
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
-                    // Submit the command and wait for the reply...
-                    CallerToThreadSet();
-                    ThreadToCallerWaitOne();
+                        // Submit the command and wait for the reply...
+                        CallerToThreadSet();
+                        ThreadToCallerWaitOne();
 
-                    // Return the result...
-                    a_twstatus = m_twaincommand.Get(lIndex).twstatus;
-                    sts = m_twaincommand.Get(lIndex).sts;
+                        // Return the result...
+                        a_twstatus = m_twaincommand.Get(lIndex).twstatus;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
-                    // Clear the command variables...
-                    m_twaincommand.Delete(lIndex);
+                        // Clear the command variables...
+                        m_twaincommand.Delete(lIndex);
+                    }
+                    return (sts);
                 }
-                return (sts);
             }
 
             // Log it...
@@ -9227,13 +11063,51 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (m_threaddataDatStatus.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUS, a_msg, ref a_twstatus);
+                        if (m_blUseLegacyDSM)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUS, a_msg, ref a_twstatus);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUS, a_msg, ref a_twstatus);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUS, a_msg, ref a_twstatus);
+                        if (m_blUseLegacyDSM)
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatStatus = default(ThreadData);
+                                m_threaddataDatStatus.blIsInuse = true;
+                                m_threaddataDatStatus.dg = a_dg;
+                                m_threaddataDatStatus.msg = a_msg;
+                                m_threaddataDatStatus.dat = DAT.STATUS;
+                                m_threaddataDatStatus.twstatus = a_twstatus;
+                                RunInUiThread(DatStatusWindowsTwain32);
+                                a_twstatus = m_threaddataDatStatus.twstatus;
+                                sts = m_threaddataDatStatus.sts;
+                                m_threaddataDatStatus = default(ThreadData);
+                            }
+                        }
+                        else
+                        {
+                            lock (m_lockTwain)
+                            {
+                                m_threaddataDatStatus = default(ThreadData);
+                                m_threaddataDatStatus.blIsInuse = true;
+                                m_threaddataDatStatus.dg = a_dg;
+                                m_threaddataDatStatus.msg = a_msg;
+                                m_threaddataDatStatus.dat = DAT.STATUS;
+                                m_threaddataDatStatus.twstatus = a_twstatus;
+                                RunInUiThread(DatStatusWindowsTwainDsm);
+                                a_twstatus = m_threaddataDatStatus.twstatus;
+                                sts = m_threaddataDatStatus.sts;
+                                m_threaddataDatStatus = default(ThreadData);
+                            }
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -9251,7 +11125,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUS, a_msg, ref a_twstatus);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUS, a_msg, ref a_twstatus);
                     }
@@ -9392,7 +11270,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryStatusutf8(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUSUTF8, a_msg, ref a_twstatusutf8);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryStatusutf8(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.STATUSUTF8, a_msg, ref a_twstatusutf8);
                     }
@@ -9533,7 +11415,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryTwaindirect(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.TWAINDIRECT, a_msg, ref a_twtwaindirect);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryTwaindirect(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.TWAINDIRECT, a_msg, ref a_twtwaindirect);
                     }
@@ -9609,41 +11495,31 @@ namespace TWAINWorkingGroup
         /// <returns>TWAIN status</returns>
         private void DatUserinterfaceWindowsTwain32()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatUserinterface);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwain32DsmEntryUserinterface
+            m_threaddataDatUserinterface.sts = (STS)NativeMethods.WindowsTwain32DsmEntryUserinterface
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.twuserinterface
+                m_threaddataDatUserinterface.dg,
+                m_threaddataDatUserinterface.dat,
+                m_threaddataDatUserinterface.msg,
+                ref m_threaddataDatUserinterface.twuserinterface
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatUserinterface, threaddata);
         }
         private void DatUserinterfaceWindowsTwainDsm()
         {
-            ThreadData threaddata = m_twaincommand.Get(m_lIndexDatUserinterface);
-
             // If you get a first chance exception, be aware that some drivers
             // will do that to you, you can ignore it and they'll keep going...
-            threaddata.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryUserinterface
+            m_threaddataDatUserinterface.sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryUserinterface
             (
                 ref m_twidentitylegacyApp,
                 ref m_twidentitylegacyDs,
-                threaddata.dg,
-                threaddata.dat,
-                threaddata.msg,
-                ref threaddata.twuserinterface
+                m_threaddataDatUserinterface.dg,
+                m_threaddataDatUserinterface.dat,
+                m_threaddataDatUserinterface.msg,
+                ref m_threaddataDatUserinterface.twuserinterface
             );
-
-            // Update the data block...
-            m_twaincommand.Update(m_lIndexDatUserinterface, threaddata);
         }
         public STS DatUserinterface(DG a_dg, MSG a_msg, ref TW_USERINTERFACE a_twuserinterface)
         {
@@ -9663,18 +11539,18 @@ namespace TWAINWorkingGroup
                         threaddata.dg = a_dg;
                         threaddata.msg = a_msg;
                         threaddata.dat = DAT.USERINTERFACE;
-                        m_lIndexDatUserinterface = m_twaincommand.Submit(threaddata);
+                        long lIndex = m_twaincommand.Submit(threaddata);
 
                         // Submit the command and wait for the reply...
                         CallerToThreadSet();
                         ThreadToCallerWaitOne();
 
                         // Return the result...
-                        a_twuserinterface = m_twaincommand.Get(m_lIndexDatUserinterface).twuserinterface;
-                        sts = m_twaincommand.Get(m_lIndexDatUserinterface).sts;
+                        a_twuserinterface = m_twaincommand.Get(lIndex).twuserinterface;
+                        sts = m_twaincommand.Get(lIndex).sts;
 
                         // Clear the command variables...
-                        m_twaincommand.Delete(m_lIndexDatUserinterface);
+                        m_twaincommand.Delete(lIndex);
                     }
                     return (sts);
                 }
@@ -9704,11 +11580,8 @@ namespace TWAINWorkingGroup
             }
 
             // We need this to handle data sources that return MSG_XFERREADY in
-            // the midst of processing MSG_ENABLEDS...
-            if (a_msg == MSG.ENABLEDS)
-            {
-                m_blAcceptXferReady = true;
-            }
+            // the midst of processing MSG_ENABLEDS.
+            m_blAcceptXferReady = ((a_msg == MSG.ENABLEDS) && (twuserinterface.ShowUI == 0));
 
             // Windows...
             if (ms_platform == Platform.WINDOWS)
@@ -9716,7 +11589,7 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (this.m_runinuithreaddelegate == null)
+                    if (m_threaddataDatUserinterface.blIsInuse || (this.m_runinuithreaddelegate == null))
                     {
                         if (m_blUseLegacyDSM)
                         {
@@ -9733,34 +11606,32 @@ namespace TWAINWorkingGroup
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.twuserinterface = a_twuserinterface;
-                                threaddata.twuserinterface.hParent = m_intptrHwnd;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.USERINTERFACE;
-                                m_lIndexDatUserinterface = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatUserinterface = default(ThreadData);
+                                m_threaddataDatUserinterface.blIsInuse = true;
+                                m_threaddataDatUserinterface.dg = a_dg;
+                                m_threaddataDatUserinterface.msg = a_msg;
+                                m_threaddataDatUserinterface.dat = DAT.USERINTERFACE;
+                                m_threaddataDatUserinterface.twuserinterface = a_twuserinterface;
                                 RunInUiThread(DatUserinterfaceWindowsTwain32);
-                                a_twuserinterface = m_twaincommand.Get(m_lIndexDatUserinterface).twuserinterface;
-                                sts = m_twaincommand.Get(m_lIndexDatUserinterface).sts;
-                                m_twaincommand.Delete(m_lIndexDatUserinterface);
+                                a_twuserinterface = m_threaddataDatUserinterface.twuserinterface;
+                                sts = m_threaddataDatUserinterface.sts;
+                                m_threaddataDatUserinterface = default(ThreadData);
                             }
                         }
                         else
                         {
                             lock (m_lockTwain)
                             {
-                                ThreadData threaddata = default(ThreadData);
-                                threaddata.twuserinterface = a_twuserinterface;
-                                threaddata.twuserinterface.hParent = m_intptrHwnd;
-                                threaddata.dg = a_dg;
-                                threaddata.msg = a_msg;
-                                threaddata.dat = DAT.USERINTERFACE;
-                                m_lIndexDatUserinterface = m_twaincommand.Submit(threaddata);
+                                m_threaddataDatUserinterface = default(ThreadData);
+                                m_threaddataDatUserinterface.blIsInuse = true;
+                                m_threaddataDatUserinterface.dg = a_dg;
+                                m_threaddataDatUserinterface.msg = a_msg;
+                                m_threaddataDatUserinterface.dat = DAT.USERINTERFACE;
+                                m_threaddataDatUserinterface.twuserinterface = a_twuserinterface;
                                 RunInUiThread(DatUserinterfaceWindowsTwainDsm);
-                                a_twuserinterface = m_twaincommand.Get(m_lIndexDatUserinterface).twuserinterface;
-                                sts = m_twaincommand.Get(m_lIndexDatUserinterface).sts;
-                                m_twaincommand.Delete(m_lIndexDatUserinterface);
+                                a_twuserinterface = m_threaddataDatUserinterface.twuserinterface;
+                                sts = m_threaddataDatUserinterface.sts;
+                                m_threaddataDatUserinterface = default(ThreadData);
                             }
                         }
                     }
@@ -9780,7 +11651,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryUserinterface(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.USERINTERFACE, a_msg, ref twuserinterface);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryUserinterface(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.USERINTERFACE, a_msg, ref twuserinterface);
                     }
@@ -9854,16 +11729,18 @@ namespace TWAINWorkingGroup
                     m_twuserinterface = a_twuserinterface;
 
                     // MSG_XFERREADY showed up while we were still processing MSG_ENABLEDS
-                    if ((sts == STS.SUCCESS) && m_blAcceptXferReady && m_blIsMsgxferready)
+                    if (m_blAcceptXferReady && m_blIsMsgxferready)
                     {
+                        // Change state...
                         m_blAcceptXferReady = false;
                         m_state = STATE.S6;
-                        // TBD
-                        //lock (m_lockTwain)
-                        //{
-                        //    m_threaddata = default(ThreadData);
-                        //}
                         CallerToThreadSet();
+
+                        // Kick off the scan engine...
+                        if (m_scancallback != null)
+                        {
+                            m_scancallback(false);
+                        }
                     }
                 }
             }
@@ -9957,7 +11834,11 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        sts = (STS)NativeMethods.Linux64DsmEntryXfergroup(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.XFERGROUP, a_msg, ref a_twuint32);
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
                     {
                         sts = (STS)NativeMethods.LinuxDsmEntryXfergroup(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, a_dg, DAT.XFERGROUP, a_msg, ref a_twuint32);
                     }
@@ -10072,6 +11953,316 @@ namespace TWAINWorkingGroup
 
 
         ///////////////////////////////////////////////////////////////////////////////
+        // Private Definitions (TIFF): this stuff should have been here all along to
+        // make it easier to share.  It's only needed when writing out files from
+        // DAT_IMAGEMEMXFER data.
+        ///////////////////////////////////////////////////////////////////////////////
+        #region Private Definitions (TIFF)...
+
+        // A TIFF header is composed of tags...
+        [StructLayout(LayoutKind.Sequential, Pack = 2)]
+        public struct TiffTag
+        {
+            public TiffTag(ushort a_u16Tag, ushort a_u16Type, uint a_u32Count, uint a_u32Value)
+            {
+                u16Tag = a_u16Tag;
+                u16Type = a_u16Type;
+                u32Count = a_u32Count;
+                u32Value = a_u32Value;
+            }
+
+            public ushort u16Tag;
+            public ushort u16Type;
+            public uint u32Count;
+            public uint u32Value;
+        }
+
+        // TIFF header for Uncompressed BITONAL images...
+        [StructLayout(LayoutKind.Sequential, Pack = 2)]
+        public struct TiffBitonalUncompressed
+        {
+            // Constructor...
+            public TiffBitonalUncompressed(uint a_u32Width, uint a_u32Height, uint a_u32Resolution, uint a_u32Size)
+            {
+                // Header...
+                u16ByteOrder = 0x4949;
+                u16Version = 42;
+                u32OffsetFirstIFD = 8;
+
+                // First IFD...
+                u16IFD = 16;
+
+                // Tags...
+                tifftagNewSubFileType = new TiffTag(254, 4, 1, 0);
+                tifftagSubFileType = new TiffTag(255, 3, 1, 1);
+                tifftagImageWidth = new TiffTag(256, 4, 1, a_u32Width);
+                tifftagImageLength = new TiffTag(257, 4, 1, a_u32Height);
+                tifftagBitsPerSample = new TiffTag(258, 3, 1, 1);
+                tifftagCompression = new TiffTag(259, 3, 1, 1);
+                tifftagPhotometricInterpretation = new TiffTag(262, 3, 1, 1);
+                tifftagFillOrder = new TiffTag(266, 3, 1, 1);
+                tifftagStripOffsets = new TiffTag(273, 4, 1, 222);
+                tifftagSamplesPerPixel = new TiffTag(277, 3, 1, 1);
+                tifftagRowsPerStrip = new TiffTag(278, 4, 1, a_u32Height);
+                tifftagStripByteCounts = new TiffTag(279, 4, 1, a_u32Size);
+                tifftagXResolution = new TiffTag(282, 5, 1, 206);
+                tifftagYResolution = new TiffTag(283, 5, 1, 214);
+                tifftagT4T6Options = new TiffTag(292, 4, 1, 0);
+                tifftagResolutionUnit = new TiffTag(296, 3, 1, 2);
+
+                // Footer...
+                u32NextIFD = 0;
+                u64XResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+                u64YResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+            }
+
+            // Header...
+            public ushort u16ByteOrder;
+            public ushort u16Version;
+            public uint u32OffsetFirstIFD;
+
+            // First IFD...
+            public ushort u16IFD;
+
+            // Tags...
+            public TiffTag tifftagNewSubFileType;
+            public TiffTag tifftagSubFileType;
+            public TiffTag tifftagImageWidth;
+            public TiffTag tifftagImageLength;
+            public TiffTag tifftagBitsPerSample;
+            public TiffTag tifftagCompression;
+            public TiffTag tifftagPhotometricInterpretation;
+            public TiffTag tifftagFillOrder;
+            public TiffTag tifftagStripOffsets;
+            public TiffTag tifftagSamplesPerPixel;
+            public TiffTag tifftagRowsPerStrip;
+            public TiffTag tifftagStripByteCounts;
+            public TiffTag tifftagXResolution;
+            public TiffTag tifftagYResolution;
+            public TiffTag tifftagT4T6Options;
+            public TiffTag tifftagResolutionUnit;
+
+            // Footer...
+            public uint u32NextIFD;
+            public ulong u64XResolution;
+            public ulong u64YResolution;
+        }
+
+        // TIFF header for Group4 BITONAL images...
+        [StructLayout(LayoutKind.Sequential, Pack = 2)]
+        public struct TiffBitonalG4
+        {
+            // Constructor...
+            public TiffBitonalG4(uint a_u32Width, uint a_u32Height, uint a_u32Resolution, uint a_u32Size)
+            {
+                // Header...
+                u16ByteOrder = 0x4949;
+                u16Version = 42;
+                u32OffsetFirstIFD = 8;
+
+                // First IFD...
+                u16IFD = 16;
+
+                // Tags...
+                tifftagNewSubFileType = new TiffTag(254, 4, 1, 0);
+                tifftagSubFileType = new TiffTag(255, 3, 1, 1);
+                tifftagImageWidth = new TiffTag(256, 4, 1, a_u32Width);
+                tifftagImageLength = new TiffTag(257, 4, 1, a_u32Height);
+                tifftagBitsPerSample = new TiffTag(258, 3, 1, 1);
+                tifftagCompression = new TiffTag(259, 3, 1, 4);
+                tifftagPhotometricInterpretation = new TiffTag(262, 3, 1, 0);
+                tifftagFillOrder = new TiffTag(266, 3, 1, 1);
+                tifftagStripOffsets = new TiffTag(273, 4, 1, 222);
+                tifftagSamplesPerPixel = new TiffTag(277, 3, 1, 1);
+                tifftagRowsPerStrip = new TiffTag(278, 4, 1, a_u32Height);
+                tifftagStripByteCounts = new TiffTag(279, 4, 1, a_u32Size);
+                tifftagXResolution = new TiffTag(282, 5, 1, 206);
+                tifftagYResolution = new TiffTag(283, 5, 1, 214);
+                tifftagT4T6Options = new TiffTag(293, 4, 1, 0);
+                tifftagResolutionUnit = new TiffTag(296, 3, 1, 2);
+
+                // Footer...
+                u32NextIFD = 0;
+                u64XResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+                u64YResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+            }
+
+            // Header...
+            public ushort u16ByteOrder;
+            public ushort u16Version;
+            public uint u32OffsetFirstIFD;
+
+            // First IFD...
+            public ushort u16IFD;
+
+            // Tags...
+            public TiffTag tifftagNewSubFileType;
+            public TiffTag tifftagSubFileType;
+            public TiffTag tifftagImageWidth;
+            public TiffTag tifftagImageLength;
+            public TiffTag tifftagBitsPerSample;
+            public TiffTag tifftagCompression;
+            public TiffTag tifftagPhotometricInterpretation;
+            public TiffTag tifftagFillOrder;
+            public TiffTag tifftagStripOffsets;
+            public TiffTag tifftagSamplesPerPixel;
+            public TiffTag tifftagRowsPerStrip;
+            public TiffTag tifftagStripByteCounts;
+            public TiffTag tifftagXResolution;
+            public TiffTag tifftagYResolution;
+            public TiffTag tifftagT4T6Options;
+            public TiffTag tifftagResolutionUnit;
+
+            // Footer...
+            public uint u32NextIFD;
+            public ulong u64XResolution;
+            public ulong u64YResolution;
+        }
+
+        // TIFF header for Uncompressed GRAYSCALE images...
+        [StructLayout(LayoutKind.Sequential, Pack = 2)]
+        public struct TiffGrayscaleUncompressed
+        {
+            // Constructor...
+            public TiffGrayscaleUncompressed(uint a_u32Width, uint a_u32Height, uint a_u32Resolution, uint a_u32Size)
+            {
+                // Header...
+                u16ByteOrder = 0x4949;
+                u16Version = 42;
+                u32OffsetFirstIFD = 8;
+
+                // First IFD...
+                u16IFD = 14;
+
+                // Tags...
+                tifftagNewSubFileType = new TiffTag(254, 4, 1, 0);
+                tifftagSubFileType = new TiffTag(255, 3, 1, 1);
+                tifftagImageWidth = new TiffTag(256, 4, 1, a_u32Width);
+                tifftagImageLength = new TiffTag(257, 4, 1, a_u32Height);
+                tifftagBitsPerSample = new TiffTag(258, 3, 1, 8);
+                tifftagCompression = new TiffTag(259, 3, 1, 1);
+                tifftagPhotometricInterpretation = new TiffTag(262, 3, 1, 1);
+                tifftagStripOffsets = new TiffTag(273, 4, 1, 198);
+                tifftagSamplesPerPixel = new TiffTag(277, 3, 1, 1);
+                tifftagRowsPerStrip = new TiffTag(278, 4, 1, a_u32Height);
+                tifftagStripByteCounts = new TiffTag(279, 4, 1, a_u32Size);
+                tifftagXResolution = new TiffTag(282, 5, 1, 182);
+                tifftagYResolution = new TiffTag(283, 5, 1, 190);
+                tifftagResolutionUnit = new TiffTag(296, 3, 1, 2);
+
+                // Footer...
+                u32NextIFD = 0;
+                u64XResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+                u64YResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+            }
+
+            // Header...
+            public ushort u16ByteOrder;
+            public ushort u16Version;
+            public uint u32OffsetFirstIFD;
+
+            // First IFD...
+            public ushort u16IFD;
+
+            // Tags...
+            public TiffTag tifftagNewSubFileType;
+            public TiffTag tifftagSubFileType;
+            public TiffTag tifftagImageWidth;
+            public TiffTag tifftagImageLength;
+            public TiffTag tifftagBitsPerSample;
+            public TiffTag tifftagCompression;
+            public TiffTag tifftagPhotometricInterpretation;
+            public TiffTag tifftagStripOffsets;
+            public TiffTag tifftagSamplesPerPixel;
+            public TiffTag tifftagRowsPerStrip;
+            public TiffTag tifftagStripByteCounts;
+            public TiffTag tifftagXResolution;
+            public TiffTag tifftagYResolution;
+            public TiffTag tifftagResolutionUnit;
+
+            // Footer...
+            public uint u32NextIFD;
+            public ulong u64XResolution;
+            public ulong u64YResolution;
+        }
+
+        // TIFF header for Uncompressed COLOR images...
+        [StructLayout(LayoutKind.Sequential, Pack = 2)]
+        public struct TiffColorUncompressed
+        {
+            // Constructor...
+            public TiffColorUncompressed(uint a_u32Width, uint a_u32Height, uint a_u32Resolution, uint a_u32Size)
+            {
+                // Header...
+                u16ByteOrder = 0x4949;
+                u16Version = 42;
+                u32OffsetFirstIFD = 8;
+
+                // First IFD...
+                u16IFD = 14;
+
+                // Tags...
+                tifftagNewSubFileType = new TiffTag(254, 4, 1, 0);
+                tifftagSubFileType = new TiffTag(255, 3, 1, 1);
+                tifftagImageWidth = new TiffTag(256, 4, 1, a_u32Width);
+                tifftagImageLength = new TiffTag(257, 4, 1, a_u32Height);
+                tifftagBitsPerSample = new TiffTag(258, 3, 3, 182);
+                tifftagCompression = new TiffTag(259, 3, 1, 1);
+                tifftagPhotometricInterpretation = new TiffTag(262, 3, 1, 2);
+                tifftagStripOffsets = new TiffTag(273, 4, 1, 204);
+                tifftagSamplesPerPixel = new TiffTag(277, 3, 1, 3);
+                tifftagRowsPerStrip = new TiffTag(278, 4, 1, a_u32Height);
+                tifftagStripByteCounts = new TiffTag(279, 4, 1, a_u32Size);
+                tifftagXResolution = new TiffTag(282, 5, 1, 188);
+                tifftagYResolution = new TiffTag(283, 5, 1, 196);
+                tifftagResolutionUnit = new TiffTag(296, 3, 1, 2);
+
+                // Footer...
+                u32NextIFD = 0;
+                u16XBitsPerSample1 = 8;
+                u16XBitsPerSample2 = 8;
+                u16XBitsPerSample3 = 8;
+                u64XResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+                u64YResolution = (ulong)0x100000000 + (ulong)a_u32Resolution;
+            }
+
+            // Header...
+            public ushort u16ByteOrder;
+            public ushort u16Version;
+            public uint u32OffsetFirstIFD;
+
+            // First IFD...
+            public ushort u16IFD;
+
+            // Tags...
+            public TiffTag tifftagNewSubFileType;
+            public TiffTag tifftagSubFileType;
+            public TiffTag tifftagImageWidth;
+            public TiffTag tifftagImageLength;
+            public TiffTag tifftagBitsPerSample;
+            public TiffTag tifftagCompression;
+            public TiffTag tifftagPhotometricInterpretation;
+            public TiffTag tifftagStripOffsets;
+            public TiffTag tifftagSamplesPerPixel;
+            public TiffTag tifftagRowsPerStrip;
+            public TiffTag tifftagStripByteCounts;
+            public TiffTag tifftagXResolution;
+            public TiffTag tifftagYResolution;
+            public TiffTag tifftagResolutionUnit;
+
+            // Footer...
+            public uint u32NextIFD;
+            public ushort u16XBitsPerSample1;
+            public ushort u16XBitsPerSample2;
+            public ushort u16XBitsPerSample3;
+            public ulong u64XResolution;
+            public ulong u64YResolution;
+        }
+
+        #endregion
+
+
+        ///////////////////////////////////////////////////////////////////////////////
         // Private Functions, the main thread is in here...
         ///////////////////////////////////////////////////////////////////////////////
         #region Private Functions...
@@ -10173,6 +12364,16 @@ namespace TWAINWorkingGroup
                         CallerToThreadWaitOne();
                         m_twaincommand.GetNext(out lIndex, out threaddata);
                     }
+                }
+
+                // Leave...now...
+                if (threaddata.blExitThread)
+                {
+                    m_twaincommand.Complete(lIndex, threaddata);
+                    m_scancallback(true);
+                    ThreadToCallerSet();
+                    ThreadToRollbackSet();
+                    return;
                 }
 
                 // Process device events...
@@ -10430,6 +12631,7 @@ namespace TWAINWorkingGroup
             // Some insurance to make sure we loosen up the caller...
             m_scancallback(true);
             ThreadToCallerSet();
+            return;
         }
 
         /// <summary>
@@ -10450,7 +12652,9 @@ namespace TWAINWorkingGroup
                     {
                         // MSG_XFERREADY arrived during the handling of the
                         // call to MSG_ENABLEDS.  We have to defer processing
-                        // it as late as possible...
+                        // it as late as possible.  This flag and the accept
+                        // flag will be checked at the end of DatUserinterface
+                        // to see if we need to send the message to the DSM...
                         if (m_state == STATE.S4)
                         {
                             m_blIsMsgxferready = true;
@@ -10460,23 +12664,16 @@ namespace TWAINWorkingGroup
                         // call to MSG_ENABLEDS.  We can just do it...
                         else
                         {
-                            // To handle data sources that return MSG_XFERREADY in
-                            // the midst of processing MSG_ENABLEDS, we need to clear
-                            // the flag so we don't get in here again. However, if
-                            // the UI is up, we DO want to see all MSG_XFERREADYs.
-                            if (m_twuserinterface.ShowUI == 0)
-                            {
-                                m_blAcceptXferReady = false;
-                            }
-
+                            // Bump our state up...
                             m_state = STATE.S6;
                             m_blIsMsgxferready = true;
-                            // TBD
-                            //lock (m_lockTwain)
-                            //{
-                            //    m_threaddata = default(ThreadData);
-                            //}
                             CallerToThreadSet();
+
+                            // Kick off the scan engine...
+                            if (m_scancallback != null)
+                            {
+                                m_scancallback(false);
+                            }
                         }
                     }
                     break;
@@ -10485,12 +12682,20 @@ namespace TWAINWorkingGroup
                 case MSG.CLOSEDSREQ:
                     m_blIsMsgclosedsreq = true;
                     CallerToThreadSet();
+                    if (m_scancallback != null)
+                    {
+                        m_scancallback(false);
+                    }
                     break;
 
                 // The OK button was pressed...
                 case MSG.CLOSEDSOK:
                     m_blIsMsgclosedsok = true;
                     CallerToThreadSet();
+                    if (m_scancallback != null)
+                    {
+                        m_scancallback(false);
+                    }
                     break;
 
                 // A device event arrived...
@@ -10630,11 +12835,25 @@ namespace TWAINWorkingGroup
                 {
                     if (m_blUseLegacyDSM)
                     {
-                        sts = (STS)NativeMethods.WindowsTwain32DsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        if (GetState() <= STATE.S3)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryStatusState3(ref m_twidentitylegacyApp, IntPtr.Zero, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwain32DsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        if (GetState() <= STATE.S3)
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryStatusState3(ref m_twidentitylegacyApp, IntPtr.Zero, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.WindowsTwaindsmDsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
                     }
                 }
                 catch (Exception exception)
@@ -10652,7 +12871,44 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    sts = (STS)NativeMethods.LinuxDsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                    if (m_blFoundLatestDsm64 && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        if (GetState() <= STATE.S3)
+                        {
+                            sts = (STS)NativeMethods.Linux64DsmEntryStatusState3(ref m_twidentitylegacyApp, IntPtr.Zero, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.Linux64DsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                    }
+                    else if (m_blFoundLatestDsm && (m_linuxdsm == LinuxDsm.IsLatestDsm))
+                    {
+                        if (GetState() <= STATE.S3)
+                        {
+                            sts = (STS)NativeMethods.LinuxDsmEntryStatusState3(ref m_twidentitylegacyApp, IntPtr.Zero, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.LinuxDsmEntryStatus(ref m_twidentitylegacyApp, ref m_twidentitylegacyDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                    }
+                    else if (m_blFound020302Dsm64bit && (m_linuxdsm == LinuxDsm.Is020302Dsm64bit))
+                    {
+                        if (GetState() <= STATE.S3)
+                        {
+                            sts = (STS)NativeMethods.Linux020302Dsm64bitEntryStatusState3(ref m_twidentityApp, IntPtr.Zero, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                        else
+                        {
+                            sts = (STS)NativeMethods.Linux020302Dsm64bitEntryStatus(ref m_twidentityApp, ref m_twidentityDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        }
+                    }
+                    else
+                    {
+                        Log.Error("apparently we don't have a DSM...");
+                        sts = STS.BUMMER;
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -10669,13 +12925,13 @@ namespace TWAINWorkingGroup
                 // Issue the command...
                 try
                 {
-                    if (m_blUseLegacyDSM)
+                    if (GetState() <= STATE.S3)
                     {
-                        sts = (STS)NativeMethods.MacosxTwainDsmEntryStatus(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        sts = (STS)NativeMethods.MacosxTwainDsmEntryStatusState3(ref m_twidentitymacosxApp, IntPtr.Zero, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
                     }
                     else
                     {
-                        sts = (STS)NativeMethods.MacosxTwaindsmDsmEntryStatus(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
+                        sts = (STS)NativeMethods.MacosxTwainDsmEntryStatus(ref m_twidentitymacosxApp, ref m_twidentitymacosxDs, DG.CONTROL, DAT.STATUS, MSG.GET, ref twstatus);
                     }
                 }
                 catch (Exception exception)
@@ -10729,29 +12985,80 @@ namespace TWAINWorkingGroup
                 if (Environment.OSVersion.ToString().Contains("Microsoft Windows"))
                 {
                     ms_platform = Platform.WINDOWS;
+                    ms_processor = (GetMachineWordBitSize() == 64) ? Processor.X86_64 : Processor.X86;
                 }
 
                 // We're Mac OS X (this has to come before LINUX!!!)...
                 else if (Directory.Exists("/Library/Application Support"))
                 {
                     ms_platform = Platform.MACOSX;
+                    ms_processor = (GetMachineWordBitSize() == 64) ? Processor.X86_64 : Processor.X86;
                 }
 
                 // We're Linux...
                 else if (Environment.OSVersion.ToString().Contains("Unix"))
                 {
+                    string szProcessor = "";
                     ms_platform = Platform.LINUX;
+                    try
+                    {
+                        Process process = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo()
+                            {
+                                FileName = "uname",
+                                Arguments = "-m",
+                                UseShellExecute = false,
+                                RedirectStandardOutput = true,
+                                CreateNoWindow = true
+                            }
+                        };
+                        process.Start();
+                        process.WaitForExit();
+                        szProcessor = process.StandardOutput.ReadToEnd();
+                        process.Close();
+                    }
+                    catch
+                    {
+                        Console.Out.WriteLine("Oh dear, this isn't good...where's uname?");
+                    }
+                    if (szProcessor.Contains("mips64"))
+                    {
+                        ms_processor = Processor.MIPS64EL;
+                    }
+                    else
+                    {
+                        ms_processor = (GetMachineWordBitSize() == 64) ? Processor.X86_64 : Processor.X86;
+                    }
                 }
 
                 // We have a problem, Log will throw for us...
                 else
                 {
                     ms_platform = Platform.UNKNOWN;
+                    ms_processor = Processor.UNKNOWN;
                     TWAINWorkingGroup.Log.Assert("Unsupported platform..." + ms_platform);
                 }
             }
 
+            // All done...
             return (ms_platform);
+        }
+
+        /// <summary>
+        /// Quick access to our processor id...
+        /// </summary>
+        /// <returns></returns>
+        public static Processor GetProcessor()
+        {
+            // First pass...
+            if (ms_blFirstPassGetPlatform)
+            {
+                GetPlatform();
+            }
+
+            // All done...
+            return (ms_processor);
         }
 
         /// <summary>
@@ -10763,7 +13070,7 @@ namespace TWAINWorkingGroup
         /// <param name="a_iIndex">Index of the item in the data</param>
         /// <returns>Data in CSV form</returns>
         [PermissionSet(SecurityAction.LinkDemand, Name = "FullTrust", Unrestricted = false)]
-        public string GetIndexedItem(TWTY a_twty, IntPtr a_intptr, int a_iIndex)
+        public string GetIndexedItem(TW_CAPABILITY a_twcapability, TWTY a_twty, IntPtr a_intptr, int a_iIndex)
         {
             IntPtr intptr;
 
@@ -10890,14 +13197,14 @@ namespace TWAINWorkingGroup
                         // We do this to make sure the entire Item value is overwritten...
                         if (a_twcapability.ConType == TWON.ONEVALUE)
                         {
-                            int i32Value = sbyte.Parse(a_szValue);
+                            int i32Value = sbyte.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             Marshal.StructureToPtr(i32Value, a_intptr, true);
                             return ("");
                         }
                         // These items have to be packed on the type sizes...
                         else
                         {
-                            sbyte i8Value = sbyte.Parse(a_szValue);
+                            sbyte i8Value = sbyte.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             intptr = (IntPtr)((ulong)a_intptr + (ulong)(1 * a_iIndex));
                             Marshal.StructureToPtr(i8Value, intptr, true);
                             return ("");
@@ -10906,17 +13213,17 @@ namespace TWAINWorkingGroup
 
                 case TWTY.INT16:
                     {
-                        // We do this to make sure the entire Item value is overwritten...
+                        // We use i32Value to make sure the entire Item value is overwritten...
                         if (a_twcapability.ConType == TWON.ONEVALUE)
                         {
-                            int i32Value = short.Parse(a_szValue);
+                            int i32Value = short.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             Marshal.StructureToPtr(i32Value, a_intptr, true);
                             return ("");
                         }
                         // These items have to be packed on the type sizes...
                         else
                         {
-                            short i16Value = short.Parse(a_szValue);
+                            short i16Value = short.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             intptr = (IntPtr)((ulong)a_intptr + (ulong)(2 * a_iIndex));
                             Marshal.StructureToPtr(i16Value, intptr, true);
                             return ("");
@@ -10925,7 +13232,8 @@ namespace TWAINWorkingGroup
 
                 case TWTY.INT32:
                     {
-                        int i32Value = int.Parse(a_szValue);
+                        // Entire value will always be overwritten, so we don't have to get fancy...
+                        int i32Value = int.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                         intptr = (IntPtr)((ulong)a_intptr + (ulong)(4 * a_iIndex));
                         Marshal.StructureToPtr(i32Value, intptr, true);
                         return ("");
@@ -10933,17 +13241,17 @@ namespace TWAINWorkingGroup
 
                 case TWTY.UINT8:
                     {
-                        // We do this to make sure the entire Item value is overwritten...
+                        // We use u32Value to make sure the entire Item value is overwritten...
                         if (a_twcapability.ConType == TWON.ONEVALUE)
                         {
-                            uint u32Value = byte.Parse(a_szValue);
+                            uint u32Value = byte.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             Marshal.StructureToPtr(u32Value, a_intptr, true);
                             return ("");
                         }
                         // These items have to be packed on the type sizes...
                         else
                         {
-                            byte u8Value = byte.Parse(a_szValue);
+                            byte u8Value = byte.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             intptr = (IntPtr)((ulong)a_intptr + (ulong)(1 * a_iIndex));
                             Marshal.StructureToPtr(u8Value, intptr, true);
                             return ("");
@@ -10953,17 +13261,16 @@ namespace TWAINWorkingGroup
                 case TWTY.BOOL:
                 case TWTY.UINT16:
                     {
-                        string szNumber = CvtCapValueFromEnum(a_twcapability.Cap, a_szValue);
-                        // We do this to make sure the entire Item value is overwritten...
+                        // We use u32Value to make sure the entire Item value is overwritten...
                         if (a_twcapability.ConType == TWON.ONEVALUE)
                         {
-                            uint u32Value = ushort.Parse(szNumber);
+                            uint u32Value = ushort.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             Marshal.StructureToPtr(u32Value, a_intptr, true);
                             return ("");
                         }
                         else
                         {
-                            ushort u16Value = ushort.Parse(szNumber);
+                            ushort u16Value = ushort.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                             intptr = (IntPtr)((ulong)a_intptr + (ulong)(2 * a_iIndex));
                             Marshal.StructureToPtr(u16Value, intptr, true);
                             return ("");
@@ -10972,7 +13279,8 @@ namespace TWAINWorkingGroup
 
                 case TWTY.UINT32:
                     {
-                        uint u32Value = uint.Parse(a_szValue);
+                        // Entire value will always be overwritten, so we don't have to get fancy...
+                        uint u32Value = uint.Parse(CvtCapValueFromEnum(a_twcapability.Cap, a_szValue));
                         intptr = (IntPtr)((ulong)a_intptr + (ulong)(4 * a_iIndex));
                         Marshal.StructureToPtr(u32Value, intptr, true);
                         return ("");
@@ -10980,6 +13288,7 @@ namespace TWAINWorkingGroup
 
                 case TWTY.FIX32:
                     {
+                        // Entire value will always be overwritten, so we don't have to get fancy...
                         TW_FIX32 twfix32 = default(TW_FIX32);
                         twfix32.Whole = (short)Convert.ToDouble(a_szValue);
                         twfix32.Frac = (ushort)((Convert.ToDouble(a_szValue) - (double)twfix32.Whole) * 65536.0);
@@ -11553,6 +13862,166 @@ namespace TWAINWorkingGroup
         }
 
         /// <summary>
+        /// Get .NET 'Bitmap' object from memory DIB via stream constructor.
+        /// This should work for most DIBs.
+        /// </summary>
+        /// <param name="a_intptrNative">The pointer to something (presumably a BITMAP or a TIFF image)</param>
+        /// <returns>C# Bitmap of image</returns>
+        public byte[] NativeToByteArray(IntPtr a_intptrNative, bool a_blIsHandle)
+        {
+            ushort u16Magic;
+            UIntPtr uintptrBytes;
+            IntPtr intptrNative;
+
+            // Give ourselves what protection we can...
+            try
+            {
+                // We need the first two bytes to decide if we have a DIB or a TIFF.  Don't
+                // forget to lock the silly thing...
+                intptrNative = a_blIsHandle ? DsmMemLock(a_intptrNative) : a_intptrNative;
+                u16Magic = (ushort)Marshal.PtrToStructure(intptrNative, typeof(ushort));
+
+                // Windows uses a DIB, the first unsigned short is 40...
+                if (u16Magic == 40)
+                {
+                    byte[] bBitmap;
+                    BITMAPFILEHEADER bitmapfileheader;
+                    BITMAPINFOHEADER bitmapinfoheader;
+
+                    // Our incoming DIB is a bitmap info header...
+                    bitmapinfoheader = (BITMAPINFOHEADER)Marshal.PtrToStructure(intptrNative, typeof(BITMAPINFOHEADER));
+
+                    // Build our file header...
+                    bitmapfileheader = new BITMAPFILEHEADER();
+                    bitmapfileheader.bfType = 0x4D42; // "BM"
+                    bitmapfileheader.bfSize
+                        = (uint)Marshal.SizeOf(typeof(BITMAPFILEHEADER)) +
+                           bitmapinfoheader.biSize +
+                           (bitmapinfoheader.biClrUsed * 4) +
+                           bitmapinfoheader.biSizeImage;
+                    bitmapfileheader.bfOffBits
+                        = (uint)Marshal.SizeOf(typeof(BITMAPFILEHEADER)) +
+                           bitmapinfoheader.biSize +
+                           (bitmapinfoheader.biClrUsed * 4);
+
+                    // Copy the file header into our byte array...
+                    IntPtr intptr = Marshal.AllocHGlobal(Marshal.SizeOf(bitmapfileheader));
+                    Marshal.StructureToPtr(bitmapfileheader, intptr, true);
+                    bBitmap = new byte[bitmapfileheader.bfSize];
+                    Marshal.Copy(intptr, bBitmap, 0, Marshal.SizeOf(bitmapfileheader));
+                    Marshal.FreeHGlobal(intptr);
+                    intptr = IntPtr.Zero;
+
+                    // Copy the rest of the DIB into our byte array......
+                    Marshal.Copy(intptrNative, bBitmap, Marshal.SizeOf(typeof(BITMAPFILEHEADER)), (int)bitmapfileheader.bfSize - Marshal.SizeOf(typeof(BITMAPFILEHEADER)));
+
+                    // Unlock the handle, and return our byte array...
+                    if (a_blIsHandle)
+                    {
+                        DsmMemUnlock(a_intptrNative);
+                    }
+                    return (bBitmap);
+                }
+
+                // Linux and Mac OS X use TIFF.  We'll handle a simple Intel TIFF ("II")...
+                else if (u16Magic == 0x4949)
+                {
+                    int iTiffSize;
+                    ulong u64;
+                    ulong u64Pointer;
+                    ulong u64TiffHeaderSize;
+                    ulong u64TiffTagSize;
+                    byte[] abTiff;
+                    TIFFHEADER tiffheader;
+                    TIFFTAG tifftag;
+
+                    // Init stuff...
+                    tiffheader = new TIFFHEADER();
+                    tifftag = new TIFFTAG();
+                    u64TiffHeaderSize = (ulong)Marshal.SizeOf(tiffheader);
+                    u64TiffTagSize = (ulong)Marshal.SizeOf(tifftag);
+
+                    // Find the size of the image so we can turn it into a byte array...
+                    iTiffSize = 0;
+                    tiffheader = (TIFFHEADER)Marshal.PtrToStructure(intptrNative, typeof(TIFFHEADER));
+                    for (u64 = 0; u64 < 999; u64++)
+                    {
+                        u64Pointer = (ulong)intptrNative + u64TiffHeaderSize + (u64TiffTagSize * u64);
+                        tifftag = (TIFFTAG)Marshal.PtrToStructure((IntPtr)u64Pointer, typeof(TIFFTAG));
+
+                        // StripOffsets...
+                        if (tifftag.u16Tag == 273)
+                        {
+                            iTiffSize += (int)tifftag.u32Value;
+                        }
+
+                        // StripByteCounts...
+                        if (tifftag.u16Tag == 279)
+                        {
+                            iTiffSize += (int)tifftag.u32Value;
+                        }
+                    }
+
+                    // No joy...
+                    if (iTiffSize == 0)
+                    {
+                        if (a_blIsHandle)
+                        {
+                            DsmMemUnlock(a_intptrNative);
+                        }
+                        return (null);
+                    }
+
+                    // Copy the data to our byte array...
+                    abTiff = new byte[iTiffSize];
+                    Marshal.Copy(intptrNative, abTiff, 0, iTiffSize);
+
+                    // Unlock the handle, and return our byte array...
+                    if (a_blIsHandle)
+                    {
+                        DsmMemUnlock(a_intptrNative);
+                    }
+                    return (abTiff);
+                }
+
+                // As long as we're here, let's handle JFIF (JPEG) too,
+                // this can never be a handle...
+                else if (u16Magic == 0xFFD8)
+                {
+                    byte[] abJfif;
+
+                    // We need the size of this memory block...
+                    switch (GetPlatform())
+                    {
+                        default:
+                            Log.Error("Really? <" + GetPlatform() + ">");
+                            return (null);
+                        case Platform.WINDOWS:
+                            uintptrBytes = NativeMethods._msize(a_intptrNative);
+                            break;
+                        case Platform.LINUX:
+                            uintptrBytes = NativeMethods.malloc_usable_size(a_intptrNative);
+                            break;
+                        case Platform.MACOSX:
+                            uintptrBytes = NativeMethods.malloc_size(a_intptrNative);
+                            break;
+                    }
+                    abJfif = new byte[(int)uintptrBytes];
+                    Marshal.Copy(a_intptrNative, abJfif, 0, (int)(int)uintptrBytes);
+                    return (abJfif);
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("NativeToByteArray threw an exceptions - " + exception.Message);
+            }
+
+            // Byte-bye...
+            DsmMemUnlock(a_intptrNative);
+            return (null);
+        }
+
+        /// <summary>
         /// Convert a public identity to a legacy identity...
         /// </summary>
         /// <param name="a_twidentity">Identity to convert</param>
@@ -11708,6 +14177,7 @@ namespace TWAINWorkingGroup
             // The state of the structure...
             public bool blIsInuse;
             public bool blIsComplete;
+            public bool blExitThread;
 
             // Command...
             public DG dg;
@@ -11732,11 +14202,13 @@ namespace TWAINWorkingGroup
             public TW_CUSTOMDSDATA twcustomdsdata;
             public TW_DEVICEEVENT twdeviceevent;
             public TW_ENTRYPOINT twentrypoint;
+            public TW_EVENT twevent;
             public TW_EXTIMAGEINFO twextimageinfo;
             public TW_FILESYSTEM twfilesystem;
             public TW_FILTER twfilter;
             public TW_GRAYRESPONSE twgrayresponse;
             public TW_IDENTITY twidentity;
+            public TW_IDENTITY_LEGACY twidentitylegacy;
             public TW_IMAGEINFO twimageinfo;
             public TW_IMAGELAYOUT twimagelayout;
             public TW_IMAGEMEMXFER twimagememxfer;
@@ -11911,6 +14383,7 @@ namespace TWAINWorkingGroup
         private LinuxDsm m_linuxdsm;
         private LinuxDsm m_linux64bitdsmDatIdentity;
         private bool m_blFoundLatestDsm;
+        private bool m_blFoundLatestDsm64;
         private bool m_blFound020302Dsm64bit;
 
         /// <summary>
@@ -11922,6 +14395,7 @@ namespace TWAINWorkingGroup
         /// The platform we're running on...
         /// </summary>
         private static Platform ms_platform;
+        private static Processor ms_processor;
         private static bool ms_blFirstPassGetPlatform = true;
 
         /// <summary>
@@ -12000,15 +14474,27 @@ namespace TWAINWorkingGroup
         /// <summary>
         ///  Indecies for commands that have to do something a
         ///  bit more fancy, such as running the command in the
-        ///  context of a GUI thread...
+        ///  context of a GUI thread.  And flags to help know
+        ///  when we are doing this...
         /// </summary>
-        private long m_lIndexDatAudiofilexfer;
-        private long m_lIndexDatAudionativexfer;
-        private long m_lIndexDatImagefilexfer;
-        private long m_lIndexDatImagememfilexfer;
-        private long m_lIndexDatImagememxfer;
-        private long m_lIndexDatImagenativexfer;
-        private long m_lIndexDatUserinterface;
+        private ThreadData m_threaddataDatAudiofilexfer;
+        private ThreadData m_threaddataDatAudionativexfer;
+        private ThreadData m_threaddataDatCapability;
+        private ThreadData m_threaddataDatEvent;
+        private ThreadData m_threaddataDatExtimageinfo;
+        private ThreadData m_threaddataDatIdentity;
+        private ThreadData m_threaddataDatImagefilexfer;
+        private ThreadData m_threaddataDatImageinfo;
+        private ThreadData m_threaddataDatImagelayout;
+        private ThreadData m_threaddataDatImagememfilexfer;
+        private ThreadData m_threaddataDatImagememxfer;
+        private ThreadData m_threaddataDatImagenativexfer;
+        private ThreadData m_threaddataDatParent;
+        private ThreadData m_threaddataDatPendingxfers;
+        private ThreadData m_threaddataDatSetupfilexfer;
+        private ThreadData m_threaddataDatSetupmemxfer;
+        private ThreadData m_threaddataDatStatus;
+        private ThreadData m_threaddataDatUserinterface;
 
         /// <summary>
         /// Our helper functions from the DSM...

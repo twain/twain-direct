@@ -33,12 +33,13 @@
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows.Forms;
 using TwainDirect.Support;
 using TWAINWorkingGroup;
-using TWAINWorkingGroupToolkit;
 
 namespace TwainDirect.OnTwain
 {
@@ -62,8 +63,8 @@ namespace TwainDirect.OnTwain
             string a_szImagesFolder,
             string a_szIpc,
             int a_iPid,
-            TWAINCSToolkit.RunInUiThreadDelegate a_runinuithreaddelegate,
-            object a_objectRunInUiThread,
+            TWAIN.RunInUiThreadDelegate a_runinuithreaddelegate,
+            FormTwain a_formtwain,
             IntPtr a_intptrHwnd
         )
         {
@@ -80,7 +81,7 @@ namespace TwainDirect.OnTwain
             m_szIpc = a_szIpc;
             m_iPid = a_iPid;
             m_runinuithreaddelegate = a_runinuithreaddelegate;
-            m_objectRunInUiThread = a_objectRunInUiThread;
+            m_formtwain = a_formtwain;
             m_intptrHwnd = a_intptrHwnd;
 
             // Init stuff...
@@ -314,16 +315,1026 @@ namespace TwainDirect.OnTwain
             }
 
             // Last chance cleanup...
-            if (m_twaincstoolkit != null)
+            if (m_twain != null)
             {
-                m_twaincstoolkit.CloseDriver();
-                m_twaincstoolkit.Cleanup();
-                m_twaincstoolkit = null;
+                Rollback(TWAIN.STATE.S1);
             }
 
             // All done...
             TWAINWorkingGroup.Log.Info("IPC mode completed...");
             return (true);
+        }
+
+        /// <summary>
+        /// Get our TWAIN object, whatever it is...
+        /// </summary>
+        /// <returns></returns>
+        public TWAIN Twain()
+        {
+            return (m_twain);
+        }
+
+        /// <summary>
+        /// Our scan callback event, used to drive the engine when scanning...
+        /// </summary>
+        public delegate void ScanCallbackEvent();
+
+        /// <summary>
+        /// Our event handler for the scan callback event.  This will be
+        /// called once by ScanCallbackTrigger on receipt of an event
+        /// like MSG_XFERREADY, and then will be reissued on every call
+        /// into ScanCallback until we're done and get back to state 4.
+        ///  
+        /// This helps to make sure we're always running in the context
+        /// of FormMain on Windows, which is critical if we want drivers
+        /// to work properly.  It also gives a way to break up the calls
+        /// so the message pump is still reponsive.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ScanCallbackEventHandler(object sender, EventArgs e)
+        {
+            ScanCallback((m_twain == null) ? true : (m_twain.GetState() <= TWAIN.STATE.S3));
+        }
+
+        /// <summary>
+        /// Rollback the TWAIN state to whatever is requested...
+        /// </summary>
+        /// <param name="a_state"></param>
+        public void Rollback(TWAIN.STATE a_state)
+        {
+            string szTwmemref = "";
+            string szStatus = "";
+            TWAIN.STS sts;
+
+            // Make sure we have something to work with...
+            if (m_twain == null)
+            {
+                return;
+            }
+
+            // Walk the states, we don't care about the status returns.  Basically,
+            // these need to work, or we're guaranteed to hang...
+
+            // 7 --> 6
+            if ((m_twain.GetState() == TWAIN.STATE.S7) && (a_state < TWAIN.STATE.S7))
+            {
+                szTwmemref = "0,0";
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_ENDXFER", ref szTwmemref, ref szStatus);
+            }
+
+            // 6 --> 5
+            if ((m_twain.GetState() == TWAIN.STATE.S6) && (a_state < TWAIN.STATE.S6))
+            {
+                szTwmemref = "0,0";
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szTwmemref, ref szStatus);
+            }
+
+            // 5 --> 4
+            if ((m_twain.GetState() == TWAIN.STATE.S5) && (a_state < TWAIN.STATE.S5))
+            {
+                szTwmemref = "0,0," + m_intptrHwnd;
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_DISABLEDS", ref szTwmemref, ref szStatus);
+                //ClearEvents();
+            }
+
+            // 4 --> 3
+            if ((m_twain.GetState() == TWAIN.STATE.S4) && (a_state < TWAIN.STATE.S4))
+            {
+                //if (!m_checkboxUseCallbacks.Checked)
+                //{
+                //    Application.RemoveMessageFilter(this);
+                //}
+                szTwmemref = m_twain.GetDsIdentity();
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_IDENTITY", "MSG_CLOSEDS", ref szTwmemref, ref szStatus);
+            }
+
+            // 3 --> 2
+            if ((m_twain.GetState() == TWAIN.STATE.S3) && (a_state < TWAIN.STATE.S3))
+            {
+                szTwmemref = m_intptrHwnd.ToString();
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_PARENT", "MSG_CLOSEDSM", ref szTwmemref, ref szStatus);
+            }
+
+            // 2 --> 1
+            if ((m_twain.GetState() == TWAIN.STATE.S2) && (a_state < TWAIN.STATE.S2))
+            {
+                m_twain.Dispose();
+                m_twain = null;
+            }
+        }
+
+        /// <summary>
+        /// Send a command to the currently loaded DSM...
+        /// </summary>
+        /// <param name="a_functionarguments">tokenized command and anything needed</param>
+        /// <returns>true to quit</returns>
+        public TWAIN.STS Send(string a_szDg, string a_szDat, string a_szMsg, ref string a_szTwmemref, ref string a_szResult)
+        {
+            int iDg;
+            int iDat;
+            int iMsg;
+            TWAIN.STS sts;
+            TWAIN.DG dg = TWAIN.DG.MASK;
+            TWAIN.DAT dat = TWAIN.DAT.NULL;
+            TWAIN.MSG msg = TWAIN.MSG.NULL;
+
+            // Init stuff...
+            iDg = 0;
+            iDat = 0;
+            iMsg = 0;
+            sts = TWAIN.STS.BADPROTOCOL;
+            a_szResult = "";
+
+            // Validate at the top level...
+            if (m_twain == null)
+            {
+                TWAINWorkingGroup.Log.Error("***ERROR*** - dsmload wasn't run, so we is having no braims");
+                return (TWAIN.STS.SEQERROR);
+            }
+
+            // Look for DG...
+            if (!a_szDg.ToLowerInvariant().StartsWith("dg_"))
+            {
+                TWAINWorkingGroup.Log.Error("Unrecognized dg - <" + a_szDg + ">");
+                return (TWAIN.STS.BADPROTOCOL);
+            }
+            else
+            {
+                // Look for hex number (take anything)...
+                if (a_szDg.ToLowerInvariant().StartsWith("dg_0x"))
+                {
+                    if (!int.TryParse(a_szDg.ToLowerInvariant().Substring(3), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iDg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Badly constructed dg - <" + a_szDg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                }
+                else
+                {
+                    if (!Enum.TryParse(a_szDg.ToUpperInvariant().Substring(3), out dg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Unrecognized dg - <" + a_szDg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                    iDg = (int)dg;
+                }
+            }
+
+            // Look for DAT...
+            if (!a_szDat.ToLowerInvariant().StartsWith("dat_"))
+            {
+                TWAINWorkingGroup.Log.Error("Unrecognized dat - <" + a_szDat + ">");
+                return (TWAIN.STS.BADPROTOCOL);
+            }
+            else
+            {
+                // Look for hex number (take anything)...
+                if (a_szDat.ToLowerInvariant().StartsWith("dat_0x"))
+                {
+                    if (!int.TryParse(a_szDat.ToLowerInvariant().Substring(4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iDat))
+                    {
+                        TWAINWorkingGroup.Log.Error("Badly constructed dat - <" + a_szDat + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                }
+                else
+                {
+                    if (!Enum.TryParse(a_szDat.ToUpperInvariant().Substring(4), out dat))
+                    {
+                        TWAINWorkingGroup.Log.Error("Unrecognized dat - <" + a_szDat + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                    iDat = (int)dat;
+                }
+            }
+
+            // Look for MSG...
+            if (!a_szMsg.ToLowerInvariant().StartsWith("msg_"))
+            {
+                TWAINWorkingGroup.Log.Error("Unrecognized msg - <" + a_szMsg + ">");
+                return (TWAIN.STS.BADPROTOCOL);
+            }
+            else
+            {
+                // Look for hex number (take anything)...
+                if (a_szMsg.ToLowerInvariant().StartsWith("msg_0x"))
+                {
+                    if (!int.TryParse(a_szMsg.ToLowerInvariant().Substring(4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iMsg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Badly constructed dat - <" + a_szMsg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                }
+                else
+                {
+                    if (!Enum.TryParse(a_szMsg.ToUpperInvariant().Substring(4), out msg))
+                    {
+                        TWAINWorkingGroup.Log.Error("Unrecognized msg - <" + a_szMsg + ">");
+                        return (TWAIN.STS.BADPROTOCOL);
+                    }
+                    iMsg = (int)msg;
+                }
+            }
+
+            // Send the command...
+            switch (iDat)
+            {
+                // Ruh-roh, since we can't marshal it, we have to return an error,
+                // it would be nice to have a solution for this, but that will need
+                // a dynamic marshalling system...
+                default:
+                    sts = TWAIN.STS.BADPROTOCOL;
+                    break;
+
+                // DAT_AUDIOFILEXFER...
+                case (int)TWAIN.DAT.AUDIOFILEXFER:
+                    {
+                        sts = m_twain.DatAudiofilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg);
+                        a_szTwmemref = "";
+                    }
+                    break;
+
+                // DAT_AUDIOINFO..
+                case (int)TWAIN.DAT.AUDIOINFO:
+                    {
+                        TWAIN.TW_AUDIOINFO twaudioinfo = default(TWAIN.TW_AUDIOINFO);
+                        sts = m_twain.DatAudioinfo((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twaudioinfo);
+                        a_szTwmemref = m_twain.AudioinfoToCsv(twaudioinfo);
+                    }
+                    break;
+
+                // DAT_AUDIONATIVEXFER..
+                case (int)TWAIN.DAT.AUDIONATIVEXFER:
+                    {
+                        IntPtr intptr = IntPtr.Zero;
+                        sts = m_twain.DatAudionativexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref intptr);
+                        a_szTwmemref = intptr.ToString();
+                    }
+                    break;
+
+                // DAT_CALLBACK...
+                case (int)TWAIN.DAT.CALLBACK:
+                    {
+                        TWAIN.TW_CALLBACK twcallback = default(TWAIN.TW_CALLBACK);
+                        m_twain.CsvToCallback(ref twcallback, a_szTwmemref);
+                        sts = m_twain.DatCallback((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcallback);
+                        a_szTwmemref = m_twain.CallbackToCsv(twcallback);
+                    }
+                    break;
+
+                // DAT_CALLBACK2...
+                case (int)TWAIN.DAT.CALLBACK2:
+                    {
+                        TWAIN.TW_CALLBACK2 twcallback2 = default(TWAIN.TW_CALLBACK2);
+                        m_twain.CsvToCallback2(ref twcallback2, a_szTwmemref);
+                        sts = m_twain.DatCallback2((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcallback2);
+                        a_szTwmemref = m_twain.Callback2ToCsv(twcallback2);
+                    }
+                    break;
+
+                // DAT_CAPABILITY...
+                case (int)TWAIN.DAT.CAPABILITY:
+                    {
+                        // Skip symbols for msg_querysupport, otherwise 0 gets turned into false, also
+                        // if the command fails the return value is whatever was sent into us, which
+                        // matches the experience one should get with C/C++...
+                        string szStatus = "";
+                        TWAIN.TW_CAPABILITY twcapability = default(TWAIN.TW_CAPABILITY);
+                        m_twain.CsvToCapability(ref twcapability, ref szStatus, a_szTwmemref);
+                        sts = m_twain.DatCapability((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcapability);
+                        if ((sts == TWAIN.STS.SUCCESS) || (sts == TWAIN.STS.CHECKSTATUS))
+                        {
+                            // Convert the data to CSV...
+                            a_szTwmemref = m_twain.CapabilityToCsv(twcapability, ((TWAIN.MSG)iMsg != TWAIN.MSG.QUERYSUPPORT));
+                            // Free the handle if the driver created it...
+                            switch ((TWAIN.MSG)iMsg)
+                            {
+                                default: break;
+                                case TWAIN.MSG.GET:
+                                case TWAIN.MSG.GETCURRENT:
+                                case TWAIN.MSG.GETDEFAULT:
+                                case TWAIN.MSG.QUERYSUPPORT:
+                                case TWAIN.MSG.RESET:
+                                    m_twain.DsmMemFree(ref twcapability.hContainer);
+                                    break;
+                            }
+                        }
+                    }
+                    break;
+
+                // DAT_CIECOLOR..
+                case (int)TWAIN.DAT.CIECOLOR:
+                    {
+                        //TWAIN.TW_CIECOLOR twciecolor = default(TWAIN.TW_CIECOLOR);
+                        //sts = m_twain.DatCiecolor((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twciecolor);
+                        //a_szTwmemref = m_twain.CiecolorToCsv(twciecolor);
+                    }
+                    break;
+
+                // DAT_CUSTOMDSDATA...
+                case (int)TWAIN.DAT.CUSTOMDSDATA:
+                    {
+                        TWAIN.TW_CUSTOMDSDATA twcustomdsdata = default(TWAIN.TW_CUSTOMDSDATA);
+                        m_twain.CsvToCustomdsdata(ref twcustomdsdata, a_szTwmemref);
+                        sts = m_twain.DatCustomdsdata((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twcustomdsdata);
+                        a_szTwmemref = m_twain.CustomdsdataToCsv(twcustomdsdata);
+                    }
+                    break;
+
+                // DAT_DEVICEEVENT...
+                case (int)TWAIN.DAT.DEVICEEVENT:
+                    {
+                        TWAIN.TW_DEVICEEVENT twdeviceevent = default(TWAIN.TW_DEVICEEVENT);
+                        sts = m_twain.DatDeviceevent((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twdeviceevent);
+                        a_szTwmemref = m_twain.DeviceeventToCsv(twdeviceevent);
+                    }
+                    break;
+
+                // DAT_ENTRYPOINT...
+                case (int)TWAIN.DAT.ENTRYPOINT:
+                    {
+                        TWAIN.TW_ENTRYPOINT twentrypoint = default(TWAIN.TW_ENTRYPOINT);
+                        twentrypoint.Size = (uint)Marshal.SizeOf(twentrypoint);
+                        sts = m_twain.DatEntrypoint((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twentrypoint);
+                        a_szTwmemref = m_twain.EntrypointToCsv(twentrypoint);
+                    }
+                    break;
+
+                // DAT_EVENT...
+                case (int)TWAIN.DAT.EVENT:
+                    {
+                        TWAIN.TW_EVENT twevent = default(TWAIN.TW_EVENT);
+                        sts = m_twain.DatEvent((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twevent);
+                        a_szTwmemref = m_twain.EventToCsv(twevent);
+                    }
+                    break;
+
+                // DAT_EXTIMAGEINFO...
+                case (int)TWAIN.DAT.EXTIMAGEINFO:
+                    {
+                        TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
+                        m_twain.CsvToExtimageinfo(ref twextimageinfo, a_szTwmemref);
+                        sts = m_twain.DatExtimageinfo((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twextimageinfo);
+                        a_szTwmemref = m_twain.ExtimageinfoToCsv(twextimageinfo);
+                    }
+                    break;
+
+                // DAT_FILESYSTEM...
+                case (int)TWAIN.DAT.FILESYSTEM:
+                    {
+                        TWAIN.TW_FILESYSTEM twfilesystem = default(TWAIN.TW_FILESYSTEM);
+                        m_twain.CsvToFilesystem(ref twfilesystem, a_szTwmemref);
+                        sts = m_twain.DatFilesystem((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twfilesystem);
+                        a_szTwmemref = m_twain.FilesystemToCsv(twfilesystem);
+                    }
+                    break;
+
+                // DAT_FILTER...
+                case (int)TWAIN.DAT.FILTER:
+                    {
+                        //TWAIN.TW_FILTER twfilter = default(TWAIN.TW_FILTER);
+                        //m_twain.CsvToFilter(ref twfilter, a_szTwmemref);
+                        //sts = m_twain.DatFilter((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twfilter);
+                        //a_szTwmemref = m_twain.FilterToCsv(twfilter);
+                    }
+                    break;
+
+                // DAT_GRAYRESPONSE...
+                case (int)TWAIN.DAT.GRAYRESPONSE:
+                    {
+                        //TWAIN.TW_GRAYRESPONSE twgrayresponse = default(TWAIN.TW_GRAYRESPONSE);
+                        //m_twain.CsvToGrayresponse(ref twgrayresponse, a_szTwmemref);
+                        //sts = m_twain.DatGrayresponse((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twgrayresponse);
+                        //a_szTwmemref = m_twain.GrayresponseToCsv(twgrayresponse);
+                    }
+                    break;
+
+                // DAT_ICCPROFILE...
+                case (int)TWAIN.DAT.ICCPROFILE:
+                    {
+                        TWAIN.TW_MEMORY twmemory = default(TWAIN.TW_MEMORY);
+                        sts = m_twain.DatIccprofile((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twmemory);
+                        a_szTwmemref = m_twain.IccprofileToCsv(twmemory);
+                    }
+                    break;
+
+                // DAT_IDENTITY...
+                case (int)TWAIN.DAT.IDENTITY:
+                    {
+                        TWAIN.TW_IDENTITY twidentity = default(TWAIN.TW_IDENTITY);
+                        switch (iMsg)
+                        {
+                            default:
+                                break;
+                            case (int)TWAIN.MSG.SET:
+                            case (int)TWAIN.MSG.OPENDS:
+                                m_twain.CsvToIdentity(ref twidentity, a_szTwmemref);
+                                break;
+                        }
+                        sts = m_twain.DatIdentity((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twidentity);
+                        a_szTwmemref = m_twain.IdentityToCsv(twidentity);
+                    }
+                    break;
+
+                // DAT_IMAGEFILEXFER...
+                case (int)TWAIN.DAT.IMAGEFILEXFER:
+                    {
+                        sts = m_twain.DatImagefilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg);
+                        a_szTwmemref = "";
+                    }
+                    break;
+
+                // DAT_IMAGEINFO...
+                case (int)TWAIN.DAT.IMAGEINFO:
+                    {
+                        TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
+                        m_twain.CsvToImageinfo(ref twimageinfo, a_szTwmemref);
+                        sts = m_twain.DatImageinfo((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimageinfo);
+                        a_szTwmemref = m_twain.ImageinfoToCsv(twimageinfo);
+                    }
+                    break;
+
+                // DAT_IMAGELAYOUT...
+                case (int)TWAIN.DAT.IMAGELAYOUT:
+                    {
+                        TWAIN.TW_IMAGELAYOUT twimagelayout = default(TWAIN.TW_IMAGELAYOUT);
+                        m_twain.CsvToImagelayout(ref twimagelayout, a_szTwmemref);
+                        sts = m_twain.DatImagelayout((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimagelayout);
+                        a_szTwmemref = m_twain.ImagelayoutToCsv(twimagelayout);
+                    }
+                    break;
+
+                // DAT_IMAGEMEMFILEXFER...
+                case (int)TWAIN.DAT.IMAGEMEMFILEXFER:
+                    {
+                        TWAIN.TW_IMAGEMEMXFER twimagememxfer = default(TWAIN.TW_IMAGEMEMXFER);
+                        m_twain.CsvToImagememxfer(ref twimagememxfer, a_szTwmemref);
+                        sts = m_twain.DatImagememfilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimagememxfer);
+                        a_szTwmemref = m_twain.ImagememxferToCsv(twimagememxfer);
+                    }
+                    break;
+
+                // DAT_IMAGEMEMXFER...
+                case (int)TWAIN.DAT.IMAGEMEMXFER:
+                    {
+                        TWAIN.TW_IMAGEMEMXFER twimagememxfer = default(TWAIN.TW_IMAGEMEMXFER);
+                        m_twain.CsvToImagememxfer(ref twimagememxfer, a_szTwmemref);
+                        sts = m_twain.DatImagememxfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twimagememxfer);
+                        a_szTwmemref = m_twain.ImagememxferToCsv(twimagememxfer);
+                    }
+                    break;
+
+                // DAT_IMAGENATIVEXFER...
+                case (int)TWAIN.DAT.IMAGENATIVEXFER:
+                    {
+                        IntPtr intptrBitmapHandle = IntPtr.Zero;
+                        sts = m_twain.DatImagenativexferHandle((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref intptrBitmapHandle);
+                        a_szTwmemref = intptrBitmapHandle.ToString();
+                    }
+                    break;
+
+                // DAT_JPEGCOMPRESSION...
+                case (int)TWAIN.DAT.JPEGCOMPRESSION:
+                    {
+                        //TWAIN.TW_JPEGCOMPRESSION twjpegcompression = default(TWAIN.TW_JPEGCOMPRESSION);
+                        //m_twain.CsvToJpegcompression(ref twjpegcompression, a_szTwmemref);
+                        //sts = m_twain.DatJpegcompression((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twjpegcompression);
+                        //a_szTwmemref = m_twain.JpegcompressionToCsv(twjpegcompression);
+                    }
+                    break;
+
+                // DAT_METRICS...
+                case (int)TWAIN.DAT.METRICS:
+                    {
+                        TWAIN.TW_METRICS twmetrics = default(TWAIN.TW_METRICS);
+                        twmetrics.SizeOf = (uint)Marshal.SizeOf(twmetrics);
+                        sts = m_twain.DatMetrics((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twmetrics);
+                        a_szTwmemref = m_twain.MetricsToCsv(twmetrics);
+                    }
+                    break;
+
+                // DAT_PALETTE8...
+                case (int)TWAIN.DAT.PALETTE8:
+                    {
+                        //TWAIN.TW_PALETTE8 twpalette8 = default(TWAIN.TW_PALETTE8);
+                        //m_twain.CsvToPalette8(ref twpalette8, a_szTwmemref);
+                        //sts = m_twain.DatPalette8((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twpalette8);
+                        //a_szTwmemref = m_twain.Palette8ToCsv(twpalette8);
+                    }
+                    break;
+
+                // DAT_PARENT...
+                case (int)TWAIN.DAT.PARENT:
+                    {
+                        sts = m_twain.DatParent((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref m_intptrHwnd);
+                        a_szTwmemref = "";
+                    }
+                    break;
+
+                // DAT_PASSTHRU...
+                case (int)TWAIN.DAT.PASSTHRU:
+                    {
+                        TWAIN.TW_PASSTHRU twpassthru = default(TWAIN.TW_PASSTHRU);
+                        m_twain.CsvToPassthru(ref twpassthru, a_szTwmemref);
+                        sts = m_twain.DatPassthru((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twpassthru);
+                        a_szTwmemref = m_twain.PassthruToCsv(twpassthru);
+                    }
+                    break;
+
+                // DAT_PENDINGXFERS...
+                case (int)TWAIN.DAT.PENDINGXFERS:
+                    {
+                        TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
+                        sts = m_twain.DatPendingxfers((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twpendingxfers);
+                        a_szTwmemref = m_twain.PendingxfersToCsv(twpendingxfers);
+                    }
+                    break;
+
+                // DAT_RGBRESPONSE...
+                case (int)TWAIN.DAT.RGBRESPONSE:
+                    {
+                        //TWAIN.TW_RGBRESPONSE twrgbresponse = default(TWAIN.TW_RGBRESPONSE);
+                        //m_twain.CsvToRgbresponse(ref twrgbresponse, a_szTwmemref);
+                        //sts = m_twain.DatRgbresponse((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twrgbresponse);
+                        //a_szTwmemref = m_twain.RgbresponseToCsv(twrgbresponse);
+                    }
+                    break;
+
+                // DAT_SETUPFILEXFER...
+                case (int)TWAIN.DAT.SETUPFILEXFER:
+                    {
+                        TWAIN.TW_SETUPFILEXFER twsetupfilexfer = default(TWAIN.TW_SETUPFILEXFER);
+                        m_twain.CsvToSetupfilexfer(ref twsetupfilexfer, a_szTwmemref);
+                        sts = m_twain.DatSetupfilexfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twsetupfilexfer);
+                        a_szTwmemref = m_twain.SetupfilexferToCsv(twsetupfilexfer);
+                    }
+                    break;
+
+                // DAT_SETUPMEMXFER...
+                case (int)TWAIN.DAT.SETUPMEMXFER:
+                    {
+                        TWAIN.TW_SETUPMEMXFER twsetupmemxfer = default(TWAIN.TW_SETUPMEMXFER);
+                        sts = m_twain.DatSetupmemxfer((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twsetupmemxfer);
+                        a_szTwmemref = m_twain.SetupmemxferToCsv(twsetupmemxfer);
+                    }
+                    break;
+
+                // DAT_STATUS...
+                case (int)TWAIN.DAT.STATUS:
+                    {
+                        TWAIN.TW_STATUS twstatus = default(TWAIN.TW_STATUS);
+                        sts = m_twain.DatStatus((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twstatus);
+                        a_szTwmemref = m_twain.StatusToCsv(twstatus);
+                    }
+                    break;
+
+                // DAT_STATUSUTF8...
+                case (int)TWAIN.DAT.STATUSUTF8:
+                    {
+                        TWAIN.TW_STATUSUTF8 twstatusutf8 = default(TWAIN.TW_STATUSUTF8);
+                        sts = m_twain.DatStatusutf8((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twstatusutf8);
+                        a_szTwmemref = m_twain.Statusutf8ToCsv(twstatusutf8);
+                    }
+                    break;
+
+                // DAT_TWAINDIRECT...
+                case (int)TWAIN.DAT.TWAINDIRECT:
+                    {
+                        TWAIN.TW_TWAINDIRECT twtwaindirect = default(TWAIN.TW_TWAINDIRECT);
+                        m_twain.CsvToTwaindirect(ref twtwaindirect, a_szTwmemref);
+                        sts = m_twain.DatTwaindirect((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twtwaindirect);
+                        a_szTwmemref = m_twain.TwaindirectToCsv(twtwaindirect);
+                    }
+                    break;
+
+                // DAT_USERINTERFACE...
+                case (int)TWAIN.DAT.USERINTERFACE:
+                    {
+                        TWAIN.TW_USERINTERFACE twuserinterface = default(TWAIN.TW_USERINTERFACE);
+                        m_twain.CsvToUserinterface(ref twuserinterface, a_szTwmemref);
+                        sts = m_twain.DatUserinterface((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twuserinterface);
+                        a_szTwmemref = m_twain.UserinterfaceToCsv(twuserinterface);
+                    }
+                    break;
+
+                // DAT_XFERGROUP...
+                case (int)TWAIN.DAT.XFERGROUP:
+                    {
+                        uint uXferGroup = 0;
+                        sts = m_twain.DatXferGroup((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref uXferGroup);
+                        a_szTwmemref = string.Format("0x{0:X}", uXferGroup);
+                    }
+                    break;
+            }
+
+            // All done...
+            return (sts);
+        }
+
+        /// <summary>
+        /// Our scanning callback function.  We appeal directly to the supporting
+        /// TWAIN object.  This way we don't have to maintain some kind of a loop
+        /// inside of the application, which is the source of most problems that
+        /// developers run into.
+        /// 
+        /// While it looks scary at first, there's really not a lot going on in
+        /// here.  We do some sanity checks, we watch for certain kinds of events,
+        /// we support the four methods of transferring images, and we dump out
+        /// some meta-data about the transferred image.  However, because it does
+        /// look scary I dropped in some region pragmas to break things up...
+        /// </summary>
+        /// <param name="a_blClosing">We're shutting down</param>
+        /// <returns>TWAIN status</returns>
+        private TWAIN.STS ScanCallbackTrigger(bool a_blClosing)
+        {
+            m_formtwain.BeginInvoke(new MethodInvoker(delegate { ScanCallbackEventHandler(this, new EventArgs()); }));
+            return (TWAIN.STS.SUCCESS);
+        }
+        private TWAIN.STS ScanCallback(bool a_blClosing)
+        {
+            string szTwmemref = "";
+            string szStatus = "";
+            TWAIN.STS sts;
+
+            // Scoot...
+            if (m_twain == null)
+            {
+                return (TWAIN.STS.FAILURE);
+            }
+
+            // We're superfluous...
+            if (m_twain.GetState() <= TWAIN.STATE.S4)
+            {
+                return (TWAIN.STS.SUCCESS);
+            }
+
+            // We're leaving...
+            if (a_blClosing)
+            {
+                return (TWAIN.STS.SUCCESS);
+            }
+
+            // Do this in the right thread, we'll usually be in the
+            // right spot, save maybe on the first call...
+            if (m_formtwain.InvokeRequired)
+            {
+                return
+                (
+                    (TWAIN.STS)m_formtwain.Invoke
+                    (
+                        (Func<TWAIN.STS>)delegate
+                        {
+                            return (ScanCallback(a_blClosing));
+                        }
+                    )
+                );
+            }
+
+            // Handle DAT_NULL/MSG_XFERREADY...
+            if (m_twain.IsMsgXferReady() && !m_blXferReadySent)
+            {
+                m_blXferReadySent = true;
+
+                // What transfer mechanism are we using?
+                szTwmemref = "ICAP_XFERMECH,0,0,0";
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szTwmemref, ref szStatus);
+                if (szTwmemref.EndsWith("TWSX_NATIVE")) m_twsxXferMech = TWAIN.TWSX.NATIVE;
+                else if (szTwmemref.EndsWith("TWSX_MEMORY")) m_twsxXferMech = TWAIN.TWSX.MEMORY;
+                else if (szTwmemref.EndsWith("TWSX_FILE")) m_twsxXferMech = TWAIN.TWSX.FILE;
+                else if (szTwmemref.EndsWith("TWSX_MEMFILE")) m_twsxXferMech = TWAIN.TWSX.MEMFILE;
+
+                // Memory and memfile transfers need this...
+                if ((m_twsxXferMech == TWAIN.TWSX.MEMORY) || (m_twsxXferMech == TWAIN.TWSX.MEMFILE))
+                {
+                    // Get the amount of memory needed...
+                    szTwmemref = "0,0,0";
+                    szStatus = "";
+                    sts = Send("DG_CONTROL", "DAT_SETUPMEMXFER", "MSG_GET", ref szTwmemref, ref szStatus);
+                    m_twain.CsvToSetupmemxfer(ref m_twsetupmemxfer, szTwmemref);
+                    szStatus = (szStatus == "") ? sts.ToString() : (sts.ToString() + " - " + szStatus);
+                    if ((sts != TWAIN.STS.SUCCESS) || (m_twsetupmemxfer.Preferred == 0))
+                    {
+                        m_blXferReadySent = false;
+                        if (!m_blDisableDsSent)
+                        {
+                            m_blDisableDsSent = true;
+                            Rollback(TWAIN.STATE.S4);
+                        }
+                    }
+
+                    // Allocate the transfer memory (with a little extra to protect ourselves)...
+                    m_intptrXfer = Marshal.AllocHGlobal((int)m_twsetupmemxfer.Preferred + 65536);
+                    if (m_intptrXfer == IntPtr.Zero)
+                    {
+                        m_blDisableDsSent = true;
+                        Rollback(TWAIN.STATE.S4);
+                    }
+                }
+
+                // Memfile transfers need this...
+                if ((m_twsxXferMech == TWAIN.TWSX.MEMORY) || (m_twsxXferMech == TWAIN.TWSX.MEMFILE))
+                {
+                    // Pick an image file format...
+                    szTwmemref = "C:/image.pdf,TWFF_PDFRASTER,0";
+                    szStatus = "";
+                    sts = Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szTwmemref, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        m_blXferReadySent = false;
+                        if (!m_blDisableDsSent)
+                        {
+                            m_blDisableDsSent = true;
+                            Rollback(TWAIN.STATE.S4);
+                        }
+                    }
+                }
+            }
+
+            // Handle DAT_NULL/MSG_CLOSEDSREQ...
+            if (m_twain.IsMsgCloseDsReq() && !m_blDisableDsSent)
+            {
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+            }
+
+            // Handle DAT_NULL/MSG_CLOSEDSOK...
+            if (m_twain.IsMsgCloseDsOk() && !m_blDisableDsSent)
+            {
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+            }
+
+            // This is where the statemachine runs that transfers and optionally
+            // saves the images to disk (it also displays them).  It'll go back
+            // and forth between states 6 and 7 until an error occurs, or until
+            // we run out of images.
+            //
+            // Memory transfers are mandatory with TWAIN, so we'll support that
+            // for drivers that don't natively support TWAIN Direct, so we can
+            // turn the data into PDF/raster.
+            //
+            // Memfile transfers are mandatory for drivers that support TWAIN
+            // direct, allowing us to get the image in its final form.
+            //
+            // Therefore there is no need to support native or file transfers.
+            if (m_blXferReadySent && !m_blDisableDsSent)
+            {
+                switch (m_twsxXferMech)
+                {
+                    default:
+                    case TWAIN.TWSX.MEMORY:
+                        CaptureMemImages();
+                        break;
+
+                    case TWAIN.TWSX.MEMFILE:
+                        CaptureMemfileImages();
+                        break;
+                }
+            }
+
+            // Trigger the next event, this is where things all chain together.
+            // We need begininvoke to prevent blockking, so that we don't get
+            // backed up into a messy kind of recursion.  We need DoEvents,
+            // because if things really start moving fast it's really hard for
+            // application events, like button clicks to break through...
+            Application.DoEvents();
+            m_formtwain.BeginInvoke(new MethodInvoker(delegate { ScanCallbackEventHandler(this, new EventArgs()); }));
+
+            // All done...
+            return (TWAIN.STS.SUCCESS);
+        }
+
+        /// <summary>
+        /// Go through the sequence needed to capture images using DAT_IMAGEMEMXFER...
+        /// </summary>
+        private void CaptureMemImages()
+        {
+            string szTwmemref = "";
+            string szStatus = "";
+            TWAIN.STS sts;
+            TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
+            TWAIN.TW_IMAGEMEMXFER twimagememxfer = default(TWAIN.TW_IMAGEMEMXFER);
+            TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
+
+            // Dispatch on the state...
+            switch (m_twain.GetState())
+            {
+                // Not a good state, just scoot...
+                default:
+                    return;
+
+                // We're on our way out...
+                case TWAIN.STATE.S5:
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return;
+
+                // Memory transfers...
+                case TWAIN.STATE.S6:
+                case TWAIN.STATE.S7:
+                    szTwmemref = "0,0,0,0,0,0,0," + ((int)TWAIN.TWMF.APPOWNS | (int)TWAIN.TWMF.POINTER) + "," + m_twsetupmemxfer.Preferred + "," + m_intptrXfer;
+                    szStatus = "";
+                    sts = Send("DG_IMAGE", "DAT_IMAGEMEMXFER", "MSG_GET", ref szTwmemref, ref szStatus);
+                    m_twain.CsvToImagememxfer(ref twimagememxfer, szTwmemref);
+                    break;
+            }
+
+            // Handle problems...
+            if ((sts != TWAIN.STS.SUCCESS) && (sts != TWAIN.STS.XFERDONE))
+            {
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return;
+            }
+
+            // Allocate or grow the image memory...
+            if (m_intptrImage == IntPtr.Zero)
+            {
+                m_intptrImage = Marshal.AllocHGlobal((int)twimagememxfer.BytesWritten);
+            }
+            else
+            {
+                m_intptrImage = Marshal.ReAllocHGlobal(m_intptrImage, (IntPtr)(m_iImageBytes + twimagememxfer.BytesWritten));
+            }
+
+            // Ruh-roh...
+            if (m_intptrImage == IntPtr.Zero)
+            {
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return;
+            }
+
+            // Copy into the buffer, and bump up our byte tally...
+            TWAIN.MemCpy(m_intptrImage + m_iImageBytes, m_intptrXfer, (int)twimagememxfer.BytesWritten);
+            m_iImageBytes += (int)twimagememxfer.BytesWritten;
+
+            // If we saw XFERDONE we can save the image, display it,
+            // end the transfer, and see if we have more images...
+            if (sts == TWAIN.STS.XFERDONE)
+            {
+                // Bump up our image counter, this always grows for the
+                // life of the entire session...
+                m_iImageCount += 1;
+
+                // Get the image info...
+                szTwmemref = "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+                szStatus = "";
+                sts = Send("DG_IMAGE", "DAT_IMAGEINFO", "MSG_GET", ref szTwmemref, ref szStatus);
+                m_twain.CsvToImageinfo(ref twimageinfo, szTwmemref);
+
+                // Save the image to disk, along with any metadata...
+                sts = ReportImage(twimageinfo, m_intptrImage, m_iImageBytes);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error("ReportImage failed...");
+                    Marshal.FreeHGlobal(m_intptrImage);
+                    m_intptrImage = IntPtr.Zero;
+                    m_iImageBytes = 0;
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return;
+                }
+
+                // Cleanup...
+                Marshal.FreeHGlobal(m_intptrImage);
+                m_intptrImage = IntPtr.Zero;
+                m_iImageBytes = 0;
+
+                // End the transfer...
+                szTwmemref = "0,0";
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_ENDXFER", ref szTwmemref, ref szStatus);
+                m_twain.CsvToPendingXfers(ref twpendingxfers, szTwmemref);
+
+                // Looks like we're done!
+                if (twpendingxfers.Count == 0)
+                {
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Go through the sequence needed to capture images using DAT_IMAGEMEMFILEXFER...
+        /// </summary>
+        private void CaptureMemfileImages()
+        {
+            string szTwmemref = "";
+            string szStatus = "";
+            TWAIN.STS sts;
+            TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
+            TWAIN.TW_IMAGEMEMXFER twimagememxfer = default(TWAIN.TW_IMAGEMEMXFER);
+            TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
+
+            // Dispatch on the state...
+            switch (m_twain.GetState())
+            {
+                // Not a good state, just scoot...
+                default:
+                    return;
+
+                // We're on our way out...
+                case TWAIN.STATE.S5:
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return;
+
+                // Memfile transfers...
+                case TWAIN.STATE.S6:
+                case TWAIN.STATE.S7:
+                    szTwmemref = "0,0,0,0,0,0,0," + ((int)TWAIN.TWMF.APPOWNS | (int)TWAIN.TWMF.POINTER) + "," + m_twsetupmemxfer.Preferred + "," + m_intptrXfer;
+                    szStatus = "";
+                    sts = Send("DG_IMAGE", "DAT_IMAGEMEMFILEXFER", "MSG_GET", ref szTwmemref, ref szStatus);
+                    m_twain.CsvToImagememxfer(ref twimagememxfer, szTwmemref);
+                    break;
+            }
+
+            // Handle problems...
+            if ((sts != TWAIN.STS.SUCCESS) && (sts != TWAIN.STS.XFERDONE))
+            {
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return;
+            }
+
+            // Allocate or grow the image memory...
+            if (m_intptrImage == IntPtr.Zero)
+            {
+                m_intptrImage = Marshal.AllocHGlobal((int)twimagememxfer.BytesWritten);
+            }
+            else
+            {
+                m_intptrImage = Marshal.ReAllocHGlobal(m_intptrImage, (IntPtr)(m_iImageBytes + twimagememxfer.BytesWritten));
+            }
+
+            // Ruh-roh...
+            if (m_intptrImage == IntPtr.Zero)
+            {
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return;
+            }
+
+            // Copy into the buffer, and bump up our byte tally...
+            TWAIN.MemCpy(m_intptrImage + m_iImageBytes, m_intptrXfer, (int)twimagememxfer.BytesWritten);
+            m_iImageBytes += (int)twimagememxfer.BytesWritten;
+
+            // If we saw XFERDONE we can save the image, display it,
+            // end the transfer, and see if we have more images...
+            if (sts == TWAIN.STS.XFERDONE)
+            {
+                // Bump up our image counter, this always grows for the
+                // life of the entire session...
+                m_iImageCount += 1;
+
+                // Get the image info...
+                szTwmemref = "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+                szStatus = "";
+                sts = Send("DG_IMAGE", "DAT_IMAGEINFO", "MSG_GET", ref szTwmemref, ref szStatus);
+                m_twain.CsvToImageinfo(ref twimageinfo, szTwmemref);
+
+                // Save the image to disk, along with any metadata...
+                sts = ReportImage(twimageinfo, m_intptrImage, m_iImageBytes);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error("ReportImage failed...");
+                    Marshal.FreeHGlobal(m_intptrImage);
+                    m_intptrImage = IntPtr.Zero;
+                    m_iImageBytes = 0;
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return;
+                }
+
+                // Cleanup...
+                Marshal.FreeHGlobal(m_intptrImage);
+                m_intptrImage = IntPtr.Zero;
+                m_iImageBytes = 0;
+
+                // End the transfer...
+                szTwmemref = "0,0";
+                szStatus = "";
+                sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_ENDXFER", ref szTwmemref, ref szStatus);
+                m_twain.CsvToPendingXfers(ref twpendingxfers, szTwmemref);
+
+                // Looks like we're done!
+                if (twpendingxfers.Count == 0)
+                {
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return;
+                }
+            }
         }
 
         #endregion
@@ -340,10 +1351,9 @@ namespace TwainDirect.OnTwain
         {
             if (a_blDisposing)
             {
-                if (m_twaincstoolkit != null)
+                if (m_twain != null)
                 {
-                    m_twaincstoolkit.Dispose();
-                    m_twaincstoolkit = null;
+                    Rollback(TWAIN.STATE.S1);
                 }
             }
         }
@@ -351,45 +1361,23 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// Handle an image...
         /// </summary>
-        /// <param name="a_szTag">tag to locate a particular ReportImage call</param>
-        /// <param name="a_szDg">Data group that preceeded this call</param>
-        /// <param name="a_szDat">Data argument type that preceeded this call</param>
-        /// <param name="a_szMsg">Message that preceeded this call</param>
-        /// <param name="a_sts">Current status</param>
-        /// <param name="a_bitmap">C# bitmap of the image</param>
         /// <param name="a_szFile">File name, if doing a file transfer</param>
-        /// <param name="a_szTwimageinfo">Image info or null</param>
         /// <param name="a_abImage">Raw image from transfer</param>
         /// <param name="a_iImageOffset">Byte offset into the raw image</param>
-        private TWAINCSToolkit.MSG ReportImage
+        private TWAIN.STS ReportImage
         (
-            string a_szTag,
-            string a_szDg,
-            string a_szDat,
-            string a_szMsg,
-            TWAIN.STS a_sts,
-            Bitmap a_bitmap,
-            string a_szFile,
-            string a_szTwimageinfo,
-            byte[] a_abImage,
-            int a_iImageOffset
+            TWAIN.TW_IMAGEINFO a_twimageinfo,
+            IntPtr a_intptrImage,
+            int a_iImageBytes
         )
         {
             uint uu;
+            int iImageBytes;
             bool blSuccess;
             string szFile;
             string szPdfFile;
             string szMetaFile;
             TWAIN.STS sts;
-            TWAIN twain;
-
-            // We're processing end of scan...
-            if (a_bitmap == null)
-            {
-                TWAINWorkingGroup.Log.Info("ReportImage: no more images: " + a_szDg + " " + a_szDat + " " + a_szMsg + " " + a_sts);
-                SetImageBlocksDrained(a_sts);
-                return (TWAINCSToolkit.MSG.RESET);
-            }
 
             // Make sure we have a folder...
             if (!Directory.Exists(m_szImagesFolder))
@@ -402,12 +1390,9 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to create the images folder: " + m_szImagesFolder);
                     SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
-                    return (TWAINCSToolkit.MSG.RESET);
+                    return (TWAIN.STS.FILENOTFOUND);
                 }
             }
-
-            // Init stuff...
-            twain = m_twaincstoolkit.Twain();
 
             // KEYWORD:imageBlock
             //
@@ -443,7 +1428,7 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error("unable to delete file: " + szPdfFile + " - " + exception.Message);
                     SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
-                    return (TWAINCSToolkit.MSG.RESET);
+                    return (TWAIN.STS.FILENOTFOUND);
                 }
             }
 
@@ -459,25 +1444,32 @@ namespace TwainDirect.OnTwain
                     twextimageinfo.NumInfos = 0;
                     twinfo.InfoId = (ushort)TWAIN.TWEI.TWAINDIRECTMETADATA;
                     twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
-                    sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
+                    sts = m_twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Error("DAT_EXTIMAGEINFO failed: " + sts);
                         SetImageBlocksDrained(TWAIN.STS.FILENOTFOUND);
-                        return (TWAINCSToolkit.MSG.RESET);
+                        return (TWAIN.STS.FILENOTFOUND);
                     }
                 }
 
                 // Write the image data...
                 try
                 {
-                    File.WriteAllBytes(szPdfFile, a_abImage);
+                    string szFinalFilename;
+                    iImageBytes = TWAIN.WriteImageFile(szPdfFile, a_intptrImage, a_iImageBytes, out szFinalFilename);
+                    if (iImageBytes != a_iImageBytes)
+                    {
+                        TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile);
+                        SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
+                        return (TWAIN.STS.FILEWRITEERROR);
+                    }
                 }
                 catch (Exception exception)
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile + " - " + exception.Message);
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                    return (TWAINCSToolkit.MSG.RESET);
+                    return (TWAIN.STS.FILEWRITEERROR);
                 }
 
                 // Save the metadata to disk, the arrival of metadata is
@@ -505,7 +1497,7 @@ namespace TwainDirect.OnTwain
                                 }
 
                                 // Lock the handle...
-                                Item = m_twaincstoolkit.DsmMemLock(Handle);
+                                Item = m_twain.DsmMemLock(Handle);
 
                                 // Get the data, watch out for a terminating NUL, we
                                 // don't want that to end up in the file...
@@ -522,7 +1514,7 @@ namespace TwainDirect.OnTwain
                                 }
 
                                 // Unlock the handle...
-                                m_twaincstoolkit.DsmMemUnlock(Handle);
+                                m_twain.DsmMemUnlock(Handle);
 
                                 // Okay, write it out and log it...
                                 File.WriteAllText(szMetaFile, szMeta);
@@ -533,7 +1525,7 @@ namespace TwainDirect.OnTwain
                             {
                                 TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
                                 SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                                return (TWAINCSToolkit.MSG.RESET);
+                                return (TWAIN.STS.FILEWRITEERROR);
                             }
                         }
                         break;
@@ -546,23 +1538,6 @@ namespace TwainDirect.OnTwain
             #region Non-driver support
             else
             {
-                // Get the metadata for TW_IMAGEINFO...
-                TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
-                if (a_szTwimageinfo != null)
-                {
-                    twain.CsvToImageinfo(ref twimageinfo, a_szTwimageinfo);
-                }
-                else
-                {
-                    sts = twain.DatImageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twimageinfo);
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        TWAINWorkingGroup.Log.Error("ReportImage: DatImageinfo failed...");
-                        SetImageBlocksDrained(sts);
-                        return (TWAINCSToolkit.MSG.RESET);
-                    }
-                }
-
                 // Get the metadata for TW_EXTIMAGEINFO...
                 TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
                 TWAIN.TW_INFO twinfo = default(TWAIN.TW_INFO);
@@ -571,7 +1546,7 @@ namespace TwainDirect.OnTwain
                     twextimageinfo.NumInfos = 0;
                     twinfo.InfoId = (ushort)TWAIN.TWEI.PAPERCOUNT; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
                     twinfo.InfoId = (ushort)TWAIN.TWEI.PAGESIDE; twextimageinfo.Set(twextimageinfo.NumInfos++, ref twinfo);
-                    sts = twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
+                    sts = m_twain.DatExtimageinfo(TWAIN.DG.IMAGE, TWAIN.MSG.GET, ref twextimageinfo);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         m_deviceregisterSession.GetTwainInquiryData().SetExtImageInfo(false);
@@ -580,12 +1555,12 @@ namespace TwainDirect.OnTwain
 
                 // Get our pixelFormat...
                 string szPixelFormat;
-                switch ((TWAIN.TWPT)twimageinfo.PixelType)
+                switch ((TWAIN.TWPT)a_twimageinfo.PixelType)
                 {
                     default:
-                        TWAINWorkingGroup.Log.Error("ReportImage: bad pixeltype - " + twimageinfo.PixelType);
+                        TWAINWorkingGroup.Log.Error("ReportImage: bad pixeltype - " + a_twimageinfo.PixelType);
                         SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                        return (TWAINCSToolkit.MSG.RESET);
+                        return (TWAIN.STS.FAILURE);
                     case TWAIN.TWPT.BW:
                         szPixelFormat = "bw1";
                         break;
@@ -599,12 +1574,12 @@ namespace TwainDirect.OnTwain
 
                 // Get our compression...
                 string szCompression;
-                switch ((TWAIN.TWCP)twimageinfo.Compression)
+                switch ((TWAIN.TWCP)a_twimageinfo.Compression)
                 {
                     default:
-                        TWAINWorkingGroup.Log.Error("ReportImage: bad compression - " + twimageinfo.Compression);
+                        TWAINWorkingGroup.Log.Error("ReportImage: bad compression - " + a_twimageinfo.Compression);
                         SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                        return (TWAINCSToolkit.MSG.RESET);
+                        return (TWAIN.STS.FAILURE);
                     case TWAIN.TWCP.NONE:
                         szCompression = "none";
                         break;
@@ -755,7 +1730,7 @@ namespace TwainDirect.OnTwain
                 szMeta += "\"pixelFormat\":\"" + szPixelFormat + "\",";
 
                 // Add height...
-                szMeta += "\"pixelHeight\":" + twimageinfo.ImageLength + ",";
+                szMeta += "\"pixelHeight\":" + a_twimageinfo.ImageLength + ",";
 
                 // X-offset...
                 szMeta += "\"pixelOffsetX\":" + "0" + ",";
@@ -764,10 +1739,10 @@ namespace TwainDirect.OnTwain
                 szMeta += "\"pixelOffsetY\":" + "0" + ",";
 
                 // Add width...
-                szMeta += "\"pixelWidth\":" + twimageinfo.ImageWidth + ",";
+                szMeta += "\"pixelWidth\":" + a_twimageinfo.ImageWidth + ",";
 
                 // Add resolution...
-                szMeta += "\"resolution\":" + twimageinfo.XResolution.Whole;
+                szMeta += "\"resolution\":" + a_twimageinfo.XResolution.Whole;
 
                 // TWAIN Direct metadata.image end...
                 szMeta += "},";
@@ -787,46 +1762,9 @@ namespace TwainDirect.OnTwain
                 // Root ends...
                 szMeta += "}";
 
-                // We won't get an image if the transfer is native,
-                // so we need to get the bit ourselves...
-                byte[] abImage = a_abImage;
-                BitmapData bitmapdata = null;
-                if (abImage == null)
-                {
-                    int hh;
-                    int ww;
-                    bitmapdata = a_bitmap.LockBits(new Rectangle(0, 0, a_bitmap.Width, a_bitmap.Height), ImageLockMode.ReadOnly, a_bitmap.PixelFormat);
-                    byte[] abImageBgr = new byte[bitmapdata.Stride * a_bitmap.Height];
-                    if (a_bitmap.PixelFormat == PixelFormat.Format24bppRgb)
-                    {
-                        // Get the source...
-                        Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
-                        // Allocate the destination...
-                        abImage = new byte[bitmapdata.Stride * bitmapdata.Height];
-                        long lRow = 0;
-                        long lStride = (bitmapdata.Stride / 3) * 3; // don't go into any padding
-                        for (hh = 0; hh < bitmapdata.Height; hh++)
-                        {
-                            // Flip this row...
-                            for (ww = 0; ww < lStride; ww += 3)
-                            {
-                                abImage[lRow + ww + 0] = (byte)abImageBgr[lRow + ww + 2]; // R
-                                abImage[lRow + ww + 1] = (byte)abImageBgr[lRow + ww + 1]; // G
-                                abImage[lRow + ww + 2] = (byte)abImageBgr[lRow + ww + 0]; // B
-                            }
-
-                            // Next row...
-                            lRow += bitmapdata.Stride;
-                        }
-                    }
-                    else
-                    {
-                        Marshal.Copy(bitmapdata.Scan0, abImageBgr, 0, abImageBgr.Length);
-                        abImage = new byte[bitmapdata.Stride * bitmapdata.Height];
-                        Buffer.BlockCopy(abImageBgr, 0, abImage, 0, abImageBgr.Length);
-                    }
-                    a_bitmap.UnlockBits(bitmapdata);
-                }
+                // Unfortunately, we need a copy...
+                byte[] abImage = new byte[m_iImageBytes];
+                Marshal.Copy(m_intptrImage, abImage, 0, m_iImageBytes);
 
                 // We have to do this ourselves, save as PDF/Raster...
                 blSuccess = PdfRaster.CreatePdfRaster
@@ -837,18 +1775,18 @@ namespace TwainDirect.OnTwain
                     Config.Get("pfxFilePassword", ""),
                     szMeta,
                     abImage,
-                    a_iImageOffset,
+                    0,
                     szPixelFormat,
                     szCompression,
-                    twimageinfo.XResolution.Whole,
-                    twimageinfo.ImageWidth,
-                    twimageinfo.ImageLength
+                    a_twimageinfo.XResolution.Whole,
+                    a_twimageinfo.ImageWidth,
+                    a_twimageinfo.ImageLength
                 );
                 if (!blSuccess)
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile);
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                    return (TWAINCSToolkit.MSG.RESET);
+                    return (TWAIN.STS.FAILURE);
                 }
 
                 // Save the metadata to disk, the arrival of metadata is
@@ -862,46 +1800,13 @@ namespace TwainDirect.OnTwain
                 {
                     TWAINWorkingGroup.Log.Error("ReportImage: unable to save the metadata file...");
                     SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
-                    return (TWAINCSToolkit.MSG.RESET);
+                    return (TWAIN.STS.FILEWRITEERROR);
                 }
             }
             #endregion
 
-            // We've been asked to stop the feeder, so sneak that in, but only do it once...
-            TWAINCSToolkit.MSG msg = TWAINCSToolkit.MSG.ENDXFER;
-            if (    m_blStopFeeder
-                &&  !m_blStopFeederSent
-                &&  ((a_szDat == "IMAGEMEMXFER") || (a_szDat == "IMAGEMEMFILEXFER")))
-            {
-                m_blStopFeederSent = true;
-                if (m_deviceregisterSession.GetTwainInquiryData().GetPendingXfersStopFeeder())
-                {
-                    msg = TWAINCSToolkit.MSG.STOPFEEDER;
-                    TWAINWorkingGroup.Log.Info("ReportImage: " + a_szTag + " - DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER requested...");
-                }
-                else if (m_deviceregisterSession.GetTwainInquiryData().GetPendingXfersReset())
-                {
-                    m_blResetSent = true;
-                    msg = TWAINCSToolkit.MSG.RESET;
-                    TWAINWorkingGroup.Log.Info("ReportImage: " + a_szTag + " - DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET requested...");
-                }
-            }
-
-            // We've been asked to close the session...
-            if (   m_blReset
-                && !m_blResetSent
-                && ((a_szDat == "IMAGEMEMXFER") || (a_szDat == "IMAGEMEMFILEXFER")))
-            {
-                m_blResetSent = true;
-                if (m_deviceregisterSession.GetTwainInquiryData().GetPendingXfersReset())
-                {
-                    msg = TWAINCSToolkit.MSG.RESET;
-                    TWAINWorkingGroup.Log.Info("ReportImage: " + a_szTag + " - DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET requested...");
-                }
-            }
-
             // All done...
-            return (msg);
+            return (TWAIN.STS.SUCCESS);
         }
 
         /// <summary>
@@ -939,9 +1844,9 @@ namespace TwainDirect.OnTwain
             TWAINWorkingGroup.Log.Error("IpcDisconnect called...");
 
             // Try to shut us down...
-            if (m_twaincstoolkit != null)
+            if (m_twain != null)
             {
-                m_twaincstoolkit.Cleanup();
+                Rollback(TWAIN.STATE.S1);
             }
 
             // All done...
@@ -1011,7 +1916,7 @@ namespace TwainDirect.OnTwain
             a_szSession = "";
 
             // Validate...
-            if ((m_twaincstoolkit == null) || (m_szTwainDriverIdentity == null))
+            if ((m_twain == null) || (m_szTwainDriverIdentity == null))
             {
                 return (TwainLocalScanner.ApiStatus.invalidSessionId);
             }
@@ -1024,10 +1929,7 @@ namespace TwainDirect.OnTwain
             if (m_blSessionImageBlocksDrained)
             {
                 // Close the driver...
-                szStatus = "";
-                m_twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_CLOSEDS", ref m_szTwainDriverIdentity, ref szStatus);
-                m_twaincstoolkit.Cleanup();
-                m_twaincstoolkit = null;
+                Rollback(TWAIN.STATE.S1);
                 m_szTwainDriverIdentity = null;
                 return (TwainLocalScanner.ApiStatus.success);
             }
@@ -1036,10 +1938,10 @@ namespace TwainDirect.OnTwain
             SetImageBlocksDrained(TWAIN.STS.SUCCESS);
 
             // Otherwise, just make sure we've stopped scanning...
-            switch (this.m_twaincstoolkit.GetState())
+            switch (this.m_twain.GetState())
             {
                 // DG_CONTROL / DAT_PENDINGXFERS / MSG_ENDXFER...
-                case 7:
+                case TWAIN.STATE.S7:
                     // We can't end the session from here, because it can only be issued
                     // in state 6, and only the scan loop knows what state it's currently
                     // in.  So we set a flag, and let the loop sort out when to send it...
@@ -1047,7 +1949,7 @@ namespace TwainDirect.OnTwain
                     break;
 
                 // DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET...
-                case 6:
+                case TWAIN.STATE.S6:
                     // We can't end the session from here, because it can only be issued
                     // in state 6, and only the scan loop knows what state it's currently
                     // in.  So we set a flag, and let the loop sort out when to send it...
@@ -1055,10 +1957,10 @@ namespace TwainDirect.OnTwain
                     break;
 
                 // DG_CONTROL / DAT_USERINTERFACE / MSG_DISABLEDS, but only if we have no images...
-                case 5:
+                case TWAIN.STATE.S5:
                     szStatus = "";
                     szUserinterface = "0,0";
-                    m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_DISABLEDS", ref szUserinterface, ref szStatus);
+                    Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_DISABLEDS", ref szUserinterface, ref szStatus);
                     break;
             }
 
@@ -1076,6 +1978,7 @@ namespace TwainDirect.OnTwain
         {
             string szStatus;
             TWAIN.STS sts;
+            string szIntprhwnd;
 
             // Init stuff...
             a_szSession = "";
@@ -1093,7 +1996,7 @@ namespace TwainDirect.OnTwain
             catch (Exception exception)
             {
                 TWAINWorkingGroup.Log.Error("Could not create <" + m_szImagesFolder + "> - " + exception.Message);
-                m_twaincstoolkit = null;
+                m_twain = null;
                 m_szTwainDriverIdentity = null;
                 return (TwainLocalScanner.ApiStatus.newSessionNotAllowed);
             }
@@ -1101,33 +2004,40 @@ namespace TwainDirect.OnTwain
             // Create the toolkit...
             try
             {
-                m_twaincstoolkit = new TWAINCSToolkit
+                m_twain = new TWAIN
                 (
-                    m_intptrHwnd,
-                    null,
-                    ReportImage,
-                    null,
                     "TWAIN Working Group",
                     "TWAIN Sharp",
                     "SWORD-on-TWAIN",
                     2,
-                    3,
-                    new string[] { "DF_APP2", "DG_CONTROL", "DG_IMAGE" },
-                    "USA",
+                    4,
+                    (uint)(TWAIN.DG.APP2 | TWAIN.DG.CONTROL | TWAIN.DG.IMAGE),
+                    TWAIN.TWCY.USA,
                     "testing...",
-                    "ENGLISH_USA",
+                    TWAIN.TWLG.ENGLISH_USA,
                     1,
                     0,
                     false,
                     true,
+                    null,
+                    ScanCallbackTrigger,
                     m_runinuithreaddelegate,
-                    m_objectRunInUiThread
+                    m_intptrHwnd
                 );
             }
             catch
             {
-                m_twaincstoolkit = null;
+                m_twain = null;
                 m_szTwainDriverIdentity = null;
+                return (TwainLocalScanner.ApiStatus.newSessionNotAllowed);
+            }
+
+            // Open the DSM...
+            szIntprhwnd = m_intptrHwnd.ToString();
+            szStatus = "";
+            sts = Send("DG_CONTROL", "DAT_PARENT", "MSG_OPENDSM", ref szIntprhwnd, ref szStatus);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
                 return (TwainLocalScanner.ApiStatus.newSessionNotAllowed);
             }
 
@@ -1153,7 +2063,7 @@ namespace TwainDirect.OnTwain
 
             // Open the driver...
             szStatus = "";
-            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_OPENDS", ref m_szTwainDriverIdentity, ref szStatus);
+            sts = Send("DG_CONTROL", "DAT_IDENTITY", "MSG_OPENDS", ref m_szTwainDriverIdentity, ref szStatus);
             if (sts != TWAIN.STS.SUCCESS)
             {
                 return (TwainLocalScanner.ApiStatus.newSessionNotAllowed);
@@ -1180,7 +2090,7 @@ namespace TwainDirect.OnTwain
             a_szSession = "";
 
             // Validate...
-            if ((m_twaincstoolkit == null) || (m_szTwainDriverIdentity == null))
+            if ((m_twain == null) || (m_szTwainDriverIdentity == null))
             {
                 return (TwainLocalScanner.ApiStatus.invalidSessionId);
             }
@@ -1260,7 +2170,7 @@ namespace TwainDirect.OnTwain
             TWAIN.STS sts;
 
             // Init stuff...
-            a_processswordtask = new ProcessSwordTask(m_szImagesFolder, m_twaincstoolkit, m_deviceregisterSession);
+            a_processswordtask = new ProcessSwordTask(m_twain, m_szImagesFolder, m_deviceregisterSession);
 
             // Get the task from the TWAIN Local command...
             szTask = a_jsonlookup.GetJson("task");
@@ -1293,7 +2203,7 @@ namespace TwainDirect.OnTwain
 
                 // Send the command...
                 szStatus = "";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_TWAINDIRECT", "MSG_SETTASK", ref szMetadata, ref szStatus);
+                sts = Send("DG_CONTROL", "DAT_TWAINDIRECT", "MSG_SETTASK", ref szMetadata, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
@@ -1329,7 +2239,7 @@ namespace TwainDirect.OnTwain
                 if (!uint.TryParse(asz[5], out u32ReceiveBytes) || (u32ReceiveBytes == 0))
                 {
                     TWAINWorkingGroup.Log.Error("Process: MSG_SENDTASK failed");
-                    m_twaincstoolkit.DsmMemFree(ref intptrReceiveHandle);
+                    m_twain.DsmMemFree(ref intptrReceiveHandle);
                     Marshal.FreeHGlobal(intptrTask);
                     intptrTask = IntPtr.Zero;
                     //m_swordtaskresponse.SetError("fail", null, "invalidJson", lResponseCharacterOffset);
@@ -1337,14 +2247,14 @@ namespace TwainDirect.OnTwain
                 }
 
                 // Convert it to an array and then a string...
-                IntPtr intptrReceive = m_twaincstoolkit.DsmMemLock(intptrReceiveHandle);
+                IntPtr intptrReceive = m_twain.DsmMemLock(intptrReceiveHandle);
                 byte[] abReceive = new byte[u32ReceiveBytes];
                 Marshal.Copy(intptrReceive, abReceive, 0, (int)u32ReceiveBytes);
                 string szReceive = Encoding.UTF8.GetString(abReceive);
-                m_twaincstoolkit.DsmMemUnlock(intptrReceiveHandle);
+                m_twain.DsmMemUnlock(intptrReceiveHandle);
 
                 // Cleanup...
-                m_twaincstoolkit.DsmMemFree(ref intptrReceiveHandle);
+                m_twain.DsmMemFree(ref intptrReceiveHandle);
                 Marshal.FreeHGlobal(intptrTask);
                 intptrTask = IntPtr.Zero;
 
@@ -1400,7 +2310,7 @@ namespace TwainDirect.OnTwain
             ClearImageBlocksDrained();
 
             // Validate...
-            if (m_twaincstoolkit == null)
+            if (m_twain == null)
             {
                 return (TwainLocalScanner.ApiStatus.invalidSessionId);
             }
@@ -1419,7 +2329,7 @@ namespace TwainDirect.OnTwain
                     // Memory file transfer...
                     szStatus = "";
                     szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,4"; // TWSX_MEMFILE
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMFILE");
@@ -1434,7 +2344,7 @@ namespace TwainDirect.OnTwain
                     {
                         szStatus = "";
                         szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
@@ -1445,12 +2355,12 @@ namespace TwainDirect.OnTwain
                     // Ask for extended image info...
                     szStatus = "";
                     szCapability = "ICAP_EXTIMAGEINFO";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                    sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                     if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
                     {
                         szStatus = "";
                         szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
@@ -1461,7 +2371,7 @@ namespace TwainDirect.OnTwain
                     // Ask for PDF/raster...
                     szStatus = "";
                     szCapability = "ICAP_IMAGEFILEFORMAT,TWON_ONEVALUE,TWTY_UINT16,17"; // TWFF_PDFRASTER
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_IMAGEFILEFORMAT to TWFF_PDFRASTER");
@@ -1475,7 +2385,7 @@ namespace TwainDirect.OnTwain
                     szStatus = "";
                     string szPlaceholder = Path.Combine(m_szImagesFolder, "placeholder.tmp");
                     szCapability = szPlaceholder + ",TWFF_PDFRASTER,0";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szCapability, ref szStatus);
+                    sts = Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szCapability, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Warn("Action: we can't set DAT_SETUPFILEXFER to TWFF_PDFRASTER");
@@ -1494,7 +2404,7 @@ namespace TwainDirect.OnTwain
                         // Request the transfer type...
                         szStatus = "";
                         szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + szIcapXfermach;
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
@@ -1513,7 +2423,7 @@ namespace TwainDirect.OnTwain
                             }
                             Directory.CreateDirectory(szPlaceholder);
                             szCapability = szPlaceholder + ",TWFF_TIFF,0";
-                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szCapability, ref szStatus);
+                            sts = Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szCapability, ref szStatus);
                             if (sts != TWAIN.STS.SUCCESS)
                             {
                                 TWAINWorkingGroup.Log.Warn("Action: we can't set DAT_SETUPFILEXFER to TWFF_TIFF");
@@ -1521,7 +2431,7 @@ namespace TwainDirect.OnTwain
                             }
 
                             // And ask for this, because TIFF JPEG is ugly...
-                            m_twaincstoolkit.SetAutomaticJpegOrTiff(true);
+                            //m_twaincstoolkit.SetAutomaticJpegOrTiff(true);
                         }
                     }
                     // Native transfer (basic)...
@@ -1529,7 +2439,7 @@ namespace TwainDirect.OnTwain
                     {
                         szStatus = "";
                         szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,0";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
@@ -1545,7 +2455,7 @@ namespace TwainDirect.OnTwain
                     {
                         szStatus = "";
                         szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
@@ -1558,12 +2468,12 @@ namespace TwainDirect.OnTwain
                     {
                         szStatus = "";
                         szCapability = "ICAP_EXTIMAGEINFO";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                        sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                         if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
                         {
                             szStatus = "";
                             szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
-                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                            sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                             if (sts != TWAIN.STS.SUCCESS)
                             {
                                 TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
@@ -1589,7 +2499,7 @@ namespace TwainDirect.OnTwain
                 
             // Start scanning (no UI)...
             szStatus = "";
-            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_ENABLEDS", ref szUserInterface, ref szStatus);
+            sts = Send("DG_CONTROL", "DAT_USERINTERFACE", "MSG_ENABLEDS", ref szUserInterface, ref szStatus);
             if (sts != TWAIN.STS.SUCCESS)
             {
                 TWAINWorkingGroup.Log.Info("Action: MSG_ENABLEDS failed");
@@ -1629,7 +2539,7 @@ namespace TwainDirect.OnTwain
             a_szSession = "";
 
             // Validate...
-            if (m_twaincstoolkit == null)
+            if (m_twain == null)
             {
                 return (TwainLocalScanner.ApiStatus.invalidSessionId);
             }
@@ -1655,7 +2565,14 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// The TWAIN Toolkit object that front ends TWAIN for us...
         /// </summary>
-        private TWAINCSToolkit m_twaincstoolkit;
+        private TWAIN m_twain;
+        private IntPtr m_intptrXfer;
+        private IntPtr m_intptrImage;
+        private int m_iImageBytes;
+        private bool m_blXferReadySent;
+        private bool m_blDisableDsSent;
+        private TWAIN.TWSX m_twsxXferMech;
+        private TWAIN.TW_SETUPMEMXFER m_twsetupmemxfer;
 
         /// <summary>
         /// Information about the scanner sent to use by createSession...
@@ -1736,8 +2653,8 @@ namespace TwainDirect.OnTwain
         /// and some anonymous data that is sent along with it.  We're also holding
         /// onto the handle for the anonymous data...
         /// </summary>
-        private TWAINCSToolkit.RunInUiThreadDelegate m_runinuithreaddelegate;
-        private object m_objectRunInUiThread;
+        private TWAIN.RunInUiThreadDelegate m_runinuithreaddelegate;
+        private FormTwain m_formtwain;
         private IntPtr m_intptrHwnd;
 
         /// <summary>

@@ -104,7 +104,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SwordTask.cs" />
     <Compile Include="TWAIN.cs" />
-    <Compile Include="TWAINCSTool.cs" />
     <Compile Include="TwainLocalOnTwain.cs" />
     <Compile Include="TWAINH.cs" />
     <EmbeddedResource Include="FormTwain.resx">

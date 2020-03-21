@@ -2,7 +2,7 @@
 using System;
 using System.Threading;
 using System.Windows.Forms;
-using TWAINWorkingGroupToolkit;
+using TWAINWorkingGroup;
 
 namespace TwainDirect.OnTwain
 {
@@ -13,8 +13,7 @@ namespace TwainDirect.OnTwain
             string a_szWriteFolder,
             string a_szImagesFolder,
             string a_szIpc,
-            int a_iPid,
-            TWAINCSToolkit.RunInUiThreadDelegate a_runinuithreaddelegate
+            int a_iPid
         )
         {
             TwainLocalOnTwainParameters twainlocalontwainparameters;
@@ -29,7 +28,7 @@ namespace TwainDirect.OnTwain
                 a_szImagesFolder,
                 a_szIpc,
                 a_iPid,
-                a_runinuithreaddelegate,
+                RunInUiThread,
                 this,
                 this.Handle
             );
@@ -38,6 +37,27 @@ namespace TwainDirect.OnTwain
             // so that we don't block our window...
             m_threadTwainLocalOnTwain = new Thread(new ParameterizedThreadStart(TwainLocalOnTwainThread));
             m_threadTwainLocalOnTwain.Start(twainlocalontwainparameters);
+        }
+
+        /// <summary>
+        /// TWAIN needs help, if we want it to run stuff in our main
+        /// UI thread...
+        /// </summary>
+        /// <param name="control">the control to run in</param>
+        /// <param name="code">the code to run</param>
+        public void RunInUiThread(Action a_action)
+        {
+            RunInUiThread(this, a_action);
+        }
+        public void RunInUiThread(Object a_object, Action a_action)
+        {
+            Control control = (Control)a_object;
+            if (control.InvokeRequired)
+            {
+                control.Invoke(new FormTwain.RunInUiThreadDelegate(RunInUiThread), new object[] { a_object, a_action });
+                return;
+            }
+            a_action();
         }
 
         /// <summary>
@@ -77,7 +97,7 @@ namespace TwainDirect.OnTwain
                 twainlocalontwainparameters.m_szIpc,
                 twainlocalontwainparameters.m_iPid,
                 twainlocalontwainparameters.m_runinuithreaddelegate,
-                twainlocalontwainparameters.m_objectRunInUiThread,
+                twainlocalontwainparameters.m_formtwain,
                 twainlocalontwainparameters.m_intptrHwnd
             );
 
@@ -96,8 +116,8 @@ namespace TwainDirect.OnTwain
                 string a_szImagesFolder,
                 string a_szIpc,
                 int a_iPid,
-                TWAINCSToolkit.RunInUiThreadDelegate a_runinuithreaddelegate,
-                object a_objectRunInUiThread,
+                TWAIN.RunInUiThreadDelegate a_runinuithreaddelegate,
+                FormTwain a_formtwain,
                 IntPtr a_intptrHwnd
             )
             {
@@ -106,19 +126,27 @@ namespace TwainDirect.OnTwain
                 m_szIpc = a_szIpc;
                 m_iPid = a_iPid;
                 m_runinuithreaddelegate = a_runinuithreaddelegate;
-                m_objectRunInUiThread = a_objectRunInUiThread;
+                m_formtwain = a_formtwain;
                 m_intptrHwnd = a_intptrHwnd;
             }
 
-            public string                                   m_szWriteFolder;
-            public string                                   m_szImagesFolder;
-            public string                                   m_szIpc;
-            public int                                      m_iPid;
-            public TWAINCSToolkit.RunInUiThreadDelegate     m_runinuithreaddelegate;
-            public object                                   m_objectRunInUiThread;
-            public IntPtr                                   m_intptrHwnd;
+            public string m_szWriteFolder;
+            public string m_szImagesFolder;
+            public string m_szIpc;
+            public int m_iPid;
+            public TWAIN.RunInUiThreadDelegate m_runinuithreaddelegate;
+            public FormTwain m_formtwain;
+            public IntPtr m_intptrHwnd;
         };
 
         private Thread m_threadTwainLocalOnTwain;
+
+        /// <summary>
+        /// We use this to run code in the context of the caller's UI thread...
+        /// </summary>
+        /// <param name="a_object">object (really a control)</param>
+        /// <param name="a_action">code to run</param>
+        public delegate void RunInUiThreadDelegate(Object a_object, Action a_action);
+
     }
 }

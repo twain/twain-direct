@@ -45,7 +45,7 @@ using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using TwainDirect.Support;
-using TWAINWorkingGroupToolkit;
+using TWAINWorkingGroup;
 
 namespace TwainDirect.OnTwain
 {
@@ -120,23 +120,6 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
-        /// TWAIN needs help, if we want it to run stuff in our main
-        /// UI thread...
-        /// </summary>
-        /// <param name="control">the control to run in</param>
-        /// <param name="code">the code to run</param>
-        static public void RunInUiThread(Object a_object, Action a_action)
-        {
-            Control control = (Control)a_object;
-            if (control.InvokeRequired)
-            {
-                control.Invoke(new TWAINCSToolkit.RunInUiThreadDelegate(RunInUiThread), new object[] { a_object, a_action });
-                return;
-            }
-            a_action();
-        }
-
-        /// <summary>
         /// Select the mode for this session, batch or interactive,
         /// based on the arguments.  Don't be weirded out by this
         /// function calling TWAIN Local On Twain and then that function using
@@ -175,11 +158,11 @@ namespace TwainDirect.OnTwain
             if (szIpc != null)
             {
                 // With Windows we need a window for the driver, but we can hide it...
-                if (TWAINCSToolkit.GetPlatform() == "WINDOWS")
+                if (TWAIN.GetPlatform() == TWAIN.Platform.WINDOWS)
                 {
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
-                    Application.Run(new FormTwain(szWriteFolder, szImagesFolder, szIpc, iPid, RunInUiThread));
+                    Application.Run(new FormTwain(szWriteFolder, szImagesFolder, szIpc, iPid));
                     return (true);
                 }
 

@@ -46,7 +46,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using TwainDirect.Support;
 using TWAINWorkingGroup;
-using TWAINWorkingGroupToolkit;
 
 namespace TwainDirect.OnTwain
 {
@@ -68,15 +67,14 @@ namespace TwainDirect.OnTwain
         /// <summary>
         /// Init stuff...
         /// </summary>
+        /// <param name="a_twainlocalontwain">access to twain stuff</param>
         /// <param name="a_szImagesFolder">place to put images</param>
-        /// <param name="a_twaincstoolkit">if not null, the toolkit the caller wants us to use</param>
         /// <param name="a_deviceregister">info about the TWAIN driver</param>
-        public ProcessSwordTask(string a_szImagesFolder, TWAINCSToolkit a_twaincstoolkit, DeviceRegister a_deviceregister)
+        public ProcessSwordTask(TWAIN a_twain, string a_szImagesFolder, DeviceRegister a_deviceregister)
         {
             // Init stuff...
             m_szImagesFolder = a_szImagesFolder;
-            m_twaincstoolkit = a_twaincstoolkit;
-            m_twaincstoolkitCaller = a_twaincstoolkit;
+            m_twain = a_twain;
             m_deviceregister = (a_deviceregister != null) ? a_deviceregister : new DeviceRegister();
             m_blDuplexEnabled = false;
 
@@ -648,7 +646,7 @@ namespace TwainDirect.OnTwain
             ProcessSwordTask processswordtask;
 
             // Create the SWORD manager...
-            processswordtask = new ProcessSwordTask("", null, null);
+            processswordtask = new ProcessSwordTask(null, "", null);
 
             // Check for a TWAIN driver...
             szTwainDefaultDriver = processswordtask.TwainGetDefaultDriver(a_szScanner);
@@ -852,13 +850,13 @@ namespace TwainDirect.OnTwain
         /// <returns>the list of drivers</returns>
         public static string TwainListDrivers(string a_szTwainListAction, string a_szTwainListData)
         {
-            string szStatus;
-            string szTwainDriverIdentity;
             string szList = "";
             string szTwainListProductName = "";
-            IntPtr intptrHwnd;
-            TWAINCSToolkit twaincstoolkit;
+            IntPtr intptrHwnd = IntPtr.Zero;
+            TWAIN twain;
             TWAIN.STS sts;
+            TWAIN.TW_IDENTITY twidentity = default(TWAIN.TW_IDENTITY);
+            TWAIN.TW_IDENTITY twidentityLast = default(TWAIN.TW_IDENTITY);
 
             // Get an hwnd...
             intptrHwnd = Interpreter.GetDesktopWindow();
@@ -866,34 +864,34 @@ namespace TwainDirect.OnTwain
             // Create the toolkit...
             try
             {
-                twaincstoolkit = new TWAINCSToolkit
+                twain = new TWAIN
                 (
-                    intptrHwnd,
-                    null,
-                    null,
-                    null,
                     "TWAIN Working Group",
                     "TWAIN Sharp",
                     "SWORD-on-TWAIN",
                     2,
-                    3,
-                    new string[] { "DF_APP2", "DG_CONTROL", "DG_IMAGE" },
-                    "USA",
+                    4,
+                    (uint)(TWAIN.DG.APP2 | TWAIN.DG.CONTROL | TWAIN.DG.IMAGE),
+                    TWAIN.TWCY.USA,
                     "testing...",
-                    "ENGLISH_USA",
+                    TWAIN.TWLG.ENGLISH_USA,
                     1,
                     0,
                     false,
                     true,
-                    (TWAINCSToolkit.RunInUiThreadDelegate)null,
-                    null
+                    null,
+                    null,
+                    null,
+                    intptrHwnd
                 );
             }
             catch
             {
-                twaincstoolkit = null;
                 return (null);
             }
+
+            // Open the DSM...
+            twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.OPENDSM, ref intptrHwnd);
 
             // If the action is "namesonly" then package up what we have...
             if (!string.IsNullOrEmpty(a_szTwainListAction) && (a_szTwainListAction == "getinquiry"))
@@ -904,17 +902,15 @@ namespace TwainDirect.OnTwain
             // Cycle through the drivers and build up a list of identities...
             int iIndex = -1;
             string[] aszTwidentity = new string[256];
-            szStatus = "";
-            szTwainDriverIdentity = "";
-            for (sts = twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_GETFIRST", ref szTwainDriverIdentity, ref szStatus);
-                 sts == TWAIN.STS.SUCCESS;
-                 sts = twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_GETNEXT", ref szTwainDriverIdentity, ref szStatus))
+            twidentity = default(TWAIN.TW_IDENTITY);
+            for (sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.GETFIRST, ref twidentity);
+                 sts != TWAIN.STS.ENDOFLIST;
+                 sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.GETNEXT, ref twidentity))
             {
                 // If we're doing an inquiry, only pass on the requested item...
                 if (!string.IsNullOrEmpty(szTwainListProductName))
                 {
-                    string[] szTwidentityBits = CSV.Parse(szTwainDriverIdentity);
-                    if (szTwainListProductName != szTwidentityBits[11]) // TW_IDENTITY.ProductName
+                    if (szTwainListProductName != twidentity.ProductName.Get())
                     {
                         continue;
                     }
@@ -922,17 +918,16 @@ namespace TwainDirect.OnTwain
 
                 // Save this identity...
                 iIndex += 1;
-                aszTwidentity[iIndex] = szTwainDriverIdentity;
-
-                // Prep for the next entry...
-                szStatus = "";
-                szTwainDriverIdentity = "";
+                aszTwidentity[iIndex] = twain.IdentityToCsv(twidentity);
 
                 // In inquiry mode, we can scoot if we get this far...
                 if (!string.IsNullOrEmpty(szTwainListProductName))
                 {
                     break;
                 }
+
+                // Reset for the next entry...
+                twidentity = default(TWAIN.TW_IDENTITY);
             }
 
             // If the action is "getproductnames" then package up what we have...
@@ -941,6 +936,9 @@ namespace TwainDirect.OnTwain
                 // If we have nothing, return an empty string...
                 if (aszTwidentity.Length == 0)
                 {
+                    twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDSM, ref intptrHwnd);
+                    twain.Dispose();
+                    twain = null;
                     return ("");
                 }
 
@@ -959,9 +957,10 @@ namespace TwainDirect.OnTwain
                 }
                 szList += "]}";
 
-                // Destroy the toolkit...
-                twaincstoolkit.Cleanup();
-                twaincstoolkit = null;
+                // Destroy the TWAIN object...
+                twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDSM, ref intptrHwnd);
+                twain.Dispose();
+                twain = null;
 
                 // Return the list...
                 return (szList);
@@ -970,7 +969,6 @@ namespace TwainDirect.OnTwain
             // Okay, we have a list of identities, so now let's try to open each one of
             // them up and ask some questions...
             szList = "{\"scanners\":[";
-            string szTwidentityLast = null;
             foreach (string szTwidentity in aszTwidentity)
             {
                 DeviceRegister.TwainInquiryData twaininquirydata;
@@ -978,36 +976,37 @@ namespace TwainDirect.OnTwain
                 // Closing the previous driver up here helps make the code in this section a
                 // little cleaner, allowing us to continue instead of having to do a cleanup
                 // run in each statement that deals with a problem...
-                if (szTwidentityLast != null)
+                if (!string.IsNullOrEmpty(twidentityLast.ProductName.Get()))
                 {
-                    szStatus = "";
-                    sts = twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_CLOSEDS", ref szTwidentityLast, ref szStatus);
-                    szTwidentityLast = null;
-                    twaincstoolkit.ReopenDSM();
+                    sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDS, ref twidentityLast);
+                    twidentityLast = default(TWAIN.TW_IDENTITY);
+                    twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDSM, ref intptrHwnd);
+                    twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.OPENDSM, ref intptrHwnd);
                 }
-                if (szTwidentity == null)
+
+                // We're done, so scoot...
+                if (string.IsNullOrEmpty(szTwidentity))
                 {
                     break;
                 }
 
                 // Open the driver...
-                szStatus = "";
-                szTwidentityLast = szTwidentity;
+                twain.CsvToIdentity(ref twidentityLast, szTwidentity);
                 try
                 {
-                    sts = twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_OPENDS", ref szTwidentityLast, ref szStatus);
+                    sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.OPENDS, ref twidentityLast);
                 }
                 catch (Exception exception)
                 {
                     TWAINWorkingGroup.Log.Info("Driver threw an exception on open: " + szTwidentity);
                     TWAINWorkingGroup.Log.Info(exception.Message);
-                    szTwidentityLast = null;
+                    twidentityLast = default(TWAIN.TW_IDENTITY);
                     continue;
                 }
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info("Unable to open driver: " + szTwidentity);
-                    szTwidentityLast = null;
+                    twidentityLast = default(TWAIN.TW_IDENTITY);
                     continue;
                 }
 
@@ -1022,7 +1021,7 @@ namespace TwainDirect.OnTwain
 
                 // Check out the driver to see if we can use this driver, and while
                 // we're at it, collect interesting information...
-                ProcessSwordTask processswordtask = new ProcessSwordTask("", twaincstoolkit, null);
+                ProcessSwordTask processswordtask = new ProcessSwordTask(twain, "", null);
                 twaininquirydata = processswordtask.TwainInquiry(szTwidentity);
                 if (twaininquirydata.GetTwainDirectSupport() <= DeviceRegister.TwainDirectSupport.Undefined)
                 {
@@ -1046,11 +1045,10 @@ namespace TwainDirect.OnTwain
             szList += "]}";
 
             // Take care of the last close, if we have one...
-            if (szTwidentityLast != null)
+            if (!string.IsNullOrEmpty(twidentityLast.ProductName.Get()))
             {
-                szStatus = "";
-                sts = twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_CLOSEDS", ref szTwidentityLast, ref szStatus);
-                szTwidentityLast = null;
+                sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDS, ref twidentityLast);
+                twidentityLast = default(TWAIN.TW_IDENTITY);
             }
 
             // We didn't find TWAIN or SANE content...
@@ -1059,9 +1057,10 @@ namespace TwainDirect.OnTwain
                 szList = "";
             }
 
-            // Destroy the toolkit...
-            twaincstoolkit.Cleanup();
-            twaincstoolkit = null;
+            // Destroy the TWAIN object...
+            twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDSM, ref intptrHwnd);
+            twain.Dispose();
+            twain = null;
 
             // All done...
             return (szList);
@@ -1074,55 +1073,56 @@ namespace TwainDirect.OnTwain
         /// <returns>The currently selected driver or null, if there are no drivers</returns>
         public static string SelectDriver(string a_szTwainDriverIdentity)
         {
-            string szStatus;
-            string szTwainDriverIdentity;
-            TWAINCSToolkit twaincstoolkit;
+            IntPtr intptrHwnd = IntPtr.Zero;
+            string szTwainDriverIdentity = "";
+            TWAIN twain;
             TWAIN.STS sts;
+            TWAIN.TW_IDENTITY twidentity = default(TWAIN.TW_IDENTITY);
 
             // Create the toolkit...
             try
             {
-                twaincstoolkit = new TWAINCSToolkit
+                twain = new TWAIN
                 (
-                    IntPtr.Zero,
-                    null,
-                    null,
-                    null,
                     "TWAIN Working Group",
                     "TWAIN Sharp",
                     "SWORD-on-TWAIN",
                     2,
-                    3,
-                    new string[] { "DF_APP2", "DG_CONTROL", "DG_IMAGE" },
-                    "USA",
+                    4,
+                    (uint)(TWAIN.DG.APP2 | TWAIN.DG.CONTROL | TWAIN.DG.IMAGE),
+                    TWAIN.TWCY.USA,
                     "testing...",
-                    "ENGLISH_USA",
+                    TWAIN.TWLG.ENGLISH_USA,
                     1,
                     0,
                     false,
                     true,
-                    (TWAINCSToolkit.RunInUiThreadDelegate)null,
-                    null
+                    null,
+                    null,
+                    null,
+                    intptrHwnd
                 );
             }
             catch
             {
-                twaincstoolkit = null;
                 return (a_szTwainDriverIdentity);
             }
 
             // Ask the user to select a default...
-            szStatus = "";
-            szTwainDriverIdentity = "";
-            sts = twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", "MSG_USERSELECT", ref szTwainDriverIdentity, ref szStatus);
-            if (sts != TWAIN.STS.SUCCESS)
+            sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.USERSELECT, ref twidentity);
+            if (sts == TWAIN.STS.SUCCESS)
+            {
+                szTwainDriverIdentity = twain.IdentityToCsv(twidentity);
+            }
+            else
             {
                 szTwainDriverIdentity = a_szTwainDriverIdentity;
             }
 
-            // Destroy the toolkit...
-            twaincstoolkit.Cleanup();
-            twaincstoolkit = null;
+            // Destroy the TWAIN object...
+            twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDSM, ref intptrHwnd);
+            twain.Dispose();
+            twain = null;
 
             // All done...
             return (szTwainDriverIdentity);
@@ -1345,21 +1345,11 @@ namespace TwainDirect.OnTwain
         {
             if (a_blDisposing)
             {
-                // We have a toolkit...
-                if (m_twaincstoolkit != null)
+                // We don't own it, do don't dispose of it, just null it out...
+                if (m_twain != null)
                 {
-                    // Only call if it doesn't belong to our caller...
-                    if (m_twaincstoolkitCaller == null)
-                    {
-                        m_twaincstoolkit.Dispose();
-                    }
-
-                    // Make sure our reference counts drop...
-                    m_twaincstoolkit = null;
+                    m_twain = null;
                 }
-
-                // Null this out too...
-                m_twaincstoolkitCaller = null;
             }
         }
 
@@ -1709,7 +1699,7 @@ namespace TwainDirect.OnTwain
             {
                 szStatus = "";
                 szCapability = ""; // don't need valid data for this call...
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("Process: MSG_RESETALL failed");
@@ -1724,7 +1714,7 @@ namespace TwainDirect.OnTwain
             {
                 szStatus = "";
                 szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "2"); // TWSX_MEMORY
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
@@ -1738,7 +1728,7 @@ namespace TwainDirect.OnTwain
             {
                 szStatus = "";
                 szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
@@ -1755,7 +1745,7 @@ namespace TwainDirect.OnTwain
             {
                 szStatus = "";
                 szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error("Action: we can't set CAP_INDICATORS to FALSE");
@@ -1769,12 +1759,12 @@ namespace TwainDirect.OnTwain
             {
                 szStatus = "";
                 szCapability = "ICAP_EXTIMAGEINFO";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
                 {
                     szStatus = "";
                     szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         TWAINWorkingGroup.Log.Warn("Action: we can't set ICAP_EXTIMAGEINFO to TRUE");
@@ -1790,7 +1780,7 @@ namespace TwainDirect.OnTwain
             {
                 szStatus = "";
                 szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
-                m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
             }
 
             // Otherwise, try to turn compression on by default, we won't validate
@@ -1800,7 +1790,7 @@ namespace TwainDirect.OnTwain
             {
                 szStatus = "";
                 szCapability = "ICAP_COMPRESSION";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
                 if (sts == TWAIN.STS.SUCCESS)
                 {
                     // Walk the enumerations looking for stuff that isn't TWCP_NONE (aka 0)...
@@ -1814,7 +1804,7 @@ namespace TwainDirect.OnTwain
                             {
                                 szStatus = "";
                                 szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16," + iTwcp; // TWCP_GROUP4 or TWCP_JPEG
-                                m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                                m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                                 break;
                             }
                         }
@@ -2109,7 +2099,7 @@ namespace TwainDirect.OnTwain
                 {
                     // Try to use the capability...
                     szStatus = "";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szAutomaticSenseMedium, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szAutomaticSenseMedium, ref szStatus);
                     if (sts == TWAIN.STS.SUCCESS)
                     {
                         blAutomaticSenseMedium = true;
@@ -2122,7 +2112,7 @@ namespace TwainDirect.OnTwain
                 if (!blAutomaticSenseMedium && !string.IsNullOrEmpty(szCapFeederEnabled))
                 {
                     szStatus = "";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapFeederEnabled, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapFeederEnabled, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         return (SwordStatus.Fail);
@@ -2133,7 +2123,7 @@ namespace TwainDirect.OnTwain
                 if (!string.IsNullOrEmpty(szCapCameraSide))
                 {
                     szStatus = "";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapCameraSide, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapCameraSide, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
                         return (SwordStatus.Fail);
@@ -2182,7 +2172,7 @@ namespace TwainDirect.OnTwain
                             iAutoColorEnabled = -1;
                             szCapPixelType = "ICAP_PIXELTYPE";
                             szStatus = "";
-                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapPixelType, ref szStatus);
+                            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapPixelType, ref szStatus);
                             if (sts != TWAIN.STS.SUCCESS)
                             {
                                 TWAINWorkingGroup.Log.Error("Couldn't get ICAP_PIXELTYPE for 'any'");
@@ -2234,7 +2224,7 @@ namespace TwainDirect.OnTwain
                     {
                         szCapPixelType = "ICAP_AUTOMATICCOLORENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
                         szStatus = "";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapPixelType, ref szStatus);
+                        sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapPixelType, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             return (SwordStatus.Fail);
@@ -2260,7 +2250,7 @@ namespace TwainDirect.OnTwain
                                 break;
                         }
                         szStatus = "";
-                        sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapPixelType, ref szStatus);
+                        sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapPixelType, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
                             return (SwordStatus.Fail);
@@ -2313,7 +2303,7 @@ namespace TwainDirect.OnTwain
                                 // Set the capability, bail on an error...
                                 string szCapability = sz;
                                 szStatus = "";
-                                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                                 if (sts != TWAIN.STS.SUCCESS)
                                 {
                                     szCapabilityFail = szCapability;
@@ -2700,7 +2690,7 @@ namespace TwainDirect.OnTwain
                 // Get the current value...
                 szStatus = "";
                 szCapability = "CAP_DEVICEONLINE";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
 
                 // If we don't find it, that's bad...                
                 if (sts != TWAIN.STS.SUCCESS)
@@ -2745,7 +2735,7 @@ namespace TwainDirect.OnTwain
                 // Get the current value...
                 szStatus = "";
                 szCapability = "CAP_UICONTROLLABLE";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
 
                 // If we don't find it, that's bad...                
                 if (sts != TWAIN.STS.SUCCESS)
@@ -2834,7 +2824,7 @@ namespace TwainDirect.OnTwain
                 // Get the current value...
                 szStatus = "";
                 szCapability = "ICAP_EXTIMAGEINFO";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
 
                 // If we don't find it, that's bad...                
                 if (sts != TWAIN.STS.SUCCESS)
@@ -2930,7 +2920,7 @@ namespace TwainDirect.OnTwain
                 // Memory file transfer...
                 szStatus = "";
                 szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,4"; // TWSX_MEMFILE
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH does not support TWSX_MEMFILE - " + a_szTwidentity);
@@ -2953,7 +2943,7 @@ namespace TwainDirect.OnTwain
                 // PDF/raster...
                 szStatus = "";
                 szCapability = "ICAP_IMAGEFILEFORMAT,TWON_ONEVALUE,TWTY_UINT16,17"; // TWFF_PDFRASTER
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT does not support TWFF_PDFRASTER - " + a_szTwidentity);
@@ -2980,7 +2970,7 @@ namespace TwainDirect.OnTwain
                 // MSG_RESET...
                 szStatus = "";
                 string szPendingXfers = "0,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingXfers, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingXfers, ref szStatus);
                 if (sts != TWAIN.STS.SEQERROR)
                 {
                     TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET not supported - " + a_szTwidentity);
@@ -3006,12 +2996,12 @@ namespace TwainDirect.OnTwain
                 // CAP_FEEDERENABLED...
                 szStatus = "";
                 szCapability = "CAP_FEEDERENABLED,0,0,0";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 if ((sts != TWAIN.STS.SUCCESS) || (szCapability.ToLowerInvariant().EndsWith(",true") && szCapability.ToLowerInvariant().EndsWith(",1")))
                 {
                     szStatus = "";
                     szCapability = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 }
                 if (sts != TWAIN.STS.SUCCESS)
                 {
@@ -3027,7 +3017,7 @@ namespace TwainDirect.OnTwain
 
                     szStatus = "";
                     szPendingXfers = "0,0";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingXfers, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingXfers, ref szStatus);
                     if (sts != TWAIN.STS.SEQERROR)
                     {
                         TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER not supported - " + a_szTwidentity);
@@ -3053,7 +3043,7 @@ namespace TwainDirect.OnTwain
                     // Get the current value...
                     szStatus = "";
                     szCapability = "CAP_PAPERDETECTABLE";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
 
                     // If we don't find it, that's bad...                
                     if (sts != TWAIN.STS.SUCCESS)
@@ -3132,7 +3122,7 @@ namespace TwainDirect.OnTwain
                 // Get the current value...
                 szStatus = "";
                 szCapability = "ICAP_UNITS";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
 
                 // If we don't find it, that's bad, but probably not fatal...                
                 if (sts != TWAIN.STS.SUCCESS)
@@ -3159,7 +3149,7 @@ namespace TwainDirect.OnTwain
                         {
                             szStatus = "";
                             szCapability = aszContainer[0] + "," + aszContainer[1] + "," + aszContainer[2] + ",0";
-                            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                             if (sts != TWAIN.STS.SUCCESS)
                             {
                                 TWAINWorkingGroup.Log.Info(szFunction + "ICAP_UNITS set failed - " + a_szTwidentity);
@@ -3179,7 +3169,7 @@ namespace TwainDirect.OnTwain
                 // Get the current value...
                 szStatus = "";
                 szCapability = "CAP_SERIALNUMBER";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
 
                 // It's an error, because we've lost the ability to handle more than one
                 // model of this scanner, but it's not fatal, because we can stil handle
@@ -3222,7 +3212,7 @@ namespace TwainDirect.OnTwain
                 // Get the enumeration...
                 szStatus = "";
                 szCapability = "CAP_FEEDERENABLED";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
 
                 // Assume that we have a flatbed...
                 if (sts != TWAIN.STS.SUCCESS)
@@ -3258,10 +3248,12 @@ namespace TwainDirect.OnTwain
                                 {
                                     default:
                                         break;
-                                    case "0": // FALSE
+                                    case "0":
+                                    case "FALSE":
                                         m_twaininquirydata.SetFlatbedDetected(true);
                                         break;
-                                    case "1": // TRUE
+                                    case "1":
+                                    case "TRUE":
                                         m_twaininquirydata.SetFeederDetected(true);
                                         break;
                                 }
@@ -3286,7 +3278,7 @@ namespace TwainDirect.OnTwain
                 // Just see if we can get it...
                 szStatus = "";
                 szCapability = "CAP_AUTOMATICSENSEMEDIUM";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 m_twaininquirydata.SetAutomaticSenseMedium(sts == TWAIN.STS.SUCCESS);
 
                 #endregion
@@ -3311,7 +3303,7 @@ namespace TwainDirect.OnTwain
                     // Get the enumeration...
                     szStatus = "";
                     szCapability = "CAP_CAMERASIDE";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
 
                     // It looks like we have something else...
                     if (sts == TWAIN.STS.SUCCESS)
@@ -3337,13 +3329,16 @@ namespace TwainDirect.OnTwain
                                     {
                                         default:
                                             break;
-                                        case "0": // BOTH
+                                        case "0":
+                                        case "TWCS_BOTH":
                                             szArray += (szArray == "") ? "0" : ",0";
                                             break;
-                                        case "1": // TOP
+                                        case "1":
+                                        case "TWCS_TOP":
                                             szArray += (szArray == "") ? "1" : ",1";
                                             break;
-                                        case "2": // BOTTOM
+                                        case "2":
+                                        case "TWCS_BOTTOM":
                                             szArray += (szArray == "") ? "2" : ",2";
                                             break;
                                     }
@@ -3364,7 +3359,7 @@ namespace TwainDirect.OnTwain
                 // Just see if we can get it...
                 szStatus = "";
                 szCapability = "CAP_SHEETCOUNT";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 m_twaininquirydata.SetSheetCount(sts == TWAIN.STS.SUCCESS);
 
                 #endregion
@@ -3377,7 +3372,7 @@ namespace TwainDirect.OnTwain
                 // Get the enumeration...
                 szStatus = "";
                 szCapability = "ICAP_XRESOLUTION";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XRESOLUTION error - " + a_szTwidentity);
@@ -3464,7 +3459,7 @@ namespace TwainDirect.OnTwain
                 // Get the physical height...
                 szStatus = "";
                 szCapability = "ICAP_PHYSICALHEIGHT";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PHYSICALHEIGHT error - " + a_szTwidentity);
@@ -3477,7 +3472,7 @@ namespace TwainDirect.OnTwain
                 // Get the physical width...
                 szStatus = "";
                 szCapability = "ICAP_PHYSICALWIDTH";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PHYSICALWIDTH error - " + a_szTwidentity);
@@ -3491,7 +3486,7 @@ namespace TwainDirect.OnTwain
                 int iMinHeightMicrons = 0;
                 szStatus = "";
                 szCapability = "ICAP_MINIMUMHEIGHT";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info(szFunction + "ICAP_MINIMUMHEIGHT not found, we'll use 2 inches - " + a_szTwidentity);
@@ -3507,7 +3502,7 @@ namespace TwainDirect.OnTwain
                 int iMinWidthMicrons = 0;
                 szStatus = "";
                 szCapability = "ICAP_MINIMUMWIDTH";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info(szFunction + "ICAP_MINIMUMWIDTH error, we'll use 2 inches - " + a_szTwidentity);
@@ -3559,7 +3554,7 @@ namespace TwainDirect.OnTwain
                 // Get the enumeration...
                 szStatus = "";
                 szCapability = "ICAP_AUTOMATICBORDERDETECTION";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     m_twaininquirydata.SetCroppings("[\"fixed\"]");
@@ -3588,7 +3583,8 @@ namespace TwainDirect.OnTwain
                                 {
                                     default:
                                         break;
-                                    case "0": // FALSE
+                                    case "0":
+                                    case "FALSE":
                                         if (string.IsNullOrEmpty(m_twaininquirydata.GetCroppings()))
                                         {
                                             m_twaininquirydata.SetCroppings("[\"fixed\"]");
@@ -3598,7 +3594,8 @@ namespace TwainDirect.OnTwain
                                             m_twaininquirydata.SetCroppings("[\"auto\",\"fixed\"]");
                                         }
                                         break;
-                                    case "1": // TRUE
+                                    case "1":
+                                    case "TRUE":
                                         if (string.IsNullOrEmpty(m_twaininquirydata.GetCroppings()))
                                         {
                                             m_twaininquirydata.SetCroppings("[\"auto\"]");
@@ -3631,7 +3628,7 @@ namespace TwainDirect.OnTwain
                 // Get the enumeration...
                 szStatus = "";
                 szCapability = "ICAP_PIXELTYPE";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info(szFunction + "ICAP_PIXELTYPE error - " + a_szTwidentity);
@@ -3661,19 +3658,22 @@ namespace TwainDirect.OnTwain
                             {
                                 default:
                                     break;
-                                case "0": // TWPT_BW
+                                case "0":
+                                case "TWPT_BW":
                                     if (!szValues.Contains("bw1"))
                                     {
                                         szValues += (szValues == "") ? "\"bw1\"" : ",\"bw1\"";
                                     }
                                     break;
-                                case "1": // TW_PT_GRAY
+                                case "1":
+                                case "TWPT_GRAY":
                                     if (!szValues.Contains("gray8"))
                                     {
                                         szValues += (szValues == "") ? "\"gray8\"" : ",\"gray8\"";
                                     }
                                     break;
-                                case "2": // TWPT_RGB
+                                case "2":
+                                case "TWPT_RGB":
                                     if (!szValues.Contains("rgb24"))
                                     {
                                         szValues += (szValues == "") ? "\"rgb24\"" : ",\"rgb24\"";
@@ -3706,7 +3706,7 @@ namespace TwainDirect.OnTwain
                 // Get the enumeration...
                 szStatus = "";
                 szCapability = "ICAP_COMPRESSION";
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
                     TWAINWorkingGroup.Log.Info(szFunction + "ICAP_COMPRESSION error - " + a_szTwidentity);
@@ -3737,14 +3737,17 @@ namespace TwainDirect.OnTwain
                             {
                                 default:
                                     break;
-                                case "0": // TWCP_NONE
+                                case "0":
+                                case "TWCP_NONE":
                                     if (!szValues.Contains("none"))
                                     {
                                         szValues += (szValues == "") ? "\"none\"" : ",\"none\"";
                                     }
                                     break;
-                                case "5": // TWCP_GROUP4
-                                case "6": // TWCP_JPEG
+                                case "5":
+                                case "TWCP_GROUP4":
+                                case "6":
+                                case "TWCP_JPEG":
                                     if (!szValues.Contains("autoVersion1"))
                                     {
                                         szValues += (szValues == "") ? "\"autoVersion1\"" : ",\"autoVersion1\"";
@@ -3787,7 +3790,7 @@ namespace TwainDirect.OnTwain
                 // we're going to be at a Basic level...
                 szStatus = "";
                 szCapability = ""; // don't need valid data for this call...
-                sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
                 if (sts == TWAIN.STS.SUCCESS)
                 {
                     m_twaininquirydata.SetCapabilityResetall(true);
@@ -3814,14 +3817,14 @@ namespace TwainDirect.OnTwain
 
                 // Do we have an ADF?
                 szStatus = TwainGetValue("CAP_FEEDERENABLED");
-                m_blPaperDetectable = ((szStatus != null) && (szStatus == "1"));
+                m_blPaperDetectable = ((szStatus != null) && ((szStatus == "1") || (szStatus == "TRUE")));
                 m_twaininquirydata.SetPaperDetectable(m_blPaperDetectable);
 
                 // Can we detect paper?  We don't have to be able to do this,
                 // for instance a flatbed has no need of this support, but if
                 // we can get it, it's good to know about.
                 szStatus = TwainGetValue("CAP_PAPERDETECTABLE");
-                m_blPaperDetectable = ((szStatus != null) && (szStatus == "1"));
+                m_blPaperDetectable = ((szStatus != null) && ((szStatus == "1") || (szStatus == "TRUE")));
                 m_twaininquirydata.SetPaperDetectable(m_blPaperDetectable);
 
                 // Can we automatically sense the medium?
@@ -3843,7 +3846,7 @@ namespace TwainDirect.OnTwain
                         {
                             for (int ii = 0; ii < int.Parse(asz[3]); ii++)
                             {
-                                if (asz[6 + ii] == "1")
+                                if ((asz[6 + ii] == "1") || (asz[6 + ii] == "TRUE"))
                                 {
                                     m_blAutomaticSenseMedium = true;
                                     break;
@@ -4077,11 +4080,11 @@ namespace TwainDirect.OnTwain
                 if (m_blAutomaticSenseMedium)
                 {
                     szStatus = TwainGetValue("CAP_AUTOMATICSENSEMEDIUM");
-                    if ((szStatus != null) && (szStatus == "1"))
+                    if ((szStatus != null) && ((szStatus == "1") || (szStatus == "TRUE")))
                     {
                         // If we find it, check for paper...
                         szStatus = TwainGetValue("CAP_FEEDERLOADED");
-                        if ((szStatus != null) && (szStatus == "0"))
+                        if ((szStatus != null) && ((szStatus == "0") || (szStatus == "FALSE")))
                         {
                             // There's no paper, so it's going to be the flatbed...
                             m_blFlatbed = true;
@@ -4096,7 +4099,7 @@ namespace TwainDirect.OnTwain
             if (!m_blFlatbed)
             {
                 szStatus = TwainGetValue("CAP_DUPLEXENABLED");
-                m_blDuplex = ((szStatus != null) && (szStatus == "1"));
+                m_blDuplex = ((szStatus != null) && ((szStatus == "1") || (szStatus == "TRUE")));
             }
 
             // We're good...
@@ -4238,7 +4241,7 @@ namespace TwainDirect.OnTwain
             // Get the value...
             szStatus = "";
             szCapability = a_szName;
-            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
             if (sts != TWAIN.STS.SUCCESS)
             {
                 return (null);
@@ -4269,7 +4272,7 @@ namespace TwainDirect.OnTwain
             // Get the value...
             szStatus = "";
             szCapability = a_szName;
-            sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
             if (sts != TWAIN.STS.SUCCESS)
             {
                 return (null);
@@ -4300,7 +4303,7 @@ namespace TwainDirect.OnTwain
             }
 
             // Do the set...
-            szStatus = a_capability.SetScanner(m_twaincstoolkit, out szSwordName, out szSwordValue, out szTwainValue, m_szVendor, a_swordtaskresponse);
+            szStatus = a_capability.SetScanner(m_twain, out szSwordName, out szSwordValue, out szTwainValue, m_szVendor, a_swordtaskresponse);
 
             // Update the task reply for pixelFormat...
             if (szSwordName == "pixelFormat")
@@ -4355,78 +4358,80 @@ namespace TwainDirect.OnTwain
         /// <returns></returns>
         private string TwainGetDefaultDriver(string a_szScanner)
         {
+            IntPtr intptrHwnd = IntPtr.Zero;
+            TWAIN twain;
+            TWAIN.STS sts;
+            TWAIN.TW_IDENTITY twidentity;
+
+            // Init stuff...
+            m_szTwainDriverIdentity = null;
+
             // Create the toolkit...
             try
             {
-                m_twaincstoolkit = new TWAINCSToolkit
+                twain = new TWAIN
                 (
-                    IntPtr.Zero,
-                    null,
-                    null,
-                    null,
                     "TWAIN Working Group",
                     "TWAIN Sharp",
                     "SWORD-on-TWAIN",
                     2,
-                    3,
-                    new string[] { "DF_APP2", "DG_CONTROL", "DG_IMAGE" },
-                    "USA",
+                    4,
+                    (uint)(TWAIN.DG.APP2 | TWAIN.DG.CONTROL | TWAIN.DG.IMAGE),
+                    TWAIN.TWCY.USA,
                     "testing...",
-                    "ENGLISH_USA",
+                    TWAIN.TWLG.ENGLISH_USA,
                     1,
                     0,
                     false,
                     true,
-                    (TWAINCSToolkit.RunInUiThreadDelegate)null,
-                    this
+                    null,
+                    null,
+                    null,
+                    intptrHwnd
                 );
             }
             catch
             {
                 TWAINWorkingGroup.Log.Warn("Error creating toolkit...");
-                m_twaincstoolkit = null;
                 return (null);
             }
 
             // Get the default driver...
-            if (a_szScanner == null)
+            if (string.IsNullOrEmpty(a_szScanner))
             {
-                m_szTwainDriverIdentity = "";
-                if (m_twaincstoolkit.GetDrivers(ref m_szTwainDriverIdentity) == null)
+                twidentity = default(TWAIN.TW_IDENTITY);
+                sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.GETDEFAULT, ref twidentity);
+                if ((sts != TWAIN.STS.SUCCESS) || string.IsNullOrEmpty(twidentity.ProductName.Get()))
                 {
                     TWAINWorkingGroup.Log.Warn("No TWAIN drivers found...");
-                    m_szTwainDriverIdentity = null;
-                    return (null);
+                }
+                else
+                {
+                    m_szTwainDriverIdentity = twain.IdentityToCsv(twidentity);
                 }
             }
 
             // Otherwise, look for a match...
             else
             {
-                string szStatus;
-                string szMsg = "MSG_GETFIRST";
-                TWAIN.STS sts;
-                while (true)
+                twidentity = default(TWAIN.TW_IDENTITY);
+                for (sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.GETFIRST, ref twidentity);
+                     sts != TWAIN.STS.ENDOFLIST;
+                     sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.GETNEXT, ref twidentity))
                 {
-                    szStatus = "";
-                    m_szTwainDriverIdentity = "";
-                    sts = m_twaincstoolkit.Send("DG_CONTROL", "DAT_IDENTITY", szMsg, ref m_szTwainDriverIdentity, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
+                    if (twidentity.ProductName.Get() == a_szScanner)
                     {
-                        m_szTwainDriverIdentity = "";
+                        m_szTwainDriverIdentity = twain.IdentityToCsv(twidentity);
                         break;
                     }
-                    if (m_szTwainDriverIdentity.EndsWith("," + a_szScanner))
-                    {
-                        break;
-                    }
-                    szMsg = "MSG_GETNEXT";
+                    twidentity = default(TWAIN.TW_IDENTITY);
                 }
             }
 
-            // Destroy the toolkit...
-            m_twaincstoolkit.Cleanup();
-            m_twaincstoolkit = null;
+            // Destroy the TWAIN object...
+            twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDSM, ref intptrHwnd);
+            twain.Dispose();
+            twain = null;
 
             // All done...
             return (m_szTwainDriverIdentity);
@@ -6364,7 +6369,7 @@ namespace TwainDirect.OnTwain
                     {
                         szStatus = "";
                         szCapability = m_szFeederEnabled;
-                        m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        m_processswordtask.m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                     }
 
                     // Duplex enabled...
@@ -6372,7 +6377,7 @@ namespace TwainDirect.OnTwain
                     {
                         szStatus = "";
                         szCapability = m_szDuplexEnabled;
-                        m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                        m_processswordtask.m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                     }
 
                     #endregion
@@ -7085,7 +7090,7 @@ namespace TwainDirect.OnTwain
                         string szStatus;
                         szStatus = "";
                         szPixeltype = "ICAP_PIXELTYPE";
-                        m_processswordtask.m_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szPixeltype, ref szStatus);
+                        m_processswordtask.m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szPixeltype, ref szStatus);
                     }
 
                     // Invoke the process function for each of our attributes...
@@ -8049,12 +8054,15 @@ namespace TwainDirect.OnTwain
                             case "*":
 				                m_swordstatus = SwordStatus.SuccessIgnore;
 				                return (SwordStatus.SuccessIgnore);
-			                case "0": // TWPT_BW
+			                case "0":
+                            case "TWPT_BW":
                                 m_aszTwValue = new string[1];
                                 m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
                                 break;
-			                case "1": // TWPT_GRAY
-                            case "2": // TWPT_RGB
+			                case "1":
+                            case "TWPT_GRAY":
+                            case "2":
+                            case "TWPT_RGB":
                                 m_aszTwValue = new string[1];
                                 m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
                                 break;
@@ -8929,7 +8937,7 @@ namespace TwainDirect.OnTwain
                 /// <summary>
                 /// Set the scanner...
                 /// </summary>
-                /// <param name="a_twaincstoolkit">toolkit object</param>
+                /// <param name="a_twainlocalontwain">toolkit object</param>
                 /// <param name="a_szSwordName">the SWORD name we picked</param>
                 /// <param name="a_szSwordValue">the SWORD value we picked</param>
                 /// <param name="a_szTwainValue">the TWAIN value we picked</param>
@@ -8938,7 +8946,7 @@ namespace TwainDirect.OnTwain
                 /// <returns></returns>
                 public string SetScanner
                 (
-                    TWAINCSToolkit a_twaincstoolkit,
+                    TWAIN a_twain,
                     out string a_szSwordName,
                     out string a_szSwordValue,
                     out string a_szTwainValue,
@@ -8971,7 +8979,7 @@ namespace TwainDirect.OnTwain
                         // Try to set the value...
                         szStatus = "";
                         szTwainValue = m_acapabilityvalue[iTryValue].GetCapability();
-                        sts = a_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
+                        sts = a_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
                         if (sts == TWAIN.STS.SUCCESS)
                         {
                             a_szSwordName = m_acapabilityvalue[iTryValue].GetSwordName();
@@ -8998,7 +9006,7 @@ namespace TwainDirect.OnTwain
                             case "ICAP_XRESOLUTION":
                                 szStatus = "";
                                 szTwainValue = m_acapabilityvalue[iTryValue].GetCapability().Replace("ICAP_XRESOLUTION", "ICAP_YRESOLUTION");
-                                sts = a_twaincstoolkit.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
+                                sts = a_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szTwainValue, ref szStatus);
                                 break;
                         }
 
@@ -9641,11 +9649,6 @@ namespace TwainDirect.OnTwain
         private DeviceRegister m_deviceregister;
 
         /// <summary>
-        /// Capability ordering for TWAIN (as vendor specific content)
-        /// </summary>
-        //private TwainCapabilityOrdering m_twaincapabilityordering;
-
-        /// <summary>
         /// The TWAIN Direct vendor id...
         /// </summary>
         string m_szVendorTwainDirect;
@@ -9682,8 +9685,8 @@ namespace TwainDirect.OnTwain
         /// for the caller is passed to us, if we get it we assign
         /// it to the other one...
         /// </summary>
-        private TWAINCSToolkit m_twaincstoolkit;
-        private TWAINCSToolkit m_twaincstoolkitCaller;
+        ///
+        private TWAIN m_twain;
 
         /// <summary>
         /// TWAIN: Identity of our TWAIN driver...
