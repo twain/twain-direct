@@ -1698,7 +1698,7 @@ namespace TwainDirect.OnTwain
             if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetCapabilityResetall())
             {
                 szStatus = "";
-                szCapability = ""; // don't need valid data for this call...
+                szCapability = "0,0,0,0";
                 sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
@@ -3789,7 +3789,7 @@ namespace TwainDirect.OnTwain
                 // Reset the scanner, this is required for Extended support, without it
                 // we're going to be at a Basic level...
                 szStatus = "";
-                szCapability = ""; // don't need valid data for this call...
+                szCapability = "0,0,0,0";
                 sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_RESETALL", ref szCapability, ref szStatus);
                 if (sts == TWAIN.STS.SUCCESS)
                 {
