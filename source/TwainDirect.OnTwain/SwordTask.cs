@@ -1779,7 +1779,7 @@ namespace TwainDirect.OnTwain
             if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Basic)
             {
                 szStatus = "";
-                szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_NONE";
                 m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
             }
 
@@ -1793,20 +1793,16 @@ namespace TwainDirect.OnTwain
                 sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GET", ref szCapability, ref szStatus);
                 if (sts == TWAIN.STS.SUCCESS)
                 {
-                    // Walk the enumerations looking for stuff that isn't TWCP_NONE (aka 0)...
+                    // Walk the enumerations looking for stuff that isn't TWCP_NONE...
                     string[] aszCapability = szCapability.Split(',');
                     for (int ee = 6; ee < aszCapability.Length; ee++)
                     {
-                        int iTwcp = 0;
-                        if (int.TryParse(aszCapability[ee], out iTwcp))
+                        if (aszCapability[ee] != "TWCP_NONE")
                         {
-                            if (iTwcp > 0)
-                            {
-                                szStatus = "";
-                                szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16," + iTwcp; // TWCP_GROUP4 or TWCP_JPEG
-                                m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                                break;
-                            }
+                            szStatus = "";
+                            szCapability = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16," + aszCapability[ee];
+                            m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                            break;
                         }
                     }
                 }
@@ -8018,26 +8014,26 @@ namespace TwainDirect.OnTwain
                     if (m_processswordtask.GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Basic)
                     {
                         m_aszTwValue = new string[1];
-                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_NONE";
                     }
 
                     // TWAIN Direct from this point down...
                     else if (m_szTdValue == "none")
 	                {
                         m_aszTwValue = new string[1];
-                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,0"; // TWCP_NONE
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_NONE";
                     }
 
 	                else if (m_szTdValue == "group4")
 	                {
                         m_aszTwValue = new string[1];
-                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_GROUP4";
                     }
 
 	                else if (m_szTdValue == "jpeg")
 	                {
                         m_aszTwValue = new string[1];
-                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
+                        m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_JPEG";
                     }
 
                     else if (m_szTdValue == "autoVersion1")
@@ -8057,14 +8053,14 @@ namespace TwainDirect.OnTwain
 			                case "0":
                             case "TWPT_BW":
                                 m_aszTwValue = new string[1];
-                                m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,5"; // TWCP_GROUP4
+                                m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_GROUP4";
                                 break;
 			                case "1":
                             case "TWPT_GRAY":
                             case "2":
                             case "TWPT_RGB":
                                 m_aszTwValue = new string[1];
-                                m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,6"; // TWCP_JPEG
+                                m_aszTwValue[0] = "ICAP_COMPRESSION,TWON_ONEVALUE,TWTY_UINT16,TWCP_JPEG";
                                 break;
 		                }
 	                }
