@@ -1558,7 +1558,7 @@ namespace TwainDirect.OnTwain
                     iImageBytes = TWAIN.WriteImageFile(szPdfFile, a_intptrImage, a_iImageBytes, out szFinalFilename);
                     if (iImageBytes != a_iImageBytes)
                     {
-                        TWAINWorkingGroup.Log.Error("ReportImage: unable to save the image file, " + szPdfFile);
+                        TWAINWorkingGroup.Log.Error("ReportImage: unable to save the driver's image file, " + szPdfFile);
                         SetImageBlocksDrained(TWAIN.STS.FILEWRITEERROR);
                         return (TWAIN.STS.FILEWRITEERROR);
                     }
@@ -2426,7 +2426,7 @@ namespace TwainDirect.OnTwain
                 {
                     // Memory file transfer...
                     szStatus = "";
-                    szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,4"; // TWSX_MEMFILE
+                    szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "TWSX_MEMFILE");
                     sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
@@ -2441,7 +2441,7 @@ namespace TwainDirect.OnTwain
                     if (Config.Get("useCapIndicators", "true") != "false")
                     {
                         szStatus = "";
-                        szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+                        szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,FALSE";
                         sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
@@ -2454,10 +2454,10 @@ namespace TwainDirect.OnTwain
                     szStatus = "";
                     szCapability = "ICAP_EXTIMAGEINFO";
                     sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-                    if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
+                    if ((sts == TWAIN.STS.SUCCESS) && (szStatus.EndsWith("0") || szStatus.EndsWith("FALSE")))
                     {
                         szStatus = "";
-                        szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
+                        szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,TRUE";
                         sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
@@ -2468,7 +2468,7 @@ namespace TwainDirect.OnTwain
 
                     // Ask for PDF/raster...
                     szStatus = "";
-                    szCapability = "ICAP_IMAGEFILEFORMAT,TWON_ONEVALUE,TWTY_UINT16,17"; // TWFF_PDFRASTER
+                    szCapability = "ICAP_IMAGEFILEFORMAT,TWON_ONEVALUE,TWTY_UINT16,TWFF_PDFRASTER";
                     sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                     if (sts != TWAIN.STS.SUCCESS)
                     {
@@ -2497,7 +2497,7 @@ namespace TwainDirect.OnTwain
                     // Memory transfer (extended only)...
                     if (m_deviceregisterSession.GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
                     {
-                        string szIcapXfermach = Config.Get("icapXfermech", "2"); // TWSX_MEMORY
+                        string szIcapXfermach = Config.Get("icapXfermech", "TWSX_MEMORY");
 
                         // Request the transfer type...
                         szStatus = "";
@@ -2505,12 +2505,12 @@ namespace TwainDirect.OnTwain
                         sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
-                            TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                            TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to " + szIcapXfermach);
                             return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                         }
 
                         // If we're doing file transfers, pick the file...
-                        if (szIcapXfermach == "1") // TWSX_FILE
+                        if (szIcapXfermach == "TWSX_FILE")
                         {
                             // Pick the file...
                             szStatus = "";
@@ -2536,11 +2536,11 @@ namespace TwainDirect.OnTwain
                     else
                     {
                         szStatus = "";
-                        szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,0";
+                        szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,TWSX_NATIVE";
                         sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
-                            TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                            TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_NATIVE");
                             return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                         }
                     }

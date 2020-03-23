@@ -57,11 +57,11 @@
 
     "commentIcapXfermech": [
         "******************************************************************************",
-        "default: 2 (TWSX_MEMORY)",
-        "2 - memory transfers",
-        "1 - file transfers (doesn't work for Group4 compression yet)"
+        "default: TWSX_MEMORY",
+        "TWSX_MEMORY - memory transfers",
+        "TWSX_MEMFILE - memory file transfers"
     ],
-    "XicapXfermech": "2",
+    "XicapXfermech": "TWSX_MEMORY",
 
 
 

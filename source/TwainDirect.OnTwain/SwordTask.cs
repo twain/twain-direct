@@ -1707,13 +1707,28 @@ namespace TwainDirect.OnTwain
                 }
             }
 
+            // Memory file transfers are the best, but we're only using them for
+            // PDF/raster support with a 'driver'...
+            if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Driver)
+            {
+                szStatus = "";
+                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "TWSX_MEMFILE");
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMFILE");
+                    a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
+                    return (false);
+                }
+            }
+
             // Memory transfers give us more lattitude to support things
             // like compression.  But we only use it for drivers that
             // are tagged with extended support...
-            if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
+            else if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
             {
                 szStatus = "";
-                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "2"); // TWSX_MEMORY
+                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "TWSX_MEMORY");
                 sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
@@ -1722,12 +1737,13 @@ namespace TwainDirect.OnTwain
                     return (false);
                 }
             }
+
             // Otherwise, use native transfers, which are safer with the
-            // basic drivers...
+            // basic drivers...  mlm@tbd - this isn't supported right now!!!
             else
             {
                 szStatus = "";
-                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,0";
+                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "TWSX_NATIVE");
                 sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
@@ -2674,162 +2690,341 @@ namespace TwainDirect.OnTwain
             //      stopCapturing           - DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDERS (for ADFs)
             //      closeSession            - DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET
             //
-            // There are some additional checks that go with this, such as
-            // capabilities indicating that the UI is controllable, and that
-            // the driver supports DAT_EXTIMAGEINFO.
-            while (true)
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Is the device online?  If not, support is None...
+            #region Is the device online?
+
+            // Get the current value...
+            szStatus = "";
+            szCapability = "CAP_DEVICEONLINE";
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+            // If we don't find it, that's bad...                
+            if (sts != TWAIN.STS.SUCCESS)
             {
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Is the device online?  If not, support is None...
-                #region Is the device online?
+                TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE: not supported - " + sts);
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
+                m_twaininquirydata.SetDeviceOnline(false);
+                return (m_twaininquirydata);
+            }
 
-                // Get the current value...
-                szStatus = "";
-                szCapability = "CAP_DEVICEONLINE";
-                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+            // Parse it...
+            aszContainer = CSV.Parse(szCapability);
 
-                // If we don't find it, that's bad...                
-                if (sts != TWAIN.STS.SUCCESS)
+            // Oh dear...
+            if (aszContainer[1] != "TWON_ONEVALUE")
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE: container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + ">");
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
+                m_twaininquirydata.SetDeviceOnline(false);
+                return (m_twaininquirydata);
+            }
+
+            // If the scanner isn't online, then we can't use this driver...
+            if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE: not TRUE");
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
+                m_twaininquirydata.SetDeviceOnline(false);
+                return (m_twaininquirydata);
+            }
+
+            // Good news, everybody...
+            TWAINWorkingGroup.Log.Info(szFunction + "CAP_DEVICEONLINE: accepted");
+            m_twaininquirydata.SetDeviceOnline(true);
+
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Can we turn the UI off?  If not, support is None...
+            #region Is the UI controllable?
+
+            // Get the current value...
+            szStatus = "";
+            szCapability = "CAP_UICONTROLLABLE";
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+            // If we don't find it, that's bad...                
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE: not supported - " + sts);
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
+                m_twaininquirydata.SetUiControllable(false);
+                return (m_twaininquirydata);
+            }
+
+            // Parse it...
+            aszContainer = CSV.Parse(szCapability);
+
+            // Oh dear...
+            if (aszContainer[1] != "TWON_ONEVALUE")
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE: container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + ">");
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
+                m_twaininquirydata.SetUiControllable(false);
+                return (m_twaininquirydata);
+            }
+
+            // If we can't keep the UI off, then we can't use this driver...
+            if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE: not TRUE");
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
+                m_twaininquirydata.SetUiControllable(false);
+                return (m_twaininquirydata);
+            }
+
+            // Good news, everybody...
+            m_twaininquirydata.SetUiControllable(true);
+            TWAINWorkingGroup.Log.Info(szFunction + "CAP_UICONTROLLABLE: accepted");
+
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Check if DAT_TWAINDIRECT is supported, if not try for Extended support...
+            #region Can we use DAT_TWAINDIRECT?
+
+            // Does the driver support DAT_TWAINDIRECT?
+            szStatus = TwainGetContainer("CAP_SUPPORTEDDATS");
+            if (    !string.IsNullOrEmpty(szStatus)
+                &&  (Config.Get("useDatTwaindirect", "yes") == "yes"))
+            {
+                if ((szStatus + ",").Contains(",DG_CONTROL|DAT_TWAINDIRECT,"))
                 {
-                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE is false or not supported - " + a_szTwidentity);
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
-                    m_twaininquirydata.SetDeviceOnline(false);
-                    return (m_twaininquirydata);
+                    TWAINWorkingGroup.Log.Info(szFunction + "CAP_SUPPORTEDDATS/DAT_TWAINDIRECT: accepted");
+                    m_twaininquirydata.SetDatTwainDirect(true);
                 }
+                else
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_SUPPORTEDDATS/DAT_TWAINDIRECT: not found in list - " + szStatus);
+                    m_twaininquirydata.SetDatTwainDirect(false);
+                }
+            }
 
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Can we get extended image information, if not try for Extended support...
+            #region Is there support for DAT_EXTIMAGEINFO?
+
+            // Get the current value...
+            szStatus = "";
+            szCapability = "ICAP_EXTIMAGEINFO";
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+            // If we don't find it, that's bad...                
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO: not supported - " + sts);
+                m_twaininquirydata.SetExtImageInfo(false);
+            }
+
+            // We got something...
+            else
+            {
                 // Parse it...
                 aszContainer = CSV.Parse(szCapability);
 
                 // Oh dear...
                 if (aszContainer[1] != "TWON_ONEVALUE")
                 {
-                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
-                    m_twaininquirydata.SetDeviceOnline(false);
-                    return (m_twaininquirydata);
-                }
-
-                // If the scanner isn't online, then we can't use this driver...
-                if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_DEVICEONLINE isn't TRUE - " + a_szTwidentity);
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
-                    m_twaininquirydata.SetDeviceOnline(false);
-                    return (m_twaininquirydata);
-                }
-
-                // Good news, everybody...
-                m_twaininquirydata.SetDeviceOnline(true);
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Can we turn the UI off?  If not, support is None...
-                #region Is the UI controllable?
-
-                // Get the current value...
-                szStatus = "";
-                szCapability = "CAP_UICONTROLLABLE";
-                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-
-                // If we don't find it, that's bad...                
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE is false or not supported - " + a_szTwidentity);
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
-                    m_twaininquirydata.SetUiControllable(false);
-                    return (m_twaininquirydata);
-                }
-
-                // Parse it...
-                aszContainer = CSV.Parse(szCapability);
-
-                // Oh dear...
-                if (aszContainer[1] != "TWON_ONEVALUE")
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
-                    m_twaininquirydata.SetUiControllable(false);
-                    return (m_twaininquirydata);
-                }
-
-                // If we can't keep the UI off, then we can't use this driver...
-                if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_UICONTROLLABLE isn't TRUE - " + a_szTwidentity);
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
-                    m_twaininquirydata.SetUiControllable(false);
-                    return (m_twaininquirydata);
-                }
-
-                // Good news, everybody...
-                m_twaininquirydata.SetUiControllable(true);
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Check if DAT_TWAINDIRECT is supported, if not try for Extended support...
-                #region Can we use DAT_TWAINDIRECT?
-
-                // Does the driver support DAT_TWAINDIRECT?
-                szStatus = TwainGetContainer("CAP_SUPPORTEDDATS");
-                if (    !string.IsNullOrEmpty(szStatus)
-                    &&  (Config.Get("useDatTwaindirect", "yes") == "yes"))
-                {
-                    try
-                    {
-                        string[] asz = CSV.Parse(szStatus);
-                        if (asz.Length < 5)
-                        {
-                            TWAINWorkingGroup.Log.Error(szFunction + "CAP_SUPPORTEDDATS has a badly formed container - " + a_szTwidentity);
-                            m_twaininquirydata.SetDatTwainDirect(false);
-                        }
-                        else
-                        {
-                            int iNumItems;
-                            if (int.TryParse(asz[3], out iNumItems))
-                            {
-                                string szTwainDirect = (((int)TWAIN.DG.CONTROL << 16) + (int)TWAIN.DAT.TWAINDIRECT).ToString();
-                                for (int ii = 0; ii < iNumItems; ii++)
-                                {
-                                    if (asz[3 + ii] == szTwainDirect)
-                                    {
-                                        m_twaininquirydata.SetDatTwainDirect(true);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        TWAINWorkingGroup.Log.Error(szFunction + "CAP_SUPPORTEDDATS is not supported (exception) - " + a_szTwidentity);
-                        m_twaininquirydata.SetDatTwainDirect(false);
-                    }
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Can we get extended image information, if not try for Extended support...
-                #region Is there support for DAT_EXTIMAGEINFO?
-
-                // Get the current value...
-                szStatus = "";
-                szCapability = "ICAP_EXTIMAGEINFO";
-                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-
-                // If we don't find it, that's bad...                
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO is false or not supported - " + a_szTwidentity);
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO: container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + ">");
                     m_twaininquirydata.SetExtImageInfo(false);
                 }
 
-                // We got something...
+                // If we can't keep the UI off, then we can't use this driver...
+                else if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO: not TRUE");
+                    m_twaininquirydata.SetExtImageInfo(false);
+                }
+
+                // Good news, everybody...
+                else
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_EXTIMAGEINFO: accepted");
+                    m_twaininquirydata.SetExtImageInfo(true);
+                }
+            }
+
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Does the driver support TWEI_TWAINDIRECTMETADATA, if not try for Extended support...
+            #region We need TWEI_TWAINDIRECTMETADATA
+
+            // Does the driver support TWEI_TWAINDIRECTMETADATA?
+            szStatus = TwainGetContainer("ICAP_SUPPORTEDEXTIMAGEINFO");
+            if (string.IsNullOrEmpty(szStatus))
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO: not supported");
+                m_twaininquirydata.SetTweiTwainDirectMetadata(false);
+            }
+
+            // So far so good, now look it up...
+            else
+            {
+                if ((szStatus + ",").Contains(",TWEI_TWAINDIRECTMETADATA,"))
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO/TWEI_TWAINDIRECTMETADATA: accepted");
+                    m_twaininquirydata.SetTweiTwainDirectMetadata(true);
+                }
+                else
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO/TWEI_TWAINDIRECTMETADATA: not found in list - " + szStatus);
+                    m_twaininquirydata.SetTweiTwainDirectMetadata(false);
+                }
+            }
+
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Does the driver support TWSX_MEMFILE, if not try for Extended support...
+            #region We need TWSX_MEMFILE support
+
+            // Memory file transfer...
+            szStatus = "";
+            szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,TWSX_MEMFILE";
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH/TWSX_MEMFILE: does not support TWSX_MEMFILE");
+                m_twaininquirydata.SetImageMemFileXfer(false);
+            }
+
+            // We're good...
+            else
+            {
+                TWAINWorkingGroup.Log.Info(szFunction + "ICAP_XFERMECH/TWSX_MEMFILE: accepted");
+                m_twaininquirydata.SetImageMemFileXfer(true);
+            }
+
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Does the driver support TWFF_PDFRASTER, if not try for Extended support...
+            #region We need TWFF_PDFRASTER support
+
+            // PDF/raster...
+            szStatus = "";
+            szCapability = "ICAP_IMAGEFILEFORMAT,TWON_ONEVALUE,TWTY_UINT16,TWFF_PDFRASTER";
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT: does not support TWFF_PDFRASTER - " + sts);
+                m_twaininquirydata.SetPdfRaster(false);
+            }
+            else
+            {
+                TWAINWorkingGroup.Log.Info(szFunction + "ICAP_IMAGEFILEFORMAT/TWFF_PDFRASTER: accepted");
+                m_twaininquirydata.SetPdfRaster(true);
+            }
+
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Check for DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET, so that we can
+            // abort scanning at any time.  Strictly speaking we would need to perform
+            // an actual scan to test this.  Instead we're issuing the command, and
+            // expect to get back a TWRC_FAILURE/TWCC_SEQERROR indicating that the
+            // command is supported, but not in state 4...
+            #region We need DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET support
+
+            // MSG_RESET...
+            szStatus = "";
+            string szPendingXfers = "0,0";
+            sts = m_twain.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingXfers, ref szStatus);
+            if (sts != TWAIN.STS.SEQERROR)
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET: not supported - " + sts);
+                m_twaininquirydata.SetPendingXfersReset(false);
+            }
+            else
+            {
+                TWAINWorkingGroup.Log.Info(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET: accepted");
+                m_twaininquirydata.SetPendingXfersReset(true);
+            }
+
+            #endregion
+
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            // Switch to an ADF.  If this fails we'll skip checks for MSG_STOPFEEDER
+            // and CAP_PAPERDETECTABLE.  If it succeeds, then these items are required
+            // for us to proceed.  If it doesn't succeed then we're assuming that we
+            // have a flatbed, and these capabilities have no meaning...
+            #region Switch to ADF for more tests
+
+            // CAP_FEEDERENABLED...
+            szStatus = "";
+            szCapability = "CAP_FEEDERENABLED,0,0,0";
+            sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+            if ((sts != TWAIN.STS.SUCCESS) || (szCapability.ToLowerInvariant().EndsWith(",true") && szCapability.ToLowerInvariant().EndsWith(",1")))
+            {
+                szStatus = "";
+                szCapability = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,TRUE";
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
+            }
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER: CAP_FEEDERENABLED not supported");
+                m_twaininquirydata.SetPendingXfersStopFeeder(false);
+                m_twaininquirydata.SetPaperDetectable(false);
+            }
+            else
+            {
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                // Check for DG_CONTROL / DAT_PENDINGXFERS / MSG_STOPFEEDER, we need this to
+                // support stopCapturing...
+                #region MSG_STOPFEEDER support
+
+                szStatus = "";
+                szPendingXfers = "0,0";
+                sts = m_twain.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingXfers, ref szStatus);
+                if (sts != TWAIN.STS.SEQERROR)
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER: not supported - " + sts);
+                    m_twaininquirydata.SetPendingXfersStopFeeder(false);
+                }
+
+                // We're good...
+                else
+                {
+                    TWAINWorkingGroup.Log.Info(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER: accepted");
+                    m_twaininquirydata.SetPendingXfersStopFeeder(true);
+                }
+
+                #endregion
+
+
+                ////////////////////////////////////////////////////////////////////////////////////////////
+                // Can we detect paper?  This is a placeholder for now,
+                // ideally we shouldn't need it if a driver supports
+                // TWRC_FAILURE/TWCC_NOMEDIA, but we have no way of testing
+                // for that at this time...
+                #region Is paper detectable?
+
+                // Get the current value...
+                szStatus = "";
+                szCapability = "CAP_PAPERDETECTABLE";
+                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
+
+                // If we don't find it, that's bad...                
+                if (sts != TWAIN.STS.SUCCESS)
+                {
+                    TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE is false or not supported - " + sts);
+                    m_twaininquirydata.SetPaperDetectable(false);
+                }
+
+                // We found it...
                 else
                 {
                     // Parse it...
@@ -2838,270 +3033,53 @@ namespace TwainDirect.OnTwain
                     // Oh dear...
                     if (aszContainer[1] != "TWON_ONEVALUE")
                     {
-                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
-                        m_twaininquirydata.SetExtImageInfo(false);
-                    }
-
-                    // If we can't keep the UI off, then we can't use this driver...
-                    else if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
-                    {
-                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_EXTIMAGEINFO isn't TRUE - " + a_szTwidentity);
-                        m_twaininquirydata.SetExtImageInfo(false);
-                    }
-
-                    // Good news, everybody...
-                    else
-                    {
-                        m_twaininquirydata.SetExtImageInfo(true);
-                    }
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Does the driver support TWEI_TWAINDIRECTMETADATA, if not try for Extended support...
-                #region We need TWEI_TWAINDIRECTMETADATA
-
-                // Does the driver support TWEI_TWAINDIRECTMETADATA?
-                szStatus = TwainGetContainer("ICAP_SUPPORTEDEXTIMAGEINFO");
-                if (string.IsNullOrEmpty(szStatus))
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO is not supported - " + a_szTwidentity);
-                    m_twaininquirydata.SetTweiTwainDirectMetadata(false);
-                }
-
-                // So far so good, now look it up...
-                else
-                {
-                    try
-                    {
-                        string[] asz = CSV.Parse(szStatus);
-                        if (asz.Length < 5)
-                        {
-                            TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO has a badly formed container - " + a_szTwidentity);
-                            m_twaininquirydata.SetTweiTwainDirectMetadata(false);
-                        }
-                        else
-                        {
-                            int iNumItems;
-                            if (int.TryParse(asz[3], out iNumItems))
-                            {
-                                string szMetadata = ((int)TWAIN.TWEI.TWAINDIRECTMETADATA).ToString();
-                                for (int ii = 0; ii < iNumItems; ii++)
-                                {
-                                    if (asz[3 + ii] == szMetadata)
-                                    {
-                                        m_twaininquirydata.SetTweiTwainDirectMetadata(true);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        TWAINWorkingGroup.Log.Error(szFunction + "ICAP_SUPPORTEDEXTIMAGEINFO is not supported (exception) - " + a_szTwidentity);
-                        m_twaininquirydata.SetTweiTwainDirectMetadata(false);
-                    }
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Does the driver support TWSX_MEMFILE, if not try for Extended support...
-                #region We need TWSX_MEMFILE support
-
-                // Memory file transfer...
-                szStatus = "";
-                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16,4"; // TWSX_MEMFILE
-                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_XFERMECH does not support TWSX_MEMFILE - " + a_szTwidentity);
-                    m_twaininquirydata.SetImageMemFileXfer(false);
-                }
-
-                // We're good...
-                else
-                {
-                    m_twaininquirydata.SetImageMemFileXfer(true);
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Does the driver support TWFF_PDFRASTER, if not try for Extended support...
-                #region We need TWFF_PDFRASTER support
-
-                // PDF/raster...
-                szStatus = "";
-                szCapability = "ICAP_IMAGEFILEFORMAT,TWON_ONEVALUE,TWTY_UINT16,17"; // TWFF_PDFRASTER
-                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "ICAP_IMAGEFILEFORMAT does not support TWFF_PDFRASTER - " + a_szTwidentity);
-                    m_twaininquirydata.SetPdfRaster(false);
-                }
-
-                // We're good...
-                else
-                {
-                    m_twaininquirydata.SetPdfRaster(true);
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Check for DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET, so that we can
-                // abort scanning at any time.  Strictly speaking we would need to perform
-                // an actual scan to test this.  Instead we're issuing the command, and
-                // expect to get back a TWRC_FAILURE/TWCC_SEQERROR indicating that the
-                // command is supported, but not in state 4...
-                #region We need DG_CONTROL / DAT_PENDINGXFERS / MSG_RESET support
-
-                // MSG_RESET...
-                szStatus = "";
-                string szPendingXfers = "0,0";
-                sts = m_twain.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_RESET", ref szPendingXfers, ref szStatus);
-                if (sts != TWAIN.STS.SEQERROR)
-                {
-                    TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_RESET not supported - " + a_szTwidentity);
-                    m_twaininquirydata.SetPendingXfersReset(false);
-                }
-
-                // We're good...
-                else
-                {
-                    m_twaininquirydata.SetPendingXfersReset(true);
-                }
-
-                #endregion
-
-
-                ////////////////////////////////////////////////////////////////////////////////////////////////
-                // Switch to an ADF.  If this fails we'll skip checks for MSG_STOPFEEDER
-                // and CAP_PAPERDETECTABLE.  If it succeeds, then these items are required
-                // for us to proceed.  If it doesn't succeed then we're assuming that we
-                // have a flatbed, and these capabilities have no meaning...
-                #region Switch to ADF for more tests
-
-                // CAP_FEEDERENABLED...
-                szStatus = "";
-                szCapability = "CAP_FEEDERENABLED,0,0,0";
-                sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-                if ((sts != TWAIN.STS.SUCCESS) || (szCapability.ToLowerInvariant().EndsWith(",true") && szCapability.ToLowerInvariant().EndsWith(",1")))
-                {
-                    szStatus = "";
-                    szCapability = "CAP_FEEDERENABLED,TWON_ONEVALUE,TWTY_BOOL,1"; // TRUE
-                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
-                }
-                if (sts != TWAIN.STS.SUCCESS)
-                {
-                    m_twaininquirydata.SetPendingXfersStopFeeder(false);
-                    m_twaininquirydata.SetPaperDetectable(false);
-                }
-                else
-                {
-                    ////////////////////////////////////////////////////////////////////////////////////////////
-                    // Check for DG_CONTROL / DAT_PENDINGXFERS / MSG_STOPFEEDER, we need this to
-                    // support stopCapturing...
-                    #region MSG_STOPFEEDER support
-
-                    szStatus = "";
-                    szPendingXfers = "0,0";
-                    sts = m_twain.Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szPendingXfers, ref szStatus);
-                    if (sts != TWAIN.STS.SEQERROR)
-                    {
-                        TWAINWorkingGroup.Log.Error(szFunction + "DG_CONTROL/DAT_PENDINGXFERS/MSG_STOPFEEDER not supported - " + a_szTwidentity);
-                        m_twaininquirydata.SetPendingXfersStopFeeder(false);
-                    }
-
-                    // We're good...
-                    else
-                    {
-                        m_twaininquirydata.SetPendingXfersStopFeeder(true);
-                    }
-
-                    #endregion
-
-
-                    ////////////////////////////////////////////////////////////////////////////////////////////
-                    // Can we detect paper?  This is a placeholder for now,
-                    // ideally we shouldn't need it if a driver supports
-                    // TWRC_FAILURE/TWCC_NOMEDIA, but we have no way of testing
-                    // for that at this time...
-                    #region Is paper detectable?
-
-                    // Get the current value...
-                    szStatus = "";
-                    szCapability = "CAP_PAPERDETECTABLE";
-                    sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-
-                    // If we don't find it, that's bad...                
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE is false or not supported - " + a_szTwidentity);
+                        TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + ">");
                         m_twaininquirydata.SetPaperDetectable(false);
                     }
 
-                    // We found it...
+                    // Okay, now look for a value...
                     else
                     {
-                        // Parse it...
-                        aszContainer = CSV.Parse(szCapability);
-
-                        // Oh dear...
-                        if (aszContainer[1] != "TWON_ONEVALUE")
+                        // We seeketh truth...
+                        if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
                         {
-                            TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE container for MSG_GETCURRENT must be TWON_ONEVALUE, got <" + aszContainer[1] + "> - " + a_szTwidentity);
+                            TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE: not TRUE");
                             m_twaininquirydata.SetPaperDetectable(false);
                         }
 
-                        // Okay, now look for a value...
+                        // Good news, everybody...
                         else
                         {
-                            // We seeketh truth...
-                            if ((aszContainer[3] != "1") && (aszContainer[3] != "TRUE"))
-                            {
-                                TWAINWorkingGroup.Log.Error(szFunction + "CAP_PAPERDETECTABLE isn't TRUE - " + a_szTwidentity);
-                                m_twaininquirydata.SetPaperDetectable(false);
-                            }
-
-                            // Good news, everybody...
-                            else
-                            {
-                                m_twaininquirydata.SetPaperDetectable(true);
-                            }
+                            TWAINWorkingGroup.Log.Info(szFunction + "CAP_PAPERDETECTABLE: accepted");
+                            m_twaininquirydata.SetPaperDetectable(true);
                         }
                     }
-
-                    #endregion
                 }
 
                 #endregion
-
-
-                // Congratulations, this is enough for Driver support...
-                if (   m_twaininquirydata.GetDeviceOnline()
-                    && m_twaininquirydata.GetUiControllable()
-                    && m_twaininquirydata.GetDatTwainDirect()
-                    && m_twaininquirydata.GetExtImageInfo()
-                    && m_twaininquirydata.GetTweiTwainDirectMetadata()
-                    && m_twaininquirydata.GetImageMemFileXfer()
-                    && m_twaininquirydata.GetPdfRaster()
-                    && m_twaininquirydata.GetPendingXfersReset())
-                {
-                    m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Driver);
-                }
-
-
-                // Break out of the "loop" and move on...
-                break;
             }
+
+            #endregion
+
+
+            // Congratulations, this is enough for Driver support...
+            if (m_twaininquirydata.GetDeviceOnline()
+                && m_twaininquirydata.GetUiControllable()
+                && m_twaininquirydata.GetDatTwainDirect()
+                && m_twaininquirydata.GetExtImageInfo()
+                && m_twaininquirydata.GetTweiTwainDirectMetadata()
+                && m_twaininquirydata.GetImageMemFileXfer()
+                && m_twaininquirydata.GetPdfRaster()
+                && m_twaininquirydata.GetPendingXfersReset())
+            {
+                m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Driver);
+            }
+
+
+            // Tell us where we are...
+            TWAINWorkingGroup.Log.Info(" ");
+            TWAINWorkingGroup.Log.Info(szFunction + "End 'driver' inquiry section...");
+
 
             // Collect additional information about the scanner, again, we're using
             // the loop for flow control.  We do this, even for Driver support, in
@@ -3868,7 +3846,7 @@ namespace TwainDirect.OnTwain
 
             // All done...
             TWAINWorkingGroup.Log.Info(" ");
-            TWAINWorkingGroup.Log.Info("TwainInquiry completed...");
+            TWAINWorkingGroup.Log.Info("TwainInquiry completed...(setting is " + m_twaininquirydata.GetTwainDirectSupport() + ")");
 
             // All done...
             return (m_twaininquirydata);
