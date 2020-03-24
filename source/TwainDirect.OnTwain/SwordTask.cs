@@ -2663,17 +2663,23 @@ namespace TwainDirect.OnTwain
             // Give a clue where we are...
             TWAINWorkingGroup.Log.Info(" ");
             TWAINWorkingGroup.Log.Info(szFunction + "begin...");
+            TWAINWorkingGroup.Log.Info(szFunction + "begin 'driver' inquiry section...");
 
             // Start a new object, assume support is none, unless told otherwise...
             m_twaininquirydata = new DeviceRegister.TwainInquiryData();
             m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.None);
 
-            // I'm using the loop so I can control code flow with break
-            // statements.  This section checks for Driver support, meaning
-            // that the TWAIN driver advertises all of the functionality
-            // needed to process TWAIN Direct tasks, generate TWAIN Direct
-            // metadata and PDF/raster images, and provide sufficient control
-            // to allow things like stopping the feeder (if it has a feeder).
+            // This section checks for Driver support, meaning that the TWAIN driver advertises all of the
+            // functionality needed to process TWAIN Direct tasks, generate TWAIN Direct metadata and
+            // PDF /raster images, and provide sufficient control to allow things like stopping the feeder
+            // (if it has a feeder).
+            //
+            // **********************************************************************************
+            // **                                                                              **
+            // ** IF TESTS ARE ADDED HERE, THEY MUST ALSO BE ADDED TO THE TWAIN DIRECT TEST IN **
+            // ** THE 'twaincscert\source\data\certification\100 - TWAIN Direct Tests' FOLFER. **
+            // **                                                                              **
+            // **********************************************************************************
             //
             // The goal is to get by with the fewest number of tests needed
             // to implement the TWAIN Local interface.  Right now that pans
@@ -2964,6 +2970,7 @@ namespace TwainDirect.OnTwain
             #region Switch to ADF for more tests
 
             // CAP_FEEDERENABLED...
+            bool blAdfSuppport = false;
             szStatus = "";
             szCapability = "CAP_FEEDERENABLED,0,0,0";
             sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
@@ -2981,6 +2988,9 @@ namespace TwainDirect.OnTwain
             }
             else
             {
+                // So far, so good...
+                blAdfSuppport = true;
+
                 ////////////////////////////////////////////////////////////////////////////////////////////
                 // Check for DG_CONTROL / DAT_PENDINGXFERS / MSG_STOPFEEDER, we need this to
                 // support stopCapturing...
@@ -3070,7 +3080,9 @@ namespace TwainDirect.OnTwain
                 && m_twaininquirydata.GetTweiTwainDirectMetadata()
                 && m_twaininquirydata.GetImageMemFileXfer()
                 && m_twaininquirydata.GetPdfRaster()
-                && m_twaininquirydata.GetPendingXfersReset())
+                && m_twaininquirydata.GetPendingXfersReset()
+                && (!blAdfSuppport || m_twaininquirydata.GetPendingXfersStopFeeder())
+                && (!blAdfSuppport || m_twaininquirydata.GetPaperDetectable()))
             {
                 m_twaininquirydata.SetTwainDirectSupport(DeviceRegister.TwainDirectSupport.Driver);
             }
@@ -3078,7 +3090,7 @@ namespace TwainDirect.OnTwain
 
             // Tell us where we are...
             TWAINWorkingGroup.Log.Info(" ");
-            TWAINWorkingGroup.Log.Info(szFunction + "End 'driver' inquiry section...");
+            TWAINWorkingGroup.Log.Info(szFunction + "end 'driver' inquiry section...");
 
 
             // Collect additional information about the scanner, again, we're using
