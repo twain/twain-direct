@@ -101,6 +101,10 @@ namespace TwainDirect.App
 
             // Build our form...
             InitializeComponent();
+            m_pictureboxImage1.DoubleClick += m_pictureboxImage_DoubleClick;
+            m_pictureboxImage2.DoubleClick += m_pictureboxImage_DoubleClick;
+            m_textbox1.DoubleClick += m_textbox_DoubleClick;
+            m_textbox2.DoubleClick += m_textbox_DoubleClick;
 
             // Populate the cloud api root combobox...
             int ii = 0;
