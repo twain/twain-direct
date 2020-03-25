@@ -1727,12 +1727,13 @@ namespace TwainDirect.OnTwain
             // are tagged with extended support...
             else if (a_swordaction.GetProcessSwordTask().GetDeviceRegister().GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
             {
+                string szIcapXfermach = Config.Get("icapXfermech", "TWSX_MEMORY");
                 szStatus = "";
-                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + Config.Get("icapXfermech", "TWSX_MEMORY");
+                szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + szIcapXfermach;
                 sts = m_twain.Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                 if (sts != TWAIN.STS.SUCCESS)
                 {
-                    TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to TWSX_MEMORY");
+                    TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to " + szIcapXfermach);
                     a_swordaction.SetError("fail", a_swordaction.GetJsonKey() + ".action", "invalidValue", -1);
                     return (false);
                 }

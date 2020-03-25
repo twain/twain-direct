@@ -1047,24 +1047,6 @@ namespace TwainDirect.OnTwain
                         Rollback(TWAIN.STATE.S4);
                     }
                 }
-
-                // Memfile transfers need this...
-                if ((m_twsxXferMech == TWAIN.TWSX.MEMORY) || (m_twsxXferMech == TWAIN.TWSX.MEMFILE))
-                {
-                    // Pick an image file format...
-                    szTwmemref = "C:/image.pdf,TWFF_PDFRASTER,0";
-                    szStatus = "";
-                    sts = Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szTwmemref, ref szStatus);
-                    if (sts != TWAIN.STS.SUCCESS)
-                    {
-                        m_blXferReadySent = false;
-                        if (!m_blDisableDsSent)
-                        {
-                            m_blDisableDsSent = true;
-                            Rollback(TWAIN.STATE.S4);
-                        }
-                    }
-                }
             }
 
             // Handle DAT_NULL/MSG_CLOSEDSREQ...
@@ -1106,6 +1088,14 @@ namespace TwainDirect.OnTwain
 
                     case TWAIN.TWSX.MEMFILE:
                         sts = CaptureMemfileImages();
+                        break;
+
+                    case TWAIN.TWSX.NATIVE:
+                        sts = CaptureNativeImages();
+                        break;
+
+                    case TWAIN.TWSX.FILE:
+                        sts = CaptureFileImages();
                         break;
                 }
 
@@ -1185,6 +1175,7 @@ namespace TwainDirect.OnTwain
                             return (sts);
                         }
                     }
+
                     // Transfer data...
                     szTwmemref = "0,0,0,0,0,0,0," + ((int)TWAIN.TWMF.APPOWNS | (int)TWAIN.TWMF.POINTER) + "," + m_twsetupmemxfer.Preferred + "," + m_intptrXfer;
                     szStatus = "";
@@ -1337,6 +1328,7 @@ namespace TwainDirect.OnTwain
                             return (sts);
                         }
                     }
+
                     // Transfer data...
                     szTwmemref = "0,0,0,0,0,0,0," + ((int)TWAIN.TWMF.APPOWNS | (int)TWAIN.TWMF.POINTER) + "," + m_twsetupmemxfer.Preferred + "," + m_intptrXfer;
                     szStatus = "";
@@ -1429,6 +1421,311 @@ namespace TwainDirect.OnTwain
                     Rollback(TWAIN.STATE.S4);
                     return (TWAIN.STS.SUCCESS);
                 }
+            }
+
+            // All done...
+            return (TWAIN.STS.SUCCESS);
+        }
+
+        /// <summary>
+        /// Go through the sequence needed to capture images using DAT_IMAGENATIVEXFER...
+        /// </summary>
+        private TWAIN.STS CaptureNativeImages()
+        {
+            int iImageBytes;
+            UInt64 u64Handle;
+            IntPtr intptrHandle;
+            IntPtr intptrImage;
+            string szTwmemref = "";
+            string szStatus = "";
+            byte[] abBitmap;
+            TWAIN.STS sts;
+            TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
+            TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
+
+            // We're exiting, get out of here...
+            if (m_blReset && !m_blResetSent)
+            {
+                m_blResetSent = true;
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return (TWAIN.STS.SUCCESS);
+            }
+
+            // Dispatch on the state...
+            switch (m_twain.GetState())
+            {
+                // Not a good state, just scoot...
+                default:
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return (TWAIN.STS.SEQERROR);
+
+                // We're on our way out...
+                case TWAIN.STATE.S5:
+                    m_blResetSent = true;
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return (TWAIN.STS.SUCCESS);
+
+                // Native transfer...
+                case TWAIN.STATE.S6:
+                    // Gracefully end scanning, if that fails, go hard...
+                    if (m_blStopFeeder && !m_blStopFeederSent)
+                    {
+                        m_blStopFeederSent = true;
+                        szTwmemref = "0,0";
+                        szStatus = "";
+                        sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szTwmemref, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            m_blResetSent = true;
+                            m_blDisableDsSent = true;
+                            Rollback(TWAIN.STATE.S4);
+                            return (sts);
+                        }
+                    }
+
+                    // Transfer data...
+                    szTwmemref = "0";
+                    szStatus = "";
+                    sts = Send("DG_IMAGE", "DAT_IMAGENATIVEXFER", "MSG_GET", ref szTwmemref, ref szStatus);
+                    if (sts != TWAIN.STS.XFERDONE)
+                    {
+                        m_blDisableDsSent = true;
+                        Rollback(TWAIN.STATE.S4);
+                        return (sts);
+                    }
+                    break;
+            }
+
+            // Make sure we got a non-zero value...
+            u64Handle = 0;
+            UInt64.TryParse(szTwmemref, out u64Handle);
+            intptrHandle = (IntPtr)u64Handle;
+            if (intptrHandle == IntPtr.Zero)
+            {
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return (TWAIN.STS.LOWMEMORY);
+            }
+
+            // Turn the handle into a byte array, and free the handle...
+            abBitmap = m_twain.NativeToByteArray(intptrHandle, true);
+            m_twain.DsmMemFree(ref intptrHandle);
+
+            // This isn't ideal, but it'll get us where we need to be...
+            iImageBytes = abBitmap.Length;
+            intptrImage = Marshal.AllocHGlobal(iImageBytes);
+            Marshal.Copy(abBitmap, 0, intptrImage, iImageBytes);
+            abBitmap = null;
+
+            // Get the image info...
+            szTwmemref = "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+            szStatus = "";
+            sts = Send("DG_IMAGE", "DAT_IMAGEINFO", "MSG_GET", ref szTwmemref, ref szStatus);
+            m_twain.CsvToImageinfo(ref twimageinfo, szTwmemref);
+
+            // Save the image to disk, along with any metadata...
+            sts = ReportImage(twimageinfo, intptrImage, iImageBytes);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error("ReportImage failed...");
+                Marshal.FreeHGlobal(intptrImage);
+                intptrImage = IntPtr.Zero;
+                iImageBytes = 0;
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return (TWAIN.STS.FILEWRITEERROR);
+            }
+
+            // Cleanup...
+            Marshal.FreeHGlobal(intptrImage);
+            intptrImage = IntPtr.Zero;
+            iImageBytes = 0;
+
+            // End the transfer...
+            szTwmemref = "0,0";
+            szStatus = "";
+            sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_ENDXFER", ref szTwmemref, ref szStatus);
+            m_twain.CsvToPendingXfers(ref twpendingxfers, szTwmemref);
+
+            // Looks like we're done!
+            if (twpendingxfers.Count == 0)
+            {
+                m_blResetSent = true;
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return (TWAIN.STS.SUCCESS);
+            }
+
+            // All done...
+            return (TWAIN.STS.SUCCESS);
+        }
+
+        /// <summary>
+        /// Go through the sequence needed to capture images using DAT_IMAGEFILEXFER...
+        /// </summary>
+        private TWAIN.STS CaptureFileImages()
+        {
+            int iImageBytes;
+            IntPtr intptrImage;
+            string szTwmemref = "";
+            string szStatus = "";
+            string szImagefilexferFile = "";
+            byte[] abImage;
+            TWAIN.STS sts;
+            TWAIN.TW_IMAGEINFO twimageinfo = default(TWAIN.TW_IMAGEINFO);
+            TWAIN.TW_PENDINGXFERS twpendingxfers = default(TWAIN.TW_PENDINGXFERS);
+
+            // We're exiting, get out of here...
+            if (m_blReset && !m_blResetSent)
+            {
+                m_blResetSent = true;
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return (TWAIN.STS.SUCCESS);
+            }
+
+            // Dispatch on the state...
+            switch (m_twain.GetState())
+            {
+                // Not a good state, just scoot...
+                default:
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return (TWAIN.STS.SEQERROR);
+
+                // We're on our way out...
+                case TWAIN.STATE.S5:
+                    m_blResetSent = true;
+                    m_blDisableDsSent = true;
+                    Rollback(TWAIN.STATE.S4);
+                    return (TWAIN.STS.SUCCESS);
+
+                // File transfer...
+                case TWAIN.STATE.S6:
+                    // Gracefully end scanning, if that fails, go hard...
+                    if (m_blStopFeeder && !m_blStopFeederSent)
+                    {
+                        m_blStopFeederSent = true;
+                        szTwmemref = "0,0";
+                        szStatus = "";
+                        sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_STOPFEEDER", ref szTwmemref, ref szStatus);
+                        if (sts != TWAIN.STS.SUCCESS)
+                        {
+                            m_blResetSent = true;
+                            m_blDisableDsSent = true;
+                            Rollback(TWAIN.STATE.S4);
+                            return (sts);
+                        }
+                    }
+
+                    // Get the image info...
+                    szTwmemref = "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+                    szStatus = "";
+                    sts = Send("DG_IMAGE", "DAT_IMAGEINFO", "MSG_GET", ref szTwmemref, ref szStatus);
+                    m_twain.CsvToImageinfo(ref twimageinfo, szTwmemref);
+
+                    // Pick a file format...
+                    szImagefilexferFile = Path.Combine(m_szImagesFolder, "imagefilexfer.tmp");
+                    if (File.Exists(szImagefilexferFile))
+                    {
+                        File.Delete(szImagefilexferFile);
+                    }
+                    szTwmemref = szImagefilexferFile + "," + ((twimageinfo.Compression == (ushort)TWAIN.TWCP.JPEG) ? "TWFF_JFIF" : "TWFF_TIFF") + ",0";
+                    szStatus = "";
+                    sts = Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szTwmemref, ref szStatus);
+                    if (sts != TWAIN.STS.SUCCESS)
+                    {
+                        m_blXferReadySent = false;
+                        if (!m_blDisableDsSent)
+                        {
+                            m_blDisableDsSent = true;
+                            Rollback(TWAIN.STATE.S4);
+                        }
+                    }
+
+                    // Transfer data...
+                    szTwmemref = "";
+                    szStatus = "";
+                    sts = Send("DG_IMAGE", "DAT_IMAGEFILEXFER", "MSG_GET", ref szTwmemref, ref szStatus);
+                    if ((sts != TWAIN.STS.XFERDONE) || !File.Exists(szImagefilexferFile))
+                    {
+                        m_blDisableDsSent = true;
+                        Rollback(TWAIN.STATE.S4);
+                        return (sts);
+                    }
+                    break;
+            }
+
+            // If it's JPEG, we can just read the file and go...
+            if (twimageinfo.Compression == (ushort)TWAIN.TWCP.JPEG)
+            {
+                abImage = File.ReadAllBytes(szImagefilexferFile);
+                iImageBytes = abImage.Length;
+                intptrImage = Marshal.AllocHGlobal(iImageBytes);
+                Marshal.Copy(abImage, 0, intptrImage, iImageBytes);
+                abImage = null;
+            }
+
+            // If it's TIFF, we have to strip off the TIFF header...
+            else
+            {
+                int iOffset = 0;
+                Image image = Image.FromFile(szImagefilexferFile);
+                PropertyItem propetyitem = image.GetPropertyItem(0x0111 /*PropertyTagStripOffsets*/);
+                if (propetyitem.Type == 3 /*PropertyTagTypeShort*/)
+                {
+                    iOffset = propetyitem.Value[0];
+                    iOffset += propetyitem.Value[1] << 8;
+                }
+                else if (propetyitem.Type == 4 /*PropertyTagTypeLong*/)
+                {
+                    iOffset = propetyitem.Value[0];
+                    iOffset += propetyitem.Value[1] << 8;
+                    iOffset += propetyitem.Value[2] << 16;
+                    iOffset += propetyitem.Value[3] << 24;
+                }
+                image.Dispose();
+                abImage = File.ReadAllBytes(szImagefilexferFile);
+                iImageBytes = abImage.Length - iOffset;
+                intptrImage = Marshal.AllocHGlobal(iImageBytes);
+                Marshal.Copy(abImage, iOffset, intptrImage, iImageBytes);
+                abImage = null;
+            }
+
+            // Save the image to disk, along with any metadata...
+            sts = ReportImage(twimageinfo, intptrImage, iImageBytes);
+            if (sts != TWAIN.STS.SUCCESS)
+            {
+                TWAINWorkingGroup.Log.Error("ReportImage failed...");
+                Marshal.FreeHGlobal(intptrImage);
+                intptrImage = IntPtr.Zero;
+                iImageBytes = 0;
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return (TWAIN.STS.FILEWRITEERROR);
+            }
+
+            // Cleanup...
+            Marshal.FreeHGlobal(intptrImage);
+            intptrImage = IntPtr.Zero;
+            iImageBytes = 0;
+
+            // End the transfer...
+            szTwmemref = "0,0";
+            szStatus = "";
+            sts = Send("DG_CONTROL", "DAT_PENDINGXFERS", "MSG_ENDXFER", ref szTwmemref, ref szStatus);
+            m_twain.CsvToPendingXfers(ref twpendingxfers, szTwmemref);
+
+            // Looks like we're done!
+            if (twpendingxfers.Count == 0)
+            {
+                m_blResetSent = true;
+                m_blDisableDsSent = true;
+                Rollback(TWAIN.STATE.S4);
+                return (TWAIN.STS.SUCCESS);
             }
 
             // All done...
@@ -1861,8 +2158,8 @@ namespace TwainDirect.OnTwain
                 szMeta += "}";
 
                 // Unfortunately, we need a copy...
-                byte[] abImage = new byte[m_iImageBytes];
-                Marshal.Copy(m_intptrImage, abImage, 0, m_iImageBytes);
+                byte[] abImage = new byte[a_iImageBytes];
+                Marshal.Copy(a_intptrImage, abImage, 0, a_iImageBytes);
 
                 // We have to do this ourselves, save as PDF/Raster...
                 blSuccess = PdfRaster.CreatePdfRaster
@@ -2498,8 +2795,6 @@ namespace TwainDirect.OnTwain
                     if (m_deviceregisterSession.GetTwainInquiryData().GetTwainDirectSupport() == DeviceRegister.TwainDirectSupport.Extended)
                     {
                         string szIcapXfermach = Config.Get("icapXfermech", "TWSX_MEMORY");
-
-                        // Request the transfer type...
                         szStatus = "";
                         szCapability = "ICAP_XFERMECH,TWON_ONEVALUE,TWTY_UINT16," + szIcapXfermach;
                         sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
@@ -2508,30 +2803,8 @@ namespace TwainDirect.OnTwain
                             TWAINWorkingGroup.Log.Info("Action: we can't set ICAP_XFERMECH to " + szIcapXfermach);
                             return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
                         }
-
-                        // If we're doing file transfers, pick the file...
-                        if (szIcapXfermach == "TWSX_FILE")
-                        {
-                            // Pick the file...
-                            szStatus = "";
-                            string szPlaceholder = Path.Combine(Path.GetDirectoryName(m_szImagesFolder), "imagefilexfer");
-                            if (Directory.Exists(szPlaceholder))
-                            {
-                                Directory.Delete(szPlaceholder, true);
-                            }
-                            Directory.CreateDirectory(szPlaceholder);
-                            szCapability = szPlaceholder + ",TWFF_TIFF,0";
-                            sts = Send("DG_CONTROL", "DAT_SETUPFILEXFER", "MSG_SET", ref szCapability, ref szStatus);
-                            if (sts != TWAIN.STS.SUCCESS)
-                            {
-                                TWAINWorkingGroup.Log.Warn("Action: we can't set DAT_SETUPFILEXFER to TWFF_TIFF");
-                                return (TwainLocalScanner.ApiStatus.invalidCapturingOptions);
-                            }
-
-                            // And ask for this, because TIFF JPEG is ugly...
-                            //m_twaincstoolkit.SetAutomaticJpegOrTiff(true);
-                        }
                     }
+
                     // Native transfer (basic)...
                     else
                     {
@@ -2552,7 +2825,7 @@ namespace TwainDirect.OnTwain
                     if (Config.Get("useCapIndicators", "true") != "false")
                     {
                         szStatus = "";
-                        szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,0";
+                        szCapability = "CAP_INDICATORS,TWON_ONEVALUE,TWTY_BOOL,FALSE";
                         sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                         if (sts != TWAIN.STS.SUCCESS)
                         {
@@ -2567,10 +2840,10 @@ namespace TwainDirect.OnTwain
                         szStatus = "";
                         szCapability = "ICAP_EXTIMAGEINFO";
                         sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_GETCURRENT", ref szCapability, ref szStatus);
-                        if ((sts == TWAIN.STS.SUCCESS) && szStatus.EndsWith("0"))
+                        if ((sts == TWAIN.STS.SUCCESS) && (szStatus.EndsWith("0") || szStatus.EndsWith("FALSE")))
                         {
                             szStatus = "";
-                            szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,1";
+                            szCapability = "ICAP_EXTIMAGEINFO,TWON_ONEVALUE,TWTY_BOOL,TRUE";
                             sts = Send("DG_CONTROL", "DAT_CAPABILITY", "MSG_SET", ref szCapability, ref szStatus);
                             if (sts != TWAIN.STS.SUCCESS)
                             {
@@ -2588,11 +2861,11 @@ namespace TwainDirect.OnTwain
             // is written so that only 'false' will work...
             if (Config.Get("useCapIndicators", "true") != "false")
             {
-                szUserInterface = "0,0";
+                szUserInterface = "FALSE,FALSE," + m_formtwain.Handle;
             }
             else
             {
-                szUserInterface = "1,0";
+                szUserInterface = "TRUE,FALSE," + m_formtwain.Handle;
             }
                 
             // Start scanning (no UI)...

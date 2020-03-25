@@ -2369,6 +2369,12 @@ namespace TwainDirect.App
             // Create a command context...
             apicmd = new ApiCmd(m_dnssddeviceinfo);
 
+            // Protection, in case something unexpectedly closed us in a previous run...
+            if (m_twainlocalscannerclient == null)
+            {
+                m_twainlocalscannerclient = new TwainLocalScannerClient(EventCallback, this, false);
+            }
+
             // We need this to get the x-privet-token...
             blSuccess = m_twainlocalscannerclient.ClientInfo(ref apicmd);
             if (!blSuccess)

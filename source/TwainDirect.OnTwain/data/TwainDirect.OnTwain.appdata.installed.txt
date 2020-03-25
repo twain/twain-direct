@@ -57,11 +57,10 @@
 
     "commentIcapXfermech": [
         "******************************************************************************",
-        "default: TWSX_MEMORY",
-        "TWSX_MEMORY - memory transfers",
-        "TWSX_MEMFILE - memory file transfers"
+        "default: driver-TWSX_MEMFILE, extended-TWSX_MEMORY, basic-TWSX_NATIVE",
+        "You can override extended to use TWSX_FILE, otherwise changing this is unwise."
     ],
-    "XicapXfermech": "TWSX_MEMORY",
+    "XicapXfermech": "TWSX_FILE",
 
 
 
