@@ -40,6 +40,7 @@
 
 // Helpers...
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
@@ -900,8 +901,7 @@ namespace TwainDirect.OnTwain
             }
 
             // Cycle through the drivers and build up a list of identities...
-            int iIndex = -1;
-            string[] aszTwidentity = new string[256];
+            List<string> lszTwidentity = new List<string>();
             twidentity = default(TWAIN.TW_IDENTITY);
             for (sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.GETFIRST, ref twidentity);
                  sts != TWAIN.STS.ENDOFLIST;
@@ -917,8 +917,7 @@ namespace TwainDirect.OnTwain
                 }
 
                 // Save this identity...
-                iIndex += 1;
-                aszTwidentity[iIndex] = twain.IdentityToCsv(twidentity);
+                lszTwidentity.Add(TWAIN.IdentityToCsv(twidentity));
 
                 // In inquiry mode, we can scoot if we get this far...
                 if (!string.IsNullOrEmpty(szTwainListProductName))
@@ -934,7 +933,7 @@ namespace TwainDirect.OnTwain
             if (!string.IsNullOrEmpty(a_szTwainListAction) && (a_szTwainListAction == "getproductnames"))
             {
                 // If we have nothing, return an empty string...
-                if (aszTwidentity.Length == 0)
+                if (lszTwidentity.Count == 0)
                 {
                     twain.DatParent(TWAIN.DG.CONTROL, TWAIN.MSG.CLOSEDSM, ref intptrHwnd);
                     twain.Dispose();
@@ -942,11 +941,17 @@ namespace TwainDirect.OnTwain
                     return ("");
                 }
 
+                // If we have more than one item, sort the list...
+                if (lszTwidentity.Count > 1)
+                {
+                    lszTwidentity.Sort(SortProductNames);
+                }
+
                 // Otherwise, build a list of scanner names...
                 szList = "{\"scanners\":[";
-                for (int ii = 0; (ii < aszTwidentity.Length) && !string.IsNullOrEmpty(aszTwidentity[ii]); ii++)
+                for (int ii = 0; (ii < lszTwidentity.Count) && !string.IsNullOrEmpty(lszTwidentity[ii]); ii++)
                 {
-                    string[] aszTwidentityBits = CSV.Parse(aszTwidentity[ii]);
+                    string[] aszTwidentityBits = CSV.Parse(lszTwidentity[ii]);
                     if (ii > 0)
                     {
                         szList += ",";
@@ -969,7 +974,7 @@ namespace TwainDirect.OnTwain
             // Okay, we have a list of identities, so now let's try to open each one of
             // them up and ask some questions...
             szList = "{\"scanners\":[";
-            foreach (string szTwidentity in aszTwidentity)
+            foreach (string szTwidentity in lszTwidentity)
             {
                 DeviceRegister.TwainInquiryData twaininquirydata;
 
@@ -991,7 +996,7 @@ namespace TwainDirect.OnTwain
                 }
 
                 // Open the driver...
-                twain.CsvToIdentity(ref twidentityLast, szTwidentity);
+                TWAIN.CsvToIdentity(ref twidentityLast, szTwidentity);
                 try
                 {
                     sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.OPENDS, ref twidentityLast);
@@ -1067,6 +1072,21 @@ namespace TwainDirect.OnTwain
         }
 
         /// <summary>
+        /// A comparison operator for product names in a twidentity list...
+        /// </summary>
+        /// <param name="name1"></param>
+        /// <param name="name2"></param>
+        /// <returns></returns>
+        private static int SortProductNames(string a_twidentity1, string a_twidentity2)
+        {
+            TWAIN.TW_IDENTITY twidentity1 = default(TWAIN.TW_IDENTITY);
+            TWAIN.TW_IDENTITY twidentity2 = default(TWAIN.TW_IDENTITY);
+            TWAIN.CsvToIdentity(ref twidentity1, a_twidentity1);
+            TWAIN.CsvToIdentity(ref twidentity2, a_twidentity2);
+            return (twidentity1.ProductName.Get().CompareTo(twidentity2.ProductName.Get()));
+        }
+
+        /// <summary>
         /// Select a TWAIN driver to scan with...
         /// </summary>
         /// <param name="a_szTwainDriverIdentity">The current driver, in case the user cancels the selection</param>
@@ -1112,7 +1132,7 @@ namespace TwainDirect.OnTwain
             sts = twain.DatIdentity(TWAIN.DG.CONTROL, TWAIN.MSG.USERSELECT, ref twidentity);
             if (sts == TWAIN.STS.SUCCESS)
             {
-                szTwainDriverIdentity = twain.IdentityToCsv(twidentity);
+                szTwainDriverIdentity = TWAIN.IdentityToCsv(twidentity);
             }
             else
             {
@@ -4394,7 +4414,7 @@ namespace TwainDirect.OnTwain
                 }
                 else
                 {
-                    m_szTwainDriverIdentity = twain.IdentityToCsv(twidentity);
+                    m_szTwainDriverIdentity = TWAIN.IdentityToCsv(twidentity);
                 }
             }
 
@@ -4408,7 +4428,7 @@ namespace TwainDirect.OnTwain
                 {
                     if (twidentity.ProductName.Get() == a_szScanner)
                     {
-                        m_szTwainDriverIdentity = twain.IdentityToCsv(twidentity);
+                        m_szTwainDriverIdentity = TWAIN.IdentityToCsv(twidentity);
                         break;
                     }
                     twidentity = default(TWAIN.TW_IDENTITY);
