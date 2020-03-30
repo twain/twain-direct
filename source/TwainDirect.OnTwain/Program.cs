@@ -60,7 +60,11 @@ namespace TwainDirect.OnTwain
         [STAThread]
         static void Main(string[] a_aszArgs)
         {
-            // Override the logging system...
+            // Override TWAIN's logging system.  We're doing this so
+            // that we can integrate our logging with TWAIN to get a
+            // nice continous log between the two systems.  we don't
+            // directly use TwainDirect's logging anywhere in this
+            // product, except in this call...
             TWAINWorkingGroup.Log.Override
             (
                 TwainDirect.Support.Log.Close,

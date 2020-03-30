@@ -672,7 +672,7 @@ namespace TwainDirect.OnTwain
                         TWAIN.TW_ENTRYPOINT twentrypoint = default(TWAIN.TW_ENTRYPOINT);
                         twentrypoint.Size = (uint)Marshal.SizeOf(twentrypoint);
                         sts = m_twain.DatEntrypoint((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twentrypoint);
-                        a_szTwmemref = m_twain.EntrypointToCsv(twentrypoint);
+                        a_szTwmemref = TWAIN.EntrypointToCsv(twentrypoint);
                     }
                     break;
 
@@ -689,9 +689,9 @@ namespace TwainDirect.OnTwain
                 case (int)TWAIN.DAT.EXTIMAGEINFO:
                     {
                         TWAIN.TW_EXTIMAGEINFO twextimageinfo = default(TWAIN.TW_EXTIMAGEINFO);
-                        m_twain.CsvToExtimageinfo(ref twextimageinfo, a_szTwmemref);
+                        TWAIN.CsvToExtimageinfo(ref twextimageinfo, a_szTwmemref);
                         sts = m_twain.DatExtimageinfo((TWAIN.DG)iDg, (TWAIN.MSG)iMsg, ref twextimageinfo);
-                        a_szTwmemref = m_twain.ExtimageinfoToCsv(twextimageinfo);
+                        a_szTwmemref = TWAIN.ExtimageinfoToCsv(twextimageinfo);
                     }
                     break;
 
