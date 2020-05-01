@@ -74,9 +74,9 @@ echo.
 echo *** Copying files to the twaindirect_00000000 folder...
 xcopy "%~dp0%..\source\TWAIN Direct.rtf" "twaindirect_00000000\" | find /V "File(s)"
 xcopy "%~dp0%..\source\TwainDirect.OnTwain\TWAIN CS.rtf" "twaindirect_00000000\" | find /V "File(s)"
-xcopy "%~dp0%..\source\TwainDirect.App.Installer\bin\Debug\en-US\*.msi" "twaindirect_00000000\" | find /V "File(s)"
-xcopy "%~dp0%..\source\TwainDirect.Certification.Installer\bin\Debug\en-US\*.msi" "twaindirect_00000000\" | find /V "File(s)"
-xcopy "%~dp0%..\source\TwainDirect.Scanner.Installer\bin\Debug\en-US\*.msi" "twaindirect_00000000\" | find /V "File(s)"
+xcopy "%~dp0%..\source\TwainDirect.App.Installer\bin\Release\en-US\*.msi" "twaindirect_00000000\" | find /V "File(s)"
+xcopy "%~dp0%..\source\TwainDirect.Certification.Installer\bin\Release\en-US\*.msi" "twaindirect_00000000\" | find /V "File(s)"
+xcopy "%~dp0%..\source\TwainDirect.Scanner.Installer\bin\Release\en-US\*.msi" "twaindirect_00000000\" | find /V "File(s)"
 
 
 ::
