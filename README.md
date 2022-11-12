@@ -13,15 +13,15 @@ To build the project, you usually need to perform the following steps:
  - Get latest PDF Raster sources (use this for updates only)
    ```
    git submodule update --init --recursive
-   git submodule foreach git pull origin master     
-   ```   
+   git submodule foreach git pull origin master
+   ```
  - Build PDF Raster solution (/source/pdfraster/pdfraster.sln)
-  
+
  - [optional] [Download nuget](https://dist.nuget.org/index.html) (if you don't have it already)
- - Install [Wix](http://wixtoolset.org/) to add installer project types in Visual Studio
- - Install [BouncyCastle](http://https://www.bouncycastle.org//) to add support for Self-Certification
+ - Install [Wix](https://wixtoolset.org/) to add installer project types in Visual Studio
+ - Install [BouncyCastle](https://www.bouncycastle.org/) to add support for Self-Certification
  - Restore packages by running ```nuget.exe restore TwainDirect.sln```
- 
+
  - Build PDF/raster solution (/source/pdfraster/pdfraster.sln)
 
  - Build TWAIN Direct solution (/source/TwainDirect.sln)
